@@ -5,7 +5,7 @@
             <div id="map" class='h-full bg-darken10 viewport-twothirds viewport-full-ml absolute top left right bottom'></div>
         </div>
 
-        <template v-if='station'>
+        <template v-if='station.id'>
             <div class='viewport-half relative scroll-hidden'>
                 HELLO
             </div>
@@ -22,7 +22,14 @@ export default {
     data: function() {
         return {
             auth: false,
-            station: false,
+            station: {
+                id: false,
+                name: '',
+                legend: {
+                    windspeed: [],
+                    winddir: []
+                }
+            },
             stations: {
                 type: 'FeatureCollection',
                 features: []
@@ -42,8 +49,8 @@ export default {
     computed: {
         viewport: function() {
             return {
-                'viewport-half': !!this.station,
-                'viewport-full': !this.station
+                'viewport-half': !!this.station.id,
+                'viewport-full': !this.station.id
             };
         }
     },
@@ -87,10 +94,14 @@ export default {
 
             if (!feats.length) return;
 
-            this.station = feats[0].id;
+            this.station.id = feats[0].id;
         });
     },
-    watch: { },
+    watch: {
+        'station.id': function() {
+            return this.fetch_station(this.station.id);
+        }
+    },
     methods: {
         fetch_stations: function() {
             fetch(`${window.location.protocol}//${window.location.host}/api/stations`, {
@@ -118,6 +129,20 @@ export default {
                         }
                     })
                 }
+            });
+        },
+        fetch_station: function(station_id) {
+            if (!station_id) return;
+
+            fetch(`${window.location.protocol}//${window.location.host}/api/station/${station_id}`, {
+                method: 'GET',
+                credentials: 'same-origin'
+            }).then((response) => {
+                return response.json();
+            }).then((station) => {
+                this.station.name = station.name;
+                this.station.legend.windspeed = station.windspeedlegend;
+                this.station.legend.winddir = station.winddirlegend;
             });
         }
     }

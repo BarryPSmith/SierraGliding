@@ -146,6 +146,9 @@ function main(db, cb) {
         });
     });
 
+    /**
+     * Create a new station
+     */
     router.post('/station', (req, res) => {
         if (!req.body) {
             return res.status(400).json({
@@ -184,6 +187,43 @@ function main(db, cb) {
             if (err) return error(err, res);
 
             res.status(200).json(true);
+        });
+    });
+
+    /**
+     * Get all information about a single station
+     */
+    router.get('/station/:id', (req, res) => {
+        db.all(`
+            SELECT
+                ID AS id,
+                Name AS name,
+                Lat AS lat,
+                Lon AS lon,
+                Wind_Speed_Legend AS windspeedlegend,
+                Wind_Dir_Legend AS winddirlegend
+            FROM
+                stations
+            WHERE
+                ID = $id
+        `, {
+            $id: req.params.id
+        }, (err, station) => {
+            if (err) return error(err, res);
+
+            if (!station.length) {
+                return res.status(404).json({
+                    status: 404,
+                    error: 'No station by that ID found'
+                });
+            }
+
+            station = station[0];
+
+            station.windspeedlegend = JSON.parse(station.windspeedlegend);
+            station.winddirlegend = JSON.parse(station.winddirlegend);
+
+            res.json(station);
         });
     });
 

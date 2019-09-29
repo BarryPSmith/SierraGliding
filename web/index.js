@@ -16,8 +16,9 @@ const router = new express.Router();
 app.disable('x-powered-by');
 
 app.use(express.static(path.resolve(__dirname, 'site/dist')));
-app.use('/api/', router);
+app.use(express.json());
 
+app.use('/api/', router);
 
 if (require.main === module) {
     if (!args.db || args.help) {
@@ -97,7 +98,10 @@ function database(dbpath, cb) {
  */
 function error(err, res) {
     console.error(err);
-    res.sendStatus(500);
+    res.status(500).json({
+        status: 500,
+        error: 'Internal Server Error'
+    });
 }
 
 /**
@@ -133,7 +137,42 @@ function main(db, cb) {
     });
 
     router.post('/api/station', (req, res) => {
+        if (!req.body) {
+            return res.status(400).json({
+                status: 400,
+                error: 'request body required'
+            });
+        }
 
+        for (const key of ['id', 'name', 'lon', 'lat']) {
+            if (!req.body.name) {
+                return res.status(400).json({
+                    status: 400,
+                    error: 'Name key required'
+                });
+            }
+        }
+
+        db.run(`
+            INSERT INTO Stations (
+                id,
+                name,
+                lat,
+                lon
+            ) VALUES (
+                $id,
+                $name,
+                $lat,
+                $lon
+            )
+        `, {
+            $id: req.body.id,
+            $name: req.body.name,
+            $lat: req.body.lat,
+            $lon: req.bod.lon
+        });
+
+        req.status(200).json(true);
     });
 
     app.listen(args.port ? parseInt(args.port) : 4000, (err) => {

@@ -31,13 +31,14 @@ if (require.main === module) {
     });
 } else {
     module.exports = {
-        main: main
+        main: main,
+        database: database,
+        help: help
     }
 }
 
 /**
  * Print server CLI help documentation to STDOUT
- *
  */
 function help() {
     console.log('');
@@ -89,11 +90,23 @@ function database(dbpath, cb) {
 }
 
 /**
+ * Standard error logging and internal error response
+ *
+ * @param {Error} err Error to log and respond to
+ * @param {Object} res express result object
+ */
+function error(err, res) {
+    console.error(err);
+    res.sendStatus(500);
+}
+
+/**
  * Start the main Sierra Gliding webserver
  *
  * @param {Object} db Initialized Sqlite3 Database
+ * @param {Function} cb Callback
  */
-function main(db) {
+function main(db, cb) {
     router.use((req, res, next) => {
         console.error(`[${req.method}] /api${req.url}`);
         return next();
@@ -103,8 +116,20 @@ function main(db) {
      * Returns basic metadata about all stations
      * managed in the database
      */
-    router.get('/api/stations', (req, res) => {
+    router.get('/stations', (req, res) => {
+        db.all(`
+            SELECT
+                ID,
+                Name,
+                Lon,
+                Lat
+            FROM
+                Stations;
+        `, [], (err, stations) => {
+            if (err) return error(err, res);
 
+            res.json(stations);
+        });
     });
 
     router.post('/api/station', (req, res) => {
@@ -115,5 +140,7 @@ function main(db) {
         if (err) throw err;
 
         console.error('Server listening http://localhost:4000');
+
+        if (cb) return cb();
     });
 }

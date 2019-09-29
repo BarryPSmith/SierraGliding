@@ -1,8 +1,15 @@
 <template>
+    <div class='viewport-full'>
+        <div v-bind:class='viewport' class='relative scroll-hidden'>
+            <!-- Map -->
+            <div id="map" class='h-full bg-darken10 viewport-twothirds viewport-full-ml absolute top left right bottom'></div>
+        </div>
 
-    <div class='viewport-full relative scroll-hidden'>
-        <!-- Map -->
-        <div id="map" class='h-full bg-darken10 viewport-twothirds viewport-full-ml absolute top left right bottom'></div>
+        <template v-if='station'>
+            <div class='viewport-half relative scroll-hidden'>
+                HELLO
+            </div>
+        </template>
     </div>
 </template>
 
@@ -15,6 +22,7 @@ export default {
     data: function() {
         return {
             auth: false,
+            station: false,
             stations: {
                 type: 'FeatureCollection',
                 features: []
@@ -24,16 +32,21 @@ export default {
                 body: ''
             },
             credentials: {
-                map: 'pk.eyJ1IjoiaW5nYWxscyIsImEiOiJjam42YjhlMG4wNTdqM2ttbDg4dmh3YThmIn0.uNAoXsEXts4ljqf2rKWLQg',
-                authed: false,
-                username: '',
-                uid: false
+                map: 'pk.eyJ1IjoiaW5nYWxscyIsImEiOiJjam42YjhlMG4wNTdqM2ttbDg4dmh3YThmIn0.uNAoXsEXts4ljqf2rKWLQg'
             },
             map: false,
             modal: false
         }
     },
     components: { },
+    computed: {
+        viewport: function() {
+            return {
+                'viewport-half': !!this.station,
+                'viewport-full': !this.station
+            };
+        }
+    },
     mounted: function(e) {
         mapboxgl.accessToken = this.credentials.map;
 
@@ -63,6 +76,18 @@ export default {
                     'circle-radius': 10
                 }
             });
+        });
+
+        this.map.on('click', (e) => {
+            // set bbox as 5px reactangle area around clicked point
+            const bbox = [[e.point.x - 5, e.point.y - 5], [e.point.x + 5, e.point.y + 5]];
+            const feats = this.map.queryRenderedFeatures(bbox, {
+                layers: ['stations']
+            });
+
+            if (!feats.length) return;
+
+            this.station = feats[0].id;
         });
     },
     watch: { },

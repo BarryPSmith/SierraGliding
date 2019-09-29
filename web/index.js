@@ -78,22 +78,23 @@ function database(dbpath, drop, cb) {
 
         db.run(`
             CREATE TABLE IF NOT EXISTS stations (
-                ID                  INT,
-                Name                TEXT,
-                Lon                 FLOAT,
-                Lat                 FLOAT,
-                Wind_Speed_Legend   TEXT,
-                Wind_Dir_Legend     TEXT
+                ID                  INTEGER PRIMARY KEY,
+                Name                TEXT UNIQUE NOT NULL,
+                Lon                 FLOAT NOT NULL,
+                Lat                 FLOAT NOT NULL,
+                Wind_Speed_Legend   TEXT NULL,
+                Wind_Dir_Legend     TEXT NULL
             );
         `);
 
         db.run(`
             CREATE TABLE IF NOT EXISTS station_data (
-                Station_ID          INT,
-                Timestamp           INT,
-                Windspeed           FLOAT,
-                Wind_Direction      FLOAT,
-                Battery_Level       Float
+                Station_ID          INT NOT NULL,
+                Timestamp           INT NOT NULL,
+                Windspeed           FLOAT NOT NULL,
+                Wind_Direction      FLOAT NOT NULL,
+                Battery_Level       Float NULL,
+                PRIMARY KEY(Station_ID, Timestamp)
             );
         `);
 

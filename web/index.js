@@ -25,7 +25,7 @@ if (require.main === module) {
         return help();
     }
 
-    database(path.resolve(__dirname, 'data.sqlite'), (err, db) => {
+    database(path.resolve(__dirname, 'data.sqlite'), false, (err, db) => {
         if (err) throw err;
 
         return main(db);
@@ -35,7 +35,7 @@ if (require.main === module) {
         main: main,
         database: database,
         help: help
-    }
+    };
 }
 
 /**
@@ -59,12 +59,23 @@ function help() {
  * Instantiate a new Sqlite Database, creating schema is needed
  *
  * @param {String} dbpath Path to existing db or db to create
+ * @param {Boolean} drop Should a new database be created
  * @param {Function} cb Callback Function (err, db)
  */
-function database(dbpath, cb) {
+function database(dbpath, drop, cb) {
     const db = new sqlite3.Database(dbpath);
 
     db.serialize(() => {
+        if (drop) {
+            db.run(`
+                DROP TABLE IF EXISTS stations;
+            `);
+
+            db.run(`
+                DROP TABLE IF EXISTS station_data;
+            `);
+        }
+
         db.run(`
             CREATE TABLE IF NOT EXISTS stations (
                 ID                  INT,
@@ -136,7 +147,7 @@ function main(db, cb) {
         });
     });
 
-    router.post('/api/station', (req, res) => {
+    router.post('/station', (req, res) => {
         if (!req.body) {
             return res.status(400).json({
                 status: 400,
@@ -145,20 +156,20 @@ function main(db, cb) {
         }
 
         for (const key of ['id', 'name', 'lon', 'lat']) {
-            if (!req.body.name) {
+            if (!req.body[key]) {
                 return res.status(400).json({
                     status: 400,
-                    error: 'Name key required'
+                    error: `${key} key required`
                 });
             }
         }
 
         db.run(`
             INSERT INTO Stations (
-                id,
-                name,
-                lat,
-                lon
+                ID,
+                Name,
+                Lat,
+                Lon
             ) VALUES (
                 $id,
                 $name,
@@ -169,10 +180,12 @@ function main(db, cb) {
             $id: req.body.id,
             $name: req.body.name,
             $lat: req.body.lat,
-            $lon: req.bod.lon
-        });
+            $lon: req.body.lon
+        }, (err) => {
+            if (err) return error(err, res);
 
-        req.status(200).json(true);
+            res.status(200).json(true);
+        });
     });
 
     app.listen(args.port ? parseInt(args.port) : 4000, (err) => {

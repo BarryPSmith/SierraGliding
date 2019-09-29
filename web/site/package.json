@@ -1,0 +1,24 @@
+{
+  "name": "SierraGlidingFrontend",
+  "author": "Nick Ingalls <ingalls@protonmail.com>",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "build": "NODE_ENV=prodution parcel build index.html --no-source-maps",
+    "dev": "NODE_ENV=development parcel index.html"
+  },
+  "dependencies": {
+    "@mapbox/assembly": "^0.23.0",
+    "@mapbox/mapbox-gl-geocoder": "^4.4.2",
+    "mapbox-gl": "^1.4.0",
+    "vue": "^2.5.16"
+  },
+  "devDependencies": {
+    "@vue/component-compiler-utils": "3.0.0",
+    "babel-core": "^6.26.3",
+    "babel-preset-env": "^1.7.0",
+    "parcel-bundler": "^1.8.1",
+    "vue-hot-reload-api": "^2.3.0",
+    "vue-template-compiler": "^2.5.16"
+  }
+}

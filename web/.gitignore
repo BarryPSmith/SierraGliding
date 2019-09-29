@@ -1,2 +1,4 @@
 yarn-error.log
 node_modules/
+data.sqlite
+.cache/

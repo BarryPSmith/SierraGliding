@@ -1,15 +1,30 @@
 {
   "name": "sierragliding",
   "version": "1.0.0",
+  "private": true,
   "description": "Website & Backend for Sierra Gliding Data",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "yarn lint && tape ./test/*.test.js",
+    "lint": "eslint index.js test/"
   },
-  "author": "",
+  "engines": {
+    "node": ">= 10"
+  },
   "license": "ISC",
   "dependencies": {
     "express": "^4.17.1",
-    "sqlite3": "^4.1.0"
+    "minimist": "^1.2.0",
+    "request": "^2.88.0",
+    "sqlite3": "^4.1.0",
+    "tape": "^4.11.0"
+  },
+  "devDependencies": {
+    "@mapbox/eslint-config-geocoding": "^2.0.2",
+    "eslint": "^6.5.0",
+    "eslint-plugin-node": "^10.0.0"
+  },
+  "eslintConfig": {
+    "extends": "@mapbox/eslint-config-geocoding"
   }
 }

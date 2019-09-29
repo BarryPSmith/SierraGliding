@@ -6,8 +6,10 @@
         </div>
 
         <template v-if='station.id'>
+            <h1 class='txt-h2' v-text='station.name'></h1>
+
             <div class='viewport-half relative scroll-hidden'>
-                HELLO
+                <canvas id="windspeed" class='w-full' height="400"></canvas>
             </div>
         </template>
     </div>
@@ -42,6 +44,9 @@ export default {
                 map: 'pk.eyJ1IjoiaW5nYWxscyIsImEiOiJjam42YjhlMG4wNTdqM2ttbDg4dmh3YThmIn0.uNAoXsEXts4ljqf2rKWLQg'
             },
             map: false,
+            charts: {
+                windspeed: false
+            },
             modal: false
         }
     },
@@ -99,7 +104,27 @@ export default {
     },
     watch: {
         'station.id': function() {
-            return this.fetch_station(this.station.id);
+            this.fetch_station(this.station.id, () => {
+                this.charts.windspeed = new Chart(document.getElementById('windspeed'), {
+                    type: 'line',
+                    data: {
+                        labels: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'],
+                        datasets: [{
+                            label: 'Station Windspeed',
+                            data: [12, 19, 3, 5, 2, 3]
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            yAxes: [{
+                                ticks: {
+                                    beginAtZero: true
+                                }
+                            }]
+                        }
+                    }
+                });
+            });
         }
     },
     methods: {
@@ -131,7 +156,7 @@ export default {
                 }
             });
         },
-        fetch_station: function(station_id) {
+        fetch_station: function(station_id, cb) {
             if (!station_id) return;
 
             fetch(`${window.location.protocol}//${window.location.host}/api/station/${station_id}`, {
@@ -143,6 +168,8 @@ export default {
                 this.station.name = station.name;
                 this.station.legend.windspeed = station.windspeedlegend;
                 this.station.legend.winddir = station.winddirlegend;
+
+                return cb();
             });
         }
     }

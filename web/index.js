@@ -157,11 +157,20 @@ function main(db, cb) {
             });
         }
 
-        for (const key of ['id', 'name', 'lon', 'lat']) {
+        for (const key of ['id', 'name', 'lon', 'lat', 'windspeedlegend', 'winddirlegend']) {
             if (!req.body[key]) {
                 return res.status(400).json({
                     status: 400,
                     error: `${key} key required`
+                });
+            }
+        }
+
+        for (const key of ['windspeedlegend', 'winddirlegend']) {
+            if (!Array.isArray(req.body[key])) {
+                return res.status(400).json({
+                    status: 400,
+                    error: `${key} must be an Array`
                 });
             }
         }
@@ -172,17 +181,23 @@ function main(db, cb) {
                 Name,
                 Lat,
                 Lon
+                Wind_Speed_Legend,
+                Wind_Dir_Legend
             ) VALUES (
                 $id,
                 $name,
                 $lat,
-                $lon
+                $lon,
+                $windspeed,
+                $winddir
             )
         `, {
             $id: req.body.id,
             $name: req.body.name,
             $lat: req.body.lat,
-            $lon: req.body.lon
+            $lon: req.body.lon,
+            $windspeed: req.body.windspeedlegend,
+            $winddir: req.body.winddirlegend
         }, (err) => {
             if (err) return error(err, res);
 

@@ -134,10 +134,10 @@ function main(db, cb) {
     router.get('/stations', (req, res) => {
         db.all(`
             SELECT
-                ID,
-                Name,
-                Lon,
-                Lat
+                ID AS id,
+                Name AS name,
+                Lon AS lon,
+                Lat AS lat
             FROM
                 Stations;
         `, [], (err, stations) => {

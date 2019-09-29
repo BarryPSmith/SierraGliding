@@ -43,6 +43,19 @@ test('Stations', (t) => {
         });
     });
 
+    t.test('Stations - Single Stations', (q) => {
+        request('http://localhost:4000/api/stations', (err, res) => {
+            q.error(err);
+            q.deepEquals(JSON.parse(res.body), [{
+                id: 1,
+                name: 'Windy Ridge',
+                lon: -118.39004516601562,
+                lat: 37.26421702744468
+            }]);
+            q.end();
+        });
+    });
+
     t.test('Stations - End Server', (q) => {
         q.end();
         process.exit();

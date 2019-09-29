@@ -33,8 +33,8 @@ test('Stations', (t) => {
             body: JSON.stringify({
                 id: 1,
                 name: 'Windy Ridge',
-                lon: -118.39004516601562,
-                lat: 37.26421702744468
+                lon: -118.44926834106445,
+                lat: 37.335497334999936
             })
         }, (err, res) => {
             q.error(err);
@@ -49,8 +49,8 @@ test('Stations', (t) => {
             q.deepEquals(JSON.parse(res.body), [{
                 id: 1,
                 name: 'Windy Ridge',
-                lon: -118.39004516601562,
-                lat: 37.26421702744468
+                lon: -118.44926834106445,
+                lat: 37.335497334999936
             }]);
             q.end();
         });

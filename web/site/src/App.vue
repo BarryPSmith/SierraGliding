@@ -15,6 +15,10 @@ export default {
     data: function() {
         return {
             auth: false,
+            stations: {
+                type: 'FeatureCollection',
+                features: []
+            },
             error: {
                 title: '',
                 body: ''
@@ -33,6 +37,8 @@ export default {
     mounted: function(e) {
         mapboxgl.accessToken = this.credentials.map;
 
+        this.fetch_stations();
+
         this.map = new mapboxgl.Map({
             hash: true,
             container: 'map',
@@ -42,9 +48,53 @@ export default {
             zoom: 11
         }).addControl(new mapboxgl.AttributionControl({
             compact: true
-        }))
+        }));
+
+        this.map.on('style.load', () => {
+            this.map.addLayer({
+                id: 'stations',
+                type: 'circle',
+                source: {
+                    type: 'geojson',
+                    data: this.stations
+                },
+                paint: {
+                    'circle-color': '#51bbd6',
+                    'circle-radius': 10
+                }
+            });
+        });
     },
     watch: { },
-    methods: { }
+    methods: {
+        fetch_stations: function() {
+            fetch(`${window.location.protocol}//${window.location.host}/api/stations`, {
+                method: 'GET',
+                credentials: 'same-origin'
+            }).then((response) => {
+                return response.json();
+            }).then((stations) => {
+                this.stations = {
+                    type: 'FeatureCollection',
+                    features: stations.map((station) => {
+                        return {
+                            id: station.id,
+                            type: 'Feature',
+                            properties: {
+                                name: station.name
+                            },
+                            geometry: {
+                                type: 'Point',
+                                coordinates: [
+                                    station.lon,
+                                    station.lat
+                                ]
+                            }
+                        }
+                    })
+                }
+            });
+        }
+    }
 }
 </script>

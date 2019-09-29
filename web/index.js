@@ -25,7 +25,7 @@ if (require.main === module) {
         return help();
     }
 
-    database(path.resolve(__dirname, 'data.sqlite'), false, (err, db) => {
+    database(path.resolve(args.db), false, (err, db) => {
         if (err) throw err;
 
         return main(db);
@@ -139,10 +139,9 @@ function main(db, cb) {
                 Lon AS lon,
                 Lat AS lat
             FROM
-                Stations;
-        `, [], (err, stations) => {
+                stations;
+        `, (err, stations) => {
             if (err) return error(err, res);
-
             res.json(stations);
         });
     });

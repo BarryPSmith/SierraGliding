@@ -23,6 +23,7 @@ export default {
     name: 'app',
     data: function() {
         return {
+            ws: false,
             auth: false,
             station: {
                 id: false,
@@ -61,6 +62,14 @@ export default {
     },
     mounted: function(e) {
         mapboxgl.accessToken = this.credentials.map;
+
+        this.ws = new WebSocket(`ws://${window.location.hostname}:40510`);
+        this.ws.onopen = () => {
+            console.error('connected');
+        };
+        this.ws.onmessage = (ev) => {
+            console.log(ev);
+        };
 
         this.fetch_stations();
 

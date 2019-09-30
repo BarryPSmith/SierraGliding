@@ -2,6 +2,7 @@
 
 'use strict';
 
+const WebSocketServer = require('ws').Server;
 const express = require('express');
 const sqlite3 = require('sqlite3');
 const path = require('path');
@@ -262,5 +263,11 @@ function main(db, cb) {
         console.error('Server listening http://localhost:4000');
 
         if (cb) return cb();
+    });
+
+    const wss = new WebSocketServer({
+        port: 40510
+    }).on('connection', (ws) => {
+        ws.send('connected!');
     });
 }

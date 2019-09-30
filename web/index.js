@@ -138,11 +138,21 @@ function main(db, cb) {
                 ID AS id,
                 Name AS name,
                 Lon AS lon,
-                Lat AS lat
+                Lat AS lat,
+                Wind_Speed_Legend AS windspeedlegend,
+                Wind_Dir_Legend AS winddirlegend
             FROM
                 stations;
         `, (err, stations) => {
             if (err) return error(err, res);
+
+            stations = stations.map((station) => {
+                station.windspeedlegend = JSON.parse(station.windspeedlegend);
+                station.winddirlegend = JSON.parse(station.winddirlegend);
+
+                return station;
+            });
+
             res.json(stations);
         });
     });
@@ -158,7 +168,7 @@ function main(db, cb) {
             });
         }
 
-        for (const key of ['id', 'name', 'lon', 'lat', 'windspeedlegend', 'winddirlegend']) {
+        for (const key of ['id', 'name', 'lon', 'lat']) {
             if (!req.body[key]) {
                 return res.status(400).json({
                     status: 400,
@@ -168,7 +178,7 @@ function main(db, cb) {
         }
 
         for (const key of ['windspeedlegend', 'winddirlegend']) {
-            if (!Array.isArray(req.body[key])) {
+            if (req.body[key] && !Array.isArray(req.body[key])) {
                 return res.status(400).json({
                     status: 400,
                     error: `${key} must be an Array`
@@ -176,12 +186,15 @@ function main(db, cb) {
             }
         }
 
+        // TODO check lengths of windspeedlegend/dir if they exist
+        // Windspeed should be 3 values
+
         db.run(`
             INSERT INTO Stations (
                 ID,
                 Name,
                 Lat,
-                Lon
+                Lon,
                 Wind_Speed_Legend,
                 Wind_Dir_Legend
             ) VALUES (
@@ -197,8 +210,8 @@ function main(db, cb) {
             $name: req.body.name,
             $lat: req.body.lat,
             $lon: req.body.lon,
-            $windspeed: req.body.windspeedlegend,
-            $winddir: req.body.winddirlegend
+            $windspeed: JSON.stringify(req.body.windspeedlegend ? req.body.windspeedlegend : []),
+            $winddir: JSON.stringify(req.body.winddirlegend ? req.body.winddirlegend : [])
         }, (err) => {
             if (err) return error(err, res);
 

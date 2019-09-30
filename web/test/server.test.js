@@ -34,7 +34,8 @@ test('Stations', (t) => {
                 id: 1,
                 name: 'Windy Ridge',
                 lon: -118.44926834106445,
-                lat: 37.335497334999936
+                lat: 37.335497334999936,
+                windspeedlegend: [10, 20, 25]
             })
         }, (err, res) => {
             q.error(err);
@@ -50,7 +51,9 @@ test('Stations', (t) => {
                 id: 1,
                 name: 'Windy Ridge',
                 lon: -118.44926834106445,
-                lat: 37.335497334999936
+                lat: 37.335497334999936,
+                windspeedlegend: [ 10, 20, 25 ],
+                winddirlegend: []
             }]);
             q.end();
         });

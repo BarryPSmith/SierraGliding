@@ -1,12 +1,14 @@
 'use strict';
 
+const OS = require('os');
+const path = require('path');
 const test = require('tape');
 const srv = require('../index');
 const request = require('request');
 
 test('Stations', (t) => {
     t.test('Stations - Server', (q) => {
-        srv.database('/tmp/data.sqlite', true, (err, db) => {
+        srv.database(path.resolve(OS.tmpdir(), 'data.sqlite'), true, (err, db) => {
             q.error(err);
 
             srv.main(db, () => {

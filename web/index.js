@@ -2,6 +2,7 @@
 
 'use strict';
 
+const moment = require('moment');
 const WebSocketServer = require('ws').Server;
 const express = require('express');
 const sqlite3 = require('sqlite3');
@@ -254,6 +255,54 @@ function main(db, cb) {
             station.winddirlegend = JSON.parse(station.winddirlegend);
 
             res.json(station);
+        });
+    });
+
+    /**
+     * Get data from a given station for a given time period
+     */
+    router.get('/station/:id/data', (req, res) => {
+        for (const key of ['start', 'end']) {
+            if (!req.body[key]) {
+                return res.status(400).json({
+                    status: 400,
+                    error: `${key} url param required`
+                });
+            }
+
+            try {
+                moment(req.query.start);
+                moment(req.query.end);
+            } catch(err) {
+                return res.status(400).json({
+                    status: 400,
+                    error: `start/end param mustb be date`
+                });
+            }
+        }
+
+        db.all(`
+            SELECT
+                Station_ID AS id,
+                Timestamp AS timestamp,
+                Windspeed AS windspeed,
+                Wind_Direction AS wind_direction,
+                Battery_Level AS battery_level
+            FROM
+                station_data
+            WHERE
+                ID = $id
+                AND timestamp > $start
+                AND timestamp < $end
+            ORDER BY timestamp ASC
+        `, {
+            $id: req.params.id,
+            $start: moment(req.query.start).unix(),
+            $end: moment(req.query.end).unix()
+        }, (err, data) => {
+            if (err) return error(err, res);
+
+            res.json(data);
         });
     });
 

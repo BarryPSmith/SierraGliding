@@ -108,10 +108,27 @@ export default {
                 this.charts.windspeed = new Chart(document.getElementById('windspeed'), {
                     type: 'line',
                     data: {
-                        labels: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'],
                         datasets: [{
-                            label: 'Station Windspeed',
-                            data: [12, 19, 3, 5, 2, 3]
+                            label: 'test',
+                            data: [{
+                                y: 5,
+                                x: 1
+                            },{
+                                y: 10,
+                                x: 2
+                            },{
+                                y: 20,
+                                x: 3
+                            },{
+                                y: 24,
+                                x: 4
+                            },{
+                                y: 23,
+                                x: 5
+                            },{
+                                y: 12,
+                                x: 6
+                            }]
                         }]
                     },
                     options: {
@@ -120,10 +137,58 @@ export default {
                                 ticks: {
                                     beginAtZero: true
                                 }
+                            }],
+                            xAxes: [{
                             }]
+                        },
+                        annotation: {
+                            annotations: []
                         }
                     }
                 });
+
+                if (this.station.legend.windspeed && this.station.legend.windspeed.length === 3) {
+                    this.charts.windspeed.options.annotation.annotations.push({
+                        id: 'blue',
+                        type: 'box',
+                        xScaleID: 'x-axis-0',
+                        yScaleID: 'y-axis-0',
+                        yMin: 0,
+                        yMax: this.station.legend.windspeed[0],
+                        backgroundColor: 'rgba(0,0,255,0.4)',
+                        borderWidth: 1
+                    });
+                    this.charts.windspeed.options.annotation.annotations.push({
+                        id: 'green',
+                        type: 'box',
+                        xScaleID: 'x-axis-0',
+                        yScaleID: 'y-axis-0',
+                        yMin: this.station.legend.windspeed[0],
+                        yMax: this.station.legend.windspeed[1],
+                        backgroundColor: 'rgba(0,255,0,0.4)',
+                        borderWidth: 1
+                    });
+                    this.charts.windspeed.options.annotation.annotations.push({
+                        id: 'yellow',
+                        type: 'box',
+                        xScaleID: 'x-axis-0',
+                        yScaleID: 'y-axis-0',
+                        yMin: this.station.legend.windspeed[1],
+                        yMax: this.station.legend.windspeed[2],
+                        backgroundColor: 'rgba(255,255,0,0.4)',
+                        borderWidth: 1
+                    });
+                    this.charts.windspeed.options.annotation.annotations.push({
+                        id: 'red',
+                        type: 'box',
+                        xScaleID: 'x-axis-0',
+                        yScaleID: 'y-axis-0',
+                        yMin: this.station.legend.windspeed[2],
+                        yMax: 30,
+                        backgroundColor: 'rgba(255,0,0,0.4)',
+                        borderWidth: 1
+                    });
+                }
             });
         }
     },

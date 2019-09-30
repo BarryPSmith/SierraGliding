@@ -109,25 +109,29 @@ export default {
                     type: 'line',
                     data: {
                         datasets: [{
-                            label: 'test',
+                            label: 'WindSpeed',
+                            pointBackgroundColor: 'black',
+                            pointBorderColor: 'black',
+                            borderColor: 'black',
+                            fill: false,
                             data: [{
                                 y: 5,
-                                x: 1
+                                x: new Date('2019-09-30T02:38:46Z')
                             },{
                                 y: 10,
-                                x: 2
+                                x: new Date('2019-09-30T02:38:49Z')
                             },{
                                 y: 20,
-                                x: 3
+                                x: new Date('2019-09-30T02:38:52Z')
                             },{
                                 y: 24,
-                                x: 4
+                                x: new Date('2019-09-30T02:38:55Z')
                             },{
                                 y: 23,
-                                x: 5
+                                x: new Date('2019-09-30T02:38:58Z')
                             },{
                                 y: 12,
-                                x: 6
+                                x: new Date('2019-09-30T02:39:01')
                             }]
                         }]
                     },
@@ -139,6 +143,12 @@ export default {
                                 }
                             }],
                             xAxes: [{
+                                type: 'time',
+                                bounds: 'data',
+                                time: {
+                                    min: new Date('2019-09-30T02:38:46Z'),
+                                    max: new Date('2019-09-30T02:39:04Z')
+                                }
                             }]
                         },
                         annotation: {
@@ -156,7 +166,7 @@ export default {
                         yMin: 0,
                         yMax: this.station.legend.windspeed[0],
                         backgroundColor: 'rgba(0,0,255,0.4)',
-                        borderWidth: 1
+                        borderColor: 'rgba(0,0,255,0.4)',
                     });
                     this.charts.windspeed.options.annotation.annotations.push({
                         id: 'green',
@@ -166,7 +176,7 @@ export default {
                         yMin: this.station.legend.windspeed[0],
                         yMax: this.station.legend.windspeed[1],
                         backgroundColor: 'rgba(0,255,0,0.4)',
-                        borderWidth: 1
+                        borderColor: 'rgba(0,255,0,0.4)',
                     });
                     this.charts.windspeed.options.annotation.annotations.push({
                         id: 'yellow',
@@ -176,7 +186,7 @@ export default {
                         yMin: this.station.legend.windspeed[1],
                         yMax: this.station.legend.windspeed[2],
                         backgroundColor: 'rgba(255,255,0,0.4)',
-                        borderWidth: 1
+                        borderColor: 'rgba(255,255,0,0.4)',
                     });
                     this.charts.windspeed.options.annotation.annotations.push({
                         id: 'red',
@@ -186,7 +196,7 @@ export default {
                         yMin: this.station.legend.windspeed[2],
                         yMax: 30,
                         backgroundColor: 'rgba(255,0,0,0.4)',
-                        borderWidth: 1
+                        borderColor: 'rgba(255,0,0,0.4)',
                     });
                 }
             });

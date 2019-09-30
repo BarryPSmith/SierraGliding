@@ -306,6 +306,90 @@ function main(db, cb) {
         });
     });
 
+    /**
+     * Save a new data point to a a given station
+     */
+    router.post('/station/:id/data', (req, res) => {
+        if (!req.body) {
+            return res.status(400).json({
+                status: 400,
+                error: 'request body required'
+            });
+        }
+
+        for (const key of ['timestamp', 'windspeed', 'wind_direction']) {
+            if (!req.body[key]) {
+                return res.status(400).json({
+                    status: 400,
+                    error: `${key} key required`
+                });
+            }
+
+            try {
+                moment(req.body.timestamp);
+            } catch(err) {
+                return res.status(400).json({
+                    status: 400,
+                    error: 'timestamp must be a date'
+                });
+            }
+        }
+
+        db.all(`
+            INSERT INTO Station_Data (
+                Station_ID AS id,
+                Timestamp AS timestamp,
+                Windspeed AS windspeed,
+                Wind_Direction AS wind_direction,
+                Battery_Level AS battery_level
+            ) VALUES (
+                $id,
+                $timestamp,
+                $windspeed,
+                $winddir,
+                $battery,
+            )
+        `, {
+            $id: req.params.id,
+            $timestamp: moment(req.body.timestamp).unix(),
+            $windspeed: req.body.windspeed,
+            $winddir: req.body.winddir,
+            $battery: req.body.battery ? req.body.battery : null
+        }, (err, data) => {
+            if (err) return error(err, res);
+
+            res.json(data);
+        });
+    });
+
+    /**
+     * Return the latest datapoint for a given station
+     */
+    router.get('/station/:id/data/latest', (req, res) => {
+        db.all(`
+            SELECT
+                Station_ID AS id,
+                Timestamp AS timestamp,
+                Windspeed AS windspeed,
+                Wind_Direction AS wind_direction,
+                Battery_Level AS battery_level
+            FROM
+                station_data
+            WHERE
+                ID = $id
+            ORDER BY
+                timestamp DESC
+            LIMIT 1
+
+        `, {
+            $id: req.params.id,
+        }, (err, data) => {
+            if (err) return error(err, res);
+
+            res.json(data);
+        });
+    });
+
     app.listen(args.port ? parseInt(args.port) : 4000, (err) => {
         if (err) throw err;
 

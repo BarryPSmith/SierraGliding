@@ -68,8 +68,8 @@ namespace dotNet_Receiver
                 using (var tx = conn.BeginTransaction())
                 {
                     using (var cmd = new SQLiteCommand(
-                        "INSERT INTO Data " +
-                        "(ID, DateTime, WindSpeed, WindDirection, Battery) " +
+                        "INSERT INTO station_data " +
+                        "(Station_ID, Timestamp, Windspeed, Wind_Direction, Battery_Level) " +
                         "VALUES " +
                         "(:id,:dateTime,:windSpeed,:windDirection,:battery)",
                         conn))

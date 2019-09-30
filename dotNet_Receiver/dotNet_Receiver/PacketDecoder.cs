@@ -102,6 +102,13 @@ namespace dotNet_Receiver
                         ret.GetDataString = 
                             data => (data as IList<SingleWeatherData>)?.ToCsv();
                         break;
+                    case 'D':
+                        ushort[] dirData = new ushort[(bytes.Length - 9) / 2];
+                        Buffer.BlockCopy(bytes, 10, dirData, 0, dirData.Length * 2);
+                        ret.packetData = dirData;
+                        ret.GetDataString =
+                            data => (data as ushort[])?.ToCsv();
+                        break;
                     case 'C':
                     case 'K':
                     case 'R':
@@ -112,7 +119,7 @@ namespace dotNet_Receiver
         }
 
         private static string ToCsv<T>(this IEnumerable<T> source)
-            => source?.Aggregate("", (run, cur) => (string.IsNullOrEmpty(run) ? "" : ", ") + cur);
+            => source?.Aggregate("", (run, cur) => run + (string.IsNullOrEmpty(run) ? "" : ", ") + cur);
 
         private static double GetWindDirection(byte wdByte)
             => byte.TryParse(Encoding.ASCII.GetString(new[] { wdByte }, 0, 1), NumberStyles.HexNumber, CultureInfo.InvariantCulture.NumberFormat, out var wd) ? 

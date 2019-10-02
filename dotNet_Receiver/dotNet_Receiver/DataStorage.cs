@@ -52,7 +52,7 @@ namespace dotNet_Receiver
 
         }
 
-        Dictionary<PacketIdentifier, DateTime> receivedPacketTimes = new Dictionary<PacketIdentifier, DateTime>();
+        Dictionary<PacketIdentifier, DateTimeOffset> receivedPacketTimes = new Dictionary<PacketIdentifier, DateTimeOffset>();
 
         public void StoreWeatherData(Packet packet)
         {
@@ -60,7 +60,8 @@ namespace dotNet_Receiver
             if (packet.type != 'W')
                 throw new InvalidOperationException("Can only store W packets");
 
-            DateTime now = DateTime.Now;
+            var thisTime = new DateTimeOffset(DateTime.Now);
+            var now = thisTime.ToUniversalTime();
 
             using (var conn = new SQLiteConnection(_connectionString))
             {
@@ -91,7 +92,7 @@ namespace dotNet_Receiver
                             receivedPacketTimes[identifier] = now;
 
                             cmd.Parameters.Add(new SQLiteParameter("id", subPacket.sendingStation));
-                            cmd.Parameters.Add(new SQLiteParameter("dateTime", now)); //TODO: Fancy logic if we get multiple packets from the same station in a single relay.
+                            cmd.Parameters.Add(new SQLiteParameter("dateTime", now.ToUnixTimeSeconds())); //TODO: Fancy logic if we get multiple packets from the same station in a single relay.
                             cmd.Parameters.Add(new SQLiteParameter("windSpeed", subPacket.windSpeed));
                             cmd.Parameters.Add(new SQLiteParameter("windDirection", subPacket.windDirection));
                             cmd.Parameters.Add(new SQLiteParameter("battery", subPacket.batteryLevelH));

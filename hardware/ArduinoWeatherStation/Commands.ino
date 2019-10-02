@@ -1,8 +1,5 @@
 void handleCommandMessage(byte* message, size_t readByteCount)
 {
-  //Delay for testing.
-  //TODO: Replace delay with a queue of acknowledgements
-  delay(3000);
   byte uniqueId = message[2];
   int i;
   //Check if we've already handled this command:
@@ -18,6 +15,10 @@ void handleCommandMessage(byte* message, size_t readByteCount)
   //Remember that we've handled this command:
   memmove(recentlyHandledCommands + 1, recentlyHandledCommands, i);
   recentlyHandledCommands[0] = uniqueId;
+
+  //Delay for testing.
+  //TODO: Replace delay with a queue of acknowledgements
+  delay(3000);
 
   byte command = message[3];
   bool handled = false;

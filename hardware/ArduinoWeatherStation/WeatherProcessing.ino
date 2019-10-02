@@ -45,7 +45,6 @@ size_t createWeatherData(byte* msgBuffer)
 {
   //Message format is W(StationID)(UniqueID)(DirHex)(Spd * 2)(Voltage)
   int batteryVoltage = analogRead(voltagePin);
-  updateSendInterval(batteryVoltage);
   int dirVoltage = analogRead(windDirPin);
   noInterrupts();
   int localCounts = windCounts;
@@ -53,6 +52,9 @@ size_t createWeatherData(byte* msgBuffer)
   interrupts();
   float windSpeed = (2400.0 * localCounts) / weatherInterval;
   byte windDirection = GetWindDirection(dirVoltage);
+
+  //Update the send interval only after we calculate windSpeed, because windSpeed is dependent on weatherInterval
+  updateSendInterval(batteryVoltage);
 
   if (windDirection < 10)
     msgBuffer[0] = (byte)('0' + windDirection);
@@ -70,9 +72,10 @@ size_t createWeatherData(byte* msgBuffer)
 
 void updateSendInterval(int batteryVoltage)
 {
-  if (batteryVoltage < batteryThreshold)
+  //+/- 2 is to give some hysteresis to the send interval.
+  if (batteryVoltage < batteryThreshold - 2)
     weatherInterval = longInterval;
-  else
+  else if (batteryVoltage > batteryThreshold + 2)
     weatherInterval = shortInterval;
 }
 

@@ -29,9 +29,12 @@ const byte TFESC = 0xDD;
 unsigned long shortInterval = 4000; //Send interval when battery voltage is high
 unsigned long longInterval = 30000; //Send interval when battery voltage is low
 int batteryThreshold = 804; //Battery voltage to switch between short and long interval. 784 = 11.5V: Resulted in station running out of power for one hour. 804 = 11.8V
-unsigned long weatherInterval = 6000; //Current weather interval.
 bool demandRelay = false;
 
+unsigned long weatherInterval = 6000; //Current weather interval.
+unsigned long overrideStartMillis = 0;
+unsigned long overrideDuration = 0;
+bool overrideShort = false;
 
 
 //Recent Memory

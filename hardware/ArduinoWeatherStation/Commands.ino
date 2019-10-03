@@ -45,6 +45,9 @@ void handleCommandMessage(byte* message, size_t readByteCount)
       handled = handleDebugCommand(message, readByteCount);
     break;
 
+    case 'O': //Override Interval
+      handled = handleOverrideCommand(message, readByteCount);
+
     #if DEBUG_Speed
     case 'S':
       handled = true;
@@ -84,6 +87,7 @@ void handleCommandMessage(byte* message, size_t readByteCount)
   }
 }
 
+//Relay command: C(ID)(UID)R(dataLength)((+|-)(C|W)(RelayID))*
 bool handleRelayCommand(byte* message, byte readByteCount)
 {
   byte dataLength = message[4];
@@ -139,6 +143,7 @@ bool handleRelayCommand(byte* message, byte readByteCount)
   return true;
 }
 
+//Interval command: C(ID)(UID)I(length)(new short interval)(new long interval)
 bool handleIntervalCommand(byte* message, byte readByteCount)
 {
   byte dataLength = message[4];
@@ -166,15 +171,60 @@ bool handleIntervalCommand(byte* message, byte readByteCount)
   return true;
 }
 
+//Override command: C(ID)(UID)O(L|S)(Duration)(S|M|H)
+bool handleOverrideCommand(byte* message, byte readByteCount)
+{
+  if (readByteCount < 6)
+    return false;
+  switch (message[4])
+  {
+    case 'L':
+      overrideShort = false;
+      break;
+    case 'S':
+      overrideShort = true;
+      break;
+    default:
+      return false;
+  }
+  unsigned long multiplier;
+  if (readByteCount >= 7)
+    {
+      switch (message[7])
+      {
+        case 'H':
+          multiplier = 3600000;
+        case 'M':
+          multiplier = 60000;
+        case 'S':
+        default:
+          multiplier = 1000;
+      }
+    }
+  else
+    multiplier = 1000;
+    
+  overrideDuration = *(int*)(message + 5) * multiplier;
+  overrideStartMillis = millis();
+  acknowledgeMessage(message);
+  return true;
+}
+
+//Threshold command: C(ID)(UID)B(new threshold)
 bool handleThresholdCommand(byte* message, byte readByteCount)
 {
   if (readByteCount < 6)
     return false;
   batteryThreshold = *(int*)(message + 4);
+  acknowledgeMessage(message);
+  return true;
 }
 
+//Query command: C(ID)(UID)Q
 bool handleQueryCommand(byte* message, byte readByteCount)
 {
+  //Response is currently at 204 bytes. Beware buffer overrun.
+  
   const int bufferSize = 300;
   byte uniqueId = message[2];
   byte messageBuffer[bufferSize];
@@ -187,20 +237,39 @@ bool handleQueryCommand(byte* message, byte readByteCount)
   size_t curLoc = 3;
 
   //Version (4 bytes)
+  responseBuffer[curLoc++] = 'V';
   memcpy(responseBuffer + curLoc, ver, 3);
   curLoc += 3;
   responseBuffer[curLoc++] = 0;
 
-  //Setup Variables (7 bytes)
+  //Setup Variables (31 bytes)
   responseBuffer[curLoc++] = demandRelay;
+  responseBuffer[curLoc++] = 'I';
   memcpy(responseBuffer + curLoc, &weatherInterval, sizeof(unsigned long));
-  curLoc += 4;
+  curLoc += sizeof(unsigned long);
+  memcpy(responseBuffer + curLoc, &shortInterval, sizeof(unsigned long));
+  curLoc += sizeof(unsigned long);
+  memcpy(responseBuffer + curLoc, &longInterval, sizeof(unsigned long));
+  curLoc += sizeof(unsigned long);
+  memcpy(responseBuffer + curLoc, &batteryThreshold, sizeof(int));
+  curLoc += sizeof(int);
+  responseBuffer[curLoc++] = 'M';
   unsigned long curMillis = millis();
   memcpy(responseBuffer + curLoc, &curMillis, sizeof(unsigned long));
-  curLoc += 4;
+  curLoc += sizeof(unsigned long);
+  memcpy(responseBuffer + curLoc, &overrideDuration, sizeof(unsigned long));
+  curLoc += sizeof(unsigned long);
+  if (overrideDuration)
+  {
+    memcpy(responseBuffer + curLoc, &overrideStartMillis, sizeof(unsigned long));
+    curLoc += sizeof(unsigned long);
+    memcpy(responseBuffer + curLoc, &overrideShort, sizeof(bool));
+    curLoc += sizeof(bool);
+  }
   responseBuffer[curLoc++] = 0;
 
-  //Stations to relay, max 41 bytes:
+  //Stations to relay, max 42 bytes:
+  responseBuffer[curLoc++] = 'R';
   for (int i = 0; i < recentArraySize; i++)
   {
     if (!stationsToRelayCommands[i])
@@ -216,7 +285,8 @@ bool handleQueryCommand(byte* message, byte readByteCount)
   }
   responseBuffer[curLoc++] = 0;
 
-  //Recently seen stations, max 101 bytes
+  //Recently seen stations, max 102 bytes
+  responseBuffer[curLoc++] = 'S';
   for (int i = 0; i < recentArraySize; i++)
   {
     if (!recentlySeenStations[i][0])
@@ -228,7 +298,8 @@ bool handleQueryCommand(byte* message, byte readByteCount)
   }
   responseBuffer[curLoc++] = 0;
 
-  //recently handled commands, max 21 bytes
+  //recently handled commands, max 22 bytes
+  responseBuffer[curLoc++] = 'C';
   for (int i = 0; i < recentArraySize; i++)
   {
     if (!recentlyHandledCommands[i])
@@ -240,6 +311,7 @@ bool handleQueryCommand(byte* message, byte readByteCount)
   return true;
 }
 
+//Debug command: C(ID)(UID)D
 bool handleDebugCommand(byte* message, byte readByteCount)
 {
   const int bufferSize = 300;

@@ -73,10 +73,20 @@ size_t createWeatherData(byte* msgBuffer)
 void updateSendInterval(int batteryVoltage)
 {
   //+/- 2 is to give some hysteresis to the send interval.
-  if (batteryVoltage < batteryThreshold - 2)
+  bool overrideActive = millis() - overrideStartMillis < overrideDuration;
+  if ((!overrideActive && batteryVoltage < batteryThreshold - 2) ||
+      (overrideActive && !overrideShort))
+  {
     weatherInterval = longInterval;
-  else if (batteryVoltage > batteryThreshold + 2)
+  }
+  else if ((!overrideActive && batteryVoltage > batteryThreshold + 2) ||
+    (overrideShort && overrideActive))
+  {
     weatherInterval = shortInterval;
+  }
+  //Ensure that once we get out of override, we won't accidently go back into it due to millis wraparound.
+  if (!overrideActive)
+    overrideDuration = 0;
 }
 
 #if DEBUG_Speed

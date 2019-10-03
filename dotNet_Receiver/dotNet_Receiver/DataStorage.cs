@@ -7,28 +7,10 @@ using System.Threading.Tasks;
 
 namespace dotNet_Receiver
 {
-    class DataStorage
+    //TODO: Rename this something more useful
+    class DataStorageBase
     {
-        string _fn;
-        string _connectionString;
-
-        /// <summary>
-        /// If two packets with the same sending station and identifier are received within this period, the second will be ignored.
-        /// </summary>
-        public TimeSpan InvalidationTime { get; set; } = TimeSpan.FromMinutes(2);
-
-        public DataStorage(string fn)
-        {
-            _fn = fn;
-            SQLiteConnectionStringBuilder csb = new SQLiteConnectionStringBuilder();
-            csb.DataSource = fn;
-            csb.ForeignKeys = true;
-            csb.FailIfMissing = true;
-            csb.BusyTimeout = 10000;
-            _connectionString = csb.ToString();
-        }
-
-        struct PacketIdentifier
+        protected struct PacketIdentifier
         {
             public char packetType;
             public byte stationID;
@@ -52,7 +34,34 @@ namespace dotNet_Receiver
 
         }
 
-        Dictionary<PacketIdentifier, DateTimeOffset> receivedPacketTimes = new Dictionary<PacketIdentifier, DateTimeOffset>();
+        /// <summary>
+        /// If two packets with the same sending station and identifier are received within this period, the second will be ignored.
+        /// </summary>
+        public TimeSpan InvalidationTime { get; set; } = TimeSpan.FromMinutes(2);
+
+        protected Dictionary<PacketIdentifier, DateTimeOffset> receivedPacketTimes = new Dictionary<PacketIdentifier, DateTimeOffset>();
+
+        protected bool IsPacketDoubleReceived(PacketIdentifier identifier, DateTimeOffset now)
+            => receivedPacketTimes.TryGetValue(identifier, out var lastReceivedTime) &&
+                lastReceivedTime + InvalidationTime > now;
+    }
+
+    class DataStorage : DataStorageBase
+    {
+        string _fn;
+        string _connectionString;
+
+
+        public DataStorage(string fn)
+        {
+            _fn = fn;
+            SQLiteConnectionStringBuilder csb = new SQLiteConnectionStringBuilder();
+            csb.DataSource = fn;
+            csb.ForeignKeys = true;
+            csb.FailIfMissing = true;
+            csb.BusyTimeout = 10000;
+            _connectionString = csb.ToString();
+        }
 
         public void StoreWeatherData(Packet packet)
         {
@@ -86,8 +95,7 @@ namespace dotNet_Receiver
                             };
                             //Ignore packets we've seen recently. Perhaps they've been double relayed.
                             //TODO: Log this.
-                            if (receivedPacketTimes.TryGetValue(identifier, out var lastReceivedTime) &&
-                                lastReceivedTime + InvalidationTime > now)
+                            if (IsPacketDoubleReceived(identifier, now))
                                 continue;
                             receivedPacketTimes[identifier] = now;
 

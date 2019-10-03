@@ -13,9 +13,11 @@ namespace dotNet_Receiver
         {
             string fn = @"C:\temp\data3.sqlite";
             string log = @"c:\temp\stationLog.csv";
+            string url = "http://localhost:4000";
 
             var communicator = new KissCommunication();
             DataStorage storage = new DataStorage(fn);
+            var serverPoster = new DataPosting(url);
             
             communicator.PacketReceived =
                 data =>
@@ -28,6 +30,7 @@ namespace dotNet_Receiver
                         {
                             case 'W': //Weather data
                                 storage.StoreWeatherData(packet);
+                                serverPoster.SendWeatherDataAsync(packet);
                                 break;
                             case 'D': //Wind direciton debug data
                                 File.AppendAllLines(log, new[] { packet.GetDataString(packet.packetData) });

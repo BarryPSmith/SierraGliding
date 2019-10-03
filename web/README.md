@@ -34,6 +34,12 @@ run:
 node index.js
 ```
 
+## Resources
+
+### Frontend
+
+The frontend uses a CSS library called [Assembly](https://labs.mapbox.com/assembly/)
+
 ## API
 
 ### `GET`: `api/stations`

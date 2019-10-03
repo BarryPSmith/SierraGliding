@@ -69,6 +69,8 @@ function database(dbpath, drop, cb) {
 
     db.serialize(() => {
         db.run("PRAGMA foreign_keys = ON")
+        db.run("PRAGMA journal_mode = WAL")
+        db.run("PRAGMA busy_timeout = 1000");
 
         if (drop) {
             db.run(`

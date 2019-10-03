@@ -35,3 +35,15 @@ node index.js
 ```
 
 ## API
+
+### `GET`: `api/stations`
+
+### `POST`: `api/station`
+
+### `GET`: `api/station/:id`
+
+### `GET`: `api/station/:id/data`
+
+### `POST`: `api/station/:id/data`
+
+### `GET`: `api/station/:id/data/latest`

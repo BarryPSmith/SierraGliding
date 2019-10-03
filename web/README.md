@@ -38,9 +38,58 @@ node index.js
 
 ### `GET`: `api/stations`
 
+Get a list of all stations, along with applicable
+wind speed/direction flying ranges
+
+*Example Response*
+
+```JSON
+[{
+    "id": 1,
+    "name": "Windy Ridge",
+    "lon": -118.44926834106445,
+    "lat": 37.335497334999936,
+    "windspeedlegend": [10,20,25],
+    "winddirlegend": []
+}]
+```
+
 ### `POST`: `api/station`
 
+Create a new weather station.
+
+Note: Content-Type header must be `application/json`.
+
+*Example Body*
+
+```JSON
+{
+    "id": 1,
+    "name": "Windy Ridge",
+    "lon": -118.44926834106445,
+    "lat": 37.335497334999936,
+    "windspeedlegend": [10,20,25],
+    "winddirlegend": []
+}
+```
+
 ### `GET`: `api/station/:id`
+
+Get all information about about a single
+given station
+
+*Example Response*
+
+```JSON
+{
+    "id": 1,
+    "name": "Windy Ridge",
+    "lon": -118.44926834106445,
+    "lat": 37.335497334999936,
+    "windspeedlegend": [10,20,25],
+    "winddirlegend": []
+}
+```
 
 ### `GET`: `api/station/:id/data`
 

@@ -5,6 +5,7 @@ const path = require('path');
 const test = require('tape');
 const srv = require('../index');
 const request = require('request');
+const moment = require('moment');
 
 test('Stations', (t) => {
     t.test('Stations - Server', (q) => {
@@ -56,6 +57,16 @@ test('Stations', (t) => {
                 lat: 37.335497334999936,
                 windspeedlegend: [ 10, 20, 25 ],
                 winddirlegend: []
+            }]);
+            q.end();
+        });
+    });
+
+    t.test('Stations - Add Data', (q) => {
+        request.post('http://localhost:4000/api/station/1/data', (err, res) => {
+            q.error(err);
+            q.deepEquals(JSON.parse(res.body), [{
+                timestamp: 
             }]);
             q.end();
         });

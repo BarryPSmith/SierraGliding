@@ -68,6 +68,8 @@ function database(dbpath, drop, cb) {
     const db = new sqlite3.Database(dbpath);
 
     db.serialize(() => {
+        db.run("PRAGMA foreign_keys = ON")
+
         if (drop) {
             db.run(`
                 DROP TABLE IF EXISTS stations;

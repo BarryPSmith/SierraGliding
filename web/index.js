@@ -319,7 +319,7 @@ function main(db, cb) {
             });
         }
 
-        for (const key of ['timestamp', 'windspeed', 'wind_direction']) {
+        for (const key of ['timestamp', 'wind_speed', 'wind_direction']) {
             if (!req.body[key]) {
                 return res.status(400).json({
                     status: 400,
@@ -339,23 +339,23 @@ function main(db, cb) {
 
         db.all(`
             INSERT INTO Station_Data (
-                Station_ID AS id,
-                Timestamp AS timestamp,
-                Windspeed AS windspeed,
-                Wind_Direction AS wind_direction,
-                Battery_Level AS battery_level
+                Station_ID,
+                Timestamp,
+                Windspeed,
+                Wind_Direction,
+                Battery_Level
             ) VALUES (
                 $id,
                 $timestamp,
                 $windspeed,
                 $winddir,
-                $battery,
+                $battery
             )
         `, {
             $id: req.params.id,
             $timestamp: moment(req.body.timestamp).unix(),
-            $windspeed: req.body.windspeed,
-            $winddir: req.body.winddir,
+            $windspeed: req.body.wind_speed,
+            $winddir: req.body.wind_direction,
             $battery: req.body.battery ? req.body.battery : null
         }, (err, data) => {
             if (err) return error(err, res);

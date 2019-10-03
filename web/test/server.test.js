@@ -63,11 +63,20 @@ test('Stations', (t) => {
     });
 
     t.test('Stations - Add Data', (q) => {
-        request.post('http://localhost:4000/api/station/1/data', (err, res) => {
+        request.post({
+            url: 'http://localhost:4000/api/station/1/data',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                timestamp: moment().unix(),
+                wind_speed: 20,
+                wind_direction: 100,
+                battery: 89
+            })
+        }, (err, res) => {
             q.error(err);
-            q.deepEquals(JSON.parse(res.body), [{
-                timestamp: 
-            }]);
             q.end();
         });
     });

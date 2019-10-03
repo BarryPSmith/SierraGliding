@@ -2,11 +2,22 @@
     <div class='viewport-full'>
         <div v-bind:class='viewport' class='relative scroll-hidden'>
             <!-- Map -->
-            <div id="map" class='h-full bg-darken10 viewport-twothirds viewport-full-ml absolute top left right bottom'></div>
+            <div id="map" class='h-full w-full bg-darken10'></div>
         </div>
 
         <template v-if='station.id'>
-            <h1 class='txt-h2' v-text='station.name'></h1>
+            <div class='py12 px12 clearfix'>
+                <h1 class='txt-h2 fl' v-text='station.name'></h1>
+
+                <button @click='station.id = false' class='btn btn--stroke--gray round fr'><svg class='icon'><use href='#icon-close'/></svg></button>
+
+                <div class="flex-parent-inline fr px24">
+                    <button class="btn btn--pill btn--pill-hl">1 Hour</button>
+                    <button class="btn btn--pill btn--pill-hc">4 Hours</button>
+                    <button class="btn btn--pill btn--pill-hc">12 Hours</button>
+                    <button class="btn btn--pill btn--pill-hr">24 Hours</button>
+                </div>
+            </div>
 
             <div class='viewport-half relative scroll-hidden'>
                 <canvas id="windspeed" class='w-full' height="400"></canvas>
@@ -28,6 +39,8 @@ export default {
             station: {
                 id: false,
                 name: '',
+                lon: 0,
+                lat: 0,
                 legend: {
                     windspeed: [],
                     winddir: []
@@ -114,6 +127,8 @@ export default {
     watch: {
         'station.id': function() {
             this.fetch_station(this.station.id, () => {
+                this.map.setCenter([this.station.lon, this.station.lat]);
+
                 this.charts.windspeed = new Chart(document.getElementById('windspeed'), {
                     type: 'line',
                     data: {
@@ -252,6 +267,8 @@ export default {
                 this.station.name = station.name;
                 this.station.legend.windspeed = station.windspeedlegend;
                 this.station.legend.winddir = station.winddirlegend;
+                this.station.lon = station.lon;
+                this.station.lat = station.lat;
 
                 return cb();
             });

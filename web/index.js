@@ -133,6 +133,10 @@ function main(db, cb) {
         console.error(`[${req.method}] /api${req.url}`);
         return next();
     });
+    
+    //A list of all connected sockets, so we can send messages to them when we get new data.
+    //Does this belong here? I don't know.
+    let connectedSockets = [];
 
     /**
      * Returns basic metadata about all stations
@@ -267,7 +271,7 @@ function main(db, cb) {
      */
     router.get('/station/:id/data', (req, res) => {
         for (const key of ['start', 'end']) {
-            if (!req.body[key]) {
+            if (!req.query[key]) {
                 return res.status(400).json({
                     status: 400,
                     error: `${key} url param required`
@@ -363,6 +367,11 @@ function main(db, cb) {
             if (err) return error(err, res);
 
             res.json(data);
+            
+            //Notify listeners that a particular station has updated:
+            for (var idx in connectedSockets) {
+                connectedSockets[idx].send(req.params.id);
+            }
         });
     });
 
@@ -406,5 +415,6 @@ function main(db, cb) {
         port: 40510
     }).on('connection', (ws) => {
         ws.send('connected!');
+        connectedSockets.push(ws);
     });
 }

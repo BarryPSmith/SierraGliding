@@ -6,21 +6,25 @@
         </div>
 
         <template v-if='station.id'>
-            <div class='py12 px12 clearfix'>
-                <h1 class='txt-h2 fl' v-text='station.name'></h1>
-
-                <button @click='station.id = false' class='btn btn--stroke--gray round fr'><svg class='icon'><use href='#icon-close'/></svg></button>
-
-                <div class="flex-parent-inline fr px24">
-                    <button class="btn btn--pill btn--pill-hl">1 Hour</button>
-                    <button class="btn btn--pill btn--pill-hc">4 Hours</button>
-                    <button class="btn btn--pill btn--pill-hc">12 Hours</button>
-                    <button class="btn btn--pill btn--pill-hr">24 Hours</button>
-                </div>
-            </div>
-
             <div class='viewport-half relative scroll-hidden'>
-                <canvas id="windspeed" class='w-full' height="400"></canvas>
+                <div class='py12 px12 clearfix'>
+                    <h1 class='txt-h2 fl' v-text='station.name'></h1>
+
+                    <button @click='station.id = false' class='btn btn--stroke--gray round fr'><svg class='icon'><use href='#icon-close'/></svg></button>
+
+                    <div class="flex-parent-inline fr px24">
+                        <button class="btn btn--pill btn--pill-hl">1 Hour</button>
+                        <button class="btn btn--pill btn--pill-hc">4 Hours</button>
+                        <button class="btn btn--pill btn--pill-hc">12 Hours</button>
+                        <button class="btn btn--pill btn--pill-hr">24 Hours</button>
+                    </div>
+                </div>
+
+                <div style="position:absolute; top:80px; right:10px; left:10px; bottom: 10px">
+                    <div style="height:-webkit-fill-available;">
+                        <canvas id="windspeed"></canvas> <!--height="400"  class='w-full h-full' -->
+                    </div>
+                </div>
             </div>
         </template>
     </div>
@@ -128,7 +132,13 @@ export default {
         'station.id': function() {
             this.fetch_station(this.station.id, () => {
                 this.map.setCenter([this.station.lon, this.station.lat]);
-
+                
+                let wsData = this.station.data.map(entry => {
+                    return {
+                        x: new Date(entry.timestamp * 1000),
+                        y: entry.windspeed
+                }});
+                
                 this.charts.windspeed = new Chart(document.getElementById('windspeed'), {
                     type: 'line',
                     data: {
@@ -138,28 +148,12 @@ export default {
                             pointBorderColor: 'black',
                             borderColor: 'black',
                             fill: false,
-                            data: [{
-                                y: 5,
-                                x: new Date('2019-09-30T02:38:46Z')
-                            },{
-                                y: 10,
-                                x: new Date('2019-09-30T02:38:49Z')
-                            },{
-                                y: 20,
-                                x: new Date('2019-09-30T02:38:52Z')
-                            },{
-                                y: 24,
-                                x: new Date('2019-09-30T02:38:55Z')
-                            },{
-                                y: 23,
-                                x: new Date('2019-09-30T02:38:58Z')
-                            },{
-                                y: 12,
-                                x: new Date('2019-09-30T02:39:01')
-                            }]
+                            data: wsData
                         }]
                     },
                     options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
                         scales: {
                             yAxes: [{
                                 ticks: {
@@ -170,8 +164,8 @@ export default {
                                 type: 'time',
                                 bounds: 'data',
                                 time: {
-                                    min: new Date('2019-09-30T02:38:46Z'),
-                                    max: new Date('2019-09-30T02:39:04Z')
+                                    min: new Date(new Date() - 180000),
+                                    max: new Date()
                                 }
                             }]
                         },
@@ -258,7 +252,7 @@ export default {
         fetch_station: function(station_id, cb) {
             if (!station_id) return;
 
-            fetch(`${window.location.protocol}//${window.location.host}/api/station/${station_id}`, {
+            let stationFetch = fetch(`${window.location.protocol}//${window.location.host}/api/station/${station_id}`, {
                 method: 'GET',
                 credentials: 'same-origin'
             }).then((response) => {
@@ -269,7 +263,24 @@ export default {
                 this.station.legend.winddir = station.winddirlegend;
                 this.station.lon = station.lon;
                 this.station.lat = station.lat;
-
+            })
+            
+            let url = new URL(`${window.location.protocol}//${window.location.host}/api/station/${station_id}/data`);
+            
+            url.searchParams.append('start', new Date(new Date() - 180000));
+            url.searchParams.append('end', new Date());
+            
+            let dataFetch = fetch(url, {
+                method: 'GET',
+                credentials: 'same-origin'
+            }).then((response) => {
+                return response.json();
+            }).then(stationData => {
+                this.station.data = stationData;
+            });
+            
+            Promise.all([stationFetch, dataFetch])
+                .then(() => {
                 return cb();
             });
         }

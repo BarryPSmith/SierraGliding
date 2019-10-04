@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace dotNet_Receiver
@@ -11,13 +12,15 @@ namespace dotNet_Receiver
     {
         static void Main(string[] args)
         {
+            TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
+
             string fn = @"C:\temp\data3.sqlite";
             string log = @"c:\temp\stationLog.csv";
             string url = "http://localhost:4000";
 
             var communicator = new KissCommunication();
-            DataStorage storage = new DataStorage(fn);
-            var serverPoster = new DataPosting(url);
+            DataStorage storage = fn != null ? new DataStorage(fn) : null;
+            var serverPoster = url != null ? new DataPosting(url) : null;
             
             communicator.PacketReceived =
                 data =>
@@ -29,8 +32,22 @@ namespace dotNet_Receiver
                         switch (packet.type)
                         {
                             case 'W': //Weather data
-                                storage.StoreWeatherData(packet);
-                                serverPoster.SendWeatherDataAsync(packet);
+                                try
+                                {
+                                    storage?.StoreWeatherData(packet);
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.Error.WriteLine($"Store Error {DateTime.Now}: {ex}");
+                                }
+                                try
+                                {
+                                    serverPoster?.SendWeatherDataAsync(packet);
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.Error.WriteLine($"Post Error {DateTime.Now}: {ex}");
+                                }
                                 break;
                             case 'D': //Wind direciton debug data
                                 File.AppendAllLines(log, new[] { packet.GetDataString(packet.packetData) });
@@ -48,6 +65,12 @@ namespace dotNet_Receiver
             Console.WriteLine("Reading data. Press any key to exit.");
             Console.ReadKey();
             communicator.Disconnect();
+        }
+
+        private static void TaskScheduler_UnobservedTaskException(object sender, UnobservedTaskExceptionEventArgs e)
+        {
+            Console.WriteLine(e.Exception);
+            e.SetObserved();
         }
     }
 }

@@ -63,9 +63,11 @@ export default {
             },
             map: false,
             charts: {
-                windspeed: false
+                windspeed: false,
+                windspeedData: false
             },
-            modal: false
+            modal: false,
+            timer: false
         }
     },
     components: { },
@@ -86,6 +88,22 @@ export default {
         };
         this.ws.onmessage = (ev) => {
             console.log(ev);
+            if (ev.data == this.station.id) {
+                if (Array.isArray(this.charts.windspeedData)) {
+                    this.fetch_station_latest(this.station.id, dataPoint => {
+                        /*console.error(dataPoint);
+                        console.error(dataPoint.timestamp);
+                        console.error(dataPoint.timestamp * 1000);
+                        console.error(new Date(dataPoint.timestamp * 1000));
+                        console.error(new Date(dataPoint.timestamp));*/
+                        this.charts.windspeedData.push({ x: new Date(dataPoint[0].timestamp * 1000), y: dataPoint[0].windspeed });
+                        //console.error(this.charts.windspeedData.length);
+                        //console.error(this.charts.windspeed.data.datasets[0].data);
+                        //console.error(this.charts.windspeedData);
+                        //TODO: Trim the windspeed data array when it gets too long.
+                    });
+                }
+            }
         };
 
         this.fetch_stations();
@@ -133,11 +151,21 @@ export default {
             this.fetch_station(this.station.id, () => {
                 this.map.setCenter([this.station.lon, this.station.lat]);
                 
-                let wsData = this.station.data.map(entry => {
+                this.charts.windspeedData = this.station.data.map(entry => {
                     return {
                         x: new Date(entry.timestamp * 1000),
                         y: entry.windspeed
                 }});
+                
+                if (!this.Timer) {
+                    this.Timer = setInterval(() => {
+                        if (this.charts.windspeed) {
+                            this.charts.windspeed.options.scales.xAxes[0].time.min = new Date(new Date() - 180000);
+                            this.charts.windspeed.options.scales.xAxes[0].time.max = new Date();
+                            this.charts.windspeed.update();
+                        }
+                    }, 1000);
+                }
                 
                 this.charts.windspeed = new Chart(document.getElementById('windspeed'), {
                     type: 'line',
@@ -148,10 +176,14 @@ export default {
                             pointBorderColor: 'black',
                             borderColor: 'black',
                             fill: false,
-                            data: wsData
+                            data: this.charts.windspeedData
                         }]
                     },
                     options: {
+                        animation: { 
+                            duration: 0,
+                            easing: "linear"
+                        },
                         responsive: true,
                         maintainAspectRatio: false,
                         scales: {
@@ -283,6 +315,17 @@ export default {
                 .then(() => {
                 return cb();
             });
+        },
+        fetch_station_latest: function(station_id, cb) {
+            if (!station_id) return;
+fetch(`${window.location.protocol}//${window.location.host}/api/station/${station_id}/data/latest`, {
+                method: 'GET',
+                credentials: 'same-origin'
+            }).then((response) => {
+                return response.json();
+            }).then((dataPoint) => {
+                return cb(dataPoint)
+            })
         }
     }
 }

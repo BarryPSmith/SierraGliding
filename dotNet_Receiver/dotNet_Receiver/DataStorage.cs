@@ -63,14 +63,13 @@ namespace dotNet_Receiver
             _connectionString = csb.ToString();
         }
 
-        public void StoreWeatherData(Packet packet)
+        public void StoreWeatherData(Packet packet, DateTime receivedTime)
         {
             //TODO: Handle 'R' packets
             if (packet.type != 'W')
                 throw new InvalidOperationException("Can only store W packets");
 
-            var thisTime = new DateTimeOffset(DateTime.Now);
-            var now = thisTime.ToUniversalTime();
+            var now = new DateTimeOffset(receivedTime).ToUniversalTime();
 
             using (var conn = new SQLiteConnection(_connectionString))
             {

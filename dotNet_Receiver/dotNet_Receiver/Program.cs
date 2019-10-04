@@ -13,6 +13,7 @@ namespace dotNet_Receiver
         static void Main(string[] args)
         {
             TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
+            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 
             string fn = @"C:\temp\data3.sqlite";
             string log = @"c:\temp\stationLog.csv";
@@ -25,29 +26,24 @@ namespace dotNet_Receiver
             communicator.PacketReceived =
                 data =>
                 {
+                    DateTime receivedTime = DateTime.Now;
                     try
                     {
                         var packet = PacketDecoder.DecodeBytes(data as byte[] ?? data.ToArray());
-                        Console.WriteLine($"Packet {DateTime.Now}: {packet.ToString()}");
+                        //Do this in a Task to avoid waiting if we've scrolled up.
+                        Task.Run(() => Console.WriteLine($"Packet {DateTime.Now}: {packet.ToString()}"));
                         switch (packet.type)
                         {
                             case 'W': //Weather data
                                 try
                                 {
-                                    storage?.StoreWeatherData(packet);
+                                    storage?.StoreWeatherData(packet, receivedTime);
                                 }
                                 catch (Exception ex)
                                 {
                                     Console.Error.WriteLine($"Store Error {DateTime.Now}: {ex}");
                                 }
-                                try
-                                {
-                                    serverPoster?.SendWeatherDataAsync(packet);
-                                }
-                                catch (Exception ex)
-                                {
-                                    Console.Error.WriteLine($"Post Error {DateTime.Now}: {ex}");
-                                }
+                                serverPoster?.SendWeatherDataAsync(packet, receivedTime);
                                 break;
                             case 'D': //Wind direciton debug data
                                 File.AppendAllLines(log, new[] { packet.GetDataString(packet.packetData) });
@@ -65,6 +61,10 @@ namespace dotNet_Receiver
             Console.WriteLine("Reading data. Press any key to exit.");
             Console.ReadKey();
             communicator.Disconnect();
+        }
+
+        private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
         }
 
         private static void TaskScheduler_UnobservedTaskException(object sender, UnobservedTaskExceptionEventArgs e)

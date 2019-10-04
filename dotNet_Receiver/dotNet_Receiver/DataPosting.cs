@@ -11,6 +11,8 @@ namespace dotNet_Receiver
     class DataPosting : DataStorageBase
     {
         private static readonly HttpClient client = new HttpClient();
+
+        public event EventHandler<Exception> OnException;
         
         readonly string _url;
 
@@ -19,12 +21,13 @@ namespace dotNet_Receiver
             _url = url;
         }
 
-        public async void SendWeatherDataAsync(Packet packet)
+        public async Task SendWeatherDataAsync(Packet packet, DateTime receivedTime)
         {
             if (packet.type != 'W')
                 throw new InvalidOperationException();
 
-            var now = new DateTimeOffset(DateTime.Now).ToUniversalTime();
+            var now = new DateTimeOffset(receivedTime).ToUniversalTime();
+
             foreach (var subPacket in packet.packetData as IList<SingleWeatherData>)
             {
                 var identifier = new PacketIdentifier()
@@ -50,13 +53,21 @@ namespace dotNet_Receiver
                 var url = _url + "/api/station/" + subPacket.sendingStation + "/data";
                 var uri = new Uri(url);
 
-                var response = await client.PostAsync(uri, content);
-                if (response.IsSuccessStatusCode)
-                    Console.WriteLine("Succesfully posted.");
-                else
+                try
                 {
-                    Console.WriteLine(response);
-                    Console.WriteLine(response.Content.ReadAsStringAsync().Result);
+                    var response = await client.PostAsync(uri, content);
+                    if (response.IsSuccessStatusCode)
+                        Console.WriteLine("Succesfully posted.");
+                    else
+                    {
+                        Console.WriteLine($"Post failed ({response.StatusCode}): {response.ReasonPhrase}");
+                        Console.WriteLine($"Content: {response.Content.ReadAsStringAsync().Result}");
+                        Console.WriteLine($"JSON: {json}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    OnException?.Invoke(this, ex);
                 }
             }
         }

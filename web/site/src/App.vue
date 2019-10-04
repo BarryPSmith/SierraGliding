@@ -176,7 +176,8 @@ export default {
                             pointBorderColor: 'black',
                             borderColor: 'black',
                             fill: false,
-                            data: this.charts.windspeedData
+                            data: this.charts.windspeedData,
+                            lineTension: 0
                         }]
                     },
                     options: {

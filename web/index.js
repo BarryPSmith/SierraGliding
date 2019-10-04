@@ -179,7 +179,7 @@ function main(db, cb) {
         }
 
         for (const key of ['id', 'name', 'lon', 'lat']) {
-            if (!req.body[key]) {
+            if (req.body[key] === undefined) {
                 return res.status(400).json({
                     status: 400,
                     error: `${key} key required`
@@ -326,7 +326,9 @@ function main(db, cb) {
         }
 
         for (const key of ['timestamp', 'wind_speed', 'wind_direction']) {
-            if (!req.body[key]) {
+            if (req.body[key] === undefined) {
+                console.error(`${key} key required.`);
+                console.error(req.body);
                 return res.status(400).json({
                     status: 400,
                     error: `${key} key required`

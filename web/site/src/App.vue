@@ -6,8 +6,12 @@
         </div>
 
         <template v-if='station.id'>
-            <div class='viewport-half relative scroll-hidden'>
-                <div class='py12 px12 clearfix'>
+            <div class='viewport-half relative scroll-hidden'
+                 style="display: grid; 
+                        grid-template-rows: 80px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+                        grid-template-columns: 100%">
+                <div class='py12 px12 clearfix'
+                        >
                     <h1 class='txt-h2 fl' v-text='station.name'></h1>
 
                     <button @click='station.id = false' class='btn btn--stroke--gray round fr'><svg class='icon'><use href='#icon-close'/></svg></button>
@@ -20,11 +24,19 @@
                     </div>
                 </div>
 
-                <div style="position:absolute; top:80px; right:10px; left:10px; bottom: 10px">
-                    <div style="height:-webkit-fill-available;">
+                <!--style="position:absolute; top:80px; right:10px; left:10px; bottom: 10px"-->
+
+                    <div>
                         <canvas id="windspeed"></canvas> <!--height="400"  class='w-full h-full' -->
                     </div>
-                </div>
+                    <div>
+                        <canvas id="wind_direction"></canvas> <!--height="400"  class='w-full h-full' -->
+                    </div>
+
+                    <div>
+                        <canvas id="battery"></canvas> <!--height="400"  class='w-full h-full' -->
+                    </div>
+
             </div>
         </template>
     </div>
@@ -64,7 +76,11 @@ export default {
             map: false,
             charts: {
                 windspeed: false,
-                windspeedData: false
+                windspeedData: false,
+                wind_direction: false,
+                windDirectionData: false,
+                battery: false,
+                batteryData: false
             },
             modal: false,
             timer: false
@@ -89,20 +105,27 @@ export default {
         this.ws.onmessage = (ev) => {
             console.log(ev);
             if (ev.data == this.station.id) {
-                if (Array.isArray(this.charts.windspeedData)) {
-                    this.fetch_station_latest(this.station.id, dataPoint => {
-                        /*console.error(dataPoint);
-                        console.error(dataPoint.timestamp);
-                        console.error(dataPoint.timestamp * 1000);
-                        console.error(new Date(dataPoint.timestamp * 1000));
-                        console.error(new Date(dataPoint.timestamp));*/
-                        this.charts.windspeedData.push({ x: new Date(dataPoint[0].timestamp * 1000), y: dataPoint[0].windspeed });
-                        //console.error(this.charts.windspeedData.length);
-                        //console.error(this.charts.windspeed.data.datasets[0].data);
-                        //console.error(this.charts.windspeedData);
-                        //TODO: Trim the windspeed data array when it gets too long.
-                    });
-                }
+                this.fetch_station_latest(this.station.id,dataPoint => {
+                    if (Array.isArray(this.charts.windspeedData)) {
+                        this.charts.windspeedData.push({ 
+                            x: new Date(dataPoint[0].timestamp * 1000), 
+                            y: dataPoint[0].windspeed 
+                        });
+                    }
+                    if (Array.isArray(this.charts.windDirectionData)) {
+                        this.charts.windDirectionData.push({ 
+                            x: new Date(dataPoint[0].timestamp * 1000), 
+                            y: dataPoint[0].wind_direction 
+                        });
+                    }
+                    if (Array.isArray(this.charts.batteryData)) {
+                        this.charts.batteryData.push({ 
+                            x: new Date(dataPoint[0].timestamp * 1000), 
+                            y: dataPoint[0].battery_level
+                        });
+                    }
+                    //TODO: Trim the data arrays when it gets too long.
+                });
             }
         };
 
@@ -157,30 +180,33 @@ export default {
                         y: entry.windspeed
                 }});
                 
+                this.charts.windDirectionData = this.station.data.map(entry => {
+                    return {
+                        x: new Date(entry.timestamp * 1000),
+                        y: entry.wind_direction
+                }});
+                
+                this.charts.batteryData = this.station.data.map(entry => {
+                    return {
+                        x: new Date(entry.timestamp * 1000),
+                        y: entry.battery_level
+                }});
+                
                 if (!this.Timer) {
                     this.Timer = setInterval(() => {
-                        if (this.charts.windspeed) {
-                            this.charts.windspeed.options.scales.xAxes[0].time.min = new Date(new Date() - 180000);
-                            this.charts.windspeed.options.scales.xAxes[0].time.max = new Date();
-                            this.charts.windspeed.update();
+                        let charts = [this.charts.windspeed, this.charts.wind_direction,
+                                            this.charts.battery]
+                        for (const chart of charts) {
+                            if (!!chart) {
+                                chart.options.scales.xAxes[0].time.min = new Date(new Date() - 180000);
+                                chart.options.scales.xAxes[0].time.max = new Date();
+                                chart.update();
+                            }   
                         }
                     }, 1000);
                 }
                 
-                this.charts.windspeed = new Chart(document.getElementById('windspeed'), {
-                    type: 'line',
-                    data: {
-                        datasets: [{
-                            label: 'WindSpeed',
-                            pointBackgroundColor: 'black',
-                            pointBorderColor: 'black',
-                            borderColor: 'black',
-                            fill: false,
-                            data: this.charts.windspeedData,
-                            lineTension: 0
-                        }]
-                    },
-                    options: {
+                let commonOptions = {
                         animation: { 
                             duration: 0,
                             easing: "linear"
@@ -206,54 +232,102 @@ export default {
                             annotations: []
                         }
                     }
+                
+                this.charts.windspeed = new Chart(document.getElementById('windspeed'), {
+                    type: 'line',
+                    data: {
+                        datasets: [{
+                            label: 'WindSpeed',
+                            pointBackgroundColor: 'black',
+                            pointBorderColor: 'black',
+                            borderColor: 'black',
+                            fill: false,
+                            data: this.charts.windspeedData,
+                            lineTension: 0
+                        }]
+                    },
+                    options: commonOptions
                 });
-
-                if (this.station.legend.windspeed && this.station.legend.windspeed.length === 3) {
-                    this.charts.windspeed.options.annotation.annotations.push({
-                        id: 'blue',
-                        type: 'box',
-                        xScaleID: 'x-axis-0',
-                        yScaleID: 'y-axis-0',
-                        yMin: 0,
-                        yMax: this.station.legend.windspeed[0],
-                        backgroundColor: 'rgba(0,0,255,0.4)',
-                        borderColor: 'rgba(0,0,255,0.4)',
-                    });
-                    this.charts.windspeed.options.annotation.annotations.push({
-                        id: 'green',
-                        type: 'box',
-                        xScaleID: 'x-axis-0',
-                        yScaleID: 'y-axis-0',
-                        yMin: this.station.legend.windspeed[0],
-                        yMax: this.station.legend.windspeed[1],
-                        backgroundColor: 'rgba(0,255,0,0.4)',
-                        borderColor: 'rgba(0,255,0,0.4)',
-                    });
-                    this.charts.windspeed.options.annotation.annotations.push({
-                        id: 'yellow',
-                        type: 'box',
-                        xScaleID: 'x-axis-0',
-                        yScaleID: 'y-axis-0',
-                        yMin: this.station.legend.windspeed[1],
-                        yMax: this.station.legend.windspeed[2],
-                        backgroundColor: 'rgba(255,255,0,0.4)',
-                        borderColor: 'rgba(255,255,0,0.4)',
-                    });
-                    this.charts.windspeed.options.annotation.annotations.push({
-                        id: 'red',
-                        type: 'box',
-                        xScaleID: 'x-axis-0',
-                        yScaleID: 'y-axis-0',
-                        yMin: this.station.legend.windspeed[2],
-                        yMax: 30,
-                        backgroundColor: 'rgba(255,0,0,0.4)',
-                        borderColor: 'rgba(255,0,0,0.4)',
-                    });
-                }
+                
+                this.charts.wind_direction = new Chart(document.getElementById('wind_direction'), {
+                    type: 'line',
+                    data: {
+                        datasets: [{
+                            label: 'Wind Direction',
+                            pointBackgroundColor: 'black',
+                            pointBorderColor: 'black',
+                            borderColor: 'black',
+                            fill: false,
+                            data: this.charts.windDirectionData,
+                            lineTension: 0
+                        }]
+                    },
+                    options: commonOptions
+                });
+                
+                this.charts.battery = new Chart(document.getElementById('battery'), {
+                    type: 'line',
+                    data: {
+                        datasets: [{
+                            label: 'Battery Level',
+                            pointBackgroundColor: 'black',
+                            pointBorderColor: 'black',
+                            borderColor: 'black',
+                            fill: false,
+                            data: this.charts.batteryData,
+                            lineTension: 0
+                        }]
+                    },
+                    options: commonOptions
+                });
             });
         }
     },
     methods: {
+        set_speed_annotations: function(station) {
+            if (this.station.legend.windspeed && this.station.legend.windspeed.length === 3) {
+                this.charts.windspeed.options.annotation.annotations.push({
+                    id: 'blue',
+                    type: 'box',
+                    xScaleID: 'x-axis-0',
+                    yScaleID: 'y-axis-0',
+                    yMin: 0,
+                    yMax: this.station.legend.windspeed[0],
+                    backgroundColor: 'rgba(0,0,255,0.4)',
+                    borderColor: 'rgba(0,0,255,0.4)',
+                });
+                this.charts.windspeed.options.annotation.annotations.push({
+                    id: 'green',
+                    type: 'box',
+                    xScaleID: 'x-axis-0',
+                    yScaleID: 'y-axis-0',
+                    yMin: this.station.legend.windspeed[0],
+                    yMax: this.station.legend.windspeed[1],
+                    backgroundColor: 'rgba(0,255,0,0.4)',
+                    borderColor: 'rgba(0,255,0,0.4)',
+                });
+                this.charts.windspeed.options.annotation.annotations.push({
+                    id: 'yellow',
+                    type: 'box',
+                    xScaleID: 'x-axis-0',
+                    yScaleID: 'y-axis-0',
+                    yMin: this.station.legend.windspeed[1],
+                    yMax: this.station.legend.windspeed[2],
+                    backgroundColor: 'rgba(255,255,0,0.4)',
+                    borderColor: 'rgba(255,255,0,0.4)',
+                });
+                this.charts.windspeed.options.annotation.annotations.push({
+                    id: 'red',
+                    type: 'box',
+                    xScaleID: 'x-axis-0',
+                    yScaleID: 'y-axis-0',
+                    yMin: this.station.legend.windspeed[2],
+                    yMax: 30,
+                    backgroundColor: 'rgba(255,0,0,0.4)',
+                    borderColor: 'rgba(255,0,0,0.4)',
+                });
+            }
+        },
         fetch_stations: function() {
             fetch(`${window.location.protocol}//${window.location.host}/api/stations`, {
                 method: 'GET',
@@ -319,7 +393,8 @@ export default {
         },
         fetch_station_latest: function(station_id, cb) {
             if (!station_id) return;
-fetch(`${window.location.protocol}//${window.location.host}/api/station/${station_id}/data/latest`, {
+            
+            fetch(`${window.location.protocol}//${window.location.host}/api/station/${station_id}/data/latest`, {
                 method: 'GET',
                 credentials: 'same-origin'
             }).then((response) => {

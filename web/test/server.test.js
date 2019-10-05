@@ -82,20 +82,7 @@ test('Stations', (t) => {
 
     for (let i = 0; i < 60; i++) {
         t.test('Stations - Add Data', (q) => {
-            request.post({
-                url: 'http://localhost:4000/api/station/1/data',
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    timestamp: moment().subtract(i, 'minutes').unix(),
-                    wind_speed: 20,
-                    wind_direction: 100,
-                    battery: 89
-                })
-            }, (err, res) => {
-                q.error(err);
+            data(i, () => {
                 q.end();
             });
         });
@@ -104,14 +91,45 @@ test('Stations', (t) => {
     if (!args.mock) {
         t.test('Stations - End Server', (q) => {
             q.end();
+            t.end();
             process.exit();
         });
     } else {
         t.test('Stations - Server Running', (q) => {
             console.log('ok - Server: http://localhost:4000/');
             console.log('ok - CTRL + C to stop server');
+
+            timer();
+
+            function timer() {
+                setTimeout(() => {
+                    data(null, timer);
+                }, 4000);
+            }
         });
     }
-
-    t.end();
 });
+
+function data(i, cb) {
+    let timestamp = moment();
+
+    if (i) timestamp.subtract(i, 'minutes');
+
+    request.post({
+        url: 'http://localhost:4000/api/station/1/data',
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            timestamp: timestamp.unix(),
+            wind_speed: 20,
+            wind_direction: 100,
+            battery: 89
+        })
+    }, (err, res) => {
+        if (err) throw err;
+
+        if (cb) cb();
+    });
+}

@@ -336,11 +336,11 @@ function main(db, cb) {
             }
 
             try {
-                moment(req.body.timestamp);
+                moment.unix(req.body.timestamp);
             } catch(err) {
                 return res.status(400).json({
                     status: 400,
-                    error: 'timestamp must be a date'
+                    error: 'timestamp must be an integer (unix) date'
                 });
             }
         }
@@ -361,7 +361,7 @@ function main(db, cb) {
             )
         `, {
             $id: req.params.id,
-            $timestamp: moment(req.body.timestamp).unix(),
+            $timestamp: moment.unix(req.body.timestamp).unix(),
             $windspeed: req.body.wind_speed,
             $winddir: req.body.wind_direction,
             $battery: req.body.battery ? req.body.battery : null

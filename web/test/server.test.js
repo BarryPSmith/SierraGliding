@@ -89,7 +89,7 @@ test('Stations', (t) => {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    timestamp: moment().subtract(i, 'minute').unix(),
+                    timestamp: moment().subtract(i, 'minutes').unix(),
                     wind_speed: 20,
                     wind_direction: 100,
                     battery: 89

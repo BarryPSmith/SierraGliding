@@ -2,10 +2,9 @@
     <div class='viewport-full'>
         <div v-bind:class='viewport' class='relative scroll-hidden'>
             <!-- Map -->
-            <template v-if='map'>
-                <div id="map" class='h-full w-full bg-darken10'></div>
-            </template>
-            <template v-else>
+            <div id="map" class='h-full w-full bg-darken10'></div>
+
+            <template v-if='!map'>
                 <div class='h-full w-full'>
                     <div class='align-center border-b border--gray-light'>
                         <h1 class='txt-h4'>Active Stations</h1>
@@ -338,7 +337,7 @@ export default {
                 mapboxgl.accessToken = this.credentials.map;
 
                 this.map = new mapboxgl.Map({
-                    hash: true,
+                    hash: false,
                     container: 'map',
                     attributionControl: false,
                     style: 'mapbox://styles/mapbox/satellite-streets-v11',
@@ -348,6 +347,7 @@ export default {
                     compact: true
                 }));
             } catch (err) {
+                console.error(err);
                 // Mapbox GL was not able to be created, show list by default
             }
 

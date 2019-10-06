@@ -24,10 +24,10 @@
                     <button @click='station.id = false' class='btn btn--stroke btn--gray round fr h36'><svg class='icon'><use href='#icon-close'/></svg></button>
 
                     <div class="flex-parent-inline fr px24">
-                        <button class="btn btn--pill btn--pill-hl">1 Hour</button>
-                        <button class="btn btn--pill btn--pill-hc">4 Hours</button>
-                        <button class="btn btn--pill btn--pill-hc">12 Hours</button>
-                        <button class="btn btn--pill btn--pill-hr">24 Hours</button>
+                        <button @click='duration =  1' :class='dur1' class="btn btn--pill btn--pill-hl">1 Hour</button>
+                        <button @click='duration =  4' :class='dur4' class="btn btn--pill btn--pill-hc">4 Hours</button>
+                        <button @click='duration = 12' :class='dur12' class="btn btn--pill btn--pill-hc">12 Hours</button>
+                        <button @click='duration = 24' :class='dur24' class="btn btn--pill btn--pill-hr">24 Hours</button>
                     </div>
                 </div>
 
@@ -58,6 +58,7 @@ export default {
         return {
             ws: false,
             auth: false,
+            duration: 1,
             station: {
                 id: false,
                 name: '',
@@ -94,6 +95,26 @@ export default {
     },
     components: { },
     computed: {
+        dur1: function() {
+            return {
+                'btn--stroke': this.duration === 1
+            }
+        },
+        dur4: function() {
+            return {
+                'btn--stroke': this.duration === 4
+            }
+        },
+        dur12: function() {
+            return {
+                'btn--stroke': this.duration === 12
+            }
+        },
+        dur24: function() {
+            return {
+                'btn--stroke': this.duration === 24 
+            }
+        },
         viewport: function() {
             return {
                 'viewport-half': !!this.station.id,
@@ -143,6 +164,9 @@ export default {
         this.map_init();
     },
     watch: {
+        'duration': function() {
+            console.error(this.duration);
+        },
         'station.id': function() {
             this.fetch_station(this.station.id, () => {
                 if (this.map) {

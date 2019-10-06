@@ -276,12 +276,12 @@ function main(db, cb) {
             }
 
             try {
-                moment(req.query.start);
-                moment(req.query.end);
+                moment.unix(req.query.start);
+                moment.unix(req.query.end);
             } catch(err) {
                 return res.status(400).json({
                     status: 400,
-                    error: `start/end param mustb be date`
+                    error: 'start/end must be an integer (unix) date'
                 });
             }
         }
@@ -302,8 +302,8 @@ function main(db, cb) {
             ORDER BY timestamp ASC
         `, {
             $id: req.params.id,
-            $start: moment(req.query.start).unix(),
-            $end: moment(req.query.end).unix()
+            $start: req.query.start,
+            $end: req.query.end
         }, (err, data) => {
             if (err) return error(err, res);
 
@@ -368,6 +368,7 @@ function main(db, cb) {
             res.json(data);
 
             //Notify websockets that a particular station has updated:
+            console.error(wss.clients.length);
             for (const client of wss.clients) {
                 if (client.readyState === WebSocketServer.OPEN) {
                     client.send({

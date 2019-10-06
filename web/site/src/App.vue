@@ -105,7 +105,7 @@ export default {
         this.ws = new WebSocket(`ws://${window.location.hostname}:${window.location.port}`);
 
         this.ws.onmessage = (ev) => {
-            console.log(ev);
+            console.error('MESSAGE');
             if (ev.data == this.station.id) {
                 this.fetch_station_latest(this.station.id,dataPoint => {
                     if (Array.isArray(this.charts.windspeedData)) {
@@ -400,7 +400,6 @@ export default {
                 station.windspeedlegend.forEach((legend) => {
                     this.station.legend.windspeed.push(legend)
                 });
-                console.error('WINDSPEED LEGEND', JSON.stringify(this.station.legend.windspeed));
 
                 this.station.legend.winddir.splice(0, this.station.legend.winddir.length);
 
@@ -411,8 +410,11 @@ export default {
 
             let url = new URL(`${window.location.protocol}//${window.location.host}/api/station/${station_id}/data`);
 
-            url.searchParams.append('start', new Date(new Date() - 180000));
-            url.searchParams.append('end', new Date());
+            let current = +new Date() / 1000; // Unix time (seconds)
+
+            // current (seconds) - ( 60 (seconds) * 60 (minutes) )
+            url.searchParams.append('start', current - (60 * 60));
+            url.searchParams.append('end', current);
 
             let dataFetch = fetch(url, {
                 method: 'GET',

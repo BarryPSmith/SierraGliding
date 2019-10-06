@@ -276,8 +276,8 @@ function main(db, cb) {
             }
 
             try {
-                moment.unix(req.query.start);
-                moment.unix(req.query.end);
+                moment.unix(parseInt(req.query.start));
+                moment.unix(parseInt(req.query.end));
             } catch(err) {
                 return res.status(400).json({
                     status: 400,
@@ -302,8 +302,8 @@ function main(db, cb) {
             ORDER BY timestamp ASC
         `, {
             $id: req.params.id,
-            $start: req.query.start,
-            $end: req.query.end
+            $start: parseInt(req.query.start),
+            $end: parseInt(req.query.end)
         }, (err, data) => {
             if (err) return error(err, res);
 
@@ -324,8 +324,6 @@ function main(db, cb) {
 
         for (const key of ['timestamp', 'wind_speed', 'wind_direction']) {
             if (req.body[key] === undefined) {
-                console.error(`${key} key required.`);
-                console.error(req.body);
                 return res.status(400).json({
                     status: 400,
                     error: `${key} key required`
@@ -368,18 +366,15 @@ function main(db, cb) {
             res.json(data);
 
             //Notify websockets that a particular station has updated:
-            console.error(wss.clients.length);
-            for (const client of wss.clients) {
-                if (client.readyState === WebSocketServer.OPEN) {
-                    client.send({
-                        id: req.params.id,
-                        timestamp: moment.unix(req.body.timestamp).unix(),
-                        wind_speed: req.body.wind_speed,
-                        wind_direction: req.body.wind_direction,
-                        battery: req.body.battery ? req.body.battery : null
-                    });
-                }
-            }
+            wss.clients.forEach((client) => {
+                client.send(JSON.stringify({
+                    id: req.params.id,
+                    timestamp: moment.unix(req.body.timestamp).unix(),
+                    wind_speed: req.body.wind_speed,
+                    wind_direction: req.body.wind_direction,
+                    battery: req.body.battery ? req.body.battery : null
+                }));
+            });
         });
     });
 

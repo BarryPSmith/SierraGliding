@@ -105,30 +105,38 @@ export default {
         this.ws = new WebSocket(`ws://${window.location.hostname}:${window.location.port}`);
 
         this.ws.onmessage = (ev) => {
-            console.error('MESSAGE');
-            if (ev.data == this.station.id) {
-                this.fetch_station_latest(this.station.id,dataPoint => {
-                    if (Array.isArray(this.charts.windspeedData)) {
-                        this.charts.windspeedData.push({
-                            x: new Date(dataPoint[0].timestamp * 1000),
-                            y: dataPoint[0].windspeed
-                        });
-                    }
-                    if (Array.isArray(this.charts.windDirectionData)) {
-                        this.charts.windDirectionData.push({
-                            x: new Date(dataPoint[0].timestamp * 1000),
-                            y: dataPoint[0].wind_direction
-                        });
-                    }
-                    if (Array.isArray(this.charts.batteryData)) {
-                        this.charts.batteryData.push({
-                            x: new Date(dataPoint[0].timestamp * 1000),
-                            y: dataPoint[0].battery_level
-                        });
-                    }
-                    //TODO: Trim the data arrays when it gets too long.
+            if (!ev.data || !ev.data.length) return;
+
+            let data = {}
+            try {
+                data = JSON.parse(ev.data);
+            } catch (err) {
+                console.error(err);
+            }
+
+            if (!data.id || data.id != this.station.id) return;
+
+            if (Array.isArray(this.charts.windspeedData)) {
+                this.charts.windspeedData.push({
+                    x: new Date(data.timestamp * 1000),
+                    y: data.wind_speed
                 });
             }
+            if (Array.isArray(this.charts.windDirectionData)) {
+                this.charts.windDirectionData.push({
+                    x: new Date(data.timestamp * 1000),
+                    y: data.wind_direction
+                });
+            }
+            if (Array.isArray(this.charts.batteryData)) {
+                this.charts.batteryData.push({
+                    x: new Date(data.timestamp * 1000),
+                    y: data.battery
+                });
+            }
+
+            //TODO: Trim the data arrays when it gets too long.
+
         };
 
         this.fetch_stations();
@@ -195,7 +203,7 @@ export default {
                             type: 'time',
                             bounds: 'data',
                             time: {
-                                min: new Date(new Date() - 180000),
+                                min: new Date(+new Date() - 180000),
                                 max: new Date()
                             }
                         }]
@@ -273,7 +281,7 @@ export default {
                     compact: true
                 }));
             } catch (err) {
-                // Mapbox GL was not able to be created
+                // Mapbox GL was not able to be created, show list by default
             }
 
             if (!this.map) return;
@@ -413,8 +421,8 @@ export default {
             let current = +new Date() / 1000; // Unix time (seconds)
 
             // current (seconds) - ( 60 (seconds) * 60 (minutes) )
-            url.searchParams.append('start', current - (60 * 60));
-            url.searchParams.append('end', current);
+            url.searchParams.append('start', String(Math.floor(current - (60 * 60))));
+            url.searchParams.append('end', String(Math.floor(current)));
 
             let dataFetch = fetch(url, {
                 method: 'GET',

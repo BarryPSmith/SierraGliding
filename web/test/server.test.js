@@ -51,7 +51,7 @@ test('Stations', (t) => {
         });
     });
 
-    t.test('Stations - Create Station', (q) => {
+    t.test('Stations - Create Windy Ridge', (q) => {
         request({
             url: 'http://localhost:4000/api/station',
             method: 'POST',
@@ -83,6 +83,69 @@ test('Stations', (t) => {
                 windspeedlegend: [ 10, 20, 25 ],
                 winddirlegend: []
             }]);
+            q.end();
+        });
+    });
+
+    t.test('Stations - Create Bishop Centre', (q) => {
+        request({
+            url: 'http://localhost:4000/api/station',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                id: 2,
+                name: 'Bishop Centre',
+                lon: -118.44,
+                lat: 37.33,
+                windspeedlegend: [5, 10, 50]
+            })
+        }, (err, res) => {
+            q.error(err);
+            q.deepEquals(JSON.parse(res.body), true);
+            q.end();
+        });
+    });
+
+    t.test('Stations - Create Pine Creek', (q) => {
+        request({
+            url: 'http://localhost:4000/api/station',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                id: 3,
+                name: 'Pine Creek',
+                lon: -118.44,
+                lat: 37.33,
+                windspeedlegend: [5, 10, 50]
+            })
+        }, (err, res) => {
+            q.error(err);
+            q.deepEquals(JSON.parse(res.body), true);
+            q.end();
+        });
+    });
+
+    t.test('Stations - Create White Mountains', (q) => {
+        request({
+            url: 'http://localhost:4000/api/station',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                id: 4,
+                name: 'White Mountains',
+                lon: -118.44,
+                lat: 37.33,
+                windspeedlegend: [5, 10, 50]
+            })
+        }, (err, res) => {
+            q.error(err);
+            q.deepEquals(JSON.parse(res.body), true);
             q.end();
         });
     });

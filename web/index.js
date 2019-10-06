@@ -135,10 +135,6 @@ function main(db, cb) {
         return next();
     });
 
-    //A list of all websockets, so we can send messages to them when we get new data.
-    //Does this belong here? I don't know.
-    let sockets = [];
-
     /**
      * Returns basic metadata about all stations
      * managed in the database
@@ -372,14 +368,16 @@ function main(db, cb) {
             res.json(data);
 
             //Notify websockets that a particular station has updated:
-            for (const socket of sockets) {
-                socket.send({
-                    id: req.params.id,
-                    timestamp: moment.unix(req.body.timestamp).unix(),
-                    wind_speed: req.body.wind_speed,
-                    wind_direction: req.body.wind_direction,
-                    battery: req.body.battery ? req.body.battery : null
-                });
+            for (const client of wss.clients) {
+                if (client.readyState === WebSocketServer.OPEN) {
+                    client.send({
+                        id: req.params.id,
+                        timestamp: moment.unix(req.body.timestamp).unix(),
+                        wind_speed: req.body.wind_speed,
+                        wind_direction: req.body.wind_direction,
+                        battery: req.body.battery ? req.body.battery : null
+                    });
+                }
             }
         });
     });

@@ -119,8 +119,7 @@ test('Stations', (t) => {
                 id: 3,
                 name: 'Pine Creek',
                 lon: -118.44,
-                lat: 37.33,
-                windspeedlegend: []
+                lat: 37.33
             })
         }, (err, res) => {
             q.error(err);

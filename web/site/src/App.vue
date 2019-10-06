@@ -2,12 +2,23 @@
     <div class='viewport-full'>
         <div v-bind:class='viewport' class='relative scroll-hidden'>
             <!-- Map -->
-            <div id="map" class='h-full w-full bg-darken10'></div>
+            <template v-if='map'>
+                <div id="map" class='h-full w-full bg-darken10'></div>
+            </template>
+            <template v-else>
+                <div class='h-full w-full'>
+                    <template v-for='station_feat in stations.features'>
+                        <div @click='station.id = station_feat.id' class='col col--12'>
+                            <span v-text='station_feat.properties.name'></span>
+                        </div>
+                    </template>
+                </div>
+            </template>
         </div>
 
         <template v-if='station.id'>
             <div class='viewport-half relative scroll-hidden'
-                 style="display: grid; 
+                 style="display: grid;
                         grid-template-rows: 80px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
                         grid-template-columns: 100%">
                 <div class='py12 px12 clearfix'
@@ -96,31 +107,27 @@ export default {
         }
     },
     mounted: function(e) {
-        mapboxgl.accessToken = this.credentials.map;
+        this.ws = new WebSocket(`ws://${window.location.hostname}:${window.location.port}`);
 
-        this.ws = new WebSocket(`ws://${window.location.hostname}:40510`);
-        this.ws.onopen = () => {
-            console.error('connected');
-        };
         this.ws.onmessage = (ev) => {
             console.log(ev);
             if (ev.data == this.station.id) {
                 this.fetch_station_latest(this.station.id,dataPoint => {
                     if (Array.isArray(this.charts.windspeedData)) {
-                        this.charts.windspeedData.push({ 
-                            x: new Date(dataPoint[0].timestamp * 1000), 
-                            y: dataPoint[0].windspeed 
+                        this.charts.windspeedData.push({
+                            x: new Date(dataPoint[0].timestamp * 1000),
+                            y: dataPoint[0].windspeed
                         });
                     }
                     if (Array.isArray(this.charts.windDirectionData)) {
-                        this.charts.windDirectionData.push({ 
-                            x: new Date(dataPoint[0].timestamp * 1000), 
-                            y: dataPoint[0].wind_direction 
+                        this.charts.windDirectionData.push({
+                            x: new Date(dataPoint[0].timestamp * 1000),
+                            y: dataPoint[0].wind_direction
                         });
                     }
                     if (Array.isArray(this.charts.batteryData)) {
-                        this.charts.batteryData.push({ 
-                            x: new Date(dataPoint[0].timestamp * 1000), 
+                        this.charts.batteryData.push({
+                            x: new Date(dataPoint[0].timestamp * 1000),
                             y: dataPoint[0].battery_level
                         });
                     }
@@ -130,68 +137,33 @@ export default {
         };
 
         this.fetch_stations();
-
-        this.map = new mapboxgl.Map({
-            hash: true,
-            container: 'map',
-            attributionControl: false,
-            style: 'mapbox://styles/mapbox/satellite-streets-v11',
-            center: [-118.41064453125, 37.3461426132468],
-            zoom: 11
-        }).addControl(new mapboxgl.AttributionControl({
-            compact: true
-        }));
-
-        this.map.on('style.load', () => {
-            this.map.addLayer({
-                id: 'stations',
-                type: 'circle',
-                source: {
-                    type: 'geojson',
-                    data: this.stations
-                },
-                paint: {
-                    'circle-color': '#51bbd6',
-                    'circle-radius': 10
-                }
-            });
-        });
-
-        this.map.on('click', (e) => {
-            // set bbox as 5px reactangle area around clicked point
-            const bbox = [[e.point.x - 5, e.point.y - 5], [e.point.x + 5, e.point.y + 5]];
-            const feats = this.map.queryRenderedFeatures(bbox, {
-                layers: ['stations']
-            });
-
-            if (!feats.length) return;
-
-            this.station.id = feats[0].id;
-        });
+        this.map_init();
     },
     watch: {
         'station.id': function() {
             this.fetch_station(this.station.id, () => {
-                this.map.setCenter([this.station.lon, this.station.lat]);
-                
+                if (this.map) {
+                    this.map.setCenter([this.station.lon, this.station.lat]);
+                }
+
                 this.charts.windspeedData = this.station.data.map(entry => {
                     return {
                         x: new Date(entry.timestamp * 1000),
                         y: entry.windspeed
                 }});
-                
+
                 this.charts.windDirectionData = this.station.data.map(entry => {
                     return {
                         x: new Date(entry.timestamp * 1000),
                         y: entry.wind_direction
                 }});
-                
+
                 this.charts.batteryData = this.station.data.map(entry => {
                     return {
                         x: new Date(entry.timestamp * 1000),
                         y: entry.battery_level
                 }});
-                
+
                 if (!this.Timer) {
                     this.Timer = setInterval(() => {
                         let charts = [this.charts.windspeed, this.charts.wind_direction,
@@ -201,13 +173,13 @@ export default {
                                 chart.options.scales.xAxes[0].time.min = new Date(new Date() - 180000);
                                 chart.options.scales.xAxes[0].time.max = new Date();
                                 chart.update();
-                            }   
+                            }
                         }
                     }, 1000);
                 }
-                
+
                 let commonOptions = {
-                        animation: { 
+                        animation: {
                             duration: 0,
                             easing: "linear"
                         },
@@ -232,7 +204,7 @@ export default {
                             annotations: []
                         }
                     }
-                
+
                 this.charts.windspeed = new Chart(document.getElementById('windspeed'), {
                     type: 'line',
                     data: {
@@ -248,7 +220,7 @@ export default {
                     },
                     options: commonOptions
                 });
-                
+
                 this.charts.wind_direction = new Chart(document.getElementById('wind_direction'), {
                     type: 'line',
                     data: {
@@ -264,7 +236,7 @@ export default {
                     },
                     options: commonOptions
                 });
-                
+
                 this.charts.battery = new Chart(document.getElementById('battery'), {
                     type: 'line',
                     data: {
@@ -284,6 +256,53 @@ export default {
         }
     },
     methods: {
+        map_init: function() {
+            try {
+                mapboxgl.accessToken = this.credentials.map;
+
+                this.map = new mapboxgl.Map({
+                    hash: true,
+                    container: 'map',
+                    attributionControl: false,
+                    style: 'mapbox://styles/mapbox/satellite-streets-v11',
+                    center: [-118.41064453125, 37.3461426132468],
+                    zoom: 11
+                }).addControl(new mapboxgl.AttributionControl({
+                    compact: true
+                }));
+            } catch (err) {
+                // Mapbox GL was not able to be created
+            }
+
+            if (!this.map) return;
+
+            this.map.on('style.load', () => {
+                this.map.addLayer({
+                    id: 'stations',
+                    type: 'circle',
+                    source: {
+                        type: 'geojson',
+                        data: this.stations
+                    },
+                    paint: {
+                        'circle-color': '#51bbd6',
+                        'circle-radius': 10
+                    }
+                });
+            });
+
+            this.map.on('click', (e) => {
+                // set bbox as 5px reactangle area around clicked point
+                const bbox = [[e.point.x - 5, e.point.y - 5], [e.point.x + 5, e.point.y + 5]];
+                const feats = this.map.queryRenderedFeatures(bbox, {
+                    layers: ['stations']
+                });
+
+                if (!feats.length) return;
+
+                this.station.id = feats[0].id;
+            });
+        },
         set_speed_annotations: function(station) {
             if (this.station.legend.windspeed && this.station.legend.windspeed.length === 3) {
                 this.charts.windspeed.options.annotation.annotations.push({
@@ -371,12 +390,12 @@ export default {
                 this.station.lon = station.lon;
                 this.station.lat = station.lat;
             })
-            
+
             let url = new URL(`${window.location.protocol}//${window.location.host}/api/station/${station_id}/data`);
-            
+
             url.searchParams.append('start', new Date(new Date() - 180000));
             url.searchParams.append('end', new Date());
-            
+
             let dataFetch = fetch(url, {
                 method: 'GET',
                 credentials: 'same-origin'
@@ -385,7 +404,7 @@ export default {
             }).then(stationData => {
                 this.station.data = stationData;
             });
-            
+
             Promise.all([stationFetch, dataFetch])
                 .then(() => {
                 return cb();
@@ -393,7 +412,7 @@ export default {
         },
         fetch_station_latest: function(station_id, cb) {
             if (!station_id) return;
-            
+
             fetch(`${window.location.protocol}//${window.location.host}/api/station/${station_id}/data/latest`, {
                 method: 'GET',
                 credentials: 'same-origin'

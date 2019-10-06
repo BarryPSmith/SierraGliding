@@ -422,7 +422,5 @@ function main(db, cb) {
 
     const wss = new WebSocketServer({
         server: server
-    }).on('connection', (ws) => {
-        sockets.push(ws);
     });
 }

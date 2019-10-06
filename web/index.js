@@ -193,8 +193,26 @@ function main(db, cb) {
             }
         }
 
-        // TODO check lengths of windspeedlegend/dir if they exist
-        // Windspeed should be 3 values
+        if (req.body.windspeedlegend) {
+            if (req.body.windspeedlegend.length !== 3) {
+                return res.status(400).json({
+                    status: 400,
+                    error: 'Wind Speed Legend must contain 3 values'
+                });
+            }
+
+            for (let i = 1; i < 3; i++) {
+                if (req.body.windspeedlegend[i] < req.body.windspeedlegend[i - 1]) {
+                    return res.status(400).json({
+                        status: 400,
+                        error: 'Wind Speed Legend must go from low -> high values'
+                    });
+                }
+            }
+        }
+
+        // TODO check lengths of windspeed/dir if they exist
+        // winddir should be array of array of 2 length values
 
         db.run(`
             INSERT INTO Stations (

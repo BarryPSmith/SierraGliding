@@ -120,7 +120,7 @@ test('Stations', (t) => {
                 name: 'Pine Creek',
                 lon: -118.44,
                 lat: 37.33,
-                windspeedlegend: [5, 10, 50]
+                windspeedlegend: []
             })
         }, (err, res) => {
             q.error(err);
@@ -141,7 +141,7 @@ test('Stations', (t) => {
                 name: 'White Mountains',
                 lon: -118.44,
                 lat: 37.33,
-                windspeedlegend: [5, 10, 50]
+                windspeedlegend: [15, 16, 19]
             })
         }, (err, res) => {
             q.error(err);

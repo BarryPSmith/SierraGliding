@@ -252,9 +252,9 @@ export default {
                     },
                     options: JSON.parse(JSON.stringify(commonOptions))
                 });
-            });
 
-            this.set_speed_annotations();
+                this.set_speed_annotations();
+            });
         }
     },
     methods: {
@@ -306,9 +306,10 @@ export default {
             });
         },
         set_speed_annotations: function() {
-            console.error(this.station.legend);
-            console.error(this.station.legend.windspeed);
-            //if (!this.station.legend.windspeed || this.station.legend.windspeed.length !== 3) return;
+            if (
+                !this.station.legend.windspeed
+                || this.station.legend.windspeed.length !== 3
+            ) return;
 
             this.charts.windspeed.options.annotation.annotations.push({
                 id: 'blue',
@@ -320,6 +321,7 @@ export default {
                 backgroundColor: 'rgba(0,0,255,0.4)',
                 borderColor: 'rgba(0,0,255,0.4)',
             });
+
             this.charts.windspeed.options.annotation.annotations.push({
                 id: 'green',
                 type: 'box',
@@ -330,6 +332,7 @@ export default {
                 backgroundColor: 'rgba(0,255,0,0.4)',
                 borderColor: 'rgba(0,255,0,0.4)',
             });
+
             this.charts.windspeed.options.annotation.annotations.push({
                 id: 'yellow',
                 type: 'box',
@@ -340,6 +343,7 @@ export default {
                 backgroundColor: 'rgba(255,255,0,0.4)',
                 borderColor: 'rgba(255,255,0,0.4)',
             });
+
             this.charts.windspeed.options.annotation.annotations.push({
                 id: 'red',
                 type: 'box',
@@ -389,10 +393,20 @@ export default {
                 return response.json();
             }).then((station) => {
                 this.station.name = station.name;
-                this.station.legend.windspeed = station.windspeedlegend;
-                this.station.legend.winddir = station.winddirlegend;
                 this.station.lon = station.lon;
                 this.station.lat = station.lat;
+
+                this.station.legend.windspeed.splice(0, this.station.legend.windspeed.length);
+                station.windspeedlegend.forEach((legend) => {
+                    this.station.legend.windspeed.push(legend)
+                });
+                console.error('WINDSPEED LEGEND', JSON.stringify(this.station.legend.windspeed));
+
+                this.station.legend.winddir.splice(0, this.station.legend.winddir.length);
+
+                station.winddirlegend.forEach((legend) => {
+                    this.station.legend.winddir.push(legend);
+                });
             });
 
             let url = new URL(`${window.location.protocol}//${window.location.host}/api/station/${station_id}/data`);

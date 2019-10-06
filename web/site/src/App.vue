@@ -7,6 +7,10 @@
             </template>
             <template v-else>
                 <div class='h-full w-full'>
+                    <div class='align-center border-b border--gray-light'>
+                        <h1 class='txt-h4'>Active Stations</h1>
+                    </div>
+
                     <template v-for='station_feat in stations.features'>
                         <div @click='station.id = station_feat.id' class='cursor-pointer py12 px12 col col--12'>
                             <span class='txt-h3' v-text='station_feat.properties.name'></span>
@@ -18,12 +22,12 @@
 
         <template v-if='station.id'>
             <div class='viewport-half relative scroll-hidden'>
-                <div class='py12 px12 clearfix'>
+                <div class='py12 px12 clearfix border-t border--gray-light'>
                     <h1 class='txt-h2 fl' v-text='station.name'></h1>
 
                     <button @click='station.id = false' class='btn btn--stroke btn--gray round fr h36'><svg class='icon'><use href='#icon-close'/></svg></button>
 
-                    <div class="flex-parent-inline fr px24">
+                    <div v-if='!station.error' class="flex-parent-inline fr px24">
                         <button @click='duration =  1' :class='dur1' class="btn btn--pill btn--pill-hl">1 Hour</button>
                         <button @click='duration =  4' :class='dur4' class="btn btn--pill btn--pill-hc">4 Hours</button>
                         <button @click='duration = 12' :class='dur12' class="btn btn--pill btn--pill-hc">12 Hours</button>
@@ -31,11 +35,16 @@
                     </div>
                 </div>
 
-                <template v-if='station.loading'>
+                <template v-if='station.error'>
+                    <div class='w-full align-center'>
+                        <span v-text='station.error' class='txt-h3 color-red'></span>
+                    </div>
+                </template>
+                <template v-else-if='station.loading'>
                     <div class='w-full h-full loading'></div>
                 </template>
 
-                <div :class='{ none: loading }'class='grid grid--gut12'>
+                <div :class='loading' class='grid grid--gut12'>
                     <div class='col col--12'>
                         <canvas id="windspeed"></canvas>
                     </div>
@@ -65,6 +74,7 @@ export default {
             duration: 1,
             station: {
                 id: false,
+                error: false,
                 loading: true,
                 name: '',
                 lon: 0,
@@ -100,6 +110,12 @@ export default {
     },
     components: { },
     computed: {
+        loading: function() {
+            return {
+                loading: this.station.loading,
+                none: this.station.error
+            }
+        },
         dur1: function() {
             return {
                 'btn--stroke': this.duration === 1
@@ -132,6 +148,16 @@ export default {
             this.timer = setInterval(() => {
                 this.chart_range();
             }, 1000);
+        }
+
+        if (window.location.hash) {
+            const station = parseInt(window.location.hash.replace(/^#/, ''));
+
+            if (isNaN(station)) {
+                window.location.hash = null;
+            } else {
+                this.station.id = station;
+            }
         }
 
         this.ws = new WebSocket(`ws://${window.location.hostname}:${window.location.port}`);
@@ -198,6 +224,8 @@ export default {
         },
         station_update: function() {
             this.station.loading = true;
+
+            window.location.hash = this.station.id;
 
             this.fetch_station(this.station.id, () => {
                 if (this.map) {
@@ -431,13 +459,24 @@ export default {
             });
         },
         fetch_station: function(station_id, cb) {
-            if (!station_id) return;
+            this.station.error = '';
+
+            if (!station_id) {
+                this.station.error = 'No Station ID Specified';
+                return;
+            }
 
             let stationFetch = fetch(`${window.location.protocol}//${window.location.host}/api/station/${station_id}`, {
                 method: 'GET',
                 credentials: 'same-origin'
             }).then((response) => {
-                return response.json();
+                if (response.ok) {
+                    return response.json();
+                } else if (response.status === 404) {
+                    throw new Error('Station Not Found');
+                } else {
+                    throw new Error('Could Not Retreive Station');
+                }
             }).then((station) => {
                 this.station.name = station.name;
                 this.station.lon = station.lon;
@@ -453,6 +492,8 @@ export default {
                 station.winddirlegend.forEach((legend) => {
                     this.station.legend.winddir.push(legend);
                 });
+            }).catch((err) => {
+                this.station.error = err.message;
             });
 
             let url = new URL(`${window.location.protocol}//${window.location.host}/api/station/${station_id}/data`);
@@ -467,9 +508,17 @@ export default {
                 method: 'GET',
                 credentials: 'same-origin'
             }).then((response) => {
-                return response.json();
+                if (response.ok) {
+                    return response.json();
+                } else if (response.status === 404) {
+                    throw new Error('Station Not Found');
+                } else {
+                    throw new Error('Could Not Retreive Station');
+                }
             }).then(stationData => {
                 this.station.data = stationData;
+            }).catch((err) => {
+                this.station.error = err.message;
             });
 
             Promise.all([stationFetch, dataFetch]).then(() => {

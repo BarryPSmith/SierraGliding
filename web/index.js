@@ -7,6 +7,7 @@ const WebSocketServer = require('ws').Server;
 const express = require('express');
 const sqlite3 = require('sqlite3');
 const path = require('path');
+const url = require('url');
 const args = require('minimist')(process.argv, {
     string: ['db', 'port'],
     boolean: ['help']
@@ -133,10 +134,10 @@ function main(db, cb) {
         console.error(`[${req.method}] /api${req.url}`);
         return next();
     });
-    
-    //A list of all connected sockets, so we can send messages to them when we get new data.
+
+    //A list of all websockets, so we can send messages to them when we get new data.
     //Does this belong here? I don't know.
-    let connectedSockets = [];
+    let sockets = [];
 
     /**
      * Returns basic metadata about all stations
@@ -369,10 +370,16 @@ function main(db, cb) {
             if (err) return error(err, res);
 
             res.json(data);
-            
-            //Notify listeners that a particular station has updated:
-            for (var idx in connectedSockets) {
-                connectedSockets[idx].send(req.params.id);
+
+            //Notify websockets that a particular station has updated:
+            for (const socket of sockets) {
+                socket.send({
+                    id: req.params.id,
+                    timestamp: moment.unix(req.body.timestamp).unix(),
+                    wind_speed: req.body.wind_speed,
+                    wind_direction: req.body.wind_direction,
+                    battery: req.body.battery ? req.body.battery : null
+                });
             }
         });
     });
@@ -405,18 +412,19 @@ function main(db, cb) {
         });
     });
 
-    app.listen(args.port ? parseInt(args.port) : 4000, (err) => {
+    if (!args.port) args.port = 4000;
+
+    const server = app.listen(args.port, (err) => {
         if (err) throw err;
 
-        console.error('Server listening http://localhost:4000');
+        console.error(`Server listening http://localhost:${args.port}`);
 
         if (cb) return cb();
     });
 
     const wss = new WebSocketServer({
-        port: 40510
+        server: server
     }).on('connection', (ws) => {
-        ws.send('connected!');
-        connectedSockets.push(ws);
+        sockets.push(ws);
     });
 }

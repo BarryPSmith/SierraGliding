@@ -97,8 +97,8 @@ test('Stations', (t) => {
             body: JSON.stringify({
                 id: 2,
                 name: 'Bishop Centre',
-                lon: -118.44,
-                lat: 37.33,
+                lon: -118.4044647216797,
+                lat: 37.36633719814676,
                 windspeedlegend: [5, 10, 50]
             })
         }, (err, res) => {
@@ -118,8 +118,8 @@ test('Stations', (t) => {
             body: JSON.stringify({
                 id: 3,
                 name: 'Pine Creek',
-                lon: -118.44,
-                lat: 37.33
+                lon: -118.67053985595703,
+                lat: 37.38625355900476
             })
         }, (err, res) => {
             q.error(err);
@@ -138,8 +138,8 @@ test('Stations', (t) => {
             body: JSON.stringify({
                 id: 4,
                 name: 'White Mountains',
-                lon: -118.44,
-                lat: 37.33,
+                lon: -118.2403564453125,
+                lat: 37.55764242679522,
                 windspeedlegend: [15, 16, 19]
             })
         }, (err, res) => {

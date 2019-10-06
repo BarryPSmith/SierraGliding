@@ -11,6 +11,13 @@ const args = require('minimist')(process.argv, {
     boolean: ['help', 'test', 'mock']
 });
 
+// Tick count is the number of 4 second periods
+// starting from 24 hours from when the server was
+// started. This value is used as a seed to generate
+// fake data to post to the server so that all
+// data values are not identical.
+let tick = 60 * 60 / 4 * -1;
+
 if ((!args.test && !args.mock) || args.help) {
     console.log();
     console.log('  Run unit tests or create a mock server instances');
@@ -80,13 +87,19 @@ test('Stations', (t) => {
         });
     });
 
-    for (let i = 0; i < 60; i++) {
-        t.test('Stations - Add Data', (q) => {
-            data(i, () => {
+    t.test('Stations - Populate Data', (q) => {
+        ticker();
+
+        function ticker() {
+            tick++;
+
+            data(() => {
+                if (tick < 0) return ticker();
+
                 q.end();
             });
-        });
-    }
+        }
+    });
 
     if (!args.mock) {
         t.test('Stations - End Server', (q) => {
@@ -103,17 +116,19 @@ test('Stations', (t) => {
 
             function timer() {
                 setTimeout(() => {
-                    data(null, timer);
+                    data(timer);
                 }, 4000);
             }
         });
     }
 });
 
-function data(i, cb) {
+function data(cb) {
     let timestamp = moment();
 
-    if (i) timestamp.subtract(i, 'minutes');
+    if (tick < 0) {
+        timestamp.subtract(tick * -4, 'seconds');
+    }
 
     request.post({
         url: 'http://localhost:4000/api/station/1/data',
@@ -125,7 +140,7 @@ function data(i, cb) {
             timestamp: timestamp.unix(),
             wind_speed: 20,
             wind_direction: 100,
-            battery: 89
+            battery: Math.sin(tick)
         })
     }, (err, res) => {
         if (err) throw err;

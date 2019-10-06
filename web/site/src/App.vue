@@ -31,7 +31,11 @@
                     </div>
                 </div>
 
-                <div class='grid grid--gut12'>
+                <template v-if='station.loading'>
+                    <div class='w-full h-full loading'></div>
+                </template>
+
+                <div :class='{ none: loading }'class='grid grid--gut12'>
                     <div class='col col--12'>
                         <canvas id="windspeed"></canvas>
                     </div>
@@ -61,6 +65,7 @@ export default {
             duration: 1,
             station: {
                 id: false,
+                loading: true,
                 name: '',
                 lon: 0,
                 lat: 0,
@@ -112,7 +117,7 @@ export default {
         },
         dur24: function() {
             return {
-                'btn--stroke': this.duration === 24 
+                'btn--stroke': this.duration === 24
             }
         },
         viewport: function() {
@@ -123,6 +128,12 @@ export default {
         }
     },
     mounted: function(e) {
+        if (!this.timer) {
+            this.timer = setInterval(() => {
+                this.chart_range();
+            }, 1000);
+        }
+
         this.ws = new WebSocket(`ws://${window.location.hostname}:${window.location.port}`);
 
         this.ws.onmessage = (ev) => {
@@ -165,9 +176,29 @@ export default {
     },
     watch: {
         'duration': function() {
-            console.error(this.duration);
+            this.station_update();
         },
         'station.id': function() {
+            this.station_update();
+        }
+    },
+    methods: {
+        chart_range: function() {
+            for (const chart of [
+                this.charts.windspeed,
+                this.charts.wind_direction,
+                this.charts.battery
+            ]) {
+                if (chart) {
+                    chart.options.scales.xAxes[0].time.min = new Date(+new Date() - (this.duration * 60 * 1000));
+                    chart.options.scales.xAxes[0].time.max = new Date();
+                    chart.update();
+                }
+            }
+        },
+        station_update: function() {
+            this.station.loading = true;
+
             this.fetch_station(this.station.id, () => {
                 if (this.map) {
                     this.map.setCenter([this.station.lon, this.station.lat]);
@@ -194,22 +225,6 @@ export default {
                     }
                 });
 
-                if (!this.timer) {
-                    this.timer = setInterval(() => {
-                        for (const chart of [
-                            this.charts.windspeed,
-                            this.charts.wind_direction,
-                            this.charts.battery
-                        ]) {
-                            if (!!chart) {
-                                chart.options.scales.xAxes[0].time.min = new Date(new Date() - 180000);
-                                chart.options.scales.xAxes[0].time.max = new Date();
-                                chart.update();
-                            }
-                        }
-                    }, 1000);
-                }
-
                 const commonOptions = {
                     animation: {
                         duration: 0,
@@ -227,7 +242,7 @@ export default {
                             type: 'time',
                             bounds: 'data',
                             time: {
-                                min: new Date(+new Date() - 180000),
+                                min: new Date(+new Date() - (this.duration * 60 * 1000)),
                                 max: new Date()
                             }
                         }]
@@ -285,11 +300,11 @@ export default {
                     options: JSON.parse(JSON.stringify(commonOptions))
                 });
 
+                this.station.loading = false;
+
                 this.set_speed_annotations();
             });
-        }
-    },
-    methods: {
+        },
         map_init: function() {
             try {
                 mapboxgl.accessToken = this.credentials.map;

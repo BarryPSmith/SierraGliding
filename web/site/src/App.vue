@@ -154,7 +154,7 @@ export default {
             const station = parseInt(window.location.hash.replace(/^#/, ''));
 
             if (isNaN(station)) {
-                window.location.hash = null;
+                window.location.hash = '';
             } else {
                 this.station.id = station;
             }
@@ -225,12 +225,12 @@ export default {
         station_update: function() {
             this.station.loading = true;
 
-            window.location.hash = this.station.id;
-
             this.fetch_station(this.station.id, () => {
                 if (this.map) {
                     this.map.setCenter([this.station.lon, this.station.lat]);
                 }
+
+                window.location.hash = this.station.id;
 
                 this.charts.windspeedData = this.station.data.map(entry => {
                     return {

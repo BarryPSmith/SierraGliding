@@ -1,12 +1,18 @@
 <template>
     <div class='viewport-full'>
+        <div class='absolute right top z1 h36 round'>
+            <button @click='mode = "list"' class='bg-white my3 mx3 btn btn--stroke btn--gray round fr h36'><svg class='icon'><use href='#icon-menu'/></svg></button>
+            <button @click='mode = "map"' v-if='map' class='bg-white my3 mx3 btn btn--stroke btn--gray round fr h36'><svg class='icon'><use href='#icon-map'/></svg></button>
+        </div>
+
         <div v-bind:class='viewport' class='relative scroll-hidden'>
             <!-- Map -->
-            <div id="map" class='h-full w-full bg-darken10'></div>
 
-            <template v-if='!map'>
+            <div id="map" :class='mapmode' class='h-full w-full bg-darken10'></div>
+
+            <template v-if='mode === "list"'>
                 <div class='h-full w-full'>
-                    <div class='align-center border-b border--gray-light'>
+                    <div class='align-center border-b border--gray-light h36 my6'>
                         <h1 class='txt-h4'>Active Stations</h1>
                     </div>
 
@@ -69,6 +75,7 @@ export default {
     data: function() {
         return {
             ws: false,
+            mode: 'map',
             auth: false,
             duration: 1,
             station: {
@@ -109,6 +116,11 @@ export default {
     },
     components: { },
     computed: {
+        mapmode: function() {
+            return {
+                none: this.mode === 'list'
+            };
+        },
         loading: function() {
             return {
                 loading: this.station.loading,
@@ -349,6 +361,7 @@ export default {
             } catch (err) {
                 console.error(err);
                 // Mapbox GL was not able to be created, show list by default
+                this.mode = 'list';
             }
 
             if (!this.map) return;

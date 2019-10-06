@@ -12,7 +12,7 @@
                     </div>
 
                     <template v-for='station_feat in stations.features'>
-                        <div @click='station.id = station_feat.id' class='cursor-pointer py12 px12 col col--12'>
+                        <div @click='station.id = station_feat.id' class='cursor-pointer py12 px12 col col--12 bg-gray-light-on-hover'>
                             <span class='txt-h3' v-text='station_feat.properties.name'></span>
                         </div>
                     </template>

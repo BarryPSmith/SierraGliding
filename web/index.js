@@ -3,6 +3,7 @@
 'use strict';
 
 const moment = require('moment');
+const turf = require('@turf/turf');
 const WebSocketServer = require('ws').Server;
 const express = require('express');
 const sqlite3 = require('sqlite3');
@@ -137,7 +138,7 @@ function main(db, cb) {
 
     /**
      * Returns basic metadata about all stations
-     * managed in the database
+     * managed in the database as a GeoJSON FeatureCollection
      */
     router.get('/stations', (req, res) => {
         db.all(`
@@ -153,12 +154,26 @@ function main(db, cb) {
         `, (err, stations) => {
             if (err) return error(err, res);
 
-            stations = stations.map((station) => {
-                station.windspeedlegend = JSON.parse(station.windspeedlegend);
-                station.winddirlegend = JSON.parse(station.winddirlegend);
+            const pts = [];
 
-                return station;
-            });
+            stations = turf.featureCollection(stations.map((station) => {
+                pts.push([station.lon, station.lat]);
+
+                return turf.point([station.lon, station.lat], {
+                    name: station.name,
+                    legend: {
+                        wind_speed: JSON.parse(station.windspeedlegend),
+                        wind_dir: JSON.parse(station.winddirlegend)
+                    }
+                },{
+                    id: station.id,
+                    bbox: turf.bbox(turf.buffer(turf.point([station.lon, station.lat]), 0.5))
+                });
+            }));
+
+            if (pts.length) {
+                stations.bbox = turf.bbox(turf.buffer(turf.multiPoint(pts), 5));
+            }
 
             res.json(stations);
         });

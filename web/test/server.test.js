@@ -46,7 +46,10 @@ test('Stations', (t) => {
     t.test('Stations - Empty Stations', (q) => {
         request('http://localhost:4000/api/stations', (err, res) => {
             q.error(err);
-            q.deepEquals(JSON.parse(res.body), []);
+            q.deepEquals(JSON.parse(res.body), {
+                type: 'FeatureCollection',
+                features: []
+            });
             q.end();
         });
     });
@@ -75,14 +78,26 @@ test('Stations', (t) => {
     t.test('Stations - Single Stations', (q) => {
         request('http://localhost:4000/api/stations', (err, res) => {
             q.error(err);
-            q.deepEquals(JSON.parse(res.body), [{
-                id: 1,
-                name: 'Windy Ridge',
-                lon: -118.44926834106445,
-                lat: 37.335497334999936,
-                windspeedlegend: [ 10, 20, 25 ],
-                winddirlegend: []
-            }]);
+            q.deepEquals(JSON.parse(res.body), {
+                type: 'FeatureCollection',
+                bbox: [ -118.49418410527042, 37.299776417065324, -118.40435257685847, 37.371201273908426 ],
+                features: [{
+                    id: 1,
+                    type: 'Feature',
+                    bbox: [ -118.45375991748506, 37.331926007166906, -118.44477676464385, 37.339068493042674 ],
+                    properties: {
+                        name: 'Windy Ridge',
+                        legend: {
+                            wind_speed: [ 10, 20, 25 ],
+                            wind_dir: []
+                        }
+                    },
+                    geometry: {
+                        type: 'Point',
+                        coordinates: [ -118.44926834106445, 37.335497334999936 ]
+                    }
+                }]
+            });
             q.end();
         });
     });

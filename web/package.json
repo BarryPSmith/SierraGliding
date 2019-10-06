@@ -13,6 +13,7 @@
   },
   "license": "ISC",
   "dependencies": {
+    "@turf/turf": "^5.1.6",
     "express": "^4.17.1",
     "minimist": "^1.2.0",
     "moment": "^2.24.0",

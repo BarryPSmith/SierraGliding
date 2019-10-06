@@ -216,6 +216,8 @@ export default {
             this.station_update();
         },
         'station.id': function() {
+            if (!station.id) window.location.hash = '';
+
             this.station_update();
         }
     },
@@ -379,6 +381,8 @@ export default {
                         'circle-radius': 10
                     }
                 });
+
+                this.map.fitBounds(this.stations.bbox);
             });
 
             this.map.on('click', (e) => {
@@ -450,25 +454,7 @@ export default {
             }).then((response) => {
                 return response.json();
             }).then((stations) => {
-                this.stations = {
-                    type: 'FeatureCollection',
-                    features: stations.map((station) => {
-                        return {
-                            id: station.id,
-                            type: 'Feature',
-                            properties: {
-                                name: station.name
-                            },
-                            geometry: {
-                                type: 'Point',
-                                coordinates: [
-                                    station.lon,
-                                    station.lat
-                                ]
-                            }
-                        }
-                    })
-                }
+                this.stations = stations;
             });
         },
         fetch_station: function(station_id, cb) {

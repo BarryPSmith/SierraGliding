@@ -8,8 +8,8 @@
             <template v-else>
                 <div class='h-full w-full'>
                     <template v-for='station_feat in stations.features'>
-                        <div @click='station.id = station_feat.id' class='col col--12'>
-                            <span v-text='station_feat.properties.name'></span>
+                        <div @click='station.id = station_feat.id' class='cursor-pointer py12 px12 col col--12'>
+                            <span class='txt-h3' v-text='station_feat.properties.name'></span>
                         </div>
                     </template>
                 </div>
@@ -17,15 +17,11 @@
         </div>
 
         <template v-if='station.id'>
-            <div class='viewport-half relative scroll-hidden'
-                 style="display: grid;
-                        grid-template-rows: 80px minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
-                        grid-template-columns: 100%">
-                <div class='py12 px12 clearfix'
-                        >
+            <div class='viewport-half relative scroll-hidden'>
+                <div class='py12 px12 clearfix'>
                     <h1 class='txt-h2 fl' v-text='station.name'></h1>
 
-                    <button @click='station.id = false' class='btn btn--stroke--gray round fr'><svg class='icon'><use href='#icon-close'/></svg></button>
+                    <button @click='station.id = false' class='btn btn--stroke btn--gray round fr h36'><svg class='icon'><use href='#icon-close'/></svg></button>
 
                     <div class="flex-parent-inline fr px24">
                         <button class="btn btn--pill btn--pill-hl">1 Hour</button>
@@ -35,19 +31,18 @@
                     </div>
                 </div>
 
-                <!--style="position:absolute; top:80px; right:10px; left:10px; bottom: 10px"-->
-
-                    <div>
-                        <canvas id="windspeed"></canvas> <!--height="400"  class='w-full h-full' -->
+                <div class='grid grid--gut12'>
+                    <div class='col col--12'>
+                        <canvas id="windspeed"></canvas>
                     </div>
-                    <div>
-                        <canvas id="wind_direction"></canvas> <!--height="400"  class='w-full h-full' -->
-                    </div>
-
-                    <div>
-                        <canvas id="battery"></canvas> <!--height="400"  class='w-full h-full' -->
+                    <div class='col col--12'>
+                        <canvas id="wind_direction"></canvas>
                     </div>
 
+                    <div class='col col--12'>
+                        <canvas id="battery"></canvas>
+                    </div>
+                </div>
             </div>
         </template>
     </div>
@@ -150,25 +145,30 @@ export default {
                     return {
                         x: new Date(entry.timestamp * 1000),
                         y: entry.windspeed
-                }});
+                    }
+                });
 
                 this.charts.windDirectionData = this.station.data.map(entry => {
                     return {
                         x: new Date(entry.timestamp * 1000),
                         y: entry.wind_direction
-                }});
+                    }
+                });
 
                 this.charts.batteryData = this.station.data.map(entry => {
                     return {
                         x: new Date(entry.timestamp * 1000),
                         y: entry.battery_level
-                }});
+                    }
+                });
 
-                if (!this.Timer) {
-                    this.Timer = setInterval(() => {
-                        let charts = [this.charts.windspeed, this.charts.wind_direction,
-                                            this.charts.battery]
-                        for (const chart of charts) {
+                if (!this.timer) {
+                    this.timer = setInterval(() => {
+                        for (const chart of [
+                            this.charts.windspeed,
+                            this.charts.wind_direction,
+                            this.charts.battery
+                        ]) {
                             if (!!chart) {
                                 chart.options.scales.xAxes[0].time.min = new Date(new Date() - 180000);
                                 chart.options.scales.xAxes[0].time.max = new Date();
@@ -178,32 +178,32 @@ export default {
                     }, 1000);
                 }
 
-                let commonOptions = {
-                        animation: {
-                            duration: 0,
-                            easing: "linear"
-                        },
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            yAxes: [{
-                                ticks: {
-                                    beginAtZero: true
-                                }
-                            }],
-                            xAxes: [{
-                                type: 'time',
-                                bounds: 'data',
-                                time: {
-                                    min: new Date(new Date() - 180000),
-                                    max: new Date()
-                                }
-                            }]
-                        },
-                        annotation: {
-                            annotations: []
-                        }
+                const commonOptions = {
+                    animation: {
+                        duration: 0,
+                        easing: 'linear'
+                    },
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        yAxes: [{
+                            ticks: {
+                                beginAtZero: true
+                            }
+                        }],
+                        xAxes: [{
+                            type: 'time',
+                            bounds: 'data',
+                            time: {
+                                min: new Date(new Date() - 180000),
+                                max: new Date()
+                            }
+                        }]
+                    },
+                    annotation: {
+                        annotations: []
                     }
+                }
 
                 this.charts.windspeed = new Chart(document.getElementById('windspeed'), {
                     type: 'line',
@@ -218,7 +218,7 @@ export default {
                             lineTension: 0
                         }]
                     },
-                    options: commonOptions
+                    options: JSON.parse(JSON.stringify(commonOptions))
                 });
 
                 this.charts.wind_direction = new Chart(document.getElementById('wind_direction'), {
@@ -234,7 +234,7 @@ export default {
                             lineTension: 0
                         }]
                     },
-                    options: commonOptions
+                    options: JSON.parse(JSON.stringify(commonOptions))
                 });
 
                 this.charts.battery = new Chart(document.getElementById('battery'), {
@@ -250,9 +250,11 @@ export default {
                             lineTension: 0
                         }]
                     },
-                    options: commonOptions
+                    options: JSON.parse(JSON.stringify(commonOptions))
                 });
             });
+
+            this.set_speed_annotations();
         }
     },
     methods: {
@@ -303,49 +305,51 @@ export default {
                 this.station.id = feats[0].id;
             });
         },
-        set_speed_annotations: function(station) {
-            if (this.station.legend.windspeed && this.station.legend.windspeed.length === 3) {
-                this.charts.windspeed.options.annotation.annotations.push({
-                    id: 'blue',
-                    type: 'box',
-                    xScaleID: 'x-axis-0',
-                    yScaleID: 'y-axis-0',
-                    yMin: 0,
-                    yMax: this.station.legend.windspeed[0],
-                    backgroundColor: 'rgba(0,0,255,0.4)',
-                    borderColor: 'rgba(0,0,255,0.4)',
-                });
-                this.charts.windspeed.options.annotation.annotations.push({
-                    id: 'green',
-                    type: 'box',
-                    xScaleID: 'x-axis-0',
-                    yScaleID: 'y-axis-0',
-                    yMin: this.station.legend.windspeed[0],
-                    yMax: this.station.legend.windspeed[1],
-                    backgroundColor: 'rgba(0,255,0,0.4)',
-                    borderColor: 'rgba(0,255,0,0.4)',
-                });
-                this.charts.windspeed.options.annotation.annotations.push({
-                    id: 'yellow',
-                    type: 'box',
-                    xScaleID: 'x-axis-0',
-                    yScaleID: 'y-axis-0',
-                    yMin: this.station.legend.windspeed[1],
-                    yMax: this.station.legend.windspeed[2],
-                    backgroundColor: 'rgba(255,255,0,0.4)',
-                    borderColor: 'rgba(255,255,0,0.4)',
-                });
-                this.charts.windspeed.options.annotation.annotations.push({
-                    id: 'red',
-                    type: 'box',
-                    xScaleID: 'x-axis-0',
-                    yScaleID: 'y-axis-0',
-                    yMin: this.station.legend.windspeed[2],
-                    yMax: 30,
-                    backgroundColor: 'rgba(255,0,0,0.4)',
-                    borderColor: 'rgba(255,0,0,0.4)',
-                });
-            }
+        set_speed_annotations: function() {
+            console.error(this.station.legend);
+            console.error(this.station.legend.windspeed);
+            //if (!this.station.legend.windspeed || this.station.legend.windspeed.length !== 3) return;
+
+            this.charts.windspeed.options.annotation.annotations.push({
+                id: 'blue',
+                type: 'box',
+                xScaleID: 'x-axis-0',
+                yScaleID: 'y-axis-0',
+                yMin: 0,
+                yMax: this.station.legend.windspeed[0],
+                backgroundColor: 'rgba(0,0,255,0.4)',
+                borderColor: 'rgba(0,0,255,0.4)',
+            });
+            this.charts.windspeed.options.annotation.annotations.push({
+                id: 'green',
+                type: 'box',
+                xScaleID: 'x-axis-0',
+                yScaleID: 'y-axis-0',
+                yMin: this.station.legend.windspeed[0],
+                yMax: this.station.legend.windspeed[1],
+                backgroundColor: 'rgba(0,255,0,0.4)',
+                borderColor: 'rgba(0,255,0,0.4)',
+            });
+            this.charts.windspeed.options.annotation.annotations.push({
+                id: 'yellow',
+                type: 'box',
+                xScaleID: 'x-axis-0',
+                yScaleID: 'y-axis-0',
+                yMin: this.station.legend.windspeed[1],
+                yMax: this.station.legend.windspeed[2],
+                backgroundColor: 'rgba(255,255,0,0.4)',
+                borderColor: 'rgba(255,255,0,0.4)',
+            });
+            this.charts.windspeed.options.annotation.annotations.push({
+                id: 'red',
+                type: 'box',
+                xScaleID: 'x-axis-0',
+                yScaleID: 'y-axis-0',
+                yMin: this.station.legend.windspeed[2],
+                yMax: 30,
+                backgroundColor: 'rgba(255,0,0,0.4)',
+                borderColor: 'rgba(255,0,0,0.4)',
+            });
         },
         fetch_stations: function() {
             fetch(`${window.location.protocol}//${window.location.host}/api/stations`, {
@@ -389,7 +393,7 @@ export default {
                 this.station.legend.winddir = station.winddirlegend;
                 this.station.lon = station.lon;
                 this.station.lat = station.lat;
-            })
+            });
 
             let url = new URL(`${window.location.protocol}//${window.location.host}/api/station/${station_id}/data`);
 
@@ -405,8 +409,7 @@ export default {
                 this.station.data = stationData;
             });
 
-            Promise.all([stationFetch, dataFetch])
-                .then(() => {
+            Promise.all([stationFetch, dataFetch]).then(() => {
                 return cb();
             });
         },

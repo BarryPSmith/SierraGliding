@@ -216,7 +216,7 @@ export default {
             this.station_update();
         },
         'station.id': function() {
-            if (!station.id) window.location.hash = '';
+            if (!this.station.id) window.location.hash = '';
 
             this.station_update();
         }
@@ -361,7 +361,6 @@ export default {
                     compact: true
                 }));
             } catch (err) {
-                console.error(err);
                 // Mapbox GL was not able to be created, show list by default
                 this.mode = 'list';
             }

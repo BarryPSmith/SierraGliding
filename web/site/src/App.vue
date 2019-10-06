@@ -190,7 +190,7 @@ export default {
                 this.charts.battery
             ]) {
                 if (chart) {
-                    chart.options.scales.xAxes[0].time.min = new Date(+new Date() - (this.duration * 60 * 1000));
+                    chart.options.scales.xAxes[0].time.min = new Date(+new Date() - (this.duration * 60 * 60 * 1000));
                     chart.options.scales.xAxes[0].time.max = new Date();
                     chart.update();
                 }
@@ -242,7 +242,7 @@ export default {
                             type: 'time',
                             bounds: 'data',
                             time: {
-                                min: new Date(+new Date() - (this.duration * 60 * 1000)),
+                                min: new Date(+new Date() - (this.duration * 60 * 60 * 1000)),
                                 max: new Date()
                             }
                         }]

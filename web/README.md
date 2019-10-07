@@ -112,6 +112,50 @@ given station
 
 ### `GET`: `api/station/:id/data`
 
+Return data for a given station over a period of time
+
+#### Params
+
+| URL Parameter         | Note |
+| --------------------- | --- |
+| `start=<timestamp>`   | Seconds from unix epoch |
+| `end=<timestamp>`     | Seconds from unix epoch |
+| `sample=<seconds>`    | Bin data into `<second>` based bins. Binned data is calculated via median |
+
+*Example Response*
+
+```JSON
+[{
+    id: 1,
+    timestamp: 1570406505
+    windspeed: 20.2
+    wind_direction: 160
+    battery_level: 86
+},{
+    id: 1,
+    timestamp: 1570406600
+    windspeed: 22.6
+    wind_direction: 80
+    battery_level: 82
+}]
+```
+
 ### `POST`: `api/station/:id/data`
 
+Update a new data point for a given station
+
+*Example Response*
+
+```JSON
+
+```
+
 ### `GET`: `api/station/:id/data/latest`
+
+Get the latest data point for a given station
+
+*Example Response*
+
+```JSON
+
+```

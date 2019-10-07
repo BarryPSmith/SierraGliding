@@ -308,13 +308,32 @@ function main(db, cb) {
                 });
             }
 
+            if (isNaN(parseInt(req.query[key])) {
+                return res.status(400).json({
+                    status: 400,
+                    error: `${key} url param required`
+                });
+            } else {
+                req.query[key] = parseInt(req.query[key]);
+            }
+
             try {
-                moment.unix(parseInt(req.query.start));
-                moment.unix(parseInt(req.query.end));
+                moment.unix(req.query[key]);
             } catch(err) {
                 return res.status(400).json({
                     status: 400,
-                    error: 'start/end must be an integer (unix) date'
+                    error: `${key} url param must be integer of seconds since unix epoch`
+                });
+            }
+        }
+
+        if (req.query.sample) {
+            req.query.sample = parseInt(req.query.sample);
+
+            if (isNaN(req.query.sample)) {
+                return res.status(400).json({
+                    status: 400,
+                    error: 'sample url param must be integer value'
                 });
             }
         }
@@ -339,6 +358,8 @@ function main(db, cb) {
             $end: parseInt(req.query.end)
         }, (err, data) => {
             if (err) return error(err, res);
+
+
 
             res.json(data);
         });

@@ -345,7 +345,7 @@ function main(db, cb) {
                 Timestamp AS timestamp,
                 Windspeed AS windspeed,
                 Wind_Direction AS wind_direction,
-                Battery_Level AS battery_level
+                COALESCE(Battery_Level, 0) AS battery_level
             FROM
                 station_data
             WHERE
@@ -370,20 +370,34 @@ function main(db, cb) {
 
             const min = data_points[0];
             const max = data_points[data_points.length - 1];
-            const diff = max.timestamp - min.timestamp;
 
-            for (let bin_it = Math.ceil(diff / req.query.sample); bin_it >= 0; bin_it++) {
+            for (
+                let bin_lwr = max.timestamp - req.query.sample;
+                bin_lwr >= min.timestamp;
+                bin_lwr -= req.query.sample
+            ) {
                 const bin = [];
-                let pt = data_points.pop();
 
-                while (pt.timestamp < max.timestamp - (bin_it * req.query.sample) - req.query.sample) {
-                    bin.push(pt);
+                if (!data_points.length) break;
 
-                    pt = data_point.pop();
+                let pt = data_points.length - 1;
+
+                while (
+                    data_points[pt]
+                    && data_points[pt].timestamp > bin_lwr
+                    && data_points[pt].timestamp <= bin_lwr + req.query.sample
+                ) {
+                    bin.push(data_points.pop());
+
+                    if (!data_points.length) break;
+
+                    pt = data_points.length - 1;
                 }
 
+                if (!bin.length) continue;
+
                 sampled.push({
-                    timestamp: max.timestamp - (bin_it * req.query.sample),
+                    timestamp: bin_lwr,
                     windspeed: stats.median(bin.map(b => b.windspeed)),
                     wind_direction: stats.median(bin.map(b => b.wind_direction)),
                     battery_level: stats.median(bin.map(b => b.battery_level))

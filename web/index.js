@@ -2,6 +2,7 @@
 
 'use strict';
 
+const stats = require('simple-statistics');
 const moment = require('moment');
 const turf = require('@turf/turf');
 const WebSocketServer = require('ws').Server;
@@ -308,7 +309,7 @@ function main(db, cb) {
                 });
             }
 
-            if (isNaN(parseInt(req.query[key])) {
+            if (isNaN(parseInt(req.query[key]))) {
                 return res.status(400).json({
                     status: 400,
                     error: `${key} url param required`
@@ -356,12 +357,40 @@ function main(db, cb) {
             $id: req.params.id,
             $start: parseInt(req.query.start),
             $end: parseInt(req.query.end)
-        }, (err, data) => {
+        }, (err, data_points) => {
             if (err) return error(err, res);
 
+            if (!req.query.sample || !data_points.length) {
+                return res.json(data_points);
+            }
 
+            const sampled = [];
 
-            res.json(data);
+            const bins = [];
+
+            const min = data_points[0];
+            const max = data_points[data_points.length - 1];
+            const diff = max.timestamp - min.timestamp;
+
+            for (let bin_it = Math.ceil(diff / req.query.sample); bin_it >= 0; bin_it++) {
+                const bin = [];
+                let pt = data_points.pop();
+
+                while (pt.timestamp < max.timestamp - (bin_it * req.query.sample) - req.query.sample) {
+                    bin.push(pt);
+
+                    pt = data_point.pop();
+                }
+
+                sampled.push({
+                    timestamp: max.timestamp - (bin_it * req.query.sample),
+                    windspeed: stats.median(bin.map(b => b.windspeed)),
+                    wind_direction: stats.median(bin.map(b => b.wind_direction)),
+                    battery_level: stats.median(bin.map(b => b.battery_level))
+                });
+            }
+
+            res.json(sampled.reverse());
         });
     });
 

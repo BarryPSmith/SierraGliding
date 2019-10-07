@@ -499,8 +499,9 @@ export default {
             let current = +new Date() / 1000; // Unix time (seconds)
 
             // current (seconds) - ( 60 (seconds) * 60 (minutes) )
-            url.searchParams.append('start', String(Math.floor(current - (60 * 60))));
-            url.searchParams.append('end', String(Math.floor(current)));
+            url.searchParams.append('start', Math.floor(current - (60 * 60)));
+            url.searchParams.append('end', Math.floor(current));
+            url.searchParams.append('sample', 3600);
 
             let dataFetch = fetch(url, {
                 method: 'GET',

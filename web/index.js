@@ -159,6 +159,8 @@ function main(db, cb) {
         `, (err, stations) => {
             if (err) return error(err, res);
 
+            //TODO: Try/catch for parsing errors in the legends
+            
             const pts = [];
 
             stations = turf.featureCollection(stations.map((station) => {

@@ -33,10 +33,11 @@
                     <button @click='station.id = false' class='btn btn--stroke btn--gray round fr h36'><svg class='icon'><use href='#icon-close'/></svg></button>
 
                     <div v-if='!station.error' class="flex-parent-inline fr px24">
-                        <button @click='duration =  1' :class='dur1' class="btn btn--pill btn--pill-hl">1 Hour</button>
-                        <button @click='duration =  4' :class='dur4' class="btn btn--pill btn--pill-hc">4 Hours</button>
-                        <button @click='duration = 12' :class='dur12' class="btn btn--pill btn--pill-hc">12 Hours</button>
-                        <button @click='duration = 24' :class='dur24' class="btn btn--pill btn--pill-hr">24 Hours</button>
+                        <button @click='duration =   300' :class='dur300' class="btn btn--pill btn--pill-hl">5 Minutes</button>
+                        <button @click='duration =  3600' :class='dur3600' class="btn btn--pill btn--pill-hc">1 Hour</button>
+                        <button @click='duration = 14400' :class='dur14400' class="btn btn--pill btn--pill-hc">4 Hours</button>
+                        <button @click='duration = 42200' :class='dur42200' class="btn btn--pill btn--pill-hc">12 Hours</button>
+                        <button @click='duration = 84400' :class='dur84400' class="btn btn--pill btn--pill-hr">24 Hours</button>
                     </div>
                 </div>
 
@@ -77,7 +78,7 @@ export default {
             ws: false,
             mode: 'map',
             auth: false,
-            duration: 1,
+            duration: 300,
             station: {
                 id: false,
                 error: false,
@@ -127,24 +128,29 @@ export default {
                 none: this.station.error
             }
         },
-        dur1: function() {
+        dur300: function() {
             return {
-                'btn--stroke': this.duration === 1
+                'btn--stroke': this.duration === 300
             }
         },
-        dur4: function() {
+        dur3600: function() {
             return {
-                'btn--stroke': this.duration === 4
+                'btn--stroke': this.duration === 3600
             }
         },
-        dur12: function() {
+        dur14400: function() {
             return {
-                'btn--stroke': this.duration === 12
+                'btn--stroke': this.duration === 14400
             }
         },
-        dur24: function() {
+        dur42200: function() {
             return {
-                'btn--stroke': this.duration === 24
+                'btn--stroke': this.duration === 42200
+            }
+        },
+        dur84400: function() {
+            return {
+                'btn--stroke': this.duration === 84400
             }
         },
         viewport: function() {
@@ -229,7 +235,7 @@ export default {
                 this.charts.battery
             ]) {
                 if (chart) {
-                    chart.options.scales.xAxes[0].time.min = new Date(+new Date() - (this.duration * 60 * 60 * 1000));
+                    chart.options.scales.xAxes[0].time.min = new Date(+new Date() - (this.duration * 1000));
                     chart.options.scales.xAxes[0].time.max = new Date();
                     chart.update();
                 }
@@ -238,6 +244,8 @@ export default {
         station_update: function() {
             this.station.loading = true;
 
+            console.error(this.station.id);
+            
             this.fetch_station(this.station.id, () => {
                 if (this.map) {
                     this.map.setCenter([this.station.lon, this.station.lat]);
@@ -283,7 +291,7 @@ export default {
                             type: 'time',
                             bounds: 'data',
                             time: {
-                                min: new Date(+new Date() - (this.duration * 60 * 60 * 1000)),
+                                min: new Date(+new Date() - (this.duration * 1000)),
                                 max: new Date()
                             }
                         }]
@@ -463,6 +471,8 @@ export default {
                 this.station.error = 'No Station ID Specified';
                 return;
             }
+            
+            console.error(station_id);
 
             let stationFetch = fetch(`${window.location.protocol}//${window.location.host}/api/station/${station_id}`, {
                 method: 'GET',
@@ -480,16 +490,20 @@ export default {
                 this.station.lon = station.lon;
                 this.station.lat = station.lat;
 
-                this.station.legend.windspeed.splice(0, this.station.legend.windspeed.length);
-                station.windspeedlegend.forEach((legend) => {
-                    this.station.legend.windspeed.push(legend)
-                });
+                if (!!station.windspeedlegend) {
+                    this.station.legend.windspeed.splice(0, this.station.legend.windspeed.length);
+                    station.windspeedlegend.forEach((legend) => {
+                        this.station.legend.windspeed.push(legend)
+                    });
+                }
+                
+                if (!!station.winddirlegend) {
+                    this.station.legend.winddir.splice(0, this.station.legend.winddir.length);
 
-                this.station.legend.winddir.splice(0, this.station.legend.winddir.length);
-
-                station.winddirlegend.forEach((legend) => {
-                    this.station.legend.winddir.push(legend);
-                });
+                    station.winddirlegend.forEach((legend) => {
+                        this.station.legend.winddir.push(legend);
+                    });
+                }
             }).catch((err) => {
                 this.station.error = err.message;
             });
@@ -499,9 +513,14 @@ export default {
             let current = +new Date() / 1000; // Unix time (seconds)
 
             // current (seconds) - ( 60 (seconds) * 60 (minutes) )
-            url.searchParams.append('start', Math.floor(current - (60 * 60)));
+            url.searchParams.append('start', Math.floor(current - this.duration));
             url.searchParams.append('end', Math.floor(current));
-            url.searchParams.append('sample', 60);
+            
+            //Sample rate. Let's aim for 2000 points.
+            let desiredSample = this.duration / 2000;
+            if (desiredSample < 1)
+                desiredSample = 1;
+            url.searchParams.append('sample', desiredSample);
 
             let dataFetch = fetch(url, {
                 method: 'GET',

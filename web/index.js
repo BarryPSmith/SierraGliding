@@ -100,7 +100,7 @@ function database(dbpath, drop, cb) {
 
         db.run(`
             CREATE TABLE IF NOT EXISTS station_data (
-                Station_ID          INT NOT NULL,
+                Station_ID          INT NOT NULL REFERENCES Stations(id) ON DELETE CASCADE ON UPDATE CASCADE,
                 Timestamp           INT NOT NULL,
                 Windspeed           FLOAT NOT NULL,
                 Wind_Direction      FLOAT NOT NULL,
@@ -153,7 +153,9 @@ function main(db, cb) {
                 Wind_Speed_Legend AS windspeedlegend,
                 Wind_Dir_Legend AS winddirlegend
             FROM
-                stations;
+                stations
+            WHERE
+                id >= 0;
         `, (err, stations) => {
             if (err) return error(err, res);
 

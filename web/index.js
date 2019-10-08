@@ -2,6 +2,7 @@
 
 'use strict';
 
+const stats = require('simple-statistics');
 const moment = require('moment');
 const turf = require('@turf/turf');
 const WebSocketServer = require('ws').Server;
@@ -308,13 +309,32 @@ function main(db, cb) {
                 });
             }
 
+            if (isNaN(parseInt(req.query[key]))) {
+                return res.status(400).json({
+                    status: 400,
+                    error: `${key} url param required`
+                });
+            } else {
+                req.query[key] = parseInt(req.query[key]);
+            }
+
             try {
-                moment.unix(parseInt(req.query.start));
-                moment.unix(parseInt(req.query.end));
+                moment.unix(req.query[key]);
             } catch(err) {
                 return res.status(400).json({
                     status: 400,
-                    error: 'start/end must be an integer (unix) date'
+                    error: `${key} url param must be integer of seconds since unix epoch`
+                });
+            }
+        }
+
+        if (req.query.sample) {
+            req.query.sample = parseInt(req.query.sample);
+
+            if (isNaN(req.query.sample)) {
+                return res.status(400).json({
+                    status: 400,
+                    error: 'sample url param must be integer value'
                 });
             }
         }
@@ -325,7 +345,7 @@ function main(db, cb) {
                 Timestamp AS timestamp,
                 Windspeed AS windspeed,
                 Wind_Direction AS wind_direction,
-                Battery_Level AS battery_level
+                COALESCE(Battery_Level, 0) AS battery_level
             FROM
                 station_data
             WHERE
@@ -337,10 +357,54 @@ function main(db, cb) {
             $id: req.params.id,
             $start: parseInt(req.query.start),
             $end: parseInt(req.query.end)
-        }, (err, data) => {
+        }, (err, data_points) => {
             if (err) return error(err, res);
 
-            res.json(data);
+            if (!req.query.sample || !data_points.length) {
+                return res.json(data_points);
+            }
+
+            const sampled = [];
+
+            const bins = [];
+
+            const min = data_points[0];
+            const max = data_points[data_points.length - 1];
+
+            for (
+                let bin_lwr = max.timestamp - req.query.sample;
+                bin_lwr >= min.timestamp;
+                bin_lwr -= req.query.sample
+            ) {
+                const bin = [];
+
+                if (!data_points.length) break;
+
+                let pt = data_points.length - 1;
+
+                while (
+                    data_points[pt]
+                    && data_points[pt].timestamp > bin_lwr
+                    && data_points[pt].timestamp <= bin_lwr + req.query.sample
+                ) {
+                    bin.push(data_points.pop());
+
+                    if (!data_points.length) break;
+
+                    pt = data_points.length - 1;
+                }
+
+                if (!bin.length) continue;
+
+                sampled.push({
+                    timestamp: bin_lwr,
+                    windspeed: stats.median(bin.map(b => b.windspeed)),
+                    wind_direction: stats.median(bin.map(b => b.wind_direction)),
+                    battery_level: stats.median(bin.map(b => b.battery_level))
+                });
+            }
+
+            res.json(sampled.reverse());
         });
     });
 

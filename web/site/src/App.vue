@@ -216,7 +216,7 @@ export default {
             this.station_update();
         },
         'station.id': function() {
-            if (!station.id) window.location.hash = '';
+            if (!this.station.id) window.location.hash = '';
 
             this.station_update();
         }
@@ -361,7 +361,6 @@ export default {
                     compact: true
                 }));
             } catch (err) {
-                console.error(err);
                 // Mapbox GL was not able to be created, show list by default
                 this.mode = 'list';
             }
@@ -500,8 +499,9 @@ export default {
             let current = +new Date() / 1000; // Unix time (seconds)
 
             // current (seconds) - ( 60 (seconds) * 60 (minutes) )
-            url.searchParams.append('start', String(Math.floor(current - (60 * 60))));
-            url.searchParams.append('end', String(Math.floor(current)));
+            url.searchParams.append('start', Math.floor(current - (60 * 60)));
+            url.searchParams.append('end', Math.floor(current));
+            url.searchParams.append('sample', 60);
 
             let dataFetch = fetch(url, {
                 method: 'GET',

@@ -56,7 +56,7 @@ The list is returned as a GeoJSON FeatureCollection
     "bbox": [ -118.49418410527042, 37.299776417065324, -118.40435257685847, 37.371201273908426 ],
     "features": [{
         "id": 1,
-        "type": 'Feature",
+        "type": "Feature",
         "bbox": [ -118.45375991748506, 37.331926007166906, -118.44477676464385, 37.339068493042674 ],
         "properties": {
             "name": "Windy Ridge",
@@ -112,6 +112,50 @@ given station
 
 ### `GET`: `api/station/:id/data`
 
+Return data for a given station over a period of time
+
+#### Params
+
+| URL Parameter         | Note |
+| --------------------- | --- |
+| `start=<timestamp>`   | Seconds from unix epoch |
+| `end=<timestamp>`     | Seconds from unix epoch |
+| `sample=<seconds>`    | Bin data into `<second>` based bins. Binned data is calculated via median |
+
+*Example Response*
+
+```JSON
+[{
+    id: 1,
+    timestamp: 1570406505
+    windspeed: 20.2
+    wind_direction: 160
+    battery_level: 86
+},{
+    id: 1,
+    timestamp: 1570406600
+    windspeed: 22.6
+    wind_direction: 80
+    battery_level: 82
+}]
+```
+
 ### `POST`: `api/station/:id/data`
 
+Update a new data point for a given station
+
+*Example Response*
+
+```JSON
+
+```
+
 ### `GET`: `api/station/:id/data/latest`
+
+Get the latest data point for a given station
+
+*Example Response*
+
+```JSON
+
+```

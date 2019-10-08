@@ -92,7 +92,9 @@ function database(dbpath, drop, cb) {
                 Lon                 FLOAT NOT NULL,
                 Lat                 FLOAT NOT NULL,
                 Wind_Speed_Legend   TEXT NULL,
-                Wind_Dir_Legend     TEXT NULL
+                Wind_Dir_Legend     TEXT NULL,
+                Wind_Direction_Offset FLOAT NOT NULL DEFAULT 0, -- Used to compensate for misaligned stations. Applied when data is added to the station_data
+                Display_Level       INTEGER NOT NULL DEFAULT 1 -- If we want to have some stations that are not usually displayed. 0 = Hidden, 1 = Public, 2 = Private (TODO: Figure out admin stuff)
             );
         `);
 
@@ -448,7 +450,7 @@ function main(db, cb) {
                 $id,
                 $timestamp,
                 $windspeed,
-                $winddir,
+                $winddir + (SELECT Wind_Direction_Offset FROM stations WHERE id = $id),
                 $battery
             )
         `, {

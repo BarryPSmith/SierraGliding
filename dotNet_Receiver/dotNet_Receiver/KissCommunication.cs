@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
@@ -24,16 +26,47 @@ namespace dotNet_Receiver
         public int MaxPacketSize { get; set; } = 30000; //Arbitrary maximum packet size to avoid consuming too much memory
         public bool IsConnected { get; private set; } = false;
 
+        public static IPEndPoint CreateIPEndPoint(string endPoint)
+        {
+            string[] ep = endPoint.Split(':');
+            if (ep.Length != 2) throw new FormatException("Invalid endpoint format");
+            IPAddress ip;
+            if (!IPAddress.TryParse(ep[0], out ip))
+            {
+                throw new FormatException("Invalid ip-adress");
+            }
+            int port;
+            if (!int.TryParse(ep[1], NumberStyles.None, NumberFormatInfo.CurrentInfo, out port))
+            {
+                throw new FormatException("Invalid port");
+            }
+            return new IPEndPoint(ip, port);
+        }
+
+        public void Connect(string fullAddress)
+        {
+            var ep = CreateIPEndPoint(fullAddress);
+            ConnectInternal(ep);
+        }
+
         public void Connect(string address, int port)
         {
             _address = address;
             _port = port;
+            var ep = new IPEndPoint(IPAddress.Parse(address), port);
+            ConnectInternal(ep);
+        }
 
-            using (TcpClient client = new TcpClient(address, port))
-            using (var netStream = client.GetStream())
+        private void ConnectInternal(IPEndPoint ep)
+        {
+            using (TcpClient client = new TcpClient(ep.Address.ToString(), ep.Port))
             {
-                ReadStream(netStream);
-                IsConnected = false;
+                //client.Connect(ep);
+                using (var netStream = client.GetStream())
+                {
+                    ReadStream(netStream);
+                    IsConnected = false;
+                }
             }
         }
 

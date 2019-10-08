@@ -43,7 +43,7 @@ namespace dotNet_Receiver
 
                 var toSerialize = new
                 {
-                    timestamp = now, //.ToUnixTimeSeconds(),
+                    timestamp = now.ToUnixTimeSeconds(),
                     wind_speed = subPacket.windSpeed,
                     wind_direction = subPacket.windDirection,
                     battery = subPacket.batteryLevelH

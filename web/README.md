@@ -56,7 +56,7 @@ The list is returned as a GeoJSON FeatureCollection
     "bbox": [ -118.49418410527042, 37.299776417065324, -118.40435257685847, 37.371201273908426 ],
     "features": [{
         "id": 1,
-        "type": 'Feature",
+        "type": "Feature",
         "bbox": [ -118.45375991748506, 37.331926007166906, -118.44477676464385, 37.339068493042674 ],
         "properties": {
             "name": "Windy Ridge",

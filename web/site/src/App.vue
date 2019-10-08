@@ -313,7 +313,8 @@ export default {
                         }]
                     },
                     annotation: {
-                        annotations: []
+                        annotations: [],
+                        drawTime: 'beforeDatasetsDraw'
                     }
                 }
 
@@ -328,7 +329,10 @@ export default {
                                 pointBorderColor: 'black',
                                 pointRadius: 0,
                                 borderColor: 'black',
-                                backgroundColor: 'rgba(255, 255, 255, 0.3)',
+                                borderJoinStyle: 'round',
+                                borderWidth: 0.2,
+                                fill: 'end',
+                                backgroundColor: 'rgba(255, 255, 255, 0.7)',
                                 data: this.charts.windspeedData,
                                 lineTension: 0
                             }]
@@ -441,7 +445,6 @@ export default {
                 this.station.id = feats[0].id;
             });
         },
-        //TODO: Replace annotations with gradient brushes. Or figure out a way to draw annotations behind the data sets.
         set_direction_annotations: function() {
             if (!this.station.legend.winddir) {
                 return;

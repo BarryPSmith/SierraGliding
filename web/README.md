@@ -5,6 +5,10 @@
 To run the server you will need to download and install [NodeJS](https://nodejs.org/en/)
 Binaries are provided for windows, linux, and OSX.
 
+```
+curl https://nodejs.org/dist/v10.16.3/node-v10.16.3-linux-x64.tar.gz | tar zxC /usr/local --strip-components=1
+```
+
 Once you have installed node, open up your favourite terminal app
 and in the `SierraGliding/web/` folder, run the following commands:
 

@@ -126,17 +126,17 @@ Return data for a given station over a period of time
 
 ```JSON
 [{
-    id: 1,
-    timestamp: 1570406505
-    windspeed: 20.2
-    wind_direction: 160
-    battery_level: 86
+    "id": 1,
+    "timestamp": 1570406505
+    "windspeed": 20.2
+    "wind_direction": 160
+    "battery_level": 86
 },{
-    id: 1,
-    timestamp: 1570406600
-    windspeed: 22.6
-    wind_direction: 80
-    battery_level: 82
+    "id": 1,
+    "timestamp": 1570406600
+    "windspeed": 22.6
+    "wind_direction": 80
+    "battery_level": 82
 }]
 ```
 

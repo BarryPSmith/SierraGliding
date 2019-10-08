@@ -66,7 +66,7 @@ test('Stations', (t) => {
                 name: 'Windy Ridge',
                 lon: -118.44926834106445,
                 lat: 37.335497334999936,
-                windspeedlegend: [10, 20, 25]
+                windspeedlegend: [10, 20, 25, 30]
             })
         }, (err, res) => {
             q.error(err);
@@ -88,7 +88,7 @@ test('Stations', (t) => {
                     properties: {
                         name: 'Windy Ridge',
                         legend: {
-                            wind_speed: [ 10, 20, 25 ],
+                            wind_speed: [ 10, 20, 25, 30 ],
                             wind_dir: []
                         }
                     },
@@ -114,7 +114,7 @@ test('Stations', (t) => {
                 name: 'Bishop Centre',
                 lon: -118.4044647216797,
                 lat: 37.36633719814676,
-                windspeedlegend: [5, 10, 50]
+                windspeedlegend: [5, 10, 50, 80]
             })
         }, (err, res) => {
             q.error(err);
@@ -155,7 +155,7 @@ test('Stations', (t) => {
                 name: 'White Mountains',
                 lon: -118.2403564453125,
                 lat: 37.55764242679522,
-                windspeedlegend: [15, 16, 19]
+                windspeedlegend: [15, 16, 19, 22]
             })
         }, (err, res) => {
             q.error(err);

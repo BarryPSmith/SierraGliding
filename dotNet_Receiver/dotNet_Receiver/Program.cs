@@ -40,7 +40,7 @@ Arguments:
 
             for (int idx = Array.FindIndex(args, arg => arg.Equals("--dest", StringComparison.OrdinalIgnoreCase));
                      idx >= 0;
-                     idx = Array.FindIndex(args, idx, arg => arg.Equals("--dest", StringComparison.OrdinalIgnoreCase)))
+                     idx = Array.FindIndex(args, idx + 1, arg => arg.Equals("--dest", StringComparison.OrdinalIgnoreCase)))
                 destUrls.Add(args[idx + 1]);
             if (!destUrls.Any())
                 destUrls.Add("http://localhost:4000");
@@ -51,7 +51,12 @@ Arguments:
 
             var communicator = new KissCommunication();
             DataStorage storage = fn != null ? new DataStorage(fn) : null;
-            var serverPosters = destUrls.Select(url => new DataPosting(url)).ToList();
+            var serverPosters = destUrls.Select(url =>
+            {
+                var ret = new DataPosting(url);
+                ret.OnException += (sender, ex) => Console.Error.WriteLine($"Post error ({url}): {ex.GetType()}: {ex.Message}");
+                return ret;
+            }).ToList();
             
             communicator.PacketReceived =
                 data =>

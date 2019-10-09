@@ -26,11 +26,13 @@
         </div>
 
         <template v-if='station.id'>
-            <div class='viewport-half relative scroll-hidden headerGrid'>
+            <div class='relative scroll-hidden headerGrid'
+                :class='graphViewport'>
                 <div class='py12 px12 clearfix border-t border--gray-light'>
                     <h1 class='txt-h2 fl' v-text='station.name'></h1>
 
                     <button @click='station.id = false' class='btn btn--stroke btn--gray round fr h36'><svg class='icon'><use href='#icon-close'/></svg></button>
+                    <button @click='fullSize = !fullSize' class='btn btn--stroke btn--gray round fr h36'><svg class='icon'><use href='#icon-viewport'/></svg></button>
 
                     <div v-if='!station.error' class="flex-parent-inline fr px24">
                         <button @click='dataType = "wind"' :class='modeWind' class="btn btn--pill btn--pill-hl">Wind</button>
@@ -83,6 +85,7 @@ export default {
             auth: false,
             duration: 300,
             dataType: 'wind',
+            fullSize: false,
             station: {
                 id: false,
                 error: false,
@@ -132,6 +135,12 @@ export default {
                 none: this.station.error
             }
         },
+        graphViewport: function() {
+            return {
+                'viewport-half': !this.fullSize,
+                'viewport-almost': !!this.fullSize
+            }
+        },
         modeWind: function() {
             return {
                 'btn--stroke': this.dataType === "wind"
@@ -169,7 +178,8 @@ export default {
         },
         viewport: function() {
             return {
-                'viewport-half': !!this.station.id,
+                'viewport-slight': (!!this.station.id && !!this.fullSize),
+                'viewport-half': (!!this.station.id && !this.fullSize),
                 'viewport-full': !this.station.id
             };
         }

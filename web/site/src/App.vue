@@ -355,6 +355,25 @@ export default {
                     let wdOpts = JSON.parse(JSON.stringify(commonOptions));
                     wdOpts.scales.yAxes[0].ticks.max = 360;
                     wdOpts.scales.yAxes[0].ticks.stepSize = 45;
+                    const windNames = 
+                    {
+                        0: 'N',
+                        45: 'NE',
+                        90: 'E',
+                        135: 'SE',
+                        180: 'S',
+                        225: 'SW',
+                        270: 'W',
+                        315: 'NW',
+                        360: 'N'
+                    }
+                    wdOpts.scales.yAxes[0].ticks.callback = value => {
+                        if (windNames[value] !== undefined)
+                            return windNames[value];
+                        else
+                            return value;
+                    }
+                    
                     this.charts.wind_direction = new Chart(wdElem, {
                         type: 'line',
                         data: {

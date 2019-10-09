@@ -182,7 +182,19 @@ function main(db, cb) {
         `, (err, stations) => {
             if (err) return error(err, res);
 
-            //TODO: Try/catch for parsing errors in the legends
+            let wsLegend = null;
+            let wdLegend = null;
+            try {
+                wsLegend = JSON.parse(station.windspeedlegend);
+            } catch(err) {
+                console.error(err);
+            }
+            try {
+                wdLegend = JSON.parse(station.winddirlegend);
+            } catch(err) {
+                console.error(err);
+            }
+            
 
             const pts = [];
 
@@ -192,8 +204,8 @@ function main(db, cb) {
                 return turf.point([station.lon, station.lat], {
                     name: station.name,
                     legend: {
-                        wind_speed: JSON.parse(station.windspeedlegend),
-                        wind_dir: JSON.parse(station.winddirlegend)
+                        wind_speed: wsLegend,
+                        wind_dir: wdLegend
                     }
                 },{
                     id: station.id,
@@ -496,7 +508,7 @@ function main(db, cb) {
                 $id,
                 $timestamp,
                 $windspeed,
-                $winddir + (SELECT Wind_Direction_Offset FROM stations WHERE id = $id),
+                ((($winddir + (SELECT Wind_Direction_Offset FROM stations WHERE id = $id)) % 360) + 360) % 360,
                 $battery
             )
         `, {

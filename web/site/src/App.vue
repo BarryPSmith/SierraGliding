@@ -37,6 +37,9 @@
                     <div v-if='!station.error' class="flex-parent-inline fr px24">
                         <button @click='dataType = "wind"' :class='modeWind' class="btn btn--pill btn--pill-hl">Wind</button>
                         <button @click='dataType = "battery"' :class='modeBattery' class="btn btn--pill btn--pill-hr">Battery</button>
+                    </div>
+                    
+                    <div v-if='!station.error' class="flex-parent-inline fr px24">
                     
                         <button @click='duration =   300' :class='dur300' class="btn btn--pill btn--pill-hl">5 Minutes</button>
                         <button @click='duration =  3600' :class='dur3600' class="btn btn--pill btn--pill-hc">1 Hour</button>
@@ -190,6 +193,10 @@ export default {
                 this.chart_range();
             }, 1000);
         }
+        
+        var h = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
+        if (h < 600)
+            this.fullSize = true;
 
         if (window.location.hash) {
             const station = parseInt(window.location.hash.replace(/^#/, ''));
@@ -239,12 +246,14 @@ export default {
                     y: data.battery
                 });
             }
-
-            //TODO: Trim the data arrays when it gets too long.
-
         };
 
-        this.fetch_stations();
+        this.fetch_stations(() => { 
+            //If there's only one station (which there will be until we build some more), then select that:
+            if (this.stations.features.length == 1) {
+                this.station.id = this.stations.features[0].id;
+            }
+        });
         this.map_init();
     },
     watch: {
@@ -559,7 +568,7 @@ export default {
             last.yMax = null;
             this.charts.windspeed.options.annotation.annotations.push(last);*/
         },
-        fetch_stations: function() {
+        fetch_stations: function(cb) {
             fetch(`${window.location.protocol}//${window.location.host}/api/stations`, {
                 method: 'GET',
                 credentials: 'same-origin'
@@ -567,6 +576,10 @@ export default {
                 return response.json();
             }).then((stations) => {
                 this.stations = stations;
+                
+                if (cb) {
+                    return cb();
+                }
             });
         },
         fetch_station: function(station_id, cb) {

@@ -8,7 +8,7 @@ const srv = require('../index');
 const request = require('request');
 const moment = require('moment');
 const args = require('minimist')(process.argv, {
-    boolean: ['help', 'test', 'mock']
+    boolean: ['help', 'unit', 'mock']
 });
 
 // Tick count is the number of 4 second periods
@@ -18,7 +18,7 @@ const args = require('minimist')(process.argv, {
 // data values are not identical.
 let tick = 60 * 60 / 4 * -1;
 
-if ((!args.test && !args.mock) || args.help) {
+if ((!args.unit && !args.mock) || args.help) {
     console.log();
     console.log('  Run unit tests or create a mock server instances');
     console.log();

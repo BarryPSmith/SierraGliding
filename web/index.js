@@ -182,23 +182,22 @@ function main(db, cb) {
         `, (err, stations) => {
             if (err) return error(err, res);
 
-            let wsLegend = null;
-            let wdLegend = null;
-            try {
-                wsLegend = JSON.parse(station.windspeedlegend);
-            } catch(err) {
-                console.error(err);
-            }
-            try {
-                wdLegend = JSON.parse(station.winddirlegend);
-            } catch(err) {
-                console.error(err);
-            }
-            
-
             const pts = [];
 
             stations = turf.featureCollection(stations.map((station) => {
+                let wsLegend = null;
+                let wdLegend = null;
+                try {
+                    wsLegend = JSON.parse(station.windspeedlegend);
+                } catch(err) {
+                    console.error(err);
+                }
+                try {
+                    wdLegend = JSON.parse(station.winddirlegend);
+                } catch(err) {
+                    console.error(err);
+                }
+                
                 pts.push([station.lon, station.lat]);
 
                 return turf.point([station.lon, station.lat], {

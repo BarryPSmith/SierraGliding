@@ -83,7 +83,30 @@ function database(dbpath, drop, cb) {
             db.run(`
                 DROP TABLE IF EXISTS station_data;
             `);
+
+            db.run(`
+                DROP TABLE IF EXISTS users;
+            `);
+
+            db.run(`
+                DROP TABLE IF EXISTS tokens;
+            `);
         }
+
+        db.run(`
+            CREATE TABLE IF NOT EXISTS users (
+                id                  SERIAL,
+                username            TEXT PRIMARY KEY,
+                password            TEXT NOT NULL
+            )
+        `);
+
+        db.run(`
+            CREATE TABLE IF NOT EXISTS tokens (
+                uid                 INT NOT NULL REFERENCES users(id),
+                token               TEXT PRIMARY KEY
+            )
+        `);
 
         db.run(`
             CREATE TABLE IF NOT EXISTS stations (
@@ -160,7 +183,7 @@ function main(db, cb) {
             if (err) return error(err, res);
 
             //TODO: Try/catch for parsing errors in the legends
-            
+
             const pts = [];
 
             stations = turf.featureCollection(stations.map((station) => {

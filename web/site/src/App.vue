@@ -211,6 +211,9 @@ export default {
                     x: new Date(data.timestamp * 1000),
                     y: data.wind_speed
                 });
+                for (const idx in this.charts.windspeed.options.annotation.annotations) {
+                    this.charts.windspeed.options.annotation.annotations[idx].xMax = data.timestamp * 1000;
+                }
             }
             if (Array.isArray(this.charts.windDirectionData)) {
                 this.charts.windDirectionData.push({
@@ -449,8 +452,7 @@ export default {
             if (!this.station.legend.winddir) {
                 return;
             }
-                        
-            let i = 0;
+                      
             for (const entry of this.station.legend.winddir) {
                 if (entry.start === undefined 
                     || entry.end === undefined
@@ -471,7 +473,6 @@ export default {
                 }
                 for (const subEntry of subEntries) {
                     this.charts.wind_direction.options.annotation.annotations.push({
-                        id: i,
                         type: 'box',
                         xScaleID: 'x-axis-0',
                         yScaleID: 'y-axis-0',
@@ -480,59 +481,37 @@ export default {
                         backgroundColor: subEntry.color,
                         borderColor: 'rgba(0,0,0,0)',
                     });
-                    i++;
                 }
             }
         },
         set_speed_annotations: function() {
-            if (
-                !this.station.legend.windspeed
-                || this.station.legend.windspeed.length !== 4
-            ) return;
-
-            this.charts.windspeed.options.annotation.annotations.push({
-                id: 'blue',
-                type: 'box',
-                xScaleID: 'x-axis-0',
-                yScaleID: 'y-axis-0',
-                yMin: 0,
-                yMax: this.station.legend.windspeed[0],
-                backgroundColor: 'rgba(0,0,255,0.4)',
-                borderColor: 'rgba(0,0,255,0)',
+            let lastVal = 0;
+            const Xs = this.charts.windspeedData.map(wsd => {
+                return +wsd.x;
             });
-
-            this.charts.windspeed.options.annotation.annotations.push({
-                id: 'green',
-                type: 'box',
-                xScaleID: 'x-axis-0',
-                yScaleID: 'y-axis-0',
-                yMin: this.station.legend.windspeed[0],
-                yMax: this.station.legend.windspeed[1],
-                backgroundColor: 'rgba(0,255,0,0.4)',
-                borderColor: 'rgba(0,255,0,0)',
-            });
-
-            this.charts.windspeed.options.annotation.annotations.push({
-                id: 'yellow',
-                type: 'box',
-                xScaleID: 'x-axis-0',
-                yScaleID: 'y-axis-0',
-                yMin: this.station.legend.windspeed[1],
-                yMax: this.station.legend.windspeed[2],
-                backgroundColor: 'rgba(255,255,0,0.4)',
-                borderColor: 'rgba(255,255,0,0)',
-            });
-
-            this.charts.windspeed.options.annotation.annotations.push({
-                id: 'red',
-                type: 'box',
-                xScaleID: 'x-axis-0',
-                yScaleID: 'y-axis-0',
-                yMin: this.station.legend.windspeed[2],
-                yMax: this.station.legend.windspeed[3],
-                backgroundColor: 'rgba(255,0,0,0.4)',
-                borderColor: 'rgba(255,0,0,0)',
-            });
+            const maxX = Math.max(...Xs);
+            let last = {};
+            for (const entry of this.station.legend.windspeed)
+            {
+                last = {  
+                    type: 'box',
+                    xScaleID: 'x-axis-0',
+                    yScaleID: 'y-axis-0',
+                    yMin: lastVal,
+                    yMax: entry.top,
+                    xMax: maxX,
+                    backgroundColor: entry.color,
+                    borderColor: 'rgba(0,0,0,0)',
+                };
+                this.charts.windspeed.options.annotation.annotations.push(last);
+                lastVal = entry.top;
+            }
+            //duplicate last and have it go to the moon:
+            //The code below causes our Y-axis to go to 100 as soon as this is shown. We need to take manual control of the Y-axis if we want this to work.
+            /*last = JSON.parse(JSON.stringify(last));
+            last.yMin = last.yMax;
+            last.yMax = null;
+            this.charts.windspeed.options.annotation.annotations.push(last);*/
         },
         fetch_stations: function() {
             fetch(`${window.location.protocol}//${window.location.host}/api/stations`, {

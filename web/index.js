@@ -216,19 +216,38 @@ function main(db, cb) {
         }
 
         if (req.body.windspeedlegend) {
-            if (req.body.windspeedlegend.length !== 3) {
-                return res.status(400).json({
-                    status: 400,
-                    error: 'Wind Speed Legend must contain 3 values'
-                });
-            }
-
-            for (let i = 1; i < 3; i++) {
-                if (req.body.windspeedlegend[i] < req.body.windspeedlegend[i - 1]) {
+            let lastVal = 0;
+            const colors = ['Blue', 'Green', 'Yellow', 'Red'];
+            for (const idx in req.body.windspeedlegend) {
+                //If we're given numbers, just use the default colours:
+                if (!isNaN(parseFloat(req.body.windspeedlegend[idx]))) {
+                    if (idx > 3) {
+                        return res.status(400).json({
+                            status:400,
+                            error:'windspeedlegend must be less than or equal 4 elements if color is not supplied.'
+                        });
+                    }
+                    req.body.windspeedlegend[idx] = {
+                        top: parseFloat(req.body.windspeedlegend[idx]),
+                        color: colors[i]
+                    };
+                }
+                const entry = req.body.windspeedlegend[idx];
+                if (entry.top === undefined 
+                    || entry.color === undefined) {
+                    return res.status(400).json({
+                        status: 400,
+                        error: 'Each Wind Speed Legend entry must have "top" and "color" defined.'
+                    });
+                }
+                if (entry.top <= lastVal) {
                     return res.status(400).json({
                         status: 400,
                         error: 'Wind Speed Legend must go from low -> high values'
                     });
+                }
+                else {
+                    lastVal = entry.top;
                 }
             }
         }

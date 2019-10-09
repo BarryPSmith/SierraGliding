@@ -26,7 +26,7 @@
         </div>
 
         <template v-if='station.id'>
-            <div class='viewport-half relative scroll-hidden'>
+            <div class='viewport-half relative scroll-hidden headerGrid'>
                 <div class='py12 px12 clearfix border-t border--gray-light'>
                     <h1 class='txt-h2 fl' v-text='station.name'></h1>
 
@@ -53,18 +53,17 @@
                     <div class='w-full h-full loading'></div>
                 </template>
 
-                <div v-if='dataType === "wind"' class='grid grid--gut12'>
-                    <div class='col col--12'>
+                <div v-if='dataType === "wind"' class='splitGrid'>
+                    <div>
                         <canvas id="windspeed"></canvas>
                     </div>
-                    <div class='col col--12'>
+                    <div>
                         <canvas id="wind_direction"></canvas>
                     </div>
                 </div>
-                <div v-if='dataType === "battery"' class='grid grid--gut12'>
-                    <div class='col col--12'>
-                        <canvas id="battery"></canvas>
-                    </div>
+                
+                <div v-if='dataType === "battery"'>
+                    <canvas id="battery"></canvas>
                 </div>
             </div>
         </template>

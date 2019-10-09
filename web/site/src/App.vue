@@ -220,6 +220,9 @@ export default {
                     x: new Date(data.timestamp * 1000),
                     y: data.wind_direction
                 });
+                for (const idx in this.charts.wind_direction.options.annotation.annotations) {
+                    this.charts.wind_direction.options.annotation.annotations[idx].xMax = data.timestamp * 1000;
+                }
             }
             if (Array.isArray(this.charts.batteryData)) {
                 this.charts.batteryData.push({
@@ -308,8 +311,11 @@ export default {
                         }],
                         xAxes: [{
                             type: 'time',
-                            bounds: 'data',
+                            offset: false,
+                            //bounds: 'data',
                             time: {
+                                minUnit: 'minute',
+                                //unitStepSize: 1,
                                 min: new Date(+new Date() - (this.duration * 1000)),
                                 max: new Date()
                             }
@@ -452,6 +458,14 @@ export default {
             if (!this.station.legend.winddir) {
                 return;
             }
+            
+            let minX = this.charts.wind_direction.options.scales.xAxes[0].time.min;
+            let maxX = this.charts.wind_direction.options.scales.xAxes[0].time.max;
+            if (Array.isArray(this.charts.windDirectionData) && this.charts.windDirectionData.length > 0)
+            {
+                minX = this.charts.windDirectionData[0].x;
+                maxX = this.charts.windDirectionData[this.charts.windDirectionData.length - 1].x;
+            }
                       
             for (const entry of this.station.legend.winddir) {
                 if (entry.start === undefined 
@@ -478,6 +492,8 @@ export default {
                         yScaleID: 'y-axis-0',
                         yMin: subEntry.start,
                         yMax: subEntry.end,
+                        xMin: minX,
+                        xMax: maxX,
                         backgroundColor: subEntry.color,
                         borderColor: 'rgba(0,0,0,0)',
                     });
@@ -490,6 +506,7 @@ export default {
                 return +wsd.x;
             });
             const maxX = Math.max(...Xs);
+            const minX = Math.min(...Xs);
             let last = {};
             for (const entry of this.station.legend.windspeed)
             {
@@ -500,6 +517,7 @@ export default {
                     yMin: lastVal,
                     yMax: entry.top,
                     xMax: maxX,
+                    xMin: minX,
                     backgroundColor: entry.color,
                     borderColor: 'rgba(0,0,0,0)',
                 };

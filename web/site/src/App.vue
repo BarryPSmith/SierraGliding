@@ -208,7 +208,10 @@ export default {
             }
         }
 
-        this.ws = new WebSocket(`ws://${window.location.hostname}:${window.location.port}`);
+        let protocol = 'ws';
+        if (window.location.protocol=='hhtps:')
+            protocol = 'wss';
+        this.ws = new WebSocket(`${protocol}://${window.location.hostname}:${window.location.port}`);
 
         this.ws.onmessage = (ev) => {
             if (!ev.data || !ev.data.length) return;

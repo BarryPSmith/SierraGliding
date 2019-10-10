@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27004.2006
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29403.142
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "dotNet_Receiver", "dotNet_Receiver\dotNet_Receiver.csproj", "{5F2C31E1-209C-4373-A107-14A64AD66A62}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "core_Receiver", "dotNet_Receiver\core_Receiver.csproj", "{FE28A878-F522-49D5-98EB-4A15B6CF5D77}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,10 +11,10 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{5F2C31E1-209C-4373-A107-14A64AD66A62}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5F2C31E1-209C-4373-A107-14A64AD66A62}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5F2C31E1-209C-4373-A107-14A64AD66A62}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5F2C31E1-209C-4373-A107-14A64AD66A62}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FE28A878-F522-49D5-98EB-4A15B6CF5D77}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FE28A878-F522-49D5-98EB-4A15B6CF5D77}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FE28A878-F522-49D5-98EB-4A15B6CF5D77}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FE28A878-F522-49D5-98EB-4A15B6CF5D77}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -29,7 +29,9 @@ Arguments:
             TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 
+#if local_storage
             string fn = null;// @"C:\temp\data3.sqlite";
+#endif
             //string log = @"c:\temp\stationLog.csv";
             List<string> destUrls = new List<string>(); // "http://localhost:4000";
             string srcAddress = "127.0.0.1:8001";
@@ -45,12 +47,16 @@ Arguments:
             if (!destUrls.Any())
                 destUrls.Add("http://localhost:4000");
 
+#if local_storage
             var dbArgIdx = Array.FindIndex(args, arg => arg.Equals("--db", StringComparison.OrdinalIgnoreCase));
             if (dbArgIdx >= 0)
                 fn = args[dbArgIdx + 1];
+#endif
 
             var communicator = new KissCommunication();
+#if local_storage
             DataStorage storage = fn != null ? new DataStorage(fn) : null;
+#endif
             var serverPosters = destUrls.Select(url =>
             {
                 var ret = new DataPosting(url);
@@ -70,6 +76,7 @@ Arguments:
                         switch (packet.type)
                         {
                             case 'W': //Weather data
+#if local_storage
                                 try
                                 {
                                     storage?.StoreWeatherData(packet, receivedTime);
@@ -78,6 +85,7 @@ Arguments:
                                 {
                                     Console.Error.WriteLine($"Store Error {DateTime.Now}: {ex}");
                                 }
+#endif
                                 foreach (var serverPoster in serverPosters)
                                     serverPoster?.SendWeatherDataAsync(packet, receivedTime);
                                 break;

@@ -10,7 +10,7 @@ namespace dotNet_Receiver
 {
     class DataPosting : DataStorageBase
     {
-        private static readonly HttpClient client = new HttpClient();
+        private static readonly HttpClient _client = new HttpClient();
 
         public event EventHandler<Exception> OnException;
         
@@ -55,7 +55,7 @@ namespace dotNet_Receiver
 
                 try
                 {
-                    var response = await client.PostAsync(uri, content);
+                    var response = await _client.PostAsync(uri, content);
                     if (response.IsSuccessStatusCode)
                         Console.WriteLine("Succesfully posted.");
                     else

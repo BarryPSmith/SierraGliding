@@ -496,43 +496,51 @@ function main(db, cb) {
             }
         }
 
-        db.all(`
-            INSERT INTO Station_Data (
-                Station_ID,
-                Timestamp,
-                Windspeed,
-                Wind_Direction,
-                Battery_Level
-            ) VALUES (
-                $id,
-                $timestamp,
-                $windspeed,
-                ((($winddir + (SELECT Wind_Direction_Offset FROM stations WHERE id = $id)) % 360) + 360) % 360,
-                $battery
-            )
-        `, {
-            $id: req.params.id,
-            $timestamp: moment.unix(req.body.timestamp).unix(),
-            $windspeed: req.body.wind_speed,
-            $winddir: req.body.wind_direction,
-            $battery: req.body.battery ? req.body.battery : null
-        }, (err, data) => {
+        db.get('SELECT Wind_Direction_Offset FROM stations WHERE id = $id'
+            , { $id: req.params.id }
+            , (err, data) =>
+        {
             if (err) return error(err, res);
+            if (!data)  return error(`Station ${req.params.id} not found.`, res);
+            req.body.wind_direction = ((req.body.wind_direction % 360) + 360) % 360;
+            db.run(`
+                INSERT INTO Station_Data (
+                    Station_ID,
+                    Timestamp,
+                    Windspeed,
+                    Wind_Direction,
+                    Battery_Level
+                ) VALUES (
+                    $id,
+                    $timestamp,
+                    $windspeed,
+                    $winddir,
+                    $battery
+                )
+            `, {
+                $id: req.params.id,
+                $timestamp: moment.unix(req.body.timestamp).unix(),
+                $windspeed: req.body.wind_speed,
+                $winddir: req.body.wind_direction,
+                $battery: req.body.battery ? req.body.battery : null
+            }, (err) => {
+                if (err) return error(err, res);
 
-            res.json(data);
-
-            //Notify websockets that a particular station has updated:
-            wss.clients.forEach((client) => {
-                client.send(JSON.stringify({
-                    id: req.params.id,
-                    timestamp: moment.unix(req.body.timestamp).unix(),
-                    wind_speed: req.body.wind_speed,
-                    wind_direction: req.body.wind_direction,
-                    battery: req.body.battery ? req.body.battery : null
-                }));
-            });
-        });
-    });
+                res.json("success");
+                        
+                //Notify websockets that a particular station has updated:
+                wss.clients.forEach((client) => {
+                    client.send(JSON.stringify({
+                        id: req.params.id,
+                        timestamp: moment.unix(req.body.timestamp).unix(),
+                        wind_speed: req.body.wind_speed,
+                        wind_direction: req.body.wind_direction,
+                        battery: req.body.battery ? req.body.battery : null
+                    }));
+                });
+            }); //exec insert
+        }); //get wind_direction_offset
+    }); //declare post /station/:id/data
 
     /**
      * Return the latest datapoint for a given station

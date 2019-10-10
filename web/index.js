@@ -502,7 +502,7 @@ function main(db, cb) {
         {
             if (err) return error(err, res);
             if (!data)  return error(`Station ${req.params.id} not found.`, res);
-            req.body.wind_direction = ((req.body.wind_direction % 360) + 360) % 360;
+            req.body.wind_direction = ((req.body.wind_direction + data.Wind_Direction_Offset) % 360 + 360) % 360;
             db.run(`
                 INSERT INTO Station_Data (
                     Station_ID,

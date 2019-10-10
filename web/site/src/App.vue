@@ -209,7 +209,7 @@ export default {
         }
 
         let protocol = 'ws';
-        //if (window.location.protocol=='hhtps:')
+        if (window.location.protocol=='https:')
             protocol = 'wss';
         this.ws = new WebSocket(`${protocol}://${window.location.hostname}:${window.location.port}`);
 

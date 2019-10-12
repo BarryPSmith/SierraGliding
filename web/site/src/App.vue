@@ -328,7 +328,8 @@ export default {
                         yAxes: [{
                             ticks: {
                                 beginAtZero: true
-                            }
+                            },
+                            position: 'right'
                         }],
                         xAxes: [{
                             type: 'time',
@@ -350,11 +351,13 @@ export default {
 
                 let wsElem = document.getElementById('windspeed');
                 if (wsElem) {
+                    let wsOpts = JSON.parse(JSON.stringify(commonOptions));
+                    wsOpts.scales.yAxes[0].ticks.stepSize = 5;
                     this.charts.windspeed = new Chart(wsElem, {
                         type: 'line',
                         data: {
                             datasets: [{
-                                label: 'WindSpeed',
+                                label: 'WindSpeed (km/h)',
                                 pointBackgroundColor: 'black',
                                 pointBorderColor: 'black',
                                 pointRadius: 0,
@@ -367,7 +370,7 @@ export default {
                                 lineTension: 0
                             }]
                         },
-                        options: JSON.parse(JSON.stringify(commonOptions))
+                        options: wsOpts
                     });
                 }
                 

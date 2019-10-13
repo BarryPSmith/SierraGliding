@@ -533,7 +533,7 @@ function main(db, cb) {
                     client.send(JSON.stringify({
                         id: req.params.id,
                         timestamp: moment.unix(req.body.timestamp).unix(),
-                        wind_speed: req.body.wind_speed,
+                        windspeed: req.body.wind_speed,
                         wind_direction: req.body.wind_direction,
                         battery: req.body.battery ? req.body.battery : null
                     }));

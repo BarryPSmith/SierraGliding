@@ -58,7 +58,7 @@
                     <div class='w-full h-full loading'></div>
                 </template>
 
-                <div v-if='dataType === "wind"' class='splitGrid'>
+                <div v-show='dataType === "wind"' class='splitGrid'>
                     <div>
                         <canvas id="windspeed"></canvas>
                     </div>
@@ -67,7 +67,7 @@
                     </div>
                 </div>
                 
-                <div v-if='dataType === "battery"'>
+                <div v-show='dataType === "battery"'>
                     <canvas id="battery"></canvas>
                 </div>
             </div>
@@ -78,6 +78,7 @@
 <script>
 // === Components ===
 import Err from './components/Error.vue';
+import DataManager from './DataManager.js';
 
 export default {
     name: 'app',
@@ -89,6 +90,7 @@ export default {
             duration: 300,
             dataType: 'wind',
             fullSize: false,
+            dataManager: null,
             station: {
                 id: false,
                 error: false,
@@ -115,11 +117,8 @@ export default {
             map: false,
             charts: {
                 windspeed: false,
-                windspeedData: false,
                 wind_direction: false,
-                windDirectionData: false,
                 battery: false,
-                batteryData: false
             },
             modal: false,
             timer: false
@@ -219,35 +218,24 @@ export default {
             let data = {}
             try {
                 data = JSON.parse(ev.data);
+
+                if (!data.id || data.id != this.station.id) return;
+                
+                this.dataManager.push_if_appropriate(data);
+
+                if (this.charts.windspeed) {
+                    for (const idx in this.charts.windspeed.options.annotation.annotations) {
+                        this.charts.windspeed.options.annotation.annotations[idx].xMax = data.timestamp * 1000;
+                    }
+                }
+                if (this.charts.wind_direction) {
+                    for (const idx in this.charts.wind_direction.options.annotation.annotations) {
+                        this.charts.wind_direction.options.annotation.annotations[idx].xMax = data.timestamp * 1000;
+                    }
+                }
+                
             } catch (err) {
                 console.error(err);
-            }
-
-            if (!data.id || data.id != this.station.id) return;
-
-            if (Array.isArray(this.charts.windspeedData)) {
-                this.charts.windspeedData.push({
-                    x: new Date(data.timestamp * 1000),
-                    y: data.wind_speed
-                });
-                for (const idx in this.charts.windspeed.options.annotation.annotations) {
-                    this.charts.windspeed.options.annotation.annotations[idx].xMax = data.timestamp * 1000;
-                }
-            }
-            if (Array.isArray(this.charts.windDirectionData)) {
-                this.charts.windDirectionData.push({
-                    x: new Date(data.timestamp * 1000),
-                    y: data.wind_direction
-                });
-                for (const idx in this.charts.wind_direction.options.annotation.annotations) {
-                    this.charts.wind_direction.options.annotation.annotations[idx].xMax = data.timestamp * 1000;
-                }
-            }
-            if (Array.isArray(this.charts.batteryData)) {
-                this.charts.batteryData.push({
-                    x: new Date(data.timestamp * 1000),
-                    y: data.battery
-                });
             }
         };
 
@@ -264,8 +252,17 @@ export default {
             this.station_update();
         },
         'station.id': function() {
-            if (!this.station.id) window.location.hash = '';
-
+            if (!this.station.id) {
+                this.charts.windspeed = false;
+                this.charts.wind_direction = false;
+                this.charts.battery = false;
+                window.location.hash = '';
+            }
+            else
+            {
+                this.dataManager = new DataManager(this.station.id);
+            }
+            
             this.station_update();
         },
         'dataType': function() {
@@ -289,73 +286,53 @@ export default {
         station_update: function() {
             this.station.loading = true;
             
+            var dmPromise = this.dataManager.ensure_data(
+                new Date() - this.duration * 1000, null
+            );
+            
             this.fetch_station(this.station.id, () => {
                 if (this.map) {
                     this.map.setCenter([this.station.lon, this.station.lat]);
                 }
 
                 window.location.hash = this.station.id;
-
-                this.charts.windspeedData = this.station.data.map(entry => {
-                    return {
-                        x: new Date(entry.timestamp * 1000),
-                        y: entry.windspeed
+                
+                dmPromise.then(() => {
+                    const commonOptions = {
+                        animation: {
+                            duration: 0,
+                            easing: 'linear'
+                        },
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            yAxes: [{
+                                ticks: {
+                                    beginAtZero: true
+                                },
+                                position: 'right'
+                            }],
+                            xAxes: [{
+                                type: 'time',
+                                offset: false,
+                                time: {
+                                    minUnit: 'minute',
+                                    min: new Date(+new Date() - (this.duration * 1000)),
+                                    max: new Date()
+                                }
+                            }]
+                        },
+                        annotation: {
+                            annotations: [],
+                            drawTime: 'beforeDatasetsDraw'
+                        }
                     }
-                });
 
-                this.charts.windDirectionData = this.station.data.map(entry => {
-                    return {
-                        x: new Date(entry.timestamp * 1000),
-                        y: entry.wind_direction
-                    }
-                });
-
-                this.charts.batteryData = this.station.data.map(entry => {
-                    return {
-                        x: new Date(entry.timestamp * 1000),
-                        y: entry.battery_level
-                    }
-                });
-
-                const commonOptions = {
-                    animation: {
-                        duration: 0,
-                        easing: 'linear'
-                    },
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        yAxes: [{
-                            ticks: {
-                                beginAtZero: true
-                            },
-                            position: 'right'
-                        }],
-                        xAxes: [{
-                            type: 'time',
-                            offset: false,
-                            //bounds: 'data',
-                            time: {
-                                minUnit: 'minute',
-                                //unitStepSize: 1,
-                                min: new Date(+new Date() - (this.duration * 1000)),
-                                max: new Date()
-                            }
-                        }]
-                    },
-                    annotation: {
-                        annotations: [],
-                        drawTime: 'beforeDatasetsDraw'
-                    }
-                }
-
-                let wsElem = document.getElementById('windspeed');
-                if (wsElem) {
-                    let wsOpts = JSON.parse(JSON.stringify(commonOptions));
-                    wsOpts.scales.yAxes[0].ticks.stepSize = 5;
-                    this.charts.windspeed = new Chart(wsElem, {
-                        type: 'line',
-                        data: {
+                    let wsElem = document.getElementById('windspeed');
+                    if (wsElem) {
+                        let wsOpts = JSON.parse(JSON.stringify(commonOptions));
+                        wsOpts.scales.yAxes[0].ticks.stepSize = 5;
+                        const wsData = {
                             datasets: [{
                                 label: 'WindSpeed (km/h)',
                                 pointBackgroundColor: 'black',
@@ -366,85 +343,95 @@ export default {
                                 borderWidth: 0.2,
                                 fill: 'end',
                                 backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                                data: this.charts.windspeedData,
+                                data: this.dataManager.windspeedData,
                                 lineTension: 0
                             }]
-                        },
-                        options: wsOpts
-                    });
-                }
-                
-                let wdElem = document.getElementById('wind_direction');
-                if (wdElem) {
-                    let wdOpts = JSON.parse(JSON.stringify(commonOptions));
-                    wdOpts.scales.yAxes[0].ticks.max = 360;
-                    wdOpts.scales.yAxes[0].ticks.stepSize = 45;
-                    const windNames = 
-                    {
-                        0: 'N',
-                        45: 'NE',
-                        90: 'E',
-                        135: 'SE',
-                        180: 'S',
-                        225: 'SW',
-                        270: 'W',
-                        315: 'NW',
-                        360: 'N'
-                    }
-                    wdOpts.scales.yAxes[0].ticks.callback = value => {
-                        if (windNames[value] !== undefined)
-                            return windNames[value];
+                        };
+                        if (!this.charts.windspeed) {
+                            this.charts.windspeed = new Chart(wsElem, {
+                                type: 'line',
+                                data: wsData,
+                                options: wsOpts
+                                });
+                            }
                         else
-                            return value;
+                        {
+                            this.charts.windspeed.data = wsData
+                            //this.charts.windspeed.options = wsOpts;
+                        }
                     }
                     
-                    this.charts.wind_direction = new Chart(wdElem, {
-                        type: 'line',
-                        data: {
-                            datasets: [{
-                                label: 'Wind Direction',
-                                pointBackgroundColor: 'black',
-                                pointBorderColor: 'black',
-                                pointRadius: 2  ,
-                                borderColor: 'black',
-                                showLine: false,
-                                fill: false,
-                                data: this.charts.windDirectionData,
-                                lineTension: 0
-                            }]
-                        },
-                        options: wdOpts
-                    });
-                }
-                
-                let battElem = document.getElementById('battery');
-                if (battElem) {
-                    let battOpts = JSON.parse(JSON.stringify(commonOptions));
-                    battOpts.scales.yAxes[0].ticks.beginAtZero = false;
-                    battOpts.scales.yAxes[0].ticks.min = 10;
-                    battOpts.scales.yAxes[0].ticks.max = 15;
-                    this.charts.battery = new Chart(battElem, {
-                        type: 'line',
-                        data: {
-                            datasets: [{
-                                label: 'Battery Level',
-                                pointBackgroundColor: 'black',
-                                pointBorderColor: 'black',
-                                pointRadius: 0,
-                                borderColor: 'black',
-                                fill: false,
-                                data: this.charts.batteryData,
-                                lineTension: 0
-                            }]
-                        },
-                        options: battOpts
-                    });
-                }
+                    let wdElem = document.getElementById('wind_direction');
+                    if (wdElem) {
+                        let wdOpts = JSON.parse(JSON.stringify(commonOptions));
+                        wdOpts.scales.yAxes[0].ticks.max = 360;
+                        wdOpts.scales.yAxes[0].ticks.stepSize = 45;
+                        const windNames = 
+                        {
+                            0: 'N',
+                            45: 'NE',
+                            90: 'E',
+                            135: 'SE',
+                            180: 'S',
+                            225: 'SW',
+                            270: 'W',
+                            315: 'NW',
+                            360: 'N'
+                        }
+                        wdOpts.scales.yAxes[0].ticks.callback = value => {
+                            if (windNames[value] !== undefined)
+                                return windNames[value];
+                            else
+                                return value;
+                        }
+                        
+                        this.charts.wind_direction = new Chart(wdElem, {
+                            type: 'line',
+                            data: {
+                                datasets: [{
+                                    label: 'Wind Direction',
+                                    pointBackgroundColor: 'black',
+                                    pointBorderColor: 'black',
+                                    pointRadius: 2  ,
+                                    borderColor: 'black',
+                                    showLine: false,
+                                    fill: false,
+                                    data: this.dataManager.windDirectionData,
+                                    lineTension: 0
+                                }]
+                            },
+                            options: wdOpts
+                        });
+                    }
+                    
+                    let battElem = document.getElementById('battery');
+                    if (battElem) {
+                        let battOpts = JSON.parse(JSON.stringify(commonOptions));
+                        battOpts.scales.yAxes[0].ticks.beginAtZero = false;
+                        battOpts.scales.yAxes[0].ticks.min = 10;
+                        battOpts.scales.yAxes[0].ticks.max = 15;
+                        this.charts.battery = new Chart(battElem, {
+                            type: 'line',
+                            data: {
+                                datasets: [{
+                                    label: 'Battery Level',
+                                    pointBackgroundColor: 'black',
+                                    pointBorderColor: 'black',
+                                    pointRadius: 0,
+                                    borderColor: 'black',
+                                    fill: false,
+                                    data: this.dataManager.batteryData,
+                                    lineTension: 0
+                                }]
+                            },
+                            options: battOpts
+                        });
+                    }
 
-                this.station.loading = false;
-
-                this.set_speed_annotations();
-                this.set_direction_annotations();
+                    this.station.loading = false;
+                    this.set_speed_annotations();
+                    this.set_direction_annotations();
+                });
             });
         },
         map_init: function() {
@@ -545,12 +532,12 @@ export default {
         },
         set_speed_annotations: function() {
             let lastVal = 0;
-            const Xs = this.charts.windspeedData.map(wsd => {
-                return +wsd.x;
-            });
-            const maxX = Math.max(...Xs);
-            const minX = Math.min(...Xs);
+            
+            const minX = this.dataManager.stationData[0].timestamp * 1000;
+            const maxX = this.dataManager.stationData[this.dataManager.stationData.length - 1].timestamp * 1000;
+            
             let last = {};
+            this.charts.windspeed.options.annotation.annotations = [];
             for (const entry of this.station.legend.windspeed)
             {
                 last = {  
@@ -630,41 +617,11 @@ export default {
                 this.station.error = err.message;
             });
 
-            let url = new URL(`${window.location.protocol}//${window.location.host}/api/station/${station_id}/data`);
-
-            let current = +new Date() / 1000; // Unix time (seconds)
-
-            // current (seconds) - ( 60 (seconds) * 60 (minutes) )
-            url.searchParams.append('start', Math.floor(current - this.duration));
-            url.searchParams.append('end', Math.floor(current));
-            
-            //Sample rate. Let's aim for 2000 points.
-            let desiredSample = this.duration / 2000;
-            if (desiredSample < 1)
-                desiredSample = 1;
-            url.searchParams.append('sample', desiredSample);
-
-            let dataFetch = fetch(url, {
-                method: 'GET',
-                credentials: 'same-origin'
-            }).then((response) => {
-                if (response.ok) {
-                    return response.json();
-                } else if (response.status === 404) {
-                    throw new Error('Station Not Found');
-                } else {
-                    throw new Error('Could Not Retreive Station');
-                }
-            }).then(stationData => {
-                this.station.data = stationData;
-            }).catch((err) => {
-                this.station.error = err.message;
-            });
-
-            Promise.all([stationFetch, dataFetch]).then(() => {
+            Promise.all([stationFetch ]).then(() => {
                 return cb();
             });
         },
+               
         fetch_station_latest: function(station_id, cb) {
             if (!station_id) return;
 

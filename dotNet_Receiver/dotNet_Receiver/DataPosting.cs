@@ -57,10 +57,10 @@ namespace dotNet_Receiver
                 {
                     var response = await _client.PostAsync(uri, content);
                     if (response.IsSuccessStatusCode)
-                        Console.WriteLine("Succesfully posted.");
+                        Console.WriteLine($"Succesfully posted {packet.sendingStation}/{packet.type}{packet.uniqueID} to {url}.");
                     else
                     {
-                        Console.WriteLine($"Post failed ({response.StatusCode}): {response.ReasonPhrase}");
+                        Console.WriteLine($"Post of {packet.sendingStation}/{packet.type}{packet.uniqueID} to {url} failed ({response.StatusCode}): {response.ReasonPhrase}");
                         Console.WriteLine($"Content: {response.Content.ReadAsStringAsync().Result}");
                         Console.WriteLine($"JSON: {json}");
                     }

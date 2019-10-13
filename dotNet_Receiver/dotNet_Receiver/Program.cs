@@ -24,10 +24,14 @@ Arguments:
 );
         }
 
+        static KissCommunication _dataReceiver = new KissCommunication();
+
         static void Main(string[] args)
         {
             TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+
+            AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
 
 #if local_storage
             string fn = null;// @"C:\temp\data3.sqlite";
@@ -53,7 +57,6 @@ Arguments:
                 fn = args[dbArgIdx + 1];
 #endif
 
-            var communicator = new KissCommunication();
 #if local_storage
             DataStorage storage = fn != null ? new DataStorage(fn) : null;
 #endif
@@ -64,7 +67,7 @@ Arguments:
                 return ret;
             }).ToList();
             
-            communicator.PacketReceived =
+            _dataReceiver.PacketReceived =
                 data =>
                 {
                     DateTime receivedTime = DateTime.Now;
@@ -102,18 +105,26 @@ Arguments:
                     }
                 };
 
-            Task.Run(() => communicator.Connect(srcAddress));
+            Task.Run(() => _dataReceiver.Connect(srcAddress));
 
-            Console.WriteLine("Reading data. Press q key to exit.");
-            while (true)
+            if (!Console.IsInputRedirected)
             {
-                var key = Console.ReadKey();
-                if (key.KeyChar == 'q')
+                Console.WriteLine("Reading data. Press q key to exit.");
+                while (true)
                 {
-                    communicator.Disconnect();
-                    return;
+                    var key = Console.ReadKey();
+                    if (key.KeyChar == 'q')
+                    {
+                        _dataReceiver.Disconnect();
+                        return;
+                    }
                 }
             }
+        }
+
+        private static void CurrentDomain_ProcessExit(object sender, EventArgs e)
+        {
+            _dataReceiver.Disconnect();
         }
 
         private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)

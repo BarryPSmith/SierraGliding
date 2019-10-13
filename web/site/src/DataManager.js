@@ -40,8 +40,10 @@ export default class DataManager {
         
         const span = (actualEnd - start) / 1000;
         const minInterval = Math.max(span / this.maxResolution, 1);
-        const maxInterval = Math.min(span / this.minResolution, this.stationDataRate);
+        const maxInterval = Math.max(span / this.minResolution, this.stationDataRate);
         const expectedTotalSpan = (Math.max(actualEnd, this.get_actual_end()) - Math.min(start, this.currentStart)) / 1000;
+
+        const actualDataRate = Math.max(this.currentSampleInterval, this.stationDataRate);
         
         if (start > new Date())
             return; //We're going to ignore them if they ask for data in the future.
@@ -60,7 +62,7 @@ export default class DataManager {
             (minInterval > this.currentSampleInterval || maxInterval < this.currentSampleInterval)
             ||
             //We will get a full refresh if this causes our buffer to overflow:
-            (expectedTotalSpan / this.currentSampleInterval)
+            (expectedTotalSpan / actualDataRate > this.maxDataPoints)
             ||
             //We will get a full refresh if the new span completely encloses our current data:
             (start < this.currentStart && this.get_actual_end() < actualEnd);
@@ -73,7 +75,7 @@ export default class DataManager {
             
         //We're going to tack on refreshRequired so the caller can choose not to wait on the promise.
         thePromise.refreshRequired = refreshRequired;
-            
+
         if (cb)
             return thePromise.then(
                 () => { cb(refreshRequired, null); },
@@ -83,7 +85,7 @@ export default class DataManager {
     }
     
     end_is_now() {
-        return this.currentEnd === null || isNan(this.currentEnd);
+        return this.currentEnd === null;// || Number.isNan(this.currentEnd); //Why does chrome report that Number.isNan is not a function?
     }
     
     get_actual_end() {
@@ -97,7 +99,7 @@ export default class DataManager {
     
     add_data(start, end, actualEnd) {
         //Don't fetch data we already have
-        var curEnd = get_actual_end();
+        var curEnd = this.get_actual_end();
         if (start >= this.currentStart && start < curEnd)
             start = curEnd;
         if (actualEnd <= curEnd && actualEnd > this.currentStart)
@@ -108,7 +110,11 @@ export default class DataManager {
             return Promise.resolve();
     
         //For now, we're going to cheat and assume that the promise runs to completion.
-        this.currentEnd = Math.max(this.currentEnd, end);
+        if (end === null || this.currentEnd === null) {
+            this.currentEnd = null;
+        } else {
+            this.currentEnd = Math.max(this.currentEnd, end);
+        }
         this.currentStart = Math.min(this.currentStart, start);
     
         const promiseToken = this.curPromiseToken;
@@ -133,7 +139,7 @@ export default class DataManager {
             
             this.stationData.splice(i, 0, ...newStationData);
             this.windDirectionData.splice(...newStationData.map(this.get_wind_dir_entry));
-            this.windspeedData.splice(i, 0, newStationData.map(this.get_wind_spd_entry));
+            this.windspeedData.splice(i, 0, ...newStationData.map(this.get_wind_spd_entry));
             this.batteryData.splice(i, 0, ...newStationData.map(this.get_batt_entry));
         });;
         

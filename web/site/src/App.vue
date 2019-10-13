@@ -212,32 +212,7 @@ export default {
             protocol = 'wss';
         this.ws = new WebSocket(`${protocol}://${window.location.hostname}:${window.location.port}`);
 
-        this.ws.onmessage = (ev) => {
-            if (!ev.data || !ev.data.length) return;
-
-            let data = {}
-            try {
-                data = JSON.parse(ev.data);
-
-                if (!data.id || data.id != this.station.id) return;
-                
-                this.dataManager.push_if_appropriate(data);
-
-                if (this.charts.windspeed) {
-                    for (const idx in this.charts.windspeed.options.annotation.annotations) {
-                        this.charts.windspeed.options.annotation.annotations[idx].xMax = data.timestamp * 1000;
-                    }
-                }
-                if (this.charts.wind_direction) {
-                    for (const idx in this.charts.wind_direction.options.annotation.annotations) {
-                        this.charts.wind_direction.options.annotation.annotations[idx].xMax = data.timestamp * 1000;
-                    }
-                }
-                
-            } catch (err) {
-                console.error(err);
-            }
-        };
+        this.ws.onmessage = this.socket_onMessage;
 
         this.fetch_stations(() => { 
             //If there's only one station (which there will be until we build some more), then select that:
@@ -248,8 +223,17 @@ export default {
         this.map_init();
     },
     watch: {
-        'duration': function() {
-            this.station_update();
+        'duration': function () {
+            const dmPromise = this.dataManager.ensure_data(
+                new Date() - this.duration * 1000, null
+            );
+            this.station.loading = true;
+            dmPromise.then(refreshRequired => {
+                console.error(refreshRequired);
+                this.station_data_update();
+                this.update_annotation_ranges();
+                this.station.loading = false;
+            });
         },
         'station.id': function() {
             if (!this.station.id) {
@@ -270,6 +254,22 @@ export default {
         }
     },
     methods: {
+        socket_onMessage: function (ev) {
+            if (!ev.data || !ev.data.length) return;
+
+            let data = {}
+            try {
+                data = JSON.parse(ev.data);
+
+                if (!data.id || data.id != this.station.id) return;
+                
+                this.dataManager.push_if_appropriate(data);
+
+                this.update_annotation_ranges();                
+            } catch (err) {
+                console.error(err);
+            }
+        },
         chart_range: function() {
             for (const chart of [
                 this.charts.windspeed,
@@ -283,6 +283,14 @@ export default {
                 }
             }
         },
+
+        station_data_update: function () {
+            this.charts.windspeed.data.datasets[0].data = this.dataManager.windspeedData;
+            console.error(this.charts.windspeed.data);
+            this.charts.wind_direction.data.datasets[0].data = this.dataManager.windDirectionData;
+            this.charts.battery.data.datasets[0].data = this.dataManager.batteryData;
+        },
+
         station_update: function() {
             this.station.loading = true;
             
@@ -354,10 +362,8 @@ export default {
                                 options: wsOpts
                                 });
                             }
-                        else
-                        {
-                            this.charts.windspeed.data = wsData
-                            //this.charts.windspeed.options = wsOpts;
+                        else {
+                            this.charts.windspeed.data.datasets[0].data = this.dataManager.windspeedData;
                         }
                     }
                     
@@ -366,8 +372,7 @@ export default {
                         let wdOpts = JSON.parse(JSON.stringify(commonOptions));
                         wdOpts.scales.yAxes[0].ticks.max = 360;
                         wdOpts.scales.yAxes[0].ticks.stepSize = 45;
-                        const windNames = 
-                        {
+                        const windNames =  {
                             0: 'N',
                             45: 'NE',
                             90: 'E',
@@ -384,24 +389,28 @@ export default {
                             else
                                 return value;
                         }
-                        
-                        this.charts.wind_direction = new Chart(wdElem, {
-                            type: 'line',
-                            data: {
-                                datasets: [{
-                                    label: 'Wind Direction',
-                                    pointBackgroundColor: 'black',
-                                    pointBorderColor: 'black',
-                                    pointRadius: 2  ,
-                                    borderColor: 'black',
-                                    showLine: false,
-                                    fill: false,
-                                    data: this.dataManager.windDirectionData,
-                                    lineTension: 0
-                                }]
-                            },
-                            options: wdOpts
-                        });
+
+                        if (!this.charts.wind_direction) {
+                            this.charts.wind_direction = new Chart(wdElem, {
+                                type: 'line',
+                                data: {
+                                    datasets: [{
+                                        label: 'Wind Direction',
+                                        pointBackgroundColor: 'black',
+                                        pointBorderColor: 'black',
+                                        pointRadius: 2,
+                                        borderColor: 'black',
+                                        showLine: false,
+                                        fill: false,
+                                        data: this.dataManager.windDirectionData,
+                                        lineTension: 0
+                                    }]
+                                },
+                                options: wdOpts
+                            });
+                        } else {
+                            this.charts.wind_direction.data.datasets[0].data = this.dataManager.windDirectionData;
+                        }
                     }
                     
                     let battElem = document.getElementById('battery');
@@ -410,27 +419,32 @@ export default {
                         battOpts.scales.yAxes[0].ticks.beginAtZero = false;
                         battOpts.scales.yAxes[0].ticks.min = 10;
                         battOpts.scales.yAxes[0].ticks.max = 15;
-                        this.charts.battery = new Chart(battElem, {
-                            type: 'line',
-                            data: {
-                                datasets: [{
-                                    label: 'Battery Level',
-                                    pointBackgroundColor: 'black',
-                                    pointBorderColor: 'black',
-                                    pointRadius: 0,
-                                    borderColor: 'black',
-                                    fill: false,
-                                    data: this.dataManager.batteryData,
-                                    lineTension: 0
-                                }]
-                            },
-                            options: battOpts
-                        });
+                        if (!this.charts.battery) {
+                            this.charts.battery = new Chart(battElem, {
+                                type: 'line',
+                                data: {
+                                    datasets: [{
+                                        label: 'Battery Level',
+                                        pointBackgroundColor: 'black',
+                                        pointBorderColor: 'black',
+                                        pointRadius: 0,
+                                        borderColor: 'black',
+                                        fill: false,
+                                        data: this.dataManager.batteryData,
+                                        lineTension: 0
+                                    }]
+                                },
+                                options: battOpts
+                            });
+                        } else {
+                            this.charts.battery.data.datasets[0].data = this.dataManager.batteryData;
+                        }
                     }
 
                     this.station.loading = false;
                     this.set_speed_annotations();
                     this.set_direction_annotations();
+                    this.update_annotation_ranges();
                 });
             });
         },
@@ -489,13 +503,13 @@ export default {
                 return;
             }
             
-            let minX = this.charts.wind_direction.options.scales.xAxes[0].time.min;
+            /*let minX = this.charts.wind_direction.options.scales.xAxes[0].time.min;
             let maxX = this.charts.wind_direction.options.scales.xAxes[0].time.max;
             if (Array.isArray(this.charts.windDirectionData) && this.charts.windDirectionData.length > 0)
             {
                 minX = this.charts.windDirectionData[0].x;
                 maxX = this.charts.windDirectionData[this.charts.windDirectionData.length - 1].x;
-            }
+            }*/
                       
             for (const entry of this.station.legend.winddir) {
                 if (entry.start === undefined 
@@ -522,8 +536,8 @@ export default {
                         yScaleID: 'y-axis-0',
                         yMin: subEntry.start,
                         yMax: subEntry.end,
-                        xMin: minX,
-                        xMax: maxX,
+                        //xMin: minX,
+                        //xMax: maxX,
                         backgroundColor: subEntry.color,
                         borderColor: 'rgba(0,0,0,0)',
                     });
@@ -533,8 +547,6 @@ export default {
         set_speed_annotations: function() {
             let lastVal = 0;
             
-            const minX = this.dataManager.stationData[0].timestamp * 1000;
-            const maxX = this.dataManager.stationData[this.dataManager.stationData.length - 1].timestamp * 1000;
             
             let last = {};
             this.charts.windspeed.options.annotation.annotations = [];
@@ -546,8 +558,8 @@ export default {
                     yScaleID: 'y-axis-0',
                     yMin: lastVal,
                     yMax: entry.top,
-                    xMax: maxX,
-                    xMin: minX,
+                    //xMax: maxX,
+                    //xMin: minX,
                     backgroundColor: entry.color,
                     borderColor: 'rgba(0,0,0,0)',
                 };
@@ -561,6 +573,24 @@ export default {
             last.yMax = null;
             this.charts.windspeed.options.annotation.annotations.push(last);*/
         },
+        update_annotation_ranges: function () {
+            const minX = this.dataManager.stationData[0].timestamp * 1000;
+            const maxX = this.dataManager.stationData[this.dataManager.stationData.length - 1].timestamp * 1000;
+
+            if (this.charts.windspeed) {
+                for (const idx in this.charts.windspeed.options.annotation.annotations) {
+                    this.charts.windspeed.options.annotation.annotations[idx].xMin = minX;
+                    this.charts.windspeed.options.annotation.annotations[idx].xMax = maxX;
+                }
+            }
+            if (this.charts.wind_direction) {
+                for (const idx in this.charts.wind_direction.options.annotation.annotations) {
+                    this.charts.wind_direction.options.annotation.annotations[idx].xMin = minX;
+                    this.charts.wind_direction.options.annotation.annotations[idx].xMax = maxX;
+                }
+            }
+        },
+
         fetch_stations: function(cb) {
             fetch(`${window.location.protocol}//${window.location.host}/api/stations`, {
                 method: 'GET',

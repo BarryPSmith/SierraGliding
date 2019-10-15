@@ -105,10 +105,9 @@ Arguments:
                     }
                 };
 
-            Task.Run(() => _dataReceiver.Connect(srcAddress));
-
             if (!Console.IsInputRedirected)
             {
+                Task.Run(() => _dataReceiver.Connect(srcAddress));
                 Console.WriteLine("Reading data. Press q key to exit.");
                 while (true)
                 {
@@ -120,6 +119,19 @@ Arguments:
                     }
                 }
             }
+            else
+                while (true)
+                    try
+                    {
+                        _dataReceiver.Connect(srcAddress);
+                        return;
+                    }
+                    catch (Exception ex)
+                    {
+                        //Just retry forever...
+                        Thread.Sleep(1000);
+                        Console.Error.Write($"{DateTime.Now} Connect error: {ex}");
+                    }
         }
 
         private static void CurrentDomain_ProcessExit(object sender, EventArgs e)

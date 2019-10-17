@@ -47,6 +47,8 @@ Raspberry Pi|Decode radio signals, post to website|https://www.amazon.com/gp/pro
 USB C cable|Pi power cable|https://www.amazon.com/gp/product/B01GGKYN0A/
 Micro HDMI Cable|Screen cable to set up Pi|https://www.amazon.com/gp/product/B00Z07JYLE/
 USB Wallwart|Provide power for Pi|https://www.amazon.com/gp/product/B0774YZR5L/
+Micro SD Card|Store Pi state|
+Micro SD Card adaptor|Write OS image to Pi from your computer|
 SDR Dongle|Receive radio signals|https://www.amazon.com/gp/product/B0129EBDS2/
 Antenna Extension Cable|Allow positioning of antenna atop mast|https://www.amazon.com/15-Meter-Extension-Coaxial-Connector-Applications/dp/B01FVXW5X0/
 Antenna|Convert radio waves into electrical signals|Make your own. To be investiaged. I'm just using a walkie-talkie antenna for now.

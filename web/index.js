@@ -535,7 +535,7 @@ function main(db, cb) {
                         timestamp: moment.unix(req.body.timestamp).unix(),
                         windspeed: req.body.wind_speed,
                         wind_direction: req.body.wind_direction,
-                        battery: req.body.battery ? req.body.battery : null
+                        battery_level: req.body.battery ? req.body.battery : null
                     }));
                 });
             }); //exec insert

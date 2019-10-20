@@ -134,7 +134,7 @@ export default class DataManager {
         if (end === null || this.currentEnd === null) {
             this.currentEnd = null;
         } else {
-            this.currentEnd = Math.max(this.actualEnd, end);
+            this.currentEnd = Math.max(this.currentEnd, actualEnd);
         }
         this.currentStart = Math.min(this.currentStart, start);
     

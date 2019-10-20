@@ -79,6 +79,7 @@
 // === Components ===
 import Err from './components/Error.vue';
 import DataManager from './DataManager.js';
+import bs from '../node_modules/binary-search/index.js';
 
 export default {
     name: 'app',
@@ -88,6 +89,8 @@ export default {
             mode: 'map',
             auth: false,
             duration: 300,
+            chartEnd: null,
+            isPanning: false,
             dataType: 'wind',
             fullSize: false,
             dataManager: null,
@@ -189,9 +192,23 @@ export default {
     mounted: function(e) {
         if (!this.timer) {
             this.timer = setInterval(() => {
-                this.chart_range();
+                for (const chart of [
+                    this.charts.windspeed,
+                    this.charts.wind_direction,
+                    this.charts.battery
+                ]) {
+                    if (chart) {
+                        chart.options.plugins.zoom.pan.rangeMax.x = new Date();
+                    }
+                }
+                if (!this.chartEnd && !this.isPanning) {
+                    this.chart_range();
+                }
             }, 1000);
         }
+
+        var annotationPlugin = require('../node_modules/chartjs-plugin-annotation/chartjs-plugin-annotation.js');
+        Chart.plugins.register(annotationPlugin);
         
         var h = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
         if (h < 600)
@@ -225,13 +242,13 @@ export default {
     watch: {
         'duration': function () {
             const dmPromise = this.dataManager.ensure_data(
-                new Date() - this.duration * 1000, null
+                this.cur_start(), this.chartEnd
             );
+            this.chart_range();
             this.station.loading = true;
             dmPromise.then(refreshRequired => {
-                console.error(refreshRequired);
-                this.station_data_update();
                 this.update_annotation_ranges();
+                this.station_data_update(refreshRequired);
                 this.station.loading = false;
             });
         },
@@ -264,38 +281,92 @@ export default {
                 if (!data.id || data.id != this.station.id) return;
                 
                 this.dataManager.push_if_appropriate(data);
-
-                this.update_annotation_ranges();                
+                this.update_annotation_ranges();   
+                this.station_data_update(false);             
             } catch (err) {
                 console.error(err);
             }
         },
-        chart_range: function() {
+
+        set_windspeed_range: function () {
+            const dataset = this.dataManager.windspeedData;
+            const chart = this.charts.windspeed;
+            const start = this.cur_start();
+            const end = this.cur_end();
+            const minMax = this.station.legend.windspeed[this.station.legend.windspeed.length - 1].top;
+            let startIdx = bs(dataset, start, (element, needle) => element.x - needle);
+            let endIdx = bs(dataset, end, (element, needle) => element.x - needle);
+            if (startIdx < 0)
+                startIdx = ~startIdx;
+            if (endIdx < 0)
+                endIdx = ~endIdx;
+
+            let max = minMax
+            for (let i = startIdx; i < endIdx && i < dataset.length; i++) {
+                if (dataset[i].y > max)
+                    max = dataset[i].y;
+            }
+            max = 5 * Math.ceil(max / 5);
+            chart.options.scales.yAxes[0].ticks.max = max;
+        },
+
+        cur_end: function () {
+            if (this.chartEnd)
+                return this.chartEnd;
+            else
+                return new Date();
+        },
+
+        cur_start: function () {
+            return this.cur_end() - this.duration * 1000;
+        },
+
+        chart_range: function (chartToExclude) {
+            //return;
             for (const chart of [
                 this.charts.windspeed,
                 this.charts.wind_direction,
                 this.charts.battery
             ]) {
-                if (chart) {
-                    chart.options.scales.xAxes[0].time.min = new Date(+new Date() - (this.duration * 1000));
-                    chart.options.scales.xAxes[0].time.max = new Date();
+                if (chart && chart != chartToExclude) {
+                    chart.options.scales.xAxes[0].time.min = this.cur_start();
+                    chart.options.scales.xAxes[0].time.max = this.cur_end();
                     chart.update();
+                }
+            }
+            this.set_windspeed_range();                
+        },
+
+        station_data_update: function (refreshRequired) {
+            if (refreshRequired) {
+                if (this.charts.windspeed) {
+                    this.charts.windspeed.data.datasets[0].data = this.dataManager.windspeedData;
+                }
+                if (this.charts.wind_direction) {
+                    this.charts.wind_direction.data.datasets[0].data = this.dataManager.windDirectionData;
+                }
+                if (this.charts.battery) {
+                    this.charts.battery.data.datasets[0].data = this.dataManager.batteryData;
+                }
+            }
+            else {
+                if (this.charts.windspeed) {
+                    this.charts.windspeed.update();
+                }
+                if (this.charts.wind_direction) {
+                    this.charts.wind_direction.update();
+                }
+                if (this.charts.battery) {
+                    this.charts.battery.update();
                 }
             }
         },
 
-        station_data_update: function () {
-            this.charts.windspeed.data.datasets[0].data = this.dataManager.windspeedData;
-            console.error(this.charts.windspeed.data);
-            this.charts.wind_direction.data.datasets[0].data = this.dataManager.windDirectionData;
-            this.charts.battery.data.datasets[0].data = this.dataManager.batteryData;
-        },
-
         station_update: function() {
             this.station.loading = true;
-            
-            var dmPromise = this.dataManager.ensure_data(
-                new Date() - this.duration * 1000, null
+
+            const dmPromise = this.dataManager.ensure_data(
+                this.cur_start(), this.chartEnd
             );
             
             this.fetch_station(this.station.id, () => {
@@ -316,29 +387,48 @@ export default {
                         scales: {
                             yAxes: [{
                                 ticks: {
-                                    beginAtZero: true
+                                    //beginAtZero: true
+                                    min: 0
                                 },
                                 position: 'right'
                             }],
                             xAxes: [{
                                 type: 'time',
                                 offset: false,
+                                ticks: {
+                                    maxRotation: 0
+                                },
                                 time: {
                                     minUnit: 'minute',
-                                    min: new Date(+new Date() - (this.duration * 1000)),
-                                    max: new Date()
+                                    min: this.cur_start(),
+                                    max: this.cur_end()
                                 }
                             }]
                         },
                         annotation: {
-                            annotations: [],
-                            drawTime: 'beforeDatasetsDraw'
+                                annotations: [],
+                                drawTime: 'beforeDatasetsDraw'
+                        },
+                        
+                        plugins: {
+                            zoom: {
+                                pan: {
+                                    enabled: true,
+                                    mode: 'x',
+                                    rangeMax: {
+                                        x: new Date()
+                                    },
+                                }
+                            }
                         }
                     }
 
                     let wsElem = document.getElementById('windspeed');
                     if (wsElem) {
                         let wsOpts = JSON.parse(JSON.stringify(commonOptions));
+                        //Callbacks don't survive stringify/parse
+                        wsOpts.plugins.zoom.pan.onPan = this.chart_panning;
+                        wsOpts.plugins.zoom.pan.onPanComplete = this.chart_panComplete;
                         wsOpts.scales.yAxes[0].ticks.stepSize = 5;
                         const wsData = {
                             datasets: [{
@@ -370,6 +460,8 @@ export default {
                     let wdElem = document.getElementById('wind_direction');
                     if (wdElem) {
                         let wdOpts = JSON.parse(JSON.stringify(commonOptions));
+                        wdOpts.plugins.zoom.pan.onPan = this.chart_panning;
+                        wdOpts.plugins.zoom.pan.onPanComplete = this.chart_panComplete;
                         wdOpts.scales.yAxes[0].ticks.max = 360;
                         wdOpts.scales.yAxes[0].ticks.stepSize = 45;
                         const windNames =  {
@@ -419,6 +511,8 @@ export default {
                         battOpts.scales.yAxes[0].ticks.beginAtZero = false;
                         battOpts.scales.yAxes[0].ticks.min = 10;
                         battOpts.scales.yAxes[0].ticks.max = 15;
+                        battOpts.plugins.zoom.pan.onPan = this.chart_panning;
+                        battOpts.plugins.zoom.pan.onPanComplete = this.chart_panComplete;
                         if (!this.charts.battery) {
                             this.charts.battery = new Chart(battElem, {
                                 type: 'line',
@@ -429,6 +523,7 @@ export default {
                                         pointBorderColor: 'black',
                                         pointRadius: 0,
                                         borderColor: 'black',
+                                        borderJoinStyle: 'round',
                                         fill: false,
                                         data: this.dataManager.batteryData,
                                         lineTension: 0
@@ -445,9 +540,30 @@ export default {
                     this.set_speed_annotations();
                     this.set_direction_annotations();
                     this.update_annotation_ranges();
+                    this.set_windspeed_range();
                 });
             });
         },
+
+        chart_panning: function ({ chart }) {
+            this.isPanning = true;
+            const chartMax = chart.options.scales.xAxes[0].ticks.max;
+            if (new Date() - chartMax < 10 * 1000)
+                this.chartEnd = null;
+            else
+                this.chartEnd = chartMax;
+            this.dataManager.ensure_data(this.cur_start(), this.cur_end())
+                .then((refreshRequired) => {
+                this.update_annotation_ranges();
+                this.station_data_update(refreshRequired);
+            });
+            this.chart_range(chart);
+        },
+
+        chart_panComplete: function ({ chart }) {
+            this.isPanning = false;
+        },
+
         map_init: function() {
             try {
                 mapboxgl.accessToken = this.credentials.map;
@@ -502,14 +618,6 @@ export default {
             if (!this.station.legend.winddir) {
                 return;
             }
-            
-            /*let minX = this.charts.wind_direction.options.scales.xAxes[0].time.min;
-            let maxX = this.charts.wind_direction.options.scales.xAxes[0].time.max;
-            if (Array.isArray(this.charts.windDirectionData) && this.charts.windDirectionData.length > 0)
-            {
-                minX = this.charts.windDirectionData[0].x;
-                maxX = this.charts.windDirectionData[this.charts.windDirectionData.length - 1].x;
-            }*/
                       
             for (const entry of this.station.legend.winddir) {
                 if (entry.start === undefined 
@@ -568,10 +676,11 @@ export default {
             }
             //duplicate last and have it go to the moon:
             //The code below causes our Y-axis to go to 100 as soon as this is shown. We need to take manual control of the Y-axis if we want this to work.
-            /*last = JSON.parse(JSON.stringify(last));
+            last = JSON.parse(JSON.stringify(last));
             last.yMin = last.yMax;
             last.yMax = null;
-            this.charts.windspeed.options.annotation.annotations.push(last);*/
+            this.charts.windspeed.options.annotation.annotations.push(last);
+            //this.charts.windspeed.options.scales.yAxes[0].max = last.yMin;
         },
         update_annotation_ranges: function () {
             const minX = this.dataManager.stationData[0].timestamp * 1000;

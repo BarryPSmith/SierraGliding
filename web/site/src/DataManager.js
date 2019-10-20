@@ -99,6 +99,7 @@ export default class DataManager {
     
     add_data(start, end, actualEnd) {
         //Don't fetch data we already have
+        var span = actualEnd - start;
         var curEnd = this.get_actual_end();
         if (start >= this.currentStart && start < curEnd)
             start = curEnd;
@@ -108,6 +109,17 @@ export default class DataManager {
         //Do nothing if we already have all the necessary data
         if (start >= actualEnd)
             return Promise.resolve();
+
+        //We're going to buffer ahead. The amount we buffer will be 33% of the window we're asked to ensure.
+        //We also add in an extra five seconds for the hell of it.
+        //This should stop us from sending a million requests to the server as the user pans a graph.
+        const endDiff = actualEnd - curEnd;
+        const startDiff = this.currentStart - start;
+
+        if (endDiff > 0)
+            actualEnd += span / 3 + 5000;
+        if (startDiff > 0)
+            start -= span / 3 + 5000;
     
         //For now, we're going to cheat and assume that the promise runs to completion.
         if (end === null || this.currentEnd === null) {
@@ -141,6 +153,9 @@ export default class DataManager {
             this.windDirectionData.splice(...newStationData.map(this.get_wind_dir_entry));
             this.windspeedData.splice(i, 0, ...newStationData.map(this.get_wind_spd_entry));
             this.batteryData.splice(i, 0, ...newStationData.map(this.get_batt_entry));
+
+            if (typeof this.onDataAdded == 'function')
+                this.onDataAdded();
         });;
         
         return promise;
@@ -162,6 +177,9 @@ export default class DataManager {
                 cur.splice(0, 50);
             }
         }       
+        if (typeof this.onDataAdded == 'function')
+            this.onDataAdded();
+
     }
         
     get_wind_dir_entry(entry) {
@@ -193,13 +211,20 @@ export default class DataManager {
         this.curEnd = end;
         
         this.currentSampleInterval = Math.max((actualEnd - start) / this.desiredResolution / 1000, 1);
+
+        const promiseToken = this.curPromiseToken;
         
         return this.fetch_station_data(start, actualEnd, this.currentSampleInterval)
             .then(newStationData => {
-            this.stationData = newStationData;
-            this.windDirectionData = newStationData.map(this.get_wind_dir_entry);
-            this.windspeedData = newStationData.map(this.get_wind_spd_entry);
-            this.batteryData = newStationData.map(this.get_batt_entry);
+            if (promiseToken == this.curPromiseToken) {
+                this.stationData = newStationData;
+                this.windDirectionData = newStationData.map(this.get_wind_dir_entry);
+                this.windspeedData = newStationData.map(this.get_wind_spd_entry);
+                this.batteryData = newStationData.map(this.get_batt_entry);
+
+                if (typeof this.onDataReplaced == 'function')
+                    this.onDataReplaced();
+            }
         });
     }
     

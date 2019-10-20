@@ -134,7 +134,7 @@ export default class DataManager {
         if (end === null || this.currentEnd === null) {
             this.currentEnd = null;
         } else {
-            this.currentEnd = Math.max(this.currentEnd, end);
+            this.currentEnd = Math.max(this.actualEnd, end);
         }
         this.currentStart = Math.min(this.currentStart, start);
     
@@ -159,7 +159,7 @@ export default class DataManager {
             }
             
             this.stationData.splice(i, 0, ...newStationData);
-            this.windDirectionData.splice(...newStationData.map(this.get_wind_dir_entry));
+            this.windDirectionData.splice(i, 0, ...newStationData.map(this.get_wind_dir_entry));
             this.windspeedData.splice(i, 0, ...newStationData.map(this.get_wind_spd_entry));
             this.batteryData.splice(i, 0, ...newStationData.map(this.get_batt_entry));
 

@@ -201,9 +201,9 @@ export default {
                         chart.options.plugins.zoom.pan.rangeMax.x = new Date();
                     }
                 }
-                if (!this.chartEnd && !this.isPanning) {
+                /*if (!this.chartEnd && !this.isPanning) {
                     this.chart_range();
-                }
+                }*/
             }, 1000);
         }
 
@@ -246,9 +246,10 @@ export default {
             );
             this.chart_range();
             this.station.loading = true;
-            dmPromise.then(refreshRequired => {
+            dmPromise.then(obj => {
                 this.update_annotation_ranges();
-                this.station_data_update(refreshRequired);
+                if (obj.anyChange)
+                    this.station_data_update(obj.reloadedData);
                 this.station.loading = false;
             });
         },
@@ -281,8 +282,12 @@ export default {
                 if (!data.id || data.id != this.station.id) return;
                 
                 this.dataManager.push_if_appropriate(data);
-                this.update_annotation_ranges();   
-                this.station_data_update(false);             
+                this.update_annotation_ranges();
+                if (!this.chartEnd && !this.isPanning) {
+                    this.chart_range();
+                } else {
+                    this.station_data_update(false);
+                }
             } catch (err) {
                 console.error(err);
             }
@@ -322,41 +327,44 @@ export default {
         },
 
         chart_range: function (chartToExclude) {
-            //return;
-            for (const chart of [
+            const charts = this.dataType == 'wind' ?
+                [
                 this.charts.windspeed,
                 this.charts.wind_direction,
+                ] : [
                 this.charts.battery
-            ]) {
+                ];
+            for (const chart of charts) {
                 if (chart && chart != chartToExclude) {
                     chart.options.scales.xAxes[0].time.min = this.cur_start();
                     chart.options.scales.xAxes[0].time.max = this.cur_end();
                     chart.update();
                 }
             }
-            this.set_windspeed_range();                
+            if (this.dataType == 'wind')
+                this.set_windspeed_range();                
         },
 
         station_data_update: function (refreshRequired) {
             if (refreshRequired) {
-                if (this.charts.windspeed) {
+                if (this.charts.windspeed && this.dataType == 'wind') {
                     this.charts.windspeed.data.datasets[0].data = this.dataManager.windspeedData;
                 }
-                if (this.charts.wind_direction) {
+                if (this.charts.wind_direction && this.dataType == 'wind') {
                     this.charts.wind_direction.data.datasets[0].data = this.dataManager.windDirectionData;
                 }
-                if (this.charts.battery) {
+                if (this.charts.battery && this.dataType == 'battery') {
                     this.charts.battery.data.datasets[0].data = this.dataManager.batteryData;
                 }
             }
             else {
-                if (this.charts.windspeed) {
+                if (this.charts.windspeed && this.dataType == 'wind') {
                     this.charts.windspeed.update();
                 }
-                if (this.charts.wind_direction) {
+                if (this.charts.wind_direction && this.dataType == 'wind') {
                     this.charts.wind_direction.update();
                 }
-                if (this.charts.battery) {
+                if (this.charts.battery && this.dataType == 'battery') {
                     this.charts.battery.update();
                 }
             }
@@ -424,7 +432,7 @@ export default {
                     }
 
                     let wsElem = document.getElementById('windspeed');
-                    if (wsElem) {
+                    if (wsElem && this.dataType == 'wind') {
                         let wsOpts = JSON.parse(JSON.stringify(commonOptions));
                         //Callbacks don't survive stringify/parse
                         wsOpts.plugins.zoom.pan.onPan = this.chart_panning;
@@ -458,7 +466,7 @@ export default {
                     }
                     
                     let wdElem = document.getElementById('wind_direction');
-                    if (wdElem) {
+                    if (wdElem && this.dataType == 'wind') {
                         let wdOpts = JSON.parse(JSON.stringify(commonOptions));
                         wdOpts.plugins.zoom.pan.onPan = this.chart_panning;
                         wdOpts.plugins.zoom.pan.onPanComplete = this.chart_panComplete;
@@ -506,7 +514,7 @@ export default {
                     }
                     
                     let battElem = document.getElementById('battery');
-                    if (battElem) {
+                    if (battElem && this.dataType == 'battery') {
                         let battOpts = JSON.parse(JSON.stringify(commonOptions));
                         battOpts.scales.yAxes[0].ticks.beginAtZero = false;
                         battOpts.scales.yAxes[0].ticks.min = 10;
@@ -537,10 +545,12 @@ export default {
                     }
 
                     this.station.loading = false;
-                    this.set_speed_annotations();
-                    this.set_direction_annotations();
-                    this.update_annotation_ranges();
-                    this.set_windspeed_range();
+                    if (this.dataType == 'wind') {
+                        this.set_speed_annotations();
+                        this.set_direction_annotations();
+                        this.update_annotation_ranges();
+                        this.set_windspeed_range();
+                    }
                 });
             });
         },
@@ -553,9 +563,11 @@ export default {
             else
                 this.chartEnd = chartMax;
             this.dataManager.ensure_data(this.cur_start(), this.cur_end())
-                .then((refreshRequired) => {
-                this.update_annotation_ranges();
-                this.station_data_update(refreshRequired);
+                .then(obj => {
+                    if (obj.anyChange) {
+                        this.update_annotation_ranges();
+                        this.station_data_update(obj.reloadedData);
+                    }
             });
             this.chart_range(chart);
         },

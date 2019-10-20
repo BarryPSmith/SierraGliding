@@ -31,7 +31,7 @@ export default class DataManager {
     }
         
     //Ensures that data is available from start until end with an acceptable resolution.
-    //cb: callback(bool reloaded) where reloaded indicates all new data was loaded, otherwise data was appended.
+    //cb: callback(bool reloaded, bool anyChange) where reloaded indicates all new data was loaded, otherwise data was appended.
     ensure_data(start, end, cb) {
         let actualEnd = end;
         if (end === null) {
@@ -45,8 +45,12 @@ export default class DataManager {
 
         const actualDataRate = Math.max(this.currentSampleInterval, this.stationDataRate);
         
-        if (start > new Date())
-            return; //We're going to ignore them if they ask for data in the future.
+        if (start > new Date()) {
+            return Promise.resolve({
+                reloadedData: false,
+                anyChange: false
+            }); //We're going to ignore them if they ask for data in the future.
+        }
         
         //Figure out if we need to throw away all of our data and refresh
         const refreshRequired = 
@@ -81,7 +85,12 @@ export default class DataManager {
                 () => { cb(refreshRequired, null); },
                 (err) => { cb(refreshRequired, err); });
         else
-            return thePromise.then(() => refreshRequired);
+            return thePromise.then((anyChange) => {
+                return {
+                    reloadedData: refreshRequired,
+                    anyChange: anyChange
+                };
+            });
     }
     
     end_is_now() {
@@ -108,7 +117,7 @@ export default class DataManager {
         
         //Do nothing if we already have all the necessary data
         if (start >= actualEnd)
-            return Promise.resolve();
+            return Promise.resolve(false);
 
         //We're going to buffer ahead. The amount we buffer will be 33% of the window we're asked to ensure.
         //We also add in an extra five seconds for the hell of it.
@@ -134,11 +143,11 @@ export default class DataManager {
         const promise = this.fetch_station_data(start, actualEnd, this.currentSampleInterval)
             .then(newStationData => {
             if (this.curPromiseToken != promiseToken) {
-                return;
+                return false;
             }
             
             if (newStationData.length == 0) {
-                return;
+                return false;
             }
             
             //Get our insertion index. We're going to do a proper check in case promises run out of order.
@@ -155,7 +164,9 @@ export default class DataManager {
             this.batteryData.splice(i, 0, ...newStationData.map(this.get_batt_entry));
 
             if (typeof this.onDataAdded == 'function')
-                this.onDataAdded();
+                    this.onDataAdded();
+
+            return true;
         });;
         
         return promise;
@@ -216,15 +227,20 @@ export default class DataManager {
         
         return this.fetch_station_data(start, actualEnd, this.currentSampleInterval)
             .then(newStationData => {
-            if (promiseToken == this.curPromiseToken) {
-                this.stationData = newStationData;
-                this.windDirectionData = newStationData.map(this.get_wind_dir_entry);
-                this.windspeedData = newStationData.map(this.get_wind_spd_entry);
-                this.batteryData = newStationData.map(this.get_batt_entry);
+                if (promiseToken == this.curPromiseToken) {
+                    this.stationData = newStationData;
+                    this.windDirectionData = newStationData.map(this.get_wind_dir_entry);
+                    this.windspeedData = newStationData.map(this.get_wind_spd_entry);
+                    this.batteryData = newStationData.map(this.get_batt_entry);
 
-                if (typeof this.onDataReplaced == 'function')
-                    this.onDataReplaced();
-            }
+                    if (typeof this.onDataReplaced == 'function')
+                        this.onDataReplaced();
+
+                    return true;
+                } else {
+                    return false;
+                }
+
         });
     }
     

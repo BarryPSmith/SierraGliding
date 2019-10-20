@@ -567,6 +567,7 @@ export default {
             this.dataManager.ensure_data(this.cur_start(), this.cur_end())
                 .then(obj => {
                     if (obj.anyChange) {
+                        this.set_windspeed_range();
                         this.update_annotation_ranges();
                         this.station_data_update(obj.reloadedData);
                     }

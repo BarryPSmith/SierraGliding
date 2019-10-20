@@ -248,8 +248,10 @@ export default {
             this.station.loading = true;
             dmPromise.then(obj => {
                 this.update_annotation_ranges();
-                if (obj.anyChange)
+                if (obj.anyChange) {
+                    this.set_windspeed_range();
                     this.station_data_update(obj.reloadedData);
+                }
                 this.station.loading = false;
             });
         },
@@ -334,15 +336,16 @@ export default {
                 ] : [
                 this.charts.battery
                 ];
+
+            if (this.dataType == 'wind')
+                this.set_windspeed_range(); 
             for (const chart of charts) {
                 if (chart && chart != chartToExclude) {
                     chart.options.scales.xAxes[0].time.min = this.cur_start();
                     chart.options.scales.xAxes[0].time.max = this.cur_end();
                     chart.update();
                 }
-            }
-            if (this.dataType == 'wind')
-                this.set_windspeed_range();                
+            }               
         },
 
         station_data_update: function (refreshRequired) {
@@ -357,16 +360,15 @@ export default {
                     this.charts.battery.data.datasets[0].data = this.dataManager.batteryData;
                 }
             }
-            else {
-                if (this.charts.windspeed && this.dataType == 'wind') {
-                    this.charts.windspeed.update();
-                }
-                if (this.charts.wind_direction && this.dataType == 'wind') {
-                    this.charts.wind_direction.update();
-                }
-                if (this.charts.battery && this.dataType == 'battery') {
-                    this.charts.battery.update();
-                }
+            
+            if (this.charts.windspeed && this.dataType == 'wind') {
+                this.charts.windspeed.update();
+            }
+            if (this.charts.wind_direction && this.dataType == 'wind') {
+                this.charts.wind_direction.update();
+            }
+            if (this.charts.battery && this.dataType == 'battery') {
+                this.charts.battery.update();
             }
         },
 
@@ -695,6 +697,9 @@ export default {
             //this.charts.windspeed.options.scales.yAxes[0].max = last.yMin;
         },
         update_annotation_ranges: function () {
+            if (this.dataManager.stationData.length == 0)
+                return;
+
             const minX = this.dataManager.stationData[0].timestamp * 1000;
             const maxX = this.dataManager.stationData[this.dataManager.stationData.length - 1].timestamp * 1000;
 

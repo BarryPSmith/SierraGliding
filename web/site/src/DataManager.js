@@ -126,9 +126,9 @@ export default class DataManager {
         const startDiff = this.currentStart - start;
 
         if (endDiff > 0)
-            actualEnd += span / 3 + 5000;
+            actualEnd = +actualEnd + span / 3 + 5000;
         if (startDiff > 0)
-            start -= span / 3 + 5000;
+            start = +start - span / 3 + 5000;
     
         //For now, we're going to cheat and assume that the promise runs to completion.
         if (end === null || this.currentEnd === null) {
@@ -250,6 +250,9 @@ export default class DataManager {
         url.searchParams.append('start', start / 1000);
         url.searchParams.append('end', end / 1000);
         url.searchParams.append('sample', sample);
+
+        if (Number.isNaN(end / 1000) || Number.isNaN(start / 1000) || Number.isNaN(start))
+            throw new Error('Invalid parameter pass to fetch_station_data');
         
         const dataFetch = fetch(url, {
             method: 'GET',

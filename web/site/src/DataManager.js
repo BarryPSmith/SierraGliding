@@ -219,7 +219,7 @@ export default class DataManager {
         this.curPromiseToken = Math.random();
         
         this.currentStart = start;
-        this.curEnd = end;
+        this.currentEnd = end;
         
         this.currentSampleInterval = Math.max((actualEnd - start) / this.desiredResolution / 1000, 1);
 

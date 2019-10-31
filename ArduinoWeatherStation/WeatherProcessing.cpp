@@ -1,4 +1,17 @@
+#include "Messaging.h"
+#include "WeatherProcessing.h"
+#include "ArduinoWeatherStation.h"
+
+void CountWind();
+byte GetWindDirectionArgentData();
+void updateSendInterval(float batteryVoltage);
+
 volatile int windCounts = 0;
+
+const float V_Ref = 5.0;
+const float BattVDivider = 3.0;
+const float MinBattV = 7.5;
+const float MaxBattV = 15.0;
 
 #if DEBUG_Speed
 const size_t speedTickLength = 200;
@@ -6,8 +19,17 @@ int speedTicks[200];
 byte curSpeedLocation = 0;
 #endif
 
-byte GetWindDirection(int wdVoltage)
+byte GetWindDirection()
 {
+  return GetWindDirectionArgentData();
+}
+
+//Get the wind direction for an argent data wind vane (8 distinct directions, sometimes landing between them).
+//This assumes a 4kOhm resistor in series to form a voltage divider
+byte GetWindDirectionArgentData()
+{
+  int wdVoltage = analogRead(windDirPin);
+  
   if (wdVoltage < 168)
     return 5;  // 5 (ESE)
   if (wdVoltage < 195)
@@ -41,38 +63,38 @@ byte GetWindDirection(int wdVoltage)
   return 12;   // C (W)
 }
 
-size_t createWeatherData(byte* msgBuffer)
+void createWeatherData(MessageDestination& message)
 {
   //Message format is W(StationID)(UniqueID)(DirHex)(Spd * 2)(Voltage)
-  int batteryVoltage = analogRead(voltagePin);
-  int dirVoltage = analogRead(windDirPin);
+  int batteryVoltageReading = analogRead(voltagePin);
+  float battV = V_Ref * batteryVoltageReading / 1023 * BattVDivider;
   noInterrupts();
   int localCounts = windCounts;
   windCounts = 0; 
   interrupts();
   float windSpeed = (2400.0 * localCounts) / weatherInterval;
-  byte windDirection = GetWindDirection(dirVoltage);
 
   //Update the send interval only after we calculate windSpeed, because windSpeed is dependent on weatherInterval
-  updateSendInterval(batteryVoltage);
-
+  updateSendInterval(battV);
+  
+  byte windDirection = GetWindDirection();
+  byte windDirByte;
   if (windDirection < 10)
-    msgBuffer[0] = (byte)('0' + windDirection);
+    windDirByte = (byte)('0' + windDirection);
   else
-    msgBuffer[0] = (byte)('A' + windDirection - 10);
-  msgBuffer[1] = (byte)(windSpeed * 2);
+    windDirByte = (byte)('A' + windDirection - 10);
+  message.appendByte(windDirByte);
+  message.appendByte((byte)(windSpeed * 2));
 
   //Lead Acid
   //Expected voltage range: 10 - 15V
   //Divide by 3, gives 0.33 - 5V
   //Binary values 674 - 1024 (range: 350)
-  msgBuffer[2] = (batteryVoltage - 512) / 2;
-  return 3;
+  message.appendByte((byte)(255 * (battV - MinBattV) / (MaxBattV - MinBattV) + 0.5));
 }
 
-void updateSendInterval(int batteryVoltage)
+void updateSendInterval(float batteryVoltage)
 {
-  //+/- 2 is to give some hysteresis to the send interval.
   bool overrideActive = millis() - overrideStartMillis < overrideDuration;
   if ((!overrideActive && batteryVoltage < batteryThreshold - 2) ||
       (overrideActive && !overrideShort))
@@ -192,3 +214,8 @@ void sendDirectionDebug()
   lastDirectionDebug = millis();
 }
 #endif
+
+void setupWeatherProcessing()
+{
+  setupWindCounter();
+}

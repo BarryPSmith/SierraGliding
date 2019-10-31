@@ -1,12 +1,34 @@
+#include "ArduinoWeatherStation.h"
+#include "Messaging.h"
+#include "MessageHandling.h"
+#include "WeatherProcessing.h"
+#include "Callsign.h"
+
+extern void handleCommandMessage(byte* message, size_t readByteCount);
 
 bool haveRelayed(byte msgType, byte msgStatID, byte msgUniqueID);
 void recordHeardStation(byte msgStatID);
+bool shouldRelay(byte msgType, byte msgStatID, byte msgUniqueID);
+void recordWeatherForRelay(byte* message, int readByteCount);
+void relayMessage(byte msgType, byte* msgBuffer, size_t& readByteCount, int bufferSize);
+void recordMessageRelay(byte msgType, byte msgStatID, byte msgUniqueID);
+
+byte recentlySeenStations[recentArraySize][5];
+byte recentlyRelayedMessages[recentArraySize][3];
+byte recentlyHandledCommands[recentArraySize];
+byte curUniqueID = 0;
+
+byte stationsToRelayCommands[recentArraySize];
+byte stationsToRelayWeather[recentArraySize]; //20 bytes
+
+byte weatherRelayBuffer[weatherRelayBufferSize];
+byte weatherRelayLength = 0;
 
 void readMessages()
 {
   const int bufferSize = 255;
   byte msgBuffer[bufferSize]; 
-  byte* incomingBuffer = msgBuffer + messageOffset;
+  byte* incomingBuffer = msgBuffer;
   //Serial.println("reading messages...");
   static bool ledWasOn = false;
   while (Serial.available() > 0)
@@ -17,7 +39,7 @@ void readMessages()
     
     //sendTestMessage();
     
-    size_t readByteCount = readMessage(incomingBuffer, bufferSize - messageOffset);
+    size_t readByteCount = readMessage(incomingBuffer, bufferSize);
 
     if (readByteCount > 0)
     {
@@ -144,7 +166,9 @@ byte getUniqueID()
 
 void relayMessage(byte msgType, byte* msgBuffer, size_t& readByteCount, int bufferSize)
 {
-  sendMessage(msgBuffer, readByteCount, bufferSize);
+  MessageDestination relay;
+  relay.append(msgBuffer, readByteCount);
+  //sendMessage(msgBuffer, readByteCount, bufferSize);
 }
 
 void recordWeatherForRelay(byte* message, int readByteCount)
@@ -153,7 +177,7 @@ void recordWeatherForRelay(byte* message, int readByteCount)
   //0 W
   //1 Station ID - Take
   //2 Unique ID - Take
-  //3 Data Length
+  //3 Data Length - Use but don't record specifically
   //4 Data - Take
   //assert(message[0] & 0x7F == 'W');
 
@@ -171,20 +195,26 @@ void recordWeatherForRelay(byte* message, int readByteCount)
   byte dataSize = message[3];
   if (dataSize + 2 > readByteCount)
     return; //We've got an invaild message
-  byte* weatherRelayBuffer = weatherMessageBuffer + weatherRelayOffset;
-  if (weatherRelayLength + dataSize > maxRelaySize)
+  if (weatherRelayLength + dataSize + 2 > weatherRelayBufferSize)
   {
     //Prepend R + StationID and send what we have, then write this message to the now empty buffer
+    MessageDestination message;
+    message.appendByte(stationId);
+    message.appendByte('R');
+    message.appendByte(weatherRelayLength);
+    message.append(weatherRelayBuffer, weatherRelayLength);
+    weatherRelayLength = 0;
+    /*
     weatherRelayBuffer[-1] = stationId;
     weatherRelayBuffer[-2] = 'R';
     size_t messageSize = 2 + weatherRelayLength;
     sendMessage(weatherRelayBuffer - 2 - messageOffset, messageSize, weatherMessageBufferSize - weatherRelayOffset + 2);
     weatherRelayLength = 0;
+    */
   }
   //Record 
   weatherRelayBuffer[weatherRelayLength] = message[1]; //Sending StationID
   weatherRelayBuffer[weatherRelayLength + 1] = message[2]; //UniqueID
-  byte* address = weatherRelayBuffer + weatherRelayLength + 2;
   memcpy(weatherRelayBuffer + weatherRelayLength + 2, message + 4, dataSize);
   
   weatherRelayLength += dataSize + 2;
@@ -221,7 +251,18 @@ void sendWeatherMessage()
   //If it's a single relay, it would be:
   //W (Station ID) (Unique ID) (8) (WS) (WD) (Batt) : (StationR) (UidR) (WsR) (WdR) (BattR)
   //If there are multiple relay messages included, each has an extra 5 bytes.
-  byte* weatherMessage = weatherMessageBuffer + messageOffset;
+  
+  MessageDestination message;
+  message.appendByte('W');
+  message.appendByte(stationId);
+  message.appendByte(getUniqueID());
+  message.appendByte(3 + weatherRelayLength);
+  createWeatherData(message);
+  message.append(weatherRelayBuffer, weatherRelayLength);
+  weatherRelayLength = 0;
+  message.finishAndSend();
+  
+  /*byte* weatherMessage = weatherMessageBuffer + messageOffset;
   weatherMessage[0] = 'W'; //Message type
   weatherMessage[1] = stationId; //Station ID
   weatherMessage[2] = getUniqueID();
@@ -230,7 +271,7 @@ void sendWeatherMessage()
   //assert(msgSize == 3);
   msgSize = singleStationWeatherMessageSize + weatherRelayLength; //the relay data has been built in place in the weather buffer.
   sendMessage(weatherMessageBuffer, msgSize, weatherMessageBufferSize);
-  weatherRelayLength = 0;
+  weatherRelayLength = 0;*/
 }
 
 void sendStatusMessage()
@@ -241,4 +282,13 @@ void sendStatusMessage()
   Serial.print(" ");
   Serial.print(lastStatusMillis + millisBetweenStatus);*/
   lastStatusMillis = millis();
+}
+
+void ZeroMessagingArrays()
+{
+  memset(stationsToRelayCommands, 0, recentArraySize);
+  memset(stationsToRelayWeather, 0, recentArraySize);
+  memset(recentlySeenStations, 0, recentArraySize * 5);
+  memset(recentlyRelayedMessages, 0, recentArraySize * 3);
+  memset(recentlyHandledCommands, 0, recentArraySize);
 }

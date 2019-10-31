@@ -1,3 +1,15 @@
+#include "Messaging.h"
+#include "MessageHandling.h"
+#include "ArduinoWeatherStation.h"
+
+bool handleRelayCommand(byte* message, byte readByteCount);
+bool handleIntervalCommand(byte*message,byte readByteCount);
+bool handleThresholdCommand(byte*message,byte readByteCount);
+bool handleQueryCommand(byte*message,byte readByteCount);
+bool handleDebugCommand(byte*message,byte readByteCount);
+bool handleOverrideCommand(byte*message,byte readByteCount);
+void acknowledgeMessage(byte*message);
+
 void handleCommandMessage(byte* message, size_t readByteCount)
 {
   byte uniqueId = message[2];
@@ -18,7 +30,7 @@ void handleCommandMessage(byte* message, size_t readByteCount)
 
   //Delay for testing.
   //TODO: Replace delay with a queue of acknowledgements
-  delay(3000);
+  //delay(3000);
 
   byte command = message[3];
   bool handled = false;
@@ -73,6 +85,16 @@ void handleCommandMessage(byte* message, size_t readByteCount)
   }
   if (!handled)
   {
+    MessageDestination response;
+    if (message[0] & 0x80)
+      response.appendByte('K' | 0x80);
+    else
+      response.appendByte('K');
+    response.appendByte(stationId);
+    response.appendByte(uniqueId);
+    response.appendByte(7);
+    response.append("IGNORED", 7);
+    /*
     byte msgBuffer[40];
     byte* responseBuffer = msgBuffer + messageOffset;
     responseBuffer[0] = 'K';
@@ -84,6 +106,7 @@ void handleCommandMessage(byte* message, size_t readByteCount)
     memcpy(responseBuffer + 4, "IGNORED", 7);
     size_t msgLength = 11;
     sendMessage(msgBuffer, msgLength, 40);
+    */
   }
 }
 
@@ -225,121 +248,108 @@ bool handleQueryCommand(byte* message, byte readByteCount)
 {
   //Response is currently at 204 bytes. Beware buffer overrun.
   
-  const int bufferSize = 300;
+  //const int bufferSize = 300;
+  MessageDestination response;
   byte uniqueId = message[2];
-  byte messageBuffer[bufferSize];
-  byte* responseBuffer = messageBuffer + messageOffset;
-  responseBuffer[0] = 'K';
+  //byte messageBuffer[bufferSize];
+  //byte* responseBuffer = messageBuffer + messageOffset;
   if (message[0] & 0x80)
-    responseBuffer[0] = 'K' | 0x80;
-  responseBuffer[1] = stationId;
-  responseBuffer[2] = uniqueId;
-  size_t curLoc = 3;
+    response.appendByte('K' | 0x80);
+  else
+    response.appendByte('K');
+  response.appendByte(stationId);
+  response.appendByte(uniqueId);
 
   //Version (4 bytes)
-  responseBuffer[curLoc++] = 'V';
-  memcpy(responseBuffer + curLoc, ver, 3);
-  curLoc += 3;
-  responseBuffer[curLoc++] = 0;
-
+  response.appendByte('V');
+  response.append(ver, 3);
+  response.appendByte(0);
+  
   //Setup Variables (31 bytes)
-  responseBuffer[curLoc++] = demandRelay;
-  responseBuffer[curLoc++] = 'I';
-  memcpy(responseBuffer + curLoc, &weatherInterval, sizeof(unsigned long));
-  curLoc += sizeof(unsigned long);
-  memcpy(responseBuffer + curLoc, &shortInterval, sizeof(unsigned long));
-  curLoc += sizeof(unsigned long);
-  memcpy(responseBuffer + curLoc, &longInterval, sizeof(unsigned long));
-  curLoc += sizeof(unsigned long);
-  memcpy(responseBuffer + curLoc, &batteryThreshold, sizeof(int));
-  curLoc += sizeof(int);
-  responseBuffer[curLoc++] = 'M';
+  response.appendByte(demandRelay);
+  response.appendByte('I');
+  response.appendT(weatherInterval);
+  response.appendT(shortInterval);
+  response.appendT(longInterval);
+  response.appendT(batteryThreshold);
+  response.appendByte('M');
   unsigned long curMillis = millis();
-  memcpy(responseBuffer + curLoc, &curMillis, sizeof(unsigned long));
-  curLoc += sizeof(unsigned long);
-  memcpy(responseBuffer + curLoc, &overrideDuration, sizeof(unsigned long));
-  curLoc += sizeof(unsigned long);
+  response.appendT(curMillis);
+  response.appendT(overrideDuration);
   if (overrideDuration)
   {
-    memcpy(responseBuffer + curLoc, &overrideStartMillis, sizeof(unsigned long));
-    curLoc += sizeof(unsigned long);
-    memcpy(responseBuffer + curLoc, &overrideShort, sizeof(bool));
-    curLoc += sizeof(bool);
+    response.appendT(overrideStartMillis);
+    response.appendT(overrideShort);
   }
-  responseBuffer[curLoc++] = 0;
+  response.appendByte(0);
 
   //Stations to relay, max 42 bytes:
-  responseBuffer[curLoc++] = 'R';
+  response.appendByte('R');
   for (int i = 0; i < recentArraySize; i++)
   {
     if (!stationsToRelayCommands[i])
       break;
-    responseBuffer[curLoc++] = stationsToRelayCommands[i];
+    response.appendByte(stationsToRelayCommands[i]);
   }
-  responseBuffer[curLoc++] = 0;
+  response.appendByte(0);
   for (int i = 0; i < recentArraySize; i++)
   {
     if (!stationsToRelayWeather[i])
       break;
-    responseBuffer[curLoc++] = stationsToRelayWeather[i];
+    response.appendByte(stationsToRelayWeather[i]);
   }
-  responseBuffer[curLoc++] = 0;
+  response.appendByte(0);
 
   //Recently seen stations, max 102 bytes
-  responseBuffer[curLoc++] = 'S';
+  response.appendByte('S');
   for (int i = 0; i < recentArraySize; i++)
   {
     if (!recentlySeenStations[i][0])
     {
       break;
     }
-    memcpy(responseBuffer + curLoc, &recentlySeenStations[i][0], 5);
-    curLoc += 5;
+    response.append(&recentlySeenStations[i][0], 5);
   }
-  responseBuffer[curLoc++] = 0;
+  response.appendByte(0);
 
   //recently handled commands, max 22 bytes
-  responseBuffer[curLoc++] = 'C';
+  response.appendByte('C');
   for (int i = 0; i < recentArraySize; i++)
   {
     if (!recentlyHandledCommands[i])
       break;
-    responseBuffer[curLoc++] = recentlyHandledCommands[i];
+    response.appendByte(recentlyHandledCommands[i]);
   }
-  responseBuffer[curLoc++] = 0;
-  sendMessage(messageBuffer, curLoc, bufferSize);
+  response.appendByte(0);
   return true;
 }
 
 //Debug command: C(ID)(UID)D
 bool handleDebugCommand(byte* message, byte readByteCount)
 {
-  const int bufferSize = 300;
   byte uniqueId = message[2];
-  byte messageBuffer[bufferSize];
-  byte* responseBuffer = messageBuffer + messageOffset;
-  responseBuffer[0] = 'K';
+  //byte messageBuffer[bufferSize];
+  //byte* responseBuffer = messageBuffer + messageOffset;
+  MessageDestination response;
   if (message[0] & 0x80)
-    responseBuffer[0] = 'K' | 0x80;
-  responseBuffer[1] = stationId;
-  responseBuffer[2] = uniqueId;
-  size_t curLoc = 3;
+    response.appendByte('K' | 0x80);
+  else
+    response.appendByte('K');
+  response.appendByte(stationId);
+  response.appendByte(uniqueId);
 
-  //Version (4 bytes)
-  memcpy(responseBuffer + curLoc, ver, 3);
-  curLoc += 3;
-  responseBuffer[curLoc++] = 0;
+  //Version (a few bytes)
+  response.append(ver, strlen(ver));
+  response.appendByte(0);
   
    //recently relayed messages, max 61 bytes
   for (int i = 0; i < recentArraySize; i++)
   {
     if (!recentlyRelayedMessages[i][0])
       break;
-    memcpy(responseBuffer + curLoc, &recentlyRelayedMessages[i][0], 3);
-    curLoc += 3;
+    response.append(&recentlyRelayedMessages[i][0], 3);
   }
-  responseBuffer[curLoc++] = 0;
-  sendMessage(messageBuffer, curLoc, bufferSize);
+  response.appendByte(0);
   return true;
 }
 
@@ -351,6 +361,16 @@ void acknowledgeMessage(byte* message)
     return;
   
   byte uniqueId = message[2];
+
+  MessageDestination response;
+  if (message[0] & 0x80)
+    response.appendByte('K' | 0x80);
+  else
+    response.appendByte('K');
+  response.appendByte(stationId);
+  response.appendByte(uniqueId);
+  response.append("OK", 2);
+  /*
   byte msgBuffer[40];
   byte* responseBuffer = msgBuffer + messageOffset;
   responseBuffer[0] = 'K';
@@ -361,4 +381,5 @@ void acknowledgeMessage(byte* message)
   memcpy(responseBuffer + 3, "OK", 2);
   size_t msgLength = 5;
   sendMessage(msgBuffer, msgLength, 40);
+  */
 }

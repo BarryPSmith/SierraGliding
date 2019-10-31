@@ -6,6 +6,7 @@
 #include <LowPower.h>
 #include <TimerOne.h>
 #include <avr/Power.h>
+#include "ArduinoWeatherStation.h"
 #ifndef cbi
 #define cbi(sfr, bit) (_SFR_BYTE(sfr) &= ~_BV(bit))
 #endif
@@ -13,6 +14,10 @@
 #define sbi(sfr, bit) (_SFR_BYTE(sfr) |= _BV(bit))
 #endif 
 extern volatile unsigned long timer0_millis;
+
+void timerInterrupt();
+void stopMillis();
+void startMillis();
 
 volatile bool timerOn = false;
 volatile unsigned long millisToAdd = 0;

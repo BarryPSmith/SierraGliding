@@ -4,15 +4,29 @@
 #define DEBUG_Direction 0
 
 #include "ArduinoWeatherStation.h"
+#include "WeatherProcessing.h"
+#include "MessageHandling.h"
+#include "SleepyTime.h"
+
+//Setup Variables
+unsigned long shortInterval = 4000; //Send interval when battery voltage is high
+unsigned long longInterval = 30000; //Send interval when battery voltage is low
+float batteryThreshold = 12.0;
+float batteryHysterisis = 0.05;
+bool demandRelay = false;
+
+unsigned long weatherInterval = 6000; //Current weather interval.
+unsigned long overrideStartMillis = 0;
+unsigned long overrideDuration = 0;
+bool overrideShort = false;
+
+
+//Recent Memory
+unsigned long lastStatusMillis;
+unsigned long lastWeatherMillis;
 
 void setup() {
-  //Zero the arrays:
-  memset(stationsToRelayCommands, 0, recentArraySize);
-  memset(stationsToRelayWeather, 0, recentArraySize);
-  memset(recentlySeenStations, 0, recentArraySize * 5);
-  memset(recentlyRelayedMessages, 0, recentArraySize * 3);
-  memset(recentlyHandledCommands, 0, recentArraySize);
-
+  ZeroMessagingArrays();
   
   pinMode(LED_BUILTIN, OUTPUT);
 
@@ -29,7 +43,7 @@ void setup() {
 
   lastStatusMillis = millis();
 
-  setupWindCounter();
+  setupWeatherProcessing();
   setupSleepy();
 }
 

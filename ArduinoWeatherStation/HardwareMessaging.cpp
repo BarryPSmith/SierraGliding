@@ -1,3 +1,5 @@
+#include <Arduino.h>
+#include "Messaging.h"
 //Message is:
 // (Leading null)(Callsign)[Data]
 size_t readMessage(byte* msgBuffer, size_t bufferSize)
@@ -62,7 +64,7 @@ size_t readMessage(byte* msgBuffer, size_t bufferSize)
   //Serial.println();
   return 0;
 }
-
+/*
 void sendMessage(byte* msgBuffer, size_t& messageLength, size_t bufferLength)
 {
   if (kissPackageMessage(msgBuffer, messageLength, bufferLength)) {
@@ -78,17 +80,6 @@ void sendMessage(byte* msgBuffer, size_t& messageLength, size_t bufferLength)
     Serial.println(bufferLength);
     Serial.println(messageLength);
   }
-  
-  /*//Ensure we start on a new line
-  Serial.println();
-  Serial.print('!');
-  for (int i = 0; i < messageLength; i++)
-  {
-    if (msgBuffer[i + messageStartsAt] == '\n')
-      msgBuffer[i + messageStartsAt]--;
-  }
-  Serial.write(msgBuffer + messageStartsAt, messageLength);
-  Serial.println();*/
 }
 
 //Prepares a message to be sent over the KISS protocol.
@@ -151,3 +142,4 @@ bool kissPackageMessage(byte* msgBuffer, size_t& msgLen, const int bufferSize)
   msgLen++;
   return true;
 }
+*/

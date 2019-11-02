@@ -24,6 +24,8 @@ byte stationsToRelayWeather[recentArraySize]; //20 bytes
 byte weatherRelayBuffer[weatherRelayBufferSize];
 byte weatherRelayLength = 0;
 
+Stream* pStream = &Serial;
+
 void readMessages()
 {
   const int bufferSize = 255;
@@ -166,7 +168,7 @@ byte getUniqueID()
 
 void relayMessage(byte msgType, byte* msgBuffer, size_t& readByteCount, int bufferSize)
 {
-  MessageDestination relay;
+  MessageDestination relay(pStream);
   relay.append(msgBuffer, readByteCount);
   //sendMessage(msgBuffer, readByteCount, bufferSize);
 }
@@ -198,7 +200,7 @@ void recordWeatherForRelay(byte* message, int readByteCount)
   if (weatherRelayLength + dataSize + 2 > weatherRelayBufferSize)
   {
     //Prepend R + StationID and send what we have, then write this message to the now empty buffer
-    MessageDestination message;
+    MessageDestination message(pStream);
     message.appendByte(stationId);
     message.appendByte('R');
     message.appendByte(weatherRelayLength);
@@ -252,7 +254,7 @@ void sendWeatherMessage()
   //W (Station ID) (Unique ID) (8) (WS) (WD) (Batt) : (StationR) (UidR) (WsR) (WdR) (BattR)
   //If there are multiple relay messages included, each has an extra 5 bytes.
   
-  MessageDestination message;
+  MessageDestination message(pStream);
   message.appendByte('W');
   message.appendByte(stationId);
   message.appendByte(getUniqueID());

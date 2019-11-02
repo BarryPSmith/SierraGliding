@@ -1,0 +1,5 @@
+revid.h
+.vs
+*.hex
+*.elf
+*.obj

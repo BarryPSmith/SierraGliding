@@ -12,25 +12,26 @@ size_t readMessage(byte* msgBuffer, size_t bufferSize);
 class MessageDestination
 {  
   int m_iCurrentLocation = 0;
+  Stream* m_pStream;
   
   public:
     const size_t maxPacketSize = 250;
     const size_t minPacketSize = 15;
     
-    MessageDestination();
+    MessageDestination(Stream* dest);
     ~MessageDestination();
     
     MessageDestination(const MessageDestination&) =delete;
     MessageDestination& operator=(const MessageDestination) =delete;
   
-    void appendByte(byte data);
-    void appendInt(int data);
+    void appendByte(const byte data);
+    void appendInt(const int data);
     template<class T>
     void appendT(T data)
     {
       append((byte*)&data, sizeof(T));
     }
-    void append(byte* data, size_t dataLen);
+    void append(const byte* data, size_t dataLen);
 
     void finishAndSend();
 
@@ -48,8 +49,9 @@ enum MESSAGE_RESULT {
 class MessageSource
 {
   private:
-    static int _iCurrentLocation;
-    static bool readByteRaw(byte& dest)
+    int _iCurrentLocation;
+    Stream* m_pStream;
+    bool readByteRaw(byte& dest)
     {
       unsigned long startMillis = millis();
       const unsigned long timeout = 1000;
@@ -61,19 +63,24 @@ class MessageSource
           _iCurrentLocation = -1;
           return false;
         }
-        data = Serial.read();
+        data = m_pStream->read();
       }
       dest = data;
       return true;
     }
 
   public:
-    MessageSource() =delete;
+    MessageSource(Stream* dest)
+    {
+      m_pStream = dest;
+    }
+    ~MessageSource()
+    {}
 
     //Reads everything from the serial port, blocking the thread until a timeout occurs or 0xC0 0x00 [CALLSIGN] is encountered
     //Returns true if a message is encountered, after reading and discarding the callsign.
     //Returns false if a timeout occurs.
-    static bool beginMessage()
+    bool beginMessage()
     {
       byte data;
       bool matchedFend = false;
@@ -100,7 +107,7 @@ class MessageSource
     }
     //If in a message, reads everything from the serial port, blocking the thread until a timout occurs or 0xC0.
     //If not in a message, returns immediately
-    static MESSAGE_RESULT endMessage()
+    MESSAGE_RESULT endMessage()
     {
       if (_iCurrentLocation < 0)
         return MESSAGE_NOT_IN_MESSAGE;
@@ -115,7 +122,7 @@ class MessageSource
     }
 
     //Reads the next byte
-    static MESSAGE_RESULT readByte(byte& dest)
+    MESSAGE_RESULT readByte(byte& dest)
     {
       if (_iCurrentLocation < 0)
         return MESSAGE_NOT_IN_MESSAGE;
@@ -144,11 +151,11 @@ class MessageSource
       return MESSAGE_OK;
     }
     template<class T>
-    static MESSAGE_RESULT read(T& dest)
+    MESSAGE_RESULT read(T& dest)
     {
       return readBytes((byte*)&dest, sizeof(T));
     }
-    static MESSAGE_RESULT readBytes(byte* dest, size_t dataLen)
+    MESSAGE_RESULT readBytes(byte* dest, size_t dataLen)
     {
       for (int i = 0; i < dataLen; i++)
       {
@@ -159,7 +166,7 @@ class MessageSource
       return MESSAGE_OK;
     }
 
-    static size_t getCurrentLocation()
+    size_t getCurrentLocation()
     {
       return _iCurrentLocation;
     }

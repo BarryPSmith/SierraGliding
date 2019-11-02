@@ -6,9 +6,10 @@ static const char* ver = "1.1." REV_ID; //Wind station Version 1.1
 //const int statusMessageLength = 13;
 
 //Station Specific Constants
-const char stationId = '1';
+const char stationId = '2';
 
 //Global Constants
+const unsigned long tncBaud = 38400;
 const unsigned long millisBetweenStatus = 600000; //We send our status messages this often. Note that status message stuff is currently commented out.
 const unsigned long wakePeriod = 50; //We won't go to sleep if our next weather send is due before this time
 

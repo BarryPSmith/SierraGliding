@@ -9,8 +9,8 @@
 #include "SleepyTime.h"
 
 //Setup Variables
-unsigned long shortInterval = 4000; //Send interval when battery voltage is high
-unsigned long longInterval = 30000; //Send interval when battery voltage is low
+unsigned long shortInterval = 4000 - 90 * (stationId - '1'); //Send interval when battery voltage is high. We make sure each station has a different interval to avoid them both transmitting simultaneously for extended periods.
+unsigned long longInterval = 4000; //Send interval when battery voltage is low
 float batteryThreshold = 12.0;
 float batteryHysterisis = 0.05;
 bool demandRelay = false;
@@ -25,6 +25,22 @@ bool overrideShort = false;
 unsigned long lastStatusMillis;
 unsigned long lastWeatherMillis;
 
+void setup();
+void loop();
+
+int main()
+{
+  init();
+
+  setup();
+  while (1)
+  {
+    loop();
+    if (serialEventRun) serialEventRun();
+  }
+  return 0;
+}
+
 void setup() {
   ZeroMessagingArrays();
   
@@ -37,7 +53,7 @@ void setup() {
   statusMessage[1] = 0x00;
   statusMessage[22] = FEND;*/
   
-  Serial.begin(4800);
+  Serial.begin(tncBaud);
   delay(50);
   sendStatusMessage();
 
@@ -77,6 +93,6 @@ void loop() {
 
 void sendTestMessage()
 {
-  byte data[] = {0xC0, 0x00, 0x96, 0x9C, 0x6C, 0x88, 0xAA, 0x86, 0xE0, 0x96, 0x9C, 0x6C, 0x88, 0xAA, 0x86, 0xE1, 0x03, 0xF0, 0x48, 0x45, 0x4C, 0x4C, 0x4F, 0xC0 };
-  Serial.write(data, sizeof(data));
+  /*byte data[] = {0xC0, 0x00, 0x96, 0x9C, 0x6C, 0x88, 0xAA, 0x86, 0xE0, 0x96, 0x9C, 0x6C, 0x88, 0xAA, 0x86, 0xE1, 0x03, 0xF0, 0x48, 0x45, 0x4C, 0x4C, 0x4F, 0xC0 };
+  Serial.write(data, sizeof(data));*/
 }

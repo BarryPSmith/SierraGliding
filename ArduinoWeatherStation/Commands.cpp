@@ -10,6 +10,8 @@ bool handleDebugCommand(byte*message,byte readByteCount);
 bool handleOverrideCommand(byte*message,byte readByteCount);
 void acknowledgeMessage(byte*message);
 
+extern Stream* pStream;
+
 void handleCommandMessage(byte* message, size_t readByteCount)
 {
   byte uniqueId = message[2];
@@ -85,7 +87,7 @@ void handleCommandMessage(byte* message, size_t readByteCount)
   }
   if (!handled)
   {
-    MessageDestination response;
+    MessageDestination response(pStream);
     if (message[0] & 0x80)
       response.appendByte('K' | 0x80);
     else
@@ -122,7 +124,7 @@ bool handleRelayCommand(byte* message, byte readByteCount)
     bool isAdd = commandData[i] == '+';
     bool isRemove = commandData[i] == '-';
     bool isWeather = commandData[i + 1] == 'W';
-    bool isCmd = commandData[i + 1] = 'C';
+    bool isCmd = commandData[i + 1] == 'C';
     byte statID = commandData[i + 2];
     if ((!isWeather && !isCmd) ||
         (!isAdd && !isRemove) ||
@@ -249,7 +251,7 @@ bool handleQueryCommand(byte* message, byte readByteCount)
   //Response is currently at 204 bytes. Beware buffer overrun.
   
   //const int bufferSize = 300;
-  MessageDestination response;
+  MessageDestination response(pStream);
   byte uniqueId = message[2];
   //byte messageBuffer[bufferSize];
   //byte* responseBuffer = messageBuffer + messageOffset;
@@ -330,7 +332,7 @@ bool handleDebugCommand(byte* message, byte readByteCount)
   byte uniqueId = message[2];
   //byte messageBuffer[bufferSize];
   //byte* responseBuffer = messageBuffer + messageOffset;
-  MessageDestination response;
+  MessageDestination response(pStream);
   if (message[0] & 0x80)
     response.appendByte('K' | 0x80);
   else
@@ -362,7 +364,7 @@ void acknowledgeMessage(byte* message)
   
   byte uniqueId = message[2];
 
-  MessageDestination response;
+  MessageDestination response(pStream);
   if (message[0] & 0x80)
     response.appendByte('K' | 0x80);
   else

@@ -755,6 +755,7 @@ export default {
                 this.station.name = station.name;
                 this.station.lon = station.lon;
                 this.station.lat = station.lat;
+				this.station.error = station.statusMessage;
 
                 if (!!station.windspeedlegend) {
                     this.station.legend.windspeed.splice(0, this.station.legend.windspeed.length);

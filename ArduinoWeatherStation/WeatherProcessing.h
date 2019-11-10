@@ -6,7 +6,10 @@ void setupWindCounter();
 
 const int voltagePin = A2;
 const int windDirPin = A0;
-const int windSpdPin = 2;
+
+// Station 1 (Mt Tom)=2
+// Station 2 (Flynns)=3
+const int windSpdPin = 3; 
 
 #if DEBUG_Speed
 bool speedDebugging = true;

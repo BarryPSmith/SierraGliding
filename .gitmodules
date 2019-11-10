@@ -1,0 +1,3 @@
+[submodule "ArduinoWeatherStation/lib/RadioLib"]
+	path = ArduinoWeatherStation/lib/RadioLib
+	url = https://github.com/jgromes/RadioLib.git

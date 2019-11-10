@@ -39,7 +39,7 @@ void sleepUntilNextWeather()
   if (timerOn)
   {
     //This re-enables interrupts, and sleeps until either our timer or something else wakes us
-    digitalWrite(LED_BUILTIN, LOW);
+    //digitalWrite(LED_BUILTIN, LOW);
     LowPower.idle(SLEEP_FOREVER,
                   ADC_OFF,
                   TIMER2_OFF,
@@ -48,7 +48,7 @@ void sleepUntilNextWeather()
                   SPI_OFF,
                   USART0_ON,
                   TWI_OFF);
-    digitalWrite(LED_BUILTIN, HIGH);
+    //digitalWrite(LED_BUILTIN, HIGH);
     return;
   }
   unsigned long curMillis = millis();
@@ -70,7 +70,7 @@ void sleepUntilNextWeather()
   //Note: We changed the code for Timer1.restart to set the TCNT1=1 instead of 0. Setting it to zero causes it to fire an interrupt immediately, waking us from our slumber.
   Timer1.restart();
   //LowPower.idle will sleep the system until the timer ticks, or something else interrupts us. It reenables interrupts.
-  digitalWrite(LED_BUILTIN, LOW);
+  //digitalWrite(LED_BUILTIN, LOW);
   LowPower.idle(SLEEP_FOREVER,
                 ADC_OFF,
                 TIMER2_OFF,
@@ -79,7 +79,7 @@ void sleepUntilNextWeather()
                 SPI_OFF,
                 USART0_ON,
                 TWI_OFF);
-  digitalWrite(LED_BUILTIN, HIGH);
+  //digitalWrite(LED_BUILTIN, HIGH);
 }
 
 void stopMillis()

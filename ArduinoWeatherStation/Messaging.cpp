@@ -8,7 +8,7 @@ MessageDestination::MessageDestination(Stream* dest)
   m_pStream = dest;
 
   m_pStream->write(FEND);
-  m_pStream->write(0x00b);
+  m_pStream->write((byte)0x00);
 
   append((byte*)callSign, 6);
 }
@@ -18,22 +18,23 @@ MessageDestination::~MessageDestination()
   finishAndSend();
 }
 
-void MessageDestination::finishAndSend()
+MESSAGE_RESULT MessageDestination::finishAndSend()
 {
   if (m_iCurrentLocation < 0)
-    return;
+    return MESSAGE_NOT_IN_MESSAGE;
 
   while(m_iCurrentLocation < minPacketSize)
     appendByte(0);
     
   m_pStream->write(FEND);
   m_iCurrentLocation = -1;
+  return MESSAGE_END;
 }
     
-void MessageDestination::appendByte(const byte data)
+MESSAGE_RESULT MessageDestination::appendByte(const byte data)
 {
   if (m_iCurrentLocation < 0)
-    return;
+    return MESSAGE_NOT_IN_MESSAGE;
   if (data == FEND)
   {
     m_pStream->write(FESC);
@@ -47,16 +48,34 @@ void MessageDestination::appendByte(const byte data)
   else
     m_pStream->write(data);
   m_iCurrentLocation++;
+  return MESSAGE_OK;
 }
-void MessageDestination::appendInt(const int data)
+MESSAGE_RESULT MessageDestination::appendInt(const int data)
 {
-  append((byte*)&data, sizeof(int));
+  return append((byte*)&data, sizeof(int));
 }
 
-void MessageDestination::append(const byte* data, size_t dataLen)
+MESSAGE_RESULT MessageDestination::append(const byte* data, size_t dataLen)
 {
   for (int i = 0; i < dataLen; i++)
-    appendByte(data[i]);
+  {
+    auto ret = appendByte(data[i]);
+    if (ret)
+      return ret;
+  }
+  return MESSAGE_OK;
+}
+
+MESSAGE_RESULT MessageDestination::appendData(MessageSource& source, size_t maxBytes)
+{
+  for (int i = 0; i < maxBytes; i++)
+  {
+    byte b;
+    auto ret = appendByte(source.readByte(b));
+    if (ret != MESSAGE_OK)
+      return ret;
+  }
+  return MESSAGE_OK;
 }
 
 size_t MessageDestination::getCurrentLocation()

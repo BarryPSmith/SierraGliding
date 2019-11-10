@@ -1,12 +1,21 @@
 #pragma once
+#include <Arduino.h>
 #include "revid.h"
+
+#ifdef DEBUG
+#define AWS_DEBUG_PRINT(...) Serial.print(__VA_ARGS__)
+#define AWS_DEBUG_PRINTLN(...) Serial.println(__VA_ARGS__)
+#else
+#define AWS_DEBUG_PRINT(...) { } while (0)
+#define AWS_DEBUG_PRINTLN(...) { } while (0)
+#endif
 
 static const char* ver = "1.1." REV_ID; //Wind station Version 1.1
 //const char* statusMessageTemplate = "KN6DUC WindStation1";
 //const int statusMessageLength = 13;
 
 //Station Specific Constants
-const char stationId = '2';
+const char stationID= '2';
 
 //Global Constants
 const unsigned long tncBaud = 38400;
@@ -34,4 +43,4 @@ extern bool overrideShort;
 extern unsigned long lastStatusMillis;
 extern unsigned long lastWeatherMillis;
 
-//void sendMessage(byte* msgBuffer, size_t& messageLength, size_t bufferLength);
+

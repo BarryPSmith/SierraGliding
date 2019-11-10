@@ -1,3 +1,4 @@
+#if 0
 #include <Arduino.h>
 #include "Messaging.h"
 //Message is:
@@ -143,3 +144,4 @@ bool kissPackageMessage(byte* msgBuffer, size_t& msgLen, const int bufferSize)
   return true;
 }
 */
+#endif

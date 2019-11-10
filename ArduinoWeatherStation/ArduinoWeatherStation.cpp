@@ -1,7 +1,9 @@
 //32kb program memory. 2kb dynamic memory
-#define DEBUG 1
 #define DEBUG_Speed 0
 #define DEBUG_Direction 0
+
+#include <spi.h>
+#include "lib/RadioLib/src/Radiolib.h"
 
 #include "ArduinoWeatherStation.h"
 #include "WeatherProcessing.h"
@@ -9,7 +11,7 @@
 #include "SleepyTime.h"
 
 //Setup Variables
-unsigned long shortInterval = 4000 - 90 * (stationId - '1'); //Send interval when battery voltage is high. We make sure each station has a different interval to avoid them both transmitting simultaneously for extended periods.
+unsigned long shortInterval = 4000 - 90 * (stationID - '1'); //Send interval when battery voltage is high. We make sure each station has a different interval to avoid them both transmitting simultaneously for extended periods.
 unsigned long longInterval = 4000; //Send interval when battery voltage is low
 float batteryThreshold = 12.0;
 float batteryHysterisis = 0.05;
@@ -27,6 +29,7 @@ unsigned long lastWeatherMillis;
 
 void setup();
 void loop();
+void disableSPIRadios();
 
 int main()
 {
@@ -42,19 +45,25 @@ int main()
 }
 
 void setup() {
+  Serial.begin(tncBaud);
+  delay(50);
+
+  AWS_DEBUG_PRINTLN("Serial Begun");
+
+  disableSPIRadios();
+
+  AWS_DEBUG_PRINTLN("Radios Disabled");
+
   ZeroMessagingArrays();
   
-  pinMode(LED_BUILTIN, OUTPUT);
 
   /*memcpy(callSign, statusMessage + 2, 6);
   memcpy(statusMessageTemplate, statusMessage + 8, statusMessageLength);
-  statusMessage[8 + statusMessageLength] = stationId;
+  statusMessage[8 + statusMessageLength] = stationID;
   statusMessage[0] = FEND;
   statusMessage[1] = 0x00;
   statusMessage[22] = FEND;*/
   
-  Serial.begin(tncBaud);
-  delay(50);
   sendStatusMessage();
 
   lastStatusMillis = millis();
@@ -62,8 +71,6 @@ void setup() {
   setupWeatherProcessing();
   setupSleepy();
 }
-
-
 
 void loop() {
   readMessages();
@@ -89,6 +96,41 @@ void loop() {
   }
 
   sleepUntilNextWeather();
+}
+
+//A test board has a RFM69 on it for reading Davis weather stations.
+// But some testing revealed the davis station was faulty.
+//It also has a SX1262 to replace the Baofeng.
+// But we don't have a receiver for it yet.
+//So we put them both to sleep.
+void disableSPIRadios()
+{
+  SPI.begin();
+  {
+    Module loraMod(9, 2, -1, 4);
+    SX1262 lora = &loraMod;
+    AWS_DEBUG_PRINTLN("Sleeping Lora...");
+    auto loraSleep = lora.sleep();
+    if (loraSleep != ERR_NONE)
+    {
+      AWS_DEBUG_PRINT("Unable to sleep SX1262: ");
+      AWS_DEBUG_PRINTLN(loraSleep);
+    }
+    else
+      AWS_DEBUG_PRINTLN("Lora asleep.");
+  }
+  {
+    Module rfmMod(10, -1, -1);
+    RF69 rf69 = &rfmMod;
+    auto rfmSleep = rf69.sleep();
+    if (rfmSleep != ERR_NONE)
+    {
+      AWS_DEBUG_PRINT("Unable to sleep RFM69: ");
+      AWS_DEBUG_PRINTLN(rfmSleep);
+    }
+    else
+      AWS_DEBUG_PRINTLN("RFM Asleep.");
+  }
 }
 
 void sendTestMessage()

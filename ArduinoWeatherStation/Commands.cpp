@@ -2,65 +2,65 @@
 #include "MessageHandling.h"
 #include "ArduinoWeatherStation.h"
 
-bool handleRelayCommand(byte* message, byte readByteCount);
-bool handleIntervalCommand(byte*message,byte readByteCount);
-bool handleThresholdCommand(byte*message,byte readByteCount);
-bool handleQueryCommand(byte*message,byte readByteCount);
-bool handleDebugCommand(byte*message,byte readByteCount);
-bool handleOverrideCommand(byte*message,byte readByteCount);
-void acknowledgeMessage(byte*message);
+bool handleRelayCommand(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific);
+bool handleIntervalCommand(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific);
+bool handleThresholdCommand(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific);
+bool handleQueryCommand(bool demandRelay, byte uniqueID);
+bool handleDebugCommand(bool demandRelay, byte uniqueID);
+bool handleOverrideCommand(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific);
+void acknowledgeMessage(byte uniqueID, bool isSpecific, bool demandRelay);
 
 extern Stream* pStream;
 
-void handleCommandMessage(byte* message, size_t readByteCount)
+void handleCommandMessage(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific)
 {
-  byte uniqueId = message[2];
   int i;
   //Check if we've already handled this command:
   for (i = 0; i < recentArraySize; i++)
   {
     if (!recentlyHandledCommands[i])
       break;
-    if (recentlyHandledCommands[i] == uniqueId)
+    if (recentlyHandledCommands[i] == uniqueID)
       return;
   }
   if (i == recentArraySize)
     i--;
   //Remember that we've handled this command:
   memmove(recentlyHandledCommands + 1, recentlyHandledCommands, i);
-  recentlyHandledCommands[0] = uniqueId;
+  recentlyHandledCommands[0] = uniqueID;
 
-  //Delay for testing.
-  //TODO: Replace delay with a queue of acknowledgements
-  //delay(3000);
+  //Can't delay with streaming messages. Perhaps a short delay before committing our response.
 
-  byte command = message[3];
+  byte command;
+  if (msg.readByte(command))
+    return;
+
   bool handled = false;
   bool acknowledged = false;
   switch (command)
   {
     case 'R': //Relay command
-      handled = handleRelayCommand(message, readByteCount);
+      handled = handleRelayCommand(msg, demandRelay, uniqueID, isSpecific);
       break;
 
     case 'I': //Interval command
-      handled = handleIntervalCommand(message, readByteCount);
+      handled = handleIntervalCommand(msg, demandRelay, uniqueID, isSpecific);
     break;
 
     case 'B': //Battery threshold command
-      handled = handleThresholdCommand(message, readByteCount);
+      handled = handleThresholdCommand(msg, demandRelay, uniqueID, isSpecific);
     break;
 
     case 'Q': //Query
-      handled = handleQueryCommand(message, readByteCount);
+      handled = handleQueryCommand(demandRelay, uniqueID);
     break;
 
     case 'D': //Debug Query
-      handled = handleDebugCommand(message, readByteCount);
+      handled = handleDebugCommand(demandRelay, uniqueID);
     break;
 
     case 'O': //Override Interval
-      handled = handleOverrideCommand(message, readByteCount);
+      handled = handleOverrideCommand(msg, demandRelay, uniqueID, isSpecific);
 
     #if DEBUG_Speed
     case 'S':
@@ -88,12 +88,12 @@ void handleCommandMessage(byte* message, size_t readByteCount)
   if (!handled)
   {
     MessageDestination response(pStream);
-    if (message[0] & 0x80)
+    if (demandRelay)
       response.appendByte('K' | 0x80);
     else
       response.appendByte('K');
-    response.appendByte(stationId);
-    response.appendByte(uniqueId);
+    response.appendByte(stationID);
+    response.appendByte(uniqueID);
     response.appendByte(7);
     response.append("IGNORED", 7);
     /*
@@ -102,8 +102,8 @@ void handleCommandMessage(byte* message, size_t readByteCount)
     responseBuffer[0] = 'K';
     if (message[0] & 0x80)
       responseBuffer[0] = 'K' | 0x80;
-    responseBuffer[1] = stationId;
-    responseBuffer[2] = uniqueId;
+    responseBuffer[1] = stationID;
+    responseBuffer[2] = uniqueID;
     responseBuffer[3] = 7;
     memcpy(responseBuffer + 4, "IGNORED", 7);
     size_t msgLength = 11;
@@ -113,22 +113,31 @@ void handleCommandMessage(byte* message, size_t readByteCount)
 }
 
 //Relay command: C(ID)(UID)R(dataLength)((+|-)(C|W)(RelayID))*
-bool handleRelayCommand(byte* message, byte readByteCount)
+bool handleRelayCommand(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific)
 {
-  byte dataLength = message[4];
-  if (dataLength + 4 < readByteCount || dataLength == 0)
+  byte dataLength;
+  if (msg.readByte(dataLength))
     return false;
-  byte* commandData = message + 5;
+  if (dataLength == 0)
+    return false;
   for (int i = 0; i + 2 < dataLength; i+=3)
   {
-    bool isAdd = commandData[i] == '+';
-    bool isRemove = commandData[i] == '-';
-    bool isWeather = commandData[i + 1] == 'W';
-    bool isCmd = commandData[i + 1] == 'C';
-    byte statID = commandData[i + 2];
-    if ((!isWeather && !isCmd) ||
-        (!isAdd && !isRemove) ||
-         statID == 0)
+    byte opByte;
+    byte typeByte;
+    auto obr = msg.readByte(opByte);
+    if (obr)
+      return false;
+    if (msg.readByte(typeByte))
+      return false;
+    bool isAdd = opByte == '+';
+    bool isWeather = typeByte == 'W';
+    if ((!isAdd && opByte != '-') ||
+      (!isWeather && typeByte != 'C'))
+      return false;
+    byte statID;
+    if (msg.readByte(statID))
+      return false;
+    if (statID == 0)
       return false;
 
     byte* list = isWeather ? stationsToRelayWeather : stationsToRelayCommands;
@@ -164,44 +173,61 @@ bool handleRelayCommand(byte* message, byte readByteCount)
         list[i - 1] = 0;
     }
   }
-  acknowledgeMessage(message);
+  acknowledgeMessage(uniqueID, isSpecific, demandRelay);
   return true;
 }
 
 //Interval command: C(ID)(UID)I(length)(new short interval)(new long interval)
-bool handleIntervalCommand(byte* message, byte readByteCount)
+bool handleIntervalCommand(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific)
 {
-  byte dataLength = message[4];
-  if (dataLength > readByteCount - 4 || dataLength == 0)
+  byte dataLength;
+  if (msg.readByte(dataLength) || dataLength == 0)
     return false;
-  byte* commandData = message + 5;
+
   if (dataLength == 2)
   {
-    shortInterval = commandData[0] * 1000;
-    longInterval = commandData[1] * 1000;
+    byte tmp;
+    if (msg.readByte(tmp))
+      return false;
+    shortInterval = tmp * 1000;
+    if (msg.readByte(tmp))
+      return false;
+    longInterval = tmp * 1000;
   }
   else if (dataLength == 4)
   {
-    shortInterval = ((uint16_t*)commandData)[0] * 1000;
-    longInterval = ((uint16_t*)commandData)[1] * 1000;
+    uint16_t tmp;
+    if (msg.read(tmp))
+      return false;
+    shortInterval = tmp * 1000;
+    if (msg.read(tmp))
+      return false;
+    longInterval = tmp * 1000;
   }
   else if (dataLength == 8)
   {
-    shortInterval = ((uint32_t*)commandData)[0];
-    longInterval = ((uint32_t*)commandData)[1];
+    //Use a temporary variable for in case we encounter an error halfway through reading.
+    unsigned long tmp;
+    if (msg.read(tmp))
+      return false;
+    shortInterval = tmp;
+    if (msg.read(tmp))
+      return false;
+    longInterval = tmp;
   }
   else
     return false;
-  acknowledgeMessage(message);
+  acknowledgeMessage(uniqueID, isSpecific, demandRelay);
   return true;
 }
 
 //Override command: C(ID)(UID)O(L|S)(Duration)(S|M|H)
-bool handleOverrideCommand(byte* message, byte readByteCount)
+bool handleOverrideCommand(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific)
 {
-  if (readByteCount < 6)
+  byte destByte;
+  if (msg.readByte(destByte))
     return false;
-  switch (message[4])
+  switch (destByte)
   {
     case 'L':
       overrideShort = false;
@@ -212,55 +238,55 @@ bool handleOverrideCommand(byte* message, byte readByteCount)
     default:
       return false;
   }
-  unsigned long multiplier;
-  if (readByteCount >= 7)
+  unsigned int val;
+  if (msg.read(val))
+    return false;
+
+  unsigned long multiplier = 1000;
+  byte multByte;
+  if (!msg.readByte(multByte))
+  {
+    switch (multByte)
     {
-      switch (message[7])
-      {
-        case 'H':
-          multiplier = 3600000;
-        case 'M':
-          multiplier = 60000;
-        case 'S':
-        default:
-          multiplier = 1000;
-      }
+    case 'H':
+      multiplier = 3600000;
+    case 'M':
+      multiplier = 60000;
     }
-  else
-    multiplier = 1000;
-    
-  overrideDuration = *(int*)(message + 5) * multiplier;
+  }
+
+  overrideDuration = val * multiplier;
   overrideStartMillis = millis();
-  acknowledgeMessage(message);
+  acknowledgeMessage(uniqueID, isSpecific, demandRelay);
   return true;
 }
 
 //Threshold command: C(ID)(UID)B(new threshold)
-bool handleThresholdCommand(byte* message, byte readByteCount)
+bool handleThresholdCommand(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific)
 {
-  if (readByteCount < 6)
+  int tmp;
+  if (msg.read(tmp))
     return false;
-  batteryThreshold = *(int*)(message + 4);
-  acknowledgeMessage(message);
+  batteryThreshold = tmp;
+  acknowledgeMessage(uniqueID, isSpecific, demandRelay);
   return true;
 }
 
 //Query command: C(ID)(UID)Q
-bool handleQueryCommand(byte* message, byte readByteCount)
+bool handleQueryCommand(bool demandRelay, byte uniqueID)
 {
   //Response is currently at 204 bytes. Beware buffer overrun.
   
   //const int bufferSize = 300;
   MessageDestination response(pStream);
-  byte uniqueId = message[2];
   //byte messageBuffer[bufferSize];
   //byte* responseBuffer = messageBuffer + messageOffset;
-  if (message[0] & 0x80)
+  if (demandRelay)
     response.appendByte('K' | 0x80);
   else
     response.appendByte('K');
-  response.appendByte(stationId);
-  response.appendByte(uniqueId);
+  response.appendByte(stationID);
+  response.appendByte(uniqueID);
 
   //Version (4 bytes)
   response.appendByte('V');
@@ -327,18 +353,17 @@ bool handleQueryCommand(byte* message, byte readByteCount)
 }
 
 //Debug command: C(ID)(UID)D
-bool handleDebugCommand(byte* message, byte readByteCount)
+bool handleDebugCommand(bool demandRelay, byte uniqueID)
 {
-  byte uniqueId = message[2];
   //byte messageBuffer[bufferSize];
   //byte* responseBuffer = messageBuffer + messageOffset;
   MessageDestination response(pStream);
-  if (message[0] & 0x80)
+  if (demandRelay)
     response.appendByte('K' | 0x80);
   else
     response.appendByte('K');
-  response.appendByte(stationId);
-  response.appendByte(uniqueId);
+  response.appendByte(stationID);
+  response.appendByte(uniqueID);
 
   //Version (a few bytes)
   response.append(ver, strlen(ver));
@@ -355,33 +380,19 @@ bool handleDebugCommand(byte* message, byte readByteCount)
   return true;
 }
 
-void acknowledgeMessage(byte* message)
+void acknowledgeMessage(byte uniqueID, bool isSpecific, bool demandRelay)
 {
   //We won't acknowledge relayed commands with destination station = 0. If destination station = 0, we execute every time we receive it. We're likely to see multiple copies of these commands.
   //We'd flood the network if we acknowledge all of them, particularly because we need to demand relay on the response.
-  if ((message[0] & 0x80) && message[1] == 0)
+  if (demandRelay && !isSpecific)
     return;
   
-  byte uniqueId = message[2];
-
   MessageDestination response(pStream);
-  if (message[0] & 0x80)
+  if (demandRelay)
     response.appendByte('K' | 0x80);
   else
     response.appendByte('K');
-  response.appendByte(stationId);
-  response.appendByte(uniqueId);
+  response.appendByte(stationID);
+  response.appendByte(uniqueID);
   response.append("OK", 2);
-  /*
-  byte msgBuffer[40];
-  byte* responseBuffer = msgBuffer + messageOffset;
-  responseBuffer[0] = 'K';
-  if (message[0] & 0x80)
-    responseBuffer[0] = 'K' | 0x80;
-  responseBuffer[1] = stationId;
-  responseBuffer[2] = uniqueId;
-  memcpy(responseBuffer + 3, "OK", 2);
-  size_t msgLength = 5;
-  sendMessage(msgBuffer, msgLength, 40);
-  */
 }

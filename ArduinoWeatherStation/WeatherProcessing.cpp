@@ -2,8 +2,21 @@
 #include "WeatherProcessing.h"
 #include "ArduinoWeatherStation.h"
 
-void CountWind();
-byte GetWindDirectionArgentData();
+#define DAVIS_WIND
+//#define ARGENTDATA_WIND
+
+#if defined(DAVIS_WIND) && defined(ARGENTDATA_WIND)
+#error Multiple wind systems defined
+#endif
+
+void countWind();
+#ifdef DAVIS_WIND
+byte getWindDirectionDavis();
+#elif defined(ARGENTDATA_WIND)
+byte getWindDirectionArgentData();
+#else
+#error No Wind System Selected
+#endif
 void updateSendInterval(float batteryVoltage);
 
 volatile int windCounts = 0;
@@ -18,49 +31,93 @@ const size_t speedTickLength = 200;
 int speedTicks[200];
 byte curSpeedLocation = 0;
 #endif
-
-byte GetWindDirection()
+byte getWindDirection()
 {
-  return GetWindDirectionArgentData();
+#ifdef DAVIS_WIND
+  return getWindDirectionDavis();
+#elif ARGENTDATA_WIND
+  return getWindDirectionArgentData();
+#endif
+}
+
+//Get the wind direction for a davis vane.
+//Davis vane is a potentiometer sweep. 0 and full resistance correspond to 'north'.
+//We connect the ends of pot to +VCC and GND. So we just measure the centre pin and it linearly correlates with angle.
+//We're going to ignore the dead zone for now. Maybe test for it later. But given we intend to replace it all with ultrasonics, probably don't waste time.
+byte getWindDirectionDavis()
+{
+  int wdVoltage = analogRead(windDirPin);
+  return wdVoltage / 4;
 }
 
 //Get the wind direction for an argent data wind vane (8 distinct directions, sometimes landing between them).
 //This assumes a 4kOhm resistor in series to form a voltage divider
-byte GetWindDirectionArgentData()
+byte getWindDirectionArgentData()
 {
+  //Ver 2: We're going to use the full range of a byte for wind. 0 = N, 255 =~ 1 degree west.
+  //N  0
+  //NNE 16
+  //NE 32
+  //ENE 48
+  //E  64
+  //ESE 80
+  //SE 96
+  //SSE 112
+  //S  128
+  //SSW 144
+  //SW 160
+  //WSW 176
+  //W  192
+  //WNW 208
+  //NW 224
+  //NNW 240
   int wdVoltage = analogRead(windDirPin);
   
   if (wdVoltage < 168)
-    return 5;  // 5 (ESE)
+    return 80;  // 5 (ESE)
   if (wdVoltage < 195)
-    return 3;  // 3 (ENE)
+    return 48;  // 3 (ENE)
   if (wdVoltage < 236)
-    return 4;  // 4 (E)
+    return 64;  // 4 (E)
   if (wdVoltage < 315)
-    return 7;  // 7 (SSE)
+    return 112;  // 7 (SSE)
   if (wdVoltage < 406)
-    return 6;  // 6 (SE)
+    return 96;  // 6 (SE)
   if (wdVoltage < 477)
-    return 9;  // 9 (SSW)
+    return 114;  // 9 (SSW)
   if (wdVoltage < 570)
-    return 8;  // 8 (S)
+    return 128;  // 8 (S)
   if (wdVoltage < 662)
-    return 1;  // 1 (NNE)
+    return 16;  // 1 (NNE)
   if (wdVoltage < 742)
-    return 2;  // 2 (NE)
+    return 32;  // 2 (NE)
   if (wdVoltage < 808)
-    return 11; // B (WSW)
+    return 176; // B (WSW)
   if (wdVoltage < 842)
-    return 10; // A (SW)
+    return 160; // A (SW)
   if (wdVoltage < 889)
-    return 15; // F (NNW)
+    return 240; // F (NNW)
   if (wdVoltage < 923)
     return 0;  // 0 (N)
   if (wdVoltage < 949)
-    return 13; // D (WNW)
+    return 208; // D (WNW)
   if (wdVoltage < 977)
-    return 14; // E (NW)
-  return 12;   // C (W)
+    return 64; // E (NW)
+  return 192;   // C (W)
+}
+
+inline float getWindSpeed()
+{
+  noInterrupts();
+  int localCounts = windCounts;
+  windCounts = 0;
+  interrupts();
+#ifdef ARGENTDATA_WIND
+  return (2400.0 * localCounts) / weatherInterval;
+#elif defined(DAVIS_WIND)
+  return (1600.0 * localCounts) / weatherInterval;
+#endif
+
 }
 
 void createWeatherData(MessageDestination& message)
@@ -68,22 +125,14 @@ void createWeatherData(MessageDestination& message)
   //Message format is W(StationID)(UniqueID)(DirHex)(Spd * 2)(Voltage)
   int batteryVoltageReading = analogRead(voltagePin);
   float battV = V_Ref * batteryVoltageReading / 1023 * BattVDivider;
-  noInterrupts();
-  int localCounts = windCounts;
-  windCounts = 0; 
-  interrupts();
-  float windSpeed = (2400.0 * localCounts) / weatherInterval;
+
+  float windSpeed = getWindSpeed();
 
   //Update the send interval only after we calculate windSpeed, because windSpeed is dependent on weatherInterval
   updateSendInterval(battV);
   
-  byte windDirection = GetWindDirection();
-  byte windDirByte;
-  if (windDirection < 10)
-    windDirByte = (byte)('0' + windDirection);
-  else
-    windDirByte = (byte)('A' + windDirection - 10);
-  message.appendByte(windDirByte);
+  byte windDirection = getWindDirection();
+  message.appendByte(windDirection);
   message.appendByte((byte)(windSpeed * 2));
 
   //Lead Acid
@@ -177,6 +226,7 @@ void countWind()
 void setupWindCounter()
 {
   windCounts = 0;
+  digitalWrite(windSpdPin, HIGH);
   attachInterrupt(digitalPinToInterrupt(windSpdPin), countWind, RISING);
 }
 
@@ -197,7 +247,7 @@ void sendDirectionDebug()
   byte msgBuffer[bufferSize];
   byte* msg = msgBuffer + messageOffset;
   msg[0] = 'D';
-  msg[1] = stationId;
+  msg[1] = stationID;
   msg[2] = getUniqueID();
   int* data = (int*)(msg + 3);
   size_t dataLen = (bufferSize - messageOffset - 3 - 15) / sizeof(int); //-15 to allow extra bytes for escaping

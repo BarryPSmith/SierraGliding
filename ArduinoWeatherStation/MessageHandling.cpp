@@ -24,8 +24,6 @@ byte stationsToRelayWeather[recentArraySize]; //20 bytes
 byte weatherRelayBuffer[weatherRelayBufferSize];
 byte weatherRelayLength = 0;
 
-Stream* pStream = &Serial;
-
 //Placement new operator.
 void* operator new(size_t size, void* ptr)
 {
@@ -42,7 +40,7 @@ void readMessages()
     ledWasOn = !ledWasOn;
     
     //sendTestMessage();
-    MessageSource msg(pStream);
+    MessageSource msg;
     //size_t readByteCount = readMessage(incomingBuffer, bufferSize);
 
     if (msg.beginMessage())
@@ -167,7 +165,7 @@ byte getUniqueID()
 
 void relayMessage(MessageSource& msg, byte msgFirstByte, byte msgStatID, byte msgUniqueID)
 {
-  MessageDestination relay(pStream);
+  MessageDestination relay;
   relay.appendByte(msgFirstByte);
   relay.appendByte(msgStatID);
   relay.appendByte(msgUniqueID);
@@ -204,7 +202,7 @@ void recordWeatherForRelay(MessageSource& msg, byte msgStatID, byte msgUniqueID)
   //or our buffers might overflow.
   bool overflow = weatherRelayLength + dataSize + 2 > weatherRelayBufferSize;
   byte buffer[sizeof(MessageDestination)];
-  MessageDestination* msgDump = overflow ? new (buffer) MessageDestination(pStream) : 0;
+  MessageDestination* msgDump = overflow ? new (buffer) MessageDestination() : 0;
   size_t offset = overflow ? 0 : weatherRelayLength;
   bool sourceFaulted = false;
   if (overflow)
@@ -267,7 +265,7 @@ void sendWeatherMessage()
   //W (Station ID) (Unique ID) (8) (WS) (WD) (Batt) : (StationR) (UidR) (WsR) (WdR) (BattR)
   //If there are multiple relay messages included, each has an extra 5 bytes.
   
-  MessageDestination message(pStream);
+  MessageDestination message;
   message.appendByte('W');
   message.appendByte(stationID);
   message.appendByte(getUniqueID());

@@ -100,25 +100,10 @@ void loop() {
 
 //A test board has a RFM69 on it for reading Davis weather stations.
 // But some testing revealed the davis station was faulty.
-//It also has a SX1262 to replace the Baofeng.
-// But we don't have a receiver for it yet.
-//So we put them both to sleep.
+//So we put it both to sleep.
 void disableSPIRadios()
 {
   SPI.begin();
-  {
-    Module loraMod(9, 2, -1, 4);
-    SX1262 lora = &loraMod;
-    AWS_DEBUG_PRINTLN("Sleeping Lora...");
-    auto loraSleep = lora.sleep();
-    if (loraSleep != ERR_NONE)
-    {
-      AWS_DEBUG_PRINT("Unable to sleep SX1262: ");
-      AWS_DEBUG_PRINTLN(loraSleep);
-    }
-    else
-      AWS_DEBUG_PRINTLN("Lora asleep.");
-  }
   {
     Module rfmMod(10, -1, -1);
     RF69 rf69 = &rfmMod;

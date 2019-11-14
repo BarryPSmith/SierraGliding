@@ -10,8 +10,6 @@ bool handleDebugCommand(bool demandRelay, byte uniqueID);
 bool handleOverrideCommand(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific);
 void acknowledgeMessage(byte uniqueID, bool isSpecific, bool demandRelay);
 
-extern Stream* pStream;
-
 void handleCommandMessage(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific)
 {
   int i;
@@ -87,7 +85,7 @@ void handleCommandMessage(MessageSource& msg, bool demandRelay, byte uniqueID, b
   }
   if (!handled)
   {
-    MessageDestination response(pStream);
+    MessageDestination response;
     if (demandRelay)
       response.appendByte('K' | 0x80);
     else
@@ -278,7 +276,7 @@ bool handleQueryCommand(bool demandRelay, byte uniqueID)
   //Response is currently at 204 bytes. Beware buffer overrun.
   
   //const int bufferSize = 300;
-  MessageDestination response(pStream);
+  MessageDestination response;
   //byte messageBuffer[bufferSize];
   //byte* responseBuffer = messageBuffer + messageOffset;
   if (demandRelay)
@@ -357,7 +355,7 @@ bool handleDebugCommand(bool demandRelay, byte uniqueID)
 {
   //byte messageBuffer[bufferSize];
   //byte* responseBuffer = messageBuffer + messageOffset;
-  MessageDestination response(pStream);
+  MessageDestination response;
   if (demandRelay)
     response.appendByte('K' | 0x80);
   else
@@ -387,7 +385,7 @@ void acknowledgeMessage(byte uniqueID, bool isSpecific, bool demandRelay)
   if (demandRelay && !isSpecific)
     return;
   
-  MessageDestination response(pStream);
+  MessageDestination response;
   if (demandRelay)
     response.appendByte('K' | 0x80);
   else

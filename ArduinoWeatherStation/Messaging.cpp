@@ -1,16 +1,40 @@
 #include "Messaging.h"
 #include <Arduino.h>
 #include "Callsign.h"
-//int MessageSource::_iCurrentLocation = -1;
+#include "lib/RadioLib/src/Radiolib.h"
 
-MessageDestination::MessageDestination(Stream* dest)
+constexpr size_t maxPacketSize = 255;
+//This files implements messaging using RadioLib and a SX1262
+
+//Hardware pins:
+#define SX_SELECT 9
+#define SX_DIO1 2
+#define SX_BUSY 4
+Module mod(SX_SELECT, SX_DIO1, -1, SX_BUSY);
+SX1262 lora = &mod;
+bool initialised = false;
+
+//TODO: Put a streaming interface into RadioLib to avoid these buffers.
+byte[maxPacketSize] incommingBuffer;
+byte[maxPacketSize] outgoingBuffer;
+byte incomingBufferSize;
+
+void Initialise()
 {
-  m_pStream = dest;
+  if (initialised)
+    return;
+  //Might have to tweak these parameters to get long distance communications.
+  lora.begin(
+    425.0, //Frequency
+    125.0, //Bandwidth
+    5,     //Spreading Factor
+    5      //Coding rate
+  );
+}
 
-  m_pStream->write(FEND);
-  m_pStream->write((byte)0x00);
-
-  append((byte*)callSign, 6);
+MessageDestination::MessageDestination()
+{
+  append((byte*)callsign, 6);
 }
 
 MessageDestination::~MessageDestination()
@@ -23,62 +47,57 @@ MESSAGE_RESULT MessageDestination::finishAndSend()
   if (m_iCurrentLocation < 0)
     return MESSAGE_NOT_IN_MESSAGE;
 
-  while(m_iCurrentLocation < minPacketSize)
-    appendByte(0);
-    
-  m_pStream->write(FEND);
-  m_iCurrentLocation = -1;
-  return MESSAGE_END;
+  lora.transmit(outgoingBuffer, m_iCurrentLocation);
 }
-    
+
 MESSAGE_RESULT MessageDestination::appendByte(const byte data)
 {
   if (m_iCurrentLocation < 0)
     return MESSAGE_NOT_IN_MESSAGE;
-  if (data == FEND)
+  else if (m_iCurrentLocation >= maxPacketSize)
   {
-    m_pStream->write(FESC);
-    m_pStream->write(TFEND);
+    return MESSAGE_BUFFER_OVERRUN;
   }
-  else if (data == FESC)
-  {
-    m_pStream->write(FESC);
-    m_pStream->write(TFESC);
-  }
-  else
-    m_pStream->write(data);
-  m_iCurrentLocation++;
-  return MESSAGE_OK;
-}
-MESSAGE_RESULT MessageDestination::appendInt(const int data)
-{
-  return append((byte*)&data, sizeof(int));
+
+  outgoingBuffer[m_iCurrentLocation++] = data;
 }
 
-MESSAGE_RESULT MessageDestination::append(const byte* data, size_t dataLen)
+bool MessageSource::readByteRaw(byte& dest)
 {
-  for (int i = 0; i < dataLen; i++)
-  {
-    auto ret = appendByte(data[i]);
-    if (ret)
-      return ret;
-  }
-  return MESSAGE_OK;
+  //Not used in this interface
+  return false;
 }
 
-MESSAGE_RESULT MessageDestination::appendData(MessageSource& source, size_t maxBytes)
+bool MessageSource::beginMessage()
 {
-  for (int i = 0; i < maxBytes; i++)
-  {
-    byte b;
-    auto ret = appendByte(source.readByte(b));
-    if (ret != MESSAGE_OK)
-      return ret;
-  }
-  return MESSAGE_OK;
+  if (lora.receive(incomingBuffer, maxPacketSize))
+    return false;
+
+  incommingBufferSize = lora.getPacketLength(false);
+
+  //Discard the callsign:
+  if (incomingBufferSize <= 6)
+    return false;
+  m_iCurrentLocation = 6;
 }
 
-size_t MessageDestination::getCurrentLocation()
+MESSAGE_RESULT MessageSource::endMessage()
 {
-  return m_iCurrentLocation;
+  if (m_iCurrentLocation < 0)
+    return MESSAGE_NOT_IN_MESSAGE;
+  m_iCurrentLocation = -1;
+  return MESSAGE_END;
+}
+
+MESSAGE_RESULT MessageSource::readByte(byte& dest)
+{
+  if (m_iCurrentLocation < 0)
+    return MESSAGE_NOT_IN_MESSAGE;
+  if (m_iCurrentLocation >= incommingBufferSize)
+  {
+    m_iCurrentLocation = -1;
+    return MESSAGE_END;
+  }
+  dest = incommingBuffer[m_iCurrentLocation++];
+  return MESSAGE_OK;
 }

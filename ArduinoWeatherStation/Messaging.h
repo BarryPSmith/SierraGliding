@@ -11,68 +11,61 @@ enum MESSAGE_RESULT {
   MESSAGE_END = 1,
   MESSAGE_TIMEOUT = 2,
   MESSAGE_NOT_IN_MESSAGE = 3,
+  MESSAGE_BUFFER_OVERRUN = 4
 };
 
 //We're going to get rid of this, but for now...
-//size_t readMessage(byte* msgBuffer, size_t bufferSize);
 class MessageSource;
 class MessageDestination
 {  
   int m_iCurrentLocation = 0;
-  Stream* m_pStream;
   
   public:
-    const size_t maxPacketSize = 250;
-    const size_t minPacketSize = 10; //15 for the argent data radioshield (station 1). 10 for the mobilinkd TNC (station 2).
+    const size_t maxPacketSize = 256;
     
-    MessageDestination(Stream* dest);
+    MessageDestination();
     ~MessageDestination();
     
     MessageDestination(const MessageDestination&) =delete;
     MessageDestination& operator=(const MessageDestination) =delete;
   
     MESSAGE_RESULT appendByte(const byte data);
-    MESSAGE_RESULT appendInt(const int data);
+
+    MESSAGE_RESULT finishAndSend();
     template<class T>
     MESSAGE_RESULT appendT(T data)
     {
       return append((byte*)&data, sizeof(T));
     }
-    MESSAGE_RESULT append(const byte* data, size_t dataLen);
+
+    MESSAGE_RESULT append(const byte* data, size_t dataLen)
+    {
+      for (int i = 0; i < dataLen; i++)
+      {
+        auto ret = appendByte(data[i]);
+        if (ret)
+          return ret;
+      }
+      return MESSAGE_OK;
+    }
+
     MESSAGE_RESULT appendData(MessageSource& source, size_t maxBytes);
-
-    MESSAGE_RESULT finishAndSend();
-
-    size_t getCurrentLocation();
+    
+    size_t getCurrentLocation()
+    {
+      return m_iCurrentLocation;
+    }
 };
 
 class MessageSource
 {
   private:
     int m_iCurrentLocation = -1;
-    Stream* m_pStream;
-    bool readByteRaw(byte& dest)
-    {
-      unsigned long startMillis = millis();
-      const unsigned long timeout = 1000;
-      int data = -1;
-      while (data == -1)
-      {
-        if (millis() - startMillis > timeout)
-        {
-          m_iCurrentLocation = -1;
-          return false;
-        }
-        data = m_pStream->read();
-      }
-      dest = data;
-      return true;
-    }
+    bool readByteRaw(byte& dest);
 
   public:
-    MessageSource(Stream* dest)
+    MessageSource()
     {
-      m_pStream = dest;
     }
     ~MessageSource()
     {
@@ -86,77 +79,15 @@ class MessageSource
     //Reads everything from the serial port, blocking the thread until a timeout occurs or 0xC0 0x00 [CALLSIGN] is encountered
     //Returns true if a message is encountered, after reading and discarding the callsign.
     //Returns false if a timeout occurs.
-    bool beginMessage()
-    {
-      byte data;
-      bool matchedFend = false;
-      //Wait for FEND 0x00:
-      while (true)
-      {
-        if (!readByteRaw(data))
-          return false;
-        if (data == FEND)
-          matchedFend = true;
-        else if (matchedFend && data == 0x00)
-          break;
-        else
-          matchedFend = false;
-      }
-      //Read the callsign. Discard it for now, but we might want to filter on it later.
-      for (int i = 0; i < 6; i++)
-      {
-        if (!readByteRaw(data))
-          return false;
-      }
-      m_iCurrentLocation = 0;
-      return true;
-    }
+    bool beginMessage();
 
     //If in a message, reads everything from the serial port, blocking the thread until a timout occurs or 0xC0.
     //If not in a message, returns immediately
-    MESSAGE_RESULT endMessage()
-    {
-      if (m_iCurrentLocation < 0)
-        return MESSAGE_NOT_IN_MESSAGE;
-      byte data;
-      while (true)
-      {
-        if (!readByteRaw(data))
-          return MESSAGE_TIMEOUT;
-        if (data == FEND)
-          return MESSAGE_END;
-      }
-    }
+    MESSAGE_RESULT endMessage();
 
     //Reads the next byte
-    MESSAGE_RESULT readByte(byte& dest)
-    {
-      if (m_iCurrentLocation < 0)
-        return MESSAGE_NOT_IN_MESSAGE;
-      if (!readByteRaw(dest))
-        return MESSAGE_TIMEOUT;
-      if (dest == FEND)
-      {
-        m_iCurrentLocation = -1;
-        return MESSAGE_END;
-      }
-      
-      m_iCurrentLocation++;
-      if (dest != FESC)
-        return MESSAGE_OK;
-      if (!readByteRaw(dest))
-        return MESSAGE_TIMEOUT;
-      switch (dest)
-      {
-        case TFEND: dest = FEND; break;
-        case TFESC: dest = FESC; break;
-        case FEND:
-          m_iCurrentLocation = -1;
-          return MESSAGE_END;
-      }
-      
-      return MESSAGE_OK;
-    }
+    MESSAGE_RESULT readByte(byte& dest);
+
     template<class T>
     MESSAGE_RESULT read(T& dest)
     {
@@ -178,3 +109,15 @@ class MessageSource
       return m_iCurrentLocation;
     }
 };
+
+MESSAGE_RESULT MessageDestination::appendData(MessageSource& source, size_t maxBytes)
+{
+  for (int i = 0; i < maxBytes; i++)
+  {
+    byte b;
+    auto ret = appendByte(source.readByte(b));
+    if (ret != MESSAGE_OK)
+      return ret;
+  }
+  return MESSAGE_OK;
+}

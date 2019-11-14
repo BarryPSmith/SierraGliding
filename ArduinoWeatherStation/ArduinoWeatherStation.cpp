@@ -33,6 +33,8 @@ void disableSPIRadios();
 
 int main()
 {
+  randomSeed(digitalRead(A0));
+
   init();
 
   setup();

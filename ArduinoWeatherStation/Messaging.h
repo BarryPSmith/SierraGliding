@@ -11,18 +11,21 @@ enum MESSAGE_RESULT {
   MESSAGE_END = 1,
   MESSAGE_TIMEOUT = 2,
   MESSAGE_NOT_IN_MESSAGE = 3,
-  MESSAGE_BUFFER_OVERRUN = 4
+  MESSAGE_BUFFER_OVERRUN = 4,
+  MESSAGE_ERROR = -1
 };
 
-//We're going to get rid of this, but for now...
 class MessageSource;
+
+void InitMessaging();
+bool HandleMessageCommand(MessageSource src);
+
+//We're going to get rid of this, but for now...
 class MessageDestination
 {  
   int m_iCurrentLocation = 0;
   
-  public:
-    const size_t maxPacketSize = 256;
-    
+  public:    
     MessageDestination();
     ~MessageDestination();
     
@@ -38,23 +41,11 @@ class MessageDestination
       return append((byte*)&data, sizeof(T));
     }
 
-    MESSAGE_RESULT append(const byte* data, size_t dataLen)
-    {
-      for (int i = 0; i < dataLen; i++)
-      {
-        auto ret = appendByte(data[i]);
-        if (ret)
-          return ret;
-      }
-      return MESSAGE_OK;
-    }
+    MESSAGE_RESULT append(const byte* data, size_t dataLen);
 
     MESSAGE_RESULT appendData(MessageSource& source, size_t maxBytes);
     
-    size_t getCurrentLocation()
-    {
-      return m_iCurrentLocation;
-    }
+    size_t getCurrentLocation();
 };
 
 class MessageSource
@@ -64,14 +55,8 @@ class MessageSource
     bool readByteRaw(byte& dest);
 
   public:
-    MessageSource()
-    {
-    }
-    ~MessageSource()
-    {
-      //Ensure that we clear the serial buffer:
-      endMessage();
-    }
+    MessageSource();
+    ~MessageSource();
 
     MessageSource(const MessageSource&) = delete;
     MessageSource& operator=(const MessageSource) = delete;
@@ -93,31 +78,7 @@ class MessageSource
     {
       return readBytes((byte*)&dest, sizeof(T));
     }
-    MESSAGE_RESULT readBytes(byte* dest, size_t dataLen)
-    {
-      for (int i = 0; i < dataLen; i++)
-      {
-        auto result = readByte(dest[i]);
-        if (result != MESSAGE_OK)
-          return result;
-      }
-      return MESSAGE_OK;
-    }
+    MESSAGE_RESULT readBytes(byte* dest, size_t dataLen);
 
-    size_t getCurrentLocation()
-    {
-      return m_iCurrentLocation;
-    }
+    size_t getCurrentLocation();
 };
-
-MESSAGE_RESULT MessageDestination::appendData(MessageSource& source, size_t maxBytes)
-{
-  for (int i = 0; i < maxBytes; i++)
-  {
-    byte b;
-    auto ret = appendByte(source.readByte(b));
-    if (ret != MESSAGE_OK)
-      return ret;
-  }
-  return MESSAGE_OK;
-}

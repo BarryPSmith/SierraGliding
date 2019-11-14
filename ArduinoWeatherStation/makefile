@@ -11,7 +11,7 @@ INCLUDES=-I"C:\Program Files (x86)\Arduino\hardware\arduino\avr\cores\arduino" \
          -I"lib"
 ARDUINO_BASE_LIBS="^/HardwareSerial.cpp" "^/HardwareSerial0.cpp" "^/wiring_analog.c" \
             "^/wiring_digital.c" "^/winterrupts.c" "^/wiring.c" "^/hooks.c" \
-            "^/print.cpp" "^/new.cpp" "^/abi.cpp"
+            "^/print.cpp" "^/new.cpp" "^/abi.cpp" "^/WMath.cpp"
 ARDUINO_LIBS="^/SPI/src/spi.cpp"
 ARDUINO_LIBSWDIRS = \
         $(ARDUINO_BASE_LIBS:^^/=C:/Program Files (x86^)/Arduino/hardware/arduino/avr/cores/arduino/) \
@@ -25,7 +25,9 @@ LDFLAGS=-Wl,--gc-sections -Wl,--relax
 CC=avr-gcc
 .SUFFIXES:.obj.hex
 
-SRCS_C = ArduinoWeatherStation.cpp Commands.cpp HardwareMessaging.cpp MessageHandling.cpp Messaging.cpp SleepyTime.cpp WeatherProcessing.cpp $(LIBRARIES)
+SRCS_C = ArduinoWeatherStation.cpp Commands.cpp HardwareMessaging.cpp MessageHandling.cpp \
+         Messaging.cpp SleepyTime.cpp WeatherProcessing.cpp MessagingCommon.cpp \
+         $(LIBRARIES)
 SRCS_H = *.h
 OBJS    = $(SRCS_C:.c=.o)
 

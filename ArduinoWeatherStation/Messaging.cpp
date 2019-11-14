@@ -5,13 +5,9 @@
 #include "lib/RadioLib/src/Radiolib.h"
 #include "CSMA.h"
 
-#define maxPacketSize 255
-#define outputPower 10
+#define LORA_CHECK(A) { auto res = A; if(res) { Serial.print("FAILED " #A ": "); Serial.println(res); } } while(0)
 
 //Hardware pins:
-#define SX_SELECT 9
-#define SX_DIO1 2
-#define SX_BUSY 4
 Module mod(SX_SELECT, SX_DIO1, -1, SX_BUSY);
 
 CSMAWrapper<SX1262> lora = &mod;
@@ -22,7 +18,7 @@ byte incomingBuffer[maxPacketSize];
 byte outgoingBuffer[maxPacketSize];
 byte incomingBufferSize;
 
-static bool packetWaiting = false;
+static volatile bool packetWaiting = false;
 static void rxDone();
 
 void InitMessaging()
@@ -31,16 +27,19 @@ void InitMessaging()
     return;
   // Might have to tweak these parameters to get long distance communications.
   // but testing suggests we can transmit 23km at -10 dBm. at +10 dBm we've got a fair bit of headroom.
-  lora.begin(
-    425.0, //Frequency
-    62.5,  //Bandwidth
-    5,     //Spreading Factor
-    5      //Coding rate
-  );
-  lora.setOutputPower(outputPower);
-  lora.setCurrentLimit(140);
+  LORA_CHECK(lora.begin(
+    LORA_FREQ,
+    LORA_BW,
+    LORA_SF,
+    LORA_CR
+  ));
+  LORA_CHECK(lora.setOutputPower(outputPower));
+  LORA_CHECK(lora.setCurrentLimit(140));
+  lora.enableIsChannelBusy();
   lora.setRxDoneAction(rxDone);
-  lora.startReceive(SX126X_RX_TIMEOUT_INF);
+  LORA_CHECK(lora.startReceive(SX126X_RX_TIMEOUT_INF));
+
+  initialised = true;
 }
 
 static void rxDone()
@@ -48,7 +47,7 @@ static void rxDone()
   packetWaiting = true;
 }
 
-bool HandleMessageCommand(MessageSource src)
+bool HandleMessageCommand(MessageSource& src)
 {
   byte descByte;
   if (src.readByte(descByte))
@@ -82,19 +81,24 @@ bool HandleMessageCommand(MessageSource src)
       return true;
     }
   }
+  return false;
 }
 
-MessageDestination::MessageDestination()
-{
-  append((byte*)callSign, 6);
-}
+LoraMessageSource::LoraMessageSource() : MessageSource()
+{}
 
-MessageDestination::~MessageDestination()
+LoraMessageDestination::~LoraMessageDestination()
 {
   finishAndSend();
 }
 
-MESSAGE_RESULT MessageDestination::finishAndSend()
+LoraMessageDestination::LoraMessageDestination()
+{
+  if (prependCallsign)
+    append((byte*)callSign, 6);
+}
+
+MESSAGE_RESULT LoraMessageDestination::finishAndSend()
 {
   if (m_iCurrentLocation < 0)
     return MESSAGE_NOT_IN_MESSAGE;
@@ -108,7 +112,7 @@ MESSAGE_RESULT MessageDestination::finishAndSend()
   
 }
 
-MESSAGE_RESULT MessageDestination::appendByte(const byte data)
+MESSAGE_RESULT LoraMessageDestination::appendByte(const byte data)
 {
   if (m_iCurrentLocation < 0)
     return MESSAGE_NOT_IN_MESSAGE;
@@ -122,32 +126,31 @@ MESSAGE_RESULT MessageDestination::appendByte(const byte data)
   return MESSAGE_OK;
 }
 
-bool MessageSource::readByteRaw(byte& dest)
-{
-  //Not used in this interface
-  return false;
-}
-
-bool MessageSource::beginMessage()
+bool LoraMessageSource::beginMessage()
 {
   if (!packetWaiting)
+  {
     return false;
+  }
   packetWaiting = false;
-
+  
+  incomingBufferSize = lora.getPacketLength(false);
   if (lora.readData(incomingBuffer, maxPacketSize))
     return false;
 
-  incomingBufferSize = lora.getPacketLength(false);
-
-  //Discard the callsign:
-  if (incomingBufferSize <= 6)
-    return false;
-  m_iCurrentLocation = 6;
+  if (discardCallsign)
+  {
+    if (incomingBufferSize <= 6)
+      return false;
+    m_iCurrentLocation = 6;
+  }
+  else
+    m_iCurrentLocation = 0;
 
   return true;
 }
 
-MESSAGE_RESULT MessageSource::endMessage()
+MESSAGE_RESULT LoraMessageSource::endMessage()
 {
   if (m_iCurrentLocation < 0)
     return MESSAGE_NOT_IN_MESSAGE;
@@ -155,7 +158,7 @@ MESSAGE_RESULT MessageSource::endMessage()
   return MESSAGE_END;
 }
 
-MESSAGE_RESULT MessageSource::readByte(byte& dest)
+MESSAGE_RESULT LoraMessageSource::readByte(byte& dest)
 {
   if (m_iCurrentLocation < 0)
     return MESSAGE_NOT_IN_MESSAGE;
@@ -164,6 +167,9 @@ MESSAGE_RESULT MessageSource::readByte(byte& dest)
     m_iCurrentLocation = -1;
     return MESSAGE_END;
   }
-  dest = incomingBuffer[m_iCurrentLocation++];
-  return MESSAGE_OK;
+  else
+  {
+    dest = incomingBuffer[m_iCurrentLocation++];
+    return MESSAGE_OK;
+  }
 }

@@ -1,31 +1,28 @@
-#include "Messaging.h"
+#include "KissMessaging.h"
 #include <Arduino.h>
 #include "Callsign.h"
 
-const size_t minPacketSize = 10; //15 for the argent data radioshield (station 1). 10 for the mobilinkd TNC (station 2).
-
-//This file implements messaging using a KISS modem
-//I'm trying to see if we can get it to work with RadioModem interface instead.
-
-//int MessageSource::_iCurrentLocation = -1;
+const size_t minPacketSize = 0; //15 for the argent data radioshield (station 1). 10 for the mobilinkd TNC (station 2). 0 when we're talking to the computer.
 
 //This isn't... standard. Is there a better way to do it that doesn't involve virtual functions?
+//Ugh, come back to this to get rid of it. We're not that concerned about performance that we can't have virtual functions.
 #define STREAM Serial
 
-MessageDestination::MessageDestination()
+KissMessageDestination::KissMessageDestination()
 {
   STREAM.write(FEND);
   STREAM.write((byte)0x00);
 
-  append((byte*)callSign, 6);
+  if (prependCallsign)
+    append((byte*)callSign, 6);
 }
 
-MessageDestination::~MessageDestination()
+KissMessageDestination::~KissMessageDestination()
 {
   finishAndSend();
 }
 
-MESSAGE_RESULT MessageDestination::finishAndSend()
+MESSAGE_RESULT KissMessageDestination::finishAndSend()
 {
   if (m_iCurrentLocation < 0)
     return MESSAGE_NOT_IN_MESSAGE;
@@ -38,7 +35,7 @@ MESSAGE_RESULT MessageDestination::finishAndSend()
   return MESSAGE_END;
 }
     
-MESSAGE_RESULT MessageDestination::appendByte(const byte data)
+MESSAGE_RESULT KissMessageDestination::appendByte(const byte data)
 {
   if (m_iCurrentLocation < 0)
     return MESSAGE_NOT_IN_MESSAGE;
@@ -58,7 +55,12 @@ MESSAGE_RESULT MessageDestination::appendByte(const byte data)
   return MESSAGE_OK;
 }
 
-bool MessageSource::readByteRaw(byte& dest)
+KissMessageSource::~KissMessageSource()
+{
+  endMessage();
+}
+
+bool KissMessageSource::readByteRaw(byte& dest)
 {
   unsigned long startMillis = millis();
   const unsigned long timeout = 1000;
@@ -76,7 +78,7 @@ bool MessageSource::readByteRaw(byte& dest)
   return true;
 }
 
-bool MessageSource::beginMessage()
+bool KissMessageSource::beginMessage()
 {
   byte data;
   bool matchedFend = false;
@@ -92,17 +94,20 @@ bool MessageSource::beginMessage()
     else
       matchedFend = false;
   }
-  //Read the callsign. Discard it for now, but we might want to filter on it later.
-  for (int i = 0; i < 6; i++)
+  if (discardCallsign)
   {
-    if (!readByteRaw(data))
-      return false;
+    //Read the callsign. Discard it for now, but we might want to filter on it later.
+    for (int i = 0; i < 6; i++)
+    {
+      if (!readByteRaw(data))
+        return false;
+    }
   }
   m_iCurrentLocation = 0;
   return true;
 }
 
-MESSAGE_RESULT MessageSource::endMessage()
+MESSAGE_RESULT KissMessageSource::endMessage()
 {
   if (m_iCurrentLocation < 0)
     return MESSAGE_NOT_IN_MESSAGE;
@@ -116,7 +121,7 @@ MESSAGE_RESULT MessageSource::endMessage()
   }
 }
 
-MESSAGE_RESULT MessageSource::readByte(byte& dest)
+MESSAGE_RESULT KissMessageSource::readByte(byte& dest)
 {
   {
     if (m_iCurrentLocation < 0)

@@ -85,7 +85,7 @@ void handleCommandMessage(MessageSource& msg, bool demandRelay, byte uniqueID, b
   }
   if (!handled)
   {
-    MessageDestination response;
+    MESSAGE_DESTINATION_SOLID response;
     if (demandRelay)
       response.appendByte('K' | 0x80);
     else
@@ -276,7 +276,7 @@ bool handleQueryCommand(bool demandRelay, byte uniqueID)
   //Response is currently at 204 bytes. Beware buffer overrun.
   
   //const int bufferSize = 300;
-  MessageDestination response;
+  MESSAGE_DESTINATION_SOLID response;
   //byte messageBuffer[bufferSize];
   //byte* responseBuffer = messageBuffer + messageOffset;
   if (demandRelay)
@@ -355,7 +355,7 @@ bool handleDebugCommand(bool demandRelay, byte uniqueID)
 {
   //byte messageBuffer[bufferSize];
   //byte* responseBuffer = messageBuffer + messageOffset;
-  MessageDestination response;
+  MESSAGE_DESTINATION_SOLID response;
   if (demandRelay)
     response.appendByte('K' | 0x80);
   else
@@ -385,7 +385,7 @@ void acknowledgeMessage(byte uniqueID, bool isSpecific, bool demandRelay)
   if (demandRelay && !isSpecific)
     return;
   
-  MessageDestination response;
+  MESSAGE_DESTINATION_SOLID response;
   if (demandRelay)
     response.appendByte('K' | 0x80);
   else

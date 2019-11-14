@@ -29,13 +29,15 @@ unsigned long lastWeatherMillis;
 
 void setup();
 void loop();
-void disableSPIRadios();
+void disableRFM69();
 
 int main()
 {
+  //Arduino library initialisaton:
+  init();
+
   randomSeed(digitalRead(A0));
 
-  init();
 
   setup();
   while (1)
@@ -52,9 +54,13 @@ void setup() {
 
   AWS_DEBUG_PRINTLN("Serial Begun");
 
-  disableSPIRadios();
+  disableRFM69();
 
   AWS_DEBUG_PRINTLN("Radios Disabled");
+
+  InitMessaging();
+
+  AWS_DEBUG_PRINTLN("Messaging Initialised");
 
   ZeroMessagingArrays();
   
@@ -103,7 +109,7 @@ void loop() {
 //A test board has a RFM69 on it for reading Davis weather stations.
 // But some testing revealed the davis station was faulty.
 //So we put it both to sleep.
-void disableSPIRadios()
+void disableRFM69()
 {
   SPI.begin();
   {

@@ -1,11 +1,19 @@
 #include "Messaging.h"
 
+bool MessageSource::discardCallsign = true;
+bool MessageDestination::prependCallsign = true;
+
+MessageDestination::MessageDestination() {}
+
 MESSAGE_RESULT MessageDestination::appendData(MessageSource& source, size_t maxBytes)
 {
   for (int i = 0; i < maxBytes; i++)
   {
     byte b;
-    auto ret = appendByte(source.readByte(b));
+    auto ret = source.readByte(b);
+    if (ret != MESSAGE_OK)
+      return ret;
+    ret = appendByte(b);
     if (ret != MESSAGE_OK)
       return ret;
   }
@@ -27,6 +35,10 @@ MESSAGE_RESULT MessageDestination::append(const byte* data, size_t dataLen)
   }
   return MESSAGE_OK;
 }
+MESSAGE_RESULT MessageDestination::append(const char* data, size_t dataLen)
+{
+  return append((byte*)data, dataLen);
+}
 
 MESSAGE_RESULT MessageSource::readBytes(byte* dest, size_t dataLen)
 {
@@ -44,12 +56,4 @@ size_t MessageSource::getCurrentLocation()
   return m_iCurrentLocation;
 }
 
-MessageSource::~MessageSource()
-{
-  //Ensure that we clear the serial buffer:
-  endMessage();
-}
-
-MessageSource::MessageSource()
-{
-}
+MessageSource::MessageSource() {}

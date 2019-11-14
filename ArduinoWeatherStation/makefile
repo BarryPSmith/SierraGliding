@@ -23,21 +23,26 @@ LIBRARIES=lib/Low-Power-Master/LowPower.cpp lib/TimerOne/TimerOne.cpp $(RADIO_LI
 CFLAGS= -mcall-prologues -mmcu=$(MCU) -Os -fpermissive -fdata-sections -ffunction-sections
 LDFLAGS=-Wl,--gc-sections -Wl,--relax
 CC=avr-gcc
-.SUFFIXES:.obj.hex
+.SUFFIXES : .elf .obj .hex
 
-SRCS_C = ArduinoWeatherStation.cpp Commands.cpp HardwareMessaging.cpp MessageHandling.cpp \
+SRCS_C = ArduinoWeatherStation.cpp Commands.cpp MessageHandling.cpp \
          Messaging.cpp SleepyTime.cpp WeatherProcessing.cpp MessagingCommon.cpp \
          $(LIBRARIES)
+SRCS_MOD = KissModem.cpp MessagingCommon.cpp Messaging.cpp KissMessaging.cpp \
+            $(LIBRARIES)
 SRCS_H = *.h
 OBJS    = $(SRCS_C:.c=.o)
 
 all: all.hex
 
 clean:
-	rm -f *.o *.hex *.obj *.hex
+	rm -f *.o *.hex *.obj *.elf
 	
 .obj.hex:
 	avr-objcopy -R .eeprom -O ihex $< $@
+
+.elf.hex:
+    avr-objcopy -R .eeprom -O ihex $< $@
 
 checkSize: all.elf
 	avr-size all.elf
@@ -53,4 +58,11 @@ all.obj: $(SRCS_C) $(SRCS_H) revid
 
 program: all.hex
 	avrdude -c arduino -p $(MCU) -P $(PORT) -b 57600 -U all.hex
+
+#---------------------------------------
 	
+modem.obj: $(SRCS_MOD) $(SRCS_H) revid
+    $(CC) $(INCLUDES) $(DEFINES) $(CFLAGS) $(SRCS_MOD) $(LDFLAGS) -o $@
+
+program_modem: modem.hex
+    avrdude -c arduino -p $(MCU) -P $(PORT) -b 57600 -U modem.hex

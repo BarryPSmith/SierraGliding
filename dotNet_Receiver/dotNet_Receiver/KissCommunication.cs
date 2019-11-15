@@ -7,6 +7,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using System.IO.Ports;
 
 namespace dotNet_Receiver
 {
@@ -26,19 +27,21 @@ namespace dotNet_Receiver
         public int MaxPacketSize { get; set; } = 30000; //Arbitrary maximum packet size to avoid consuming too much memory
         public bool IsConnected { get; private set; } = false;
 
+        public Stream NonPacketStream { get; set; }
+
         public static IPEndPoint CreateIPEndPoint(string endPoint)
         {
             string[] ep = endPoint.Split(':');
-            if (ep.Length != 2) throw new FormatException("Invalid endpoint format");
+            if (ep.Length != 2) throw new FormatException($"Invalid endpoint format {endPoint}");
             IPAddress ip;
             if (!IPAddress.TryParse(ep[0], out ip))
             {
-                throw new FormatException("Invalid ip-adress");
+                throw new FormatException($"Invalid ip-adress {ep[0]}");
             }
             int port;
             if (!int.TryParse(ep[1], NumberStyles.None, NumberFormatInfo.CurrentInfo, out port))
             {
-                throw new FormatException("Invalid port");
+                throw new FormatException($"Invalid port {ep[1]}");
             }
             return new IPEndPoint(ip, port);
         }
@@ -70,10 +73,49 @@ namespace dotNet_Receiver
             }
         }
 
+        public void ConnectSerial(string portName)
+        {
+            if (string.IsNullOrEmpty(portName))
+            {
+                Console.WriteLine("No Serial port specified, using first available...");
+                var allPorts = SerialPort.GetPortNames();
+                foreach (var testPortName in allPorts)
+                {
+                    using (var port = new SerialPort(testPortName))
+                        try
+                        {
+                            port.Open();
+                            portName = testPortName;
+                            break;
+                        }
+                        catch { }
+                }
+            }
+            if (string.IsNullOrEmpty(portName))
+            {
+                Console.Error.WriteLine("No Serial port found.");
+                return;
+            }
+
+            Console.WriteLine($"Using serial port {portName}");
+            using (var port = new SerialPort(portName))
+            {
+                port.BaudRate = 38400;
+                port.Parity = Parity.None;
+                port.DataBits = 8;
+                port.StopBits = StopBits.One;
+                port.Handshake = Handshake.None;
+                port.Open();
+                ReadStream(port.BaseStream);
+                port.Close();
+            }
+        }
+
         public void ReadStream(Stream netStream)
         {
             bool escaped = false;
             bool inPacket = false;
+            bool awaitingNull = false;
             List<byte> curPacket = new List<byte>();
             for (var curByte = netStream.ReadByte(); curByte != -1; curByte = netStream.ReadByte())
             {
@@ -82,22 +124,39 @@ namespace dotNet_Receiver
 
                 if (curByte == FEND)
                 {
-                    if (escaped)
+                    if (inPacket)
                     {
-                        escaped = false;
-                        StreamError?.Invoke("Unexpected escaped FEND");
-                        continue;
+                        if (escaped)
+                        {
+                            escaped = false;
+                            StreamError?.Invoke("Unexpected escaped FEND");
+                            continue;
+                        }
+                        else if (inPacket && curPacket.Count > 0)
+                        {
+                            PacketReceived?.Invoke(curPacket);
+                            curPacket.Clear();
+                            inPacket = false;
+                        }
                     }
-                    else if (curPacket.Count > 0)
-                    {
-                        PacketReceived?.Invoke(curPacket);
-                        curPacket.Clear();
-                    }
-                    inPacket = true;
+                    awaitingNull = true;
                     continue;
                 }
+                if (awaitingNull)
+                {
+                    awaitingNull = false;
+                    if (curByte == 0x00)
+                    {
+                        inPacket = true;
+                        continue;
+                    }
+                }
+
                 if (!inPacket)
+                {
+                    NonPacketStream?.WriteByte((byte)curByte);
                     continue;
+                }
 
                 if (curByte == FESC)
                 {

@@ -18,8 +18,10 @@ namespace dotNet_Receiver
 Connect to a KISS data source with station data.
 Arguments:
  --src <address:port>   Source address to use. Default localhost:8001
- --db <DB.sqlite>       Database to store data locally
+ --serial <serial port> Serial port to use.
+ --db <DB.sqlite>       Database to store data locally. Doesn't work until I get the SQLite stuff sorted.
  --dest <address:port>  Destionation web server. Default http://localhost:4000. Can be specified multiple times to send data to multiple servers.
+ --nonPacket <file>     Record the non-packet stream in a particular file. Set to 'DISCARD' to discard the non packet stream.
 "
 );
         }
@@ -28,21 +30,41 @@ Arguments:
 
         static void Main(string[] args)
         {
+#if DEBUG
+            for (int i = 0; i < args.Length; i++)
+                Console.WriteLine($"{i}: {args[i]}");
+#endif
+
+            if (!(args?.Length > 0))
+            {
+                Help();
+                return;
+            }
+
             TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
-
 #if local_storage
             string fn = null;// @"C:\temp\data3.sqlite";
 #endif
-            //string log = @"c:\temp\stationLog.csv";
             List<string> destUrls = new List<string>(); // "http://localhost:4000";
-            string srcAddress = "127.0.0.1:8001";
+            string srcAddress = null; 
+            string serialAddress = null;
+            string npsFn = null;
 
             var srcArgIndex = Array.FindIndex(args, arg => arg.Equals("--src", StringComparison.OrdinalIgnoreCase));
             if (srcArgIndex >= 0)
                 srcAddress = args[srcArgIndex + 1];
+            
+            var serialArgIndex = Array.FindIndex(args, arg => arg.Equals("--serial", StringComparison.OrdinalIgnoreCase));
+            if (serialArgIndex >= 0 && args.Length > serialArgIndex + 1)
+                serialAddress = args[serialArgIndex + 1];
+            if (serialArgIndex < 0)
+                serialArgIndex = Array.FindIndex(args, arg => arg.Equals("--serialFirst", StringComparison.OrdinalIgnoreCase));
+            
+            if (srcArgIndex < 0 && serialArgIndex < 0)
+                srcAddress = "127.0.0.1:8001";
 
             for (int idx = Array.FindIndex(args, arg => arg.Equals("--dest", StringComparison.OrdinalIgnoreCase));
                      idx >= 0;
@@ -51,13 +73,16 @@ Arguments:
             if (!destUrls.Any())
                 destUrls.Add("http://localhost:4000");
 
+            var npsFnIndex = Array.FindIndex(args, arg => arg.Equals("--nonPacket", StringComparison.OrdinalIgnoreCase));
+            if (npsFnIndex >= 0)
+                npsFn = args[npsFnIndex + 1];
+
+            Console.WriteLine("srcAddress: " + srcAddress);
+
 #if local_storage
             var dbArgIdx = Array.FindIndex(args, arg => arg.Equals("--db", StringComparison.OrdinalIgnoreCase));
             if (dbArgIdx >= 0)
                 fn = args[dbArgIdx + 1];
-#endif
-
-#if local_storage
             DataStorage storage = fn != null ? new DataStorage(fn) : null;
 #endif
             var serverPosters = destUrls.Select(url =>
@@ -66,7 +91,19 @@ Arguments:
                 ret.OnException += (sender, ex) => Console.Error.WriteLine($"Post error ({url}): {ex.GetType()}: {ex.Message}");
                 return ret;
             }).ToList();
-            
+
+            Stream nps = null;
+            FileStream npsFs = null;
+            if (string.IsNullOrEmpty(npsFn))
+            {
+                nps = Console.OpenStandardOutput();
+            }
+            else if (!npsFn.Equals("DISCARD", StringComparison.OrdinalIgnoreCase))
+            {
+                nps = npsFs = new FileStream(npsFn, FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete, 4096);
+            }
+            _dataReceiver.NonPacketStream = nps;
+
             _dataReceiver.PacketReceived =
                 data =>
                 {
@@ -75,7 +112,7 @@ Arguments:
                     {
                         var packet = PacketDecoder.DecodeBytes(data as byte[] ?? data.ToArray());
                         //Do this in a Task to avoid waiting if we've scrolled up.
-                        Task.Run(() => Console.WriteLine($"Packet {receivedTime}: {packet.ToString()}"));
+                        var consoleTask = Task.Run(() => Console.WriteLine($"Packet {receivedTime}: {packet.ToString()}"));
                         switch (packet.type)
                         {
                             case 'W': //Weather data
@@ -97,6 +134,16 @@ Arguments:
                                 File.AppendAllLines(log, new[] { packet.GetDataString(packet.packetData) });
                                 break;
 #endif
+                            default:
+                                //nps is often stdOut in debugging, don't write to it from multiple threads:
+                                var localBytes = data.ToArray();
+                                consoleTask.ContinueWith(notUsed =>
+                                {
+                                    nps?.Write(Encoding.UTF8.GetBytes("Unhandled Packet: "));
+                                    nps?.Write(localBytes);
+                                    nps?.Write(Encoding.UTF8.GetBytes("\n"));
+                                });
+                                break;
                         }
                     }
                     catch (Exception ex)
@@ -105,33 +152,66 @@ Arguments:
                     }
                 };
 
-            if (!Console.IsInputRedirected)
+            try
             {
-                Task.Run(() => _dataReceiver.Connect(srcAddress));
-                Console.WriteLine("Reading data. Press q key to exit.");
-                while (true)
+                if (!Console.IsInputRedirected)
                 {
-                    var key = Console.ReadKey();
-                    if (key.KeyChar == 'q')
+                    List<Task> tasks = new List<Task>();
+                    if (!string.IsNullOrEmpty(srcAddress))
+                        tasks.Add(Task.Run(() => _dataReceiver.Connect(srcAddress)));
+                    if (serialArgIndex >= 0)
+                        tasks.Add(Task.Run(() => _dataReceiver.ConnectSerial(serialAddress)));
+
+                    Console.WriteLine("Reading data. Press q key to exit.");
+                    while (true)
                     {
-                        _dataReceiver.Disconnect();
-                        return;
+                        var key = Console.ReadKey();
+                        if (key.KeyChar == 'q')
+                        {
+                            Console.WriteLine("Shutting Down...");
+                            _dataReceiver.Disconnect();
+                            Task.WaitAll(tasks.ToArray());
+                            return;
+                        }
                     }
                 }
+                else
+                {
+                    List<Task> tasks = new List<Task>();
+                    if (!string.IsNullOrEmpty(srcAddress))
+                        tasks.Add(TryForever(() => _dataReceiver.Connect(srcAddress)));
+                    if (serialArgIndex >= 0)
+                        tasks.Add(TryForever(() => _dataReceiver.ConnectSerial(serialAddress)));
+                    Task.WaitAll(tasks.ToArray());
+                }
             }
-            else
+            finally
+            {
+                if (npsFs != null)
+                {
+                    npsFs.Flush();
+                    npsFs.Close();
+                }
+            }
+        }
+
+        private static Task TryForever(Action A)
+        {
+            return Task.Run(() =>
+            {
                 while (true)
                     try
                     {
-                        _dataReceiver.Connect(srcAddress);
+                        A();
                         return;
                     }
                     catch (Exception ex)
                     {
                         //Just retry forever...
                         Thread.Sleep(1000);
-                        Console.Error.Write($"{DateTime.Now} Connect error: {ex}");
+                        Console.Error.WriteLine($"{DateTime.Now} Connect error: {ex}");
                     }
+            });
         }
 
         private static void CurrentDomain_ProcessExit(object sender, EventArgs e)

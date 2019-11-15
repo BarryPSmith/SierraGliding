@@ -70,10 +70,10 @@ namespace dotNet_Receiver
                 return null;
             var bytes = inBytes as byte[] ?? inBytes.ToArray();
 
-            var callSign = Encoding.ASCII.GetString(bytes, 1, 6);
-            var type = Encoding.ASCII.GetChars(bytes, 7, 1)[0];
-            var sendingStationID = bytes[8];
-            var uniqueID = bytes[9];
+            var callSign = Encoding.ASCII.GetString(bytes, 0, 6);
+            var type = Encoding.ASCII.GetChars(bytes, 6, 1)[0];
+            var sendingStationID = bytes[7];
+            var uniqueID = bytes[8];
 
             Packet ret = new Packet
             {
@@ -121,15 +121,20 @@ namespace dotNet_Receiver
         private static string ToCsv<T>(this IEnumerable<T> source)
             => source?.Aggregate("", (run, cur) => run + (string.IsNullOrEmpty(run) ? "" : ", ") + cur);
 
-        private static double GetWindDirection(byte wdByte)
-            => byte.TryParse(Encoding.ASCII.GetString(new[] { wdByte }, 0, 1), NumberStyles.HexNumber, CultureInfo.InvariantCulture.NumberFormat, out var wd) ? 
-                wd * 22.5
-                : 
-                -1;
+        private static double GetWindDirection(byte wdByte, bool isLegacy)
+        {
+            if (isLegacy)
+                return byte.TryParse(Encoding.ASCII.GetString(new[] { wdByte }, 0, 1), NumberStyles.HexNumber, CultureInfo.InvariantCulture.NumberFormat, out var wd) ?
+                    wd * 22.5
+                    :
+                    -1;
+            else
+                return wdByte * 360 / 255.0;
+        }
 
         private static IList<SingleWeatherData> DecodeWeatherPacket(byte[] bytes, byte stationID, byte uniqueID)
         {
-            var length = bytes[10];
+            var length = bytes[9];
             if (length < 3)
                 return new SingleWeatherData[0];
             var ret = new SingleWeatherData[1 + (length - 3) / 5];
@@ -137,18 +142,20 @@ namespace dotNet_Receiver
             {
                 sendingStation = stationID,
                 uniqueID = uniqueID,
-                windDirection = GetWindDirection(bytes[11]),
-                windSpeed = bytes[12] * 0.5,
-                batteryLevelH = 7.5 + bytes[13] / 255.0 * 7.5,
+                windDirection = GetWindDirection(bytes[10], stationID == 49),
+                windSpeed = bytes[11] * 0.5,
+                batteryLevelH = 7.5 + bytes[12] / 255.0 * 7.5,
             };
+
             for (int i = 1; i < ret.Length; i++)
             {
-                int offset = -2 + 5 * i;
+                int offset = 8 + 5 * i;
+                byte sendingStationID = bytes[offset];
                 ret[i] = new SingleWeatherData
                 {
-                    sendingStation = bytes[offset],
+                    sendingStation = sendingStationID,
                     uniqueID = bytes[offset + 1],
-                    windDirection = GetWindDirection(bytes[offset + 2]),
+                    windDirection = GetWindDirection(bytes[offset + 2], sendingStationID == 49),
                     windSpeed = bytes[offset + 3] * 0.5,
                     batteryLevelH = 7.5 + bytes[offset + 4] / 255.0 * 7.5
                 };

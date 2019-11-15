@@ -25,6 +25,8 @@ void InitMessaging()
 {
   if (initialised)
     return;
+  SPI.usingInterrupt(digitalPinToInterrupt(SX_DIO1));
+
   // Might have to tweak these parameters to get long distance communications.
   // but testing suggests we can transmit 23km at -10 dBm. at +10 dBm we've got a fair bit of headroom.
   LORA_CHECK(lora.begin(
@@ -103,8 +105,29 @@ MESSAGE_RESULT LoraMessageDestination::finishAndSend()
   if (m_iCurrentLocation < 0)
     return MESSAGE_NOT_IN_MESSAGE;
 
+#if false
+  Serial.print("Bailed: ");
+  Serial.println(lora._bailed);
+  Serial.print("Preamble: ");
+  Serial.println(lora._preambleCount);
+  Serial.print("Rx: ");
+  Serial.println(lora._rxCount);
+  Serial.print("Both: ");
+  Serial.println(lora._bothCount);
+  Serial.print("None: ");
+  Serial.println(lora._emptyCount);
+  Serial.print("ISR State: ");
+  Serial.println(lora._isrState);
+  Serial.print("Non IRQs: ");
+  Serial.println(lora._nonIRqs);
+#endif
+  //012345678
+  //KN6DUCW1#
+  Serial.println(outgoingBuffer[8], HEX);
+
   bool ret = lora.transmit(outgoingBuffer, m_iCurrentLocation) == ERR_NONE;
   lora.startReceive(SX126X_RX_TIMEOUT_INF);
+  m_iCurrentLocation = -1;
   if (ret)
     return MESSAGE_OK;
   else
@@ -135,8 +158,13 @@ bool LoraMessageSource::beginMessage()
   packetWaiting = false;
   
   incomingBufferSize = lora.getPacketLength(false);
-  if (lora.readData(incomingBuffer, maxPacketSize))
+  auto state = lora.readData(incomingBuffer, maxPacketSize);
+  if (state != ERR_NONE)
+  {
+    Serial.print("readData error: ");
+    Serial.println(state);
     return false;
+  }
 
   if (discardCallsign)
   {

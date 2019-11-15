@@ -11,21 +11,21 @@
 #include "SleepyTime.h"
 
 //Setup Variables
-unsigned long shortInterval = 4000 - 90 * (stationID - '1'); //Send interval when battery voltage is high. We make sure each station has a different interval to avoid them both transmitting simultaneously for extended periods.
-unsigned long longInterval = 4000; //Send interval when battery voltage is low
+unsigned long shortInterval = 2000 - 90 * (stationID - '1'); //Send interval when battery voltage is high. We make sure each station has a different interval to avoid them both transmitting simultaneously for extended periods.
+unsigned long longInterval = 2000; //Send interval when battery voltage is low
 float batteryThreshold = 12.0;
 float batteryHysterisis = 0.05;
 bool demandRelay = false;
 
-unsigned long weatherInterval = 6000; //Current weather interval.
+unsigned long weatherInterval = 2000; //Current weather interval.
 unsigned long overrideStartMillis = 0;
 unsigned long overrideDuration = 0;
 bool overrideShort = false;
 
 
 //Recent Memory
-unsigned long lastStatusMillis;
-unsigned long lastWeatherMillis;
+unsigned long lastStatusMillis = 0;
+unsigned long lastWeatherMillis = 0;
 
 void setup();
 void loop();
@@ -63,18 +63,11 @@ void setup() {
   AWS_DEBUG_PRINTLN("Messaging Initialised");
 
   ZeroMessagingArrays();
-  
-
-  /*memcpy(callSign, statusMessage + 2, 6);
-  memcpy(statusMessageTemplate, statusMessage + 8, statusMessageLength);
-  statusMessage[8 + statusMessageLength] = stationID;
-  statusMessage[0] = FEND;
-  statusMessage[1] = 0x00;
-  statusMessage[22] = FEND;*/
-  
+    
   sendStatusMessage();
 
   lastStatusMillis = millis();
+  lastWeatherMillis = millis();
 
   setupWeatherProcessing();
   setupSleepy();
@@ -85,6 +78,7 @@ void loop() {
 
   if (millis() - lastWeatherMillis > weatherInterval)
   {
+    AWS_DEBUG_PRINTLN("I'm going to send a weather message.");
     lastWeatherMillis = millis();
     sendWeatherMessage();
     #if DEBUG_Speed
@@ -96,6 +90,7 @@ void loop() {
       sendDirectionDebug();
     debugThisRound = !debugThisRound;
     #endif
+    AWS_DEBUG_PRINTLN("Weather message sent.");
   }
   
   if (millis() - lastStatusMillis > millisBetweenStatus)
@@ -103,7 +98,9 @@ void loop() {
     sendStatusMessage();
   }
 
+  AWS_DEBUG_PRINTLN("I'm tired. Goodnight.");
   sleepUntilNextWeather();
+  AWS_DEBUG_PRINTLN("I'm Awake!");
 }
 
 //A test board has a RFM69 on it for reading Davis weather stations.
@@ -112,6 +109,7 @@ void loop() {
 void disableRFM69()
 {
   SPI.begin();
+
   {
     Module rfmMod(10, -1, -1);
     RF69 rf69 = &rfmMod;

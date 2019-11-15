@@ -16,7 +16,7 @@ class CSMAWrapper : public T
 
     int16_t transmit(uint8_t* data, size_t len, uint8_t addr = 0) override {
       delayCSMA();
-      
+
       return(T::transmit(data, len, addr));
     }
 

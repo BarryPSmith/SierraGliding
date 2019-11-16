@@ -4,3 +4,6 @@
 [submodule "ArduinoWeatherStation/lib/Low-Power"]
 	path = ArduinoWeatherStation/lib/Low-Power
 	url = https://github.com/BarryPSmith/Low-Power.git
+[submodule "ArduinoWeatherStation/lib/TimerOne"]
+	path = ArduinoWeatherStation/lib/TimerOne
+	url = https://github.com/BarryPSmith/TimerOne.git

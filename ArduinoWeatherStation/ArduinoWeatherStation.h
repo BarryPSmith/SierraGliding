@@ -13,7 +13,7 @@
 #define MESSAGE_DESTINATION_SOLID LoraMessageDestination
 #define MESSAGE_SOURCE_SOLID LoraMessageSource
 
-static const char* ver = "1.1." REV_ID; //Wind station Version 1.1
+static const char* ver = "2.0." REV_ID; //Wind station Version 1.1
 //const char* statusMessageTemplate = "KN6DUC WindStation1";
 //const int statusMessageLength = 13;
 

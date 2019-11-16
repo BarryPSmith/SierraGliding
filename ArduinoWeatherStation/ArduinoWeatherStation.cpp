@@ -11,8 +11,8 @@
 #include "SleepyTime.h"
 
 //Setup Variables //1910
-unsigned long shortInterval = 2000 - 90 * (stationID - '1'); //Send interval when battery voltage is high. We make sure each station has a different interval to avoid them both transmitting simultaneously for extended periods.
-unsigned long longInterval = 2000; //Send interval when battery voltage is low
+unsigned long shortInterval = 4000 - 90 * (stationID - '1'); //Send interval when battery voltage is high. We make sure each station has a different interval to avoid them both transmitting simultaneously for extended periods.
+unsigned long longInterval = 30000; //Send interval when battery voltage is low
 float batteryThreshold = 12.0;
 float batteryHysterisis = 0.05;
 bool demandRelay = false;

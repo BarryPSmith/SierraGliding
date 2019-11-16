@@ -22,8 +22,8 @@ void updateSendInterval(float batteryVoltage);
 
 volatile int windCounts = 0;
 
-const float V_Ref = 5.0;
-const float BattVDivider = 3.0;
+const float V_Ref = 3.8;
+const float BattVDivider = 49.1/10;
 const float MinBattV = 7.5;
 const float MaxBattV = 15.0;
 

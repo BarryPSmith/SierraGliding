@@ -1,3 +1,6 @@
 [submodule "ArduinoWeatherStation/lib/RadioLib"]
 	path = ArduinoWeatherStation/lib/RadioLib
 	url = https://github.com/BarryPSmith/RadioLib.git
+[submodule "ArduinoWeatherStation/lib/Low-Power"]
+	path = ArduinoWeatherStation/lib/Low-Power
+	url = https://github.com/BarryPSmith/Low-Power.git

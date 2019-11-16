@@ -121,10 +121,6 @@ MESSAGE_RESULT LoraMessageDestination::finishAndSend()
   Serial.print("Non IRQs: ");
   Serial.println(lora._nonIRqs);
 #endif
-  //012345678
-  //KN6DUCW1#
-  Serial.println(outgoingBuffer[8], HEX);
-
   bool ret = lora.transmit(outgoingBuffer, m_iCurrentLocation) == ERR_NONE;
   lora.startReceive(SX126X_RX_TIMEOUT_INF);
   m_iCurrentLocation = -1;

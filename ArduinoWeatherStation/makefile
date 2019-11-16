@@ -1,7 +1,17 @@
+#COM port for upload
 PORT=COM16
+
+#Hardware spects
 MCU=atmega328p
 F_CPU=16000000L
+
+#Flags, etc.
 DEFINES=-DF_CPU=$(F_CPU) -DARDUINO=100
+CFLAGS= -mcall-prologues -mmcu=$(MCU) -Os -fdata-sections -ffunction-sections
+LDFLAGS=-Wl,--gc-sections -Wl,--relax
+CC=avr-gcc
+
+# External libraries
 ARDUINO_DIR=C:/Program Files (x86)/Arduino/hardware/arduino/avr/cores/arduino
 INCLUDES=-I"C:\Program Files (x86)\Arduino\hardware\arduino\avr\cores\arduino" \
          -I"C:\Program Files (x86)\Arduino\hardware\arduino\avr\variants\standard" \
@@ -19,19 +29,19 @@ ARDUINO_LIBSWDIRS = \
 RADIO_LIB=lib/RadioLib/src/Module.cpp lib/RadioLib/src/modules/SX126x.cpp \
         lib/RadioLib/src/modules/SX1262.cpp lib/RadioLib/src/modules/RF69.cpp \
         lib/RadioLib/src/protocols/PhysicalLayer.cpp
-LIBRARIES=lib/Low-Power-Master/LowPower.cpp lib/TimerOne/TimerOne.cpp $(RADIO_LIB) $(ARDUINO_LIBSWDIRS)
-CFLAGS= -mcall-prologues -mmcu=$(MCU) -Os -fpermissive -fdata-sections -ffunction-sections
-LDFLAGS=-Wl,--gc-sections -Wl,--relax
-CC=avr-gcc
-.SUFFIXES : .elf .obj .hex
+LIBRARIES=lib/Low-Power/LowPower.cpp lib/TimerOne/TimerOne.cpp $(RADIO_LIB) $(ARDUINO_LIBSWDIRS)
 
+#Source files (Main)
 SRCS_C = ArduinoWeatherStation.cpp Commands.cpp MessageHandling.cpp \
          Messaging.cpp SleepyTime.cpp WeatherProcessing.cpp MessagingCommon.cpp \
          $(LIBRARIES)
+#Source files (modem)
 SRCS_MOD = KissModem.cpp MessagingCommon.cpp Messaging.cpp KissMessaging.cpp \
             $(LIBRARIES)
 SRCS_H = *.h
 OBJS    = $(SRCS_C:.c=.o)
+
+.SUFFIXES : .elf .obj .hex
 
 all: all.hex
 

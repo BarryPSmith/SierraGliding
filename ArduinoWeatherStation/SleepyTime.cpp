@@ -3,7 +3,7 @@
 //We need to use timer1 to add to millis in case we're woken by a different interrupt:
 //Wind ticking or serial comms
 
-#include <Low-Power-Master/LowPower.h>
+#include <Low-Power/LowPower.h>
 #include <TimerOne/TimerOne.h>
 #include <avr/Power.h>
 #include "ArduinoWeatherStation.h"

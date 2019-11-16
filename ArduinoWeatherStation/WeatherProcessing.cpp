@@ -1,3 +1,4 @@
+#include <TimerOne.h>
 #include "Messaging.h"
 #include "WeatherProcessing.h"
 #include "ArduinoWeatherStation.h"
@@ -144,7 +145,9 @@ void createWeatherData(MessageDestination& message)
 
 void updateSendInterval(float batteryVoltage)
 {
-  bool overrideActive = millis() - overrideStartMillis < overrideDuration;
+  //This is always called shortly after Timer1 resets. We shouldn't expect major issues
+  unsigned long oldInterval = weatherInterval;
+  bool overrideActive = Timer1.millis() - overrideStartMillis < overrideDuration;
   if ((!overrideActive && batteryVoltage < batteryThreshold - 2) ||
       (overrideActive && !overrideShort))
   {
@@ -155,9 +158,21 @@ void updateSendInterval(float batteryVoltage)
   {
     weatherInterval = shortInterval;
   }
-  //Ensure that once we get out of override, we won't accidently go back into it due to millis wraparound.
+  //Ensure that once we get out of override, we won't accidently go back into it due to Timer1.millis wraparound.
   if (!overrideActive)
     overrideDuration = 0;
+
+  if (oldInterval != weatherInterval)
+  {
+    unsigned long microInterval = weatherInterval * 1000;
+    /*if (microInterval <= Timer1.MaxMicros)
+      Timer1.SetInterval(weatherInterval * 1000);
+    else*/
+    {
+      int divisor = (microInterval - 1) / Timer1.MaxMicros + 1;
+      Timer1.setPeriod(weatherInterval / divisor);
+    }
+  }
 }
 
 #if DEBUG_Speed
@@ -214,12 +229,18 @@ void circularMemCpy(void* dest, void* src0, size_t srcOffset, size_t srcSize, si
 }
 #endif
 
+unsigned long lastWindCountMillis;
+constexpr unsigned long minWindInterval = 6; //160 MPH = broken station;
 void countWind()
 {
   #if DEBUG_Speed
-  speedTicks[curSpeedLocation++] = millis();
+  speedTicks[curSpeedLocation++] = Timer1.millis();
   curSpeedLocation = curSpeedLocation % 200;
   #endif
+  // debounce the signal:
+  if (Timer1.millis() - lastWindCountMillis < minWindInterval)
+    return;
+  lastWindCountMillis = Timer1.millis();
   windCounts++;
 }
 
@@ -235,7 +256,7 @@ void sendDirectionDebug()
 {
   static unsigned long lastDirectionDebug = 0;
   //Ensure we don't flood our messaging capabilities. We're sending 500 bytes, this should take about 5 seconds...
-  if (millis() - lastDirectionDebug < 5000)
+  if (Timer1.millis() - lastDirectionDebug < 5000)
     return;
   if (!directionDebugging)
   {
@@ -251,17 +272,17 @@ void sendDirectionDebug()
   msg[2] = getUniqueID();
   int* data = (int*)(msg + 3);
   size_t dataLen = (bufferSize - messageOffset - 3 - 15) / sizeof(int); //-15 to allow extra bytes for escaping
-  unsigned long lastMillis = millis();
+  unsigned long lastMillis = Timer1.millis();
   int i = 0;
   while (i < dataLen)
   {
-    if (millis() - lastMillis < interval)
+    if (Timer1.millis() - lastMillis < interval)
       continue;
     data[i++] = analogRead(windDirPin);
   }
   size_t messageLen = dataLen * 2 + 3;
   sendMessage(msgBuffer, messageLen, bufferSize);
-  lastDirectionDebug = millis();
+  lastDirectionDebug = Timer1.millis();
 }
 #endif
 

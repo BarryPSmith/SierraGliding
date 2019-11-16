@@ -1,5 +1,5 @@
 #COM port for upload
-PORT=COM16
+PORT=COM15
 
 #Hardware spects
 MCU=atmega328p
@@ -18,10 +18,13 @@ INCLUDES=-I"C:\Program Files (x86)\Arduino\hardware\arduino\avr\cores\arduino" \
          -I"C:/Program Files (x86)/Arduino/hardware/Arduino/avr/libraries/SPI/src" \
          -I"C:/Program Files (x86)/Arduino/hardware/Arduino/avr/libraries/SoftwareSerial/src" \
          -I"lib/RadioLib/src" \
-         -I"lib"
+         -I"lib/TimerOne" \
+         -I"lib/Low-Power" \
+         -I"lib/RadioLib/src"
 ARDUINO_BASE_LIBS="^/HardwareSerial.cpp" "^/HardwareSerial0.cpp" "^/wiring_analog.c" \
-            "^/wiring_digital.c" "^/winterrupts.c" "^/wiring.c" "^/hooks.c" \
+            "^/wiring_digital.c" "^/winterrupts.c" "^/hooks.c" \
             "^/print.cpp" "^/new.cpp" "^/abi.cpp" "^/WMath.cpp"
+#"^/wiring.c"
 ARDUINO_LIBS="^/SPI/src/spi.cpp"
 ARDUINO_LIBSWDIRS = \
         $(ARDUINO_BASE_LIBS:^^/=C:/Program Files (x86^)/Arduino/hardware/arduino/avr/cores/arduino/) \
@@ -32,11 +35,13 @@ RADIO_LIB=lib/RadioLib/src/Module.cpp lib/RadioLib/src/modules/SX126x.cpp \
 LIBRARIES=lib/Low-Power/LowPower.cpp lib/TimerOne/TimerOne.cpp $(RADIO_LIB) $(ARDUINO_LIBSWDIRS)
 
 #Source files (Main)
-SRCS_C = ArduinoWeatherStation.cpp Commands.cpp MessageHandling.cpp \
+SRCS_C = ArduinoWeatherStation.cpp Commands.cpp MessageHandling.cpp millis.cpp \
          Messaging.cpp SleepyTime.cpp WeatherProcessing.cpp MessagingCommon.cpp \
+         delay.c \
          $(LIBRARIES)
 #Source files (modem)
 SRCS_MOD = KissModem.cpp MessagingCommon.cpp Messaging.cpp KissMessaging.cpp \
+            "C:/Program Files (x86)/Arduino/hardware/arduino/avr/cores/arduino/wiring.c" \
             $(LIBRARIES)
 SRCS_H = *.h
 OBJS    = $(SRCS_C:.c=.o)

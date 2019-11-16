@@ -1,3 +1,5 @@
+
+#include <TimerOne.h>
 #include "Messaging.h"
 #include "MessageHandling.h"
 #include "ArduinoWeatherStation.h"
@@ -254,7 +256,7 @@ bool handleOverrideCommand(MessageSource& msg, bool demandRelay, byte uniqueID, 
   }
 
   overrideDuration = val * multiplier;
-  overrideStartMillis = millis();
+  overrideStartMillis = Timer1.millis();
   acknowledgeMessage(uniqueID, isSpecific, demandRelay);
   return true;
 }
@@ -299,7 +301,7 @@ bool handleQueryCommand(bool demandRelay, byte uniqueID)
   response.appendT(longInterval);
   response.appendT(batteryThreshold);
   response.appendByte('M');
-  unsigned long curMillis = millis();
+  unsigned long curMillis = Timer1.millis();
   response.appendT(curMillis);
   response.appendT(overrideDuration);
   if (overrideDuration)

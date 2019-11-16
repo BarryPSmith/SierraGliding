@@ -3,14 +3,14 @@
 #define DEBUG_Direction 0
 
 #include <spi.h>
+#include <TimerOne.h>
 #include "lib/RadioLib/src/Radiolib.h"
-
 #include "ArduinoWeatherStation.h"
 #include "WeatherProcessing.h"
 #include "MessageHandling.h"
 #include "SleepyTime.h"
 
-//Setup Variables
+//Setup Variables //1910
 unsigned long shortInterval = 2000 - 90 * (stationID - '1'); //Send interval when battery voltage is high. We make sure each station has a different interval to avoid them both transmitting simultaneously for extended periods.
 unsigned long longInterval = 2000; //Send interval when battery voltage is low
 float batteryThreshold = 12.0;
@@ -34,7 +34,9 @@ void disableRFM69();
 int main()
 {
   //Arduino library initialisaton:
-  init();
+  //AFAICT, Init is only for the millis / micros timer
+  //init();
+  sei();
 
   randomSeed(digitalRead(A0));
 
@@ -48,8 +50,13 @@ int main()
   return 0;
 }
 
+
+
 void setup() {
+  //gotta do this first to get our timers running:
+  setupSleepy();
   Serial.begin(tncBaud);
+  Serial.println("Starting...");
   delay(50);
 
   AWS_DEBUG_PRINTLN("Serial Begun");
@@ -66,20 +73,21 @@ void setup() {
     
   sendStatusMessage();
 
-  lastStatusMillis = millis();
-  lastWeatherMillis = millis();
+  lastStatusMillis = Timer1.millis();
+  lastWeatherMillis = Timer1.millis();
 
   setupWeatherProcessing();
-  setupSleepy();
 }
 
 void loop() {
+
+
   readMessages();
 
-  if (millis() - lastWeatherMillis > weatherInterval)
+  if (Timer1.millis() - lastWeatherMillis > weatherInterval)
   {
     AWS_DEBUG_PRINTLN("I'm going to send a weather message.");
-    lastWeatherMillis = millis();
+    lastWeatherMillis = Timer1.millis();
     sendWeatherMessage();
     #if DEBUG_Speed
     if (speedDebugging)
@@ -93,7 +101,7 @@ void loop() {
     AWS_DEBUG_PRINTLN("Weather message sent.");
   }
   
-  if (millis() - lastStatusMillis > millisBetweenStatus)
+  if (Timer1.millis() - lastStatusMillis > millisBetweenStatus)
   {
     sendStatusMessage();
   }

@@ -1,3 +1,5 @@
+
+#include <TimerOne.h>
 #include "ArduinoWeatherStation.h"
 #include "Messaging.h"
 #include "MessageHandling.h"
@@ -242,7 +244,7 @@ void recordHeardStation(byte msgStatID)
     i--;
   memmove(recentlySeenStations + 1, recentlySeenStations, i * 5);
   
-  unsigned long curMillis = millis();
+  unsigned long curMillis = Timer1.millis();
   recentlySeenStations[0][0] = msgStatID;
   memcpy(recentlySeenStations[0] + 1, &curMillis, 4);
 }
@@ -281,10 +283,10 @@ void sendStatusMessage()
 {
   /*sendMessage(statusMessageTemplate, 19, 19, 0);
   Serial.print("!");
-  Serial.print(millis()); 
+  Serial.print(Timer1.millis()); 
   Serial.print(" ");
   Serial.print(lastStatusMillis + millisBetweenStatus);*/
-  lastStatusMillis = millis();
+  lastStatusMillis = Timer1.millis();
 }
 
 void ZeroMessagingArrays()

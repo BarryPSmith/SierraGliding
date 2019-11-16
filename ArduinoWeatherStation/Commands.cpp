@@ -62,6 +62,11 @@ void handleCommandMessage(MessageSource& msg, bool demandRelay, byte uniqueID, b
     case 'O': //Override Interval
       handled = handleOverrideCommand(msg, demandRelay, uniqueID, isSpecific);
 
+    case 'M':
+      handled = HandleMessageCommand(msg);
+      if (handled)
+        acknowledgeMessage(uniqueID, isSpecific, demandRelay);
+
     #if DEBUG_Speed
     case 'S':
       handled = true;

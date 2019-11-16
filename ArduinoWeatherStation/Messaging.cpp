@@ -82,6 +82,13 @@ bool HandleMessageCommand(MessageSource& src)
       lora.setTimeSlot(newTimeSlot);
       return true;
     }
+  case 'F':
+    {
+      float newFreq;
+      if (src.read(newFreq))
+        return false;
+      lora.setFrequency(newFreq);
+    }
   }
   return false;
 }

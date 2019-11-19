@@ -4,6 +4,7 @@
 
 #include <spi.h>
 #include <TimerOne.h>
+#include <LowPower.h>
 #include "lib/RadioLib/src/Radiolib.h"
 #include "ArduinoWeatherStation.h"
 #include "WeatherProcessing.h"
@@ -17,6 +18,7 @@ float batteryThreshold = 12.0;
 float batteryHysterisis = 0.05;
 bool demandRelay = false;
 
+constexpr unsigned long weatherTolerance = 100;
 unsigned long weatherInterval = 2000; //Current weather interval.
 unsigned long overrideStartMillis = 0;
 unsigned long overrideDuration = 0;
@@ -25,11 +27,11 @@ bool overrideShort = false;
 
 //Recent Memory
 unsigned long lastStatusMillis = 0;
-unsigned long lastWeatherMillis = 0;
 
 void setup();
 void loop();
 void disableRFM69();
+void sleepUntilNextWeather();
 
 int main()
 {
@@ -54,12 +56,19 @@ int main()
 
 void setup() {
   //gotta do this first to get our timers running:
-  setupSleepy();
+  setupWeatherProcessing();
   Serial.begin(tncBaud);
   Serial.println("Starting...");
   delay(50);
 
   AWS_DEBUG_PRINTLN("Serial Begun");
+
+#ifdef DEBUG
+  pinMode(5, OUTPUT);
+  pinMode(6, OUTPUT);
+  pinMode(7, OUTPUT);
+  pinMode(8, OUTPUT);
+#endif
 
   disableRFM69();
 
@@ -74,20 +83,19 @@ void setup() {
   sendStatusMessage();
 
   lastStatusMillis = Timer1.millis();
-  lastWeatherMillis = Timer1.millis();
-
-  setupWeatherProcessing();
 }
 
 void loop() {
 
-
   readMessages();
-
-  if (Timer1.millis() - lastWeatherMillis > weatherInterval)
+  bool localWeatherRequired;
+  noInterrupts();
+  localWeatherRequired = weatherRequired;
+  weatherRequired = false;
+  interrupts();
+  if (localWeatherRequired)
   {
     AWS_DEBUG_PRINTLN("I'm going to send a weather message.");
-    lastWeatherMillis = Timer1.millis();
     sendWeatherMessage();
     #if DEBUG_Speed
     if (speedDebugging)
@@ -132,8 +140,26 @@ void disableRFM69()
   }
 }
 
-void sendTestMessage()
+void sleepUntilNextWeather()
 {
-  /*byte data[] = {0xC0, 0x00, 0x96, 0x9C, 0x6C, 0x88, 0xAA, 0x86, 0xE0, 0x96, 0x9C, 0x6C, 0x88, 0xAA, 0x86, 0xE1, 0x03, 0xF0, 0x48, 0x45, 0x4C, 0x4C, 0x4F, 0xC0 };
-  Serial.write(data, sizeof(data));*/
+  //Flush the serial or we risk writing garbage or being woken by a send complete message.
+  Serial.flush();
+  LowPower.idle(SLEEP_FOREVER,
+                ADC_OFF,
+                TIMER2_OFF,
+                TIMER1_ON,
+                TIMER0_OFF,
+                SPI_ON,
+                USART0_ON,
+                TWI_OFF);
 }
+
+#ifdef DEBUG
+void AwsRecordState(int i)
+{
+  digitalWrite(5, i & 1 ? 1 : 0);
+  digitalWrite(6, i & 2 ? 1 : 0);
+  digitalWrite(7, i & 4 ? 1 : 0);
+  digitalWrite(8, i & 8 ? 1 : 0);
+}
+#endif

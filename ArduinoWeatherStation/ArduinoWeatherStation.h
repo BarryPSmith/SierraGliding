@@ -3,11 +3,19 @@
 #include "revid.h"
 
 #ifdef DEBUG
-#define AWS_DEBUG_PRINT(...) Serial.print(__VA_ARGS__)
-#define AWS_DEBUG_PRINTLN(...) Serial.println(__VA_ARGS__)
+void AwsRecordState(int i);
+#define AWS_RECORD_STATE(i) AwsRecordState(i);
+
+#define AWS_DEBUG_PRINT(...) do { \
+                    Serial.print(__VA_ARGS__); \
+                    } while (0)
+#define AWS_DEBUG_PRINTLN(...) do { \
+                    Serial.println(__VA_ARGS__);  \
+                    } while (0)
 #else
-#define AWS_DEBUG_PRINT(...) { } while (0)
-#define AWS_DEBUG_PRINTLN(...) { } while (0)
+#define AWS_DEBUG_PRINT(...) do { } while (0)
+#define AWS_DEBUG_PRINTLN(...) do { } while (0)
+#define AWS_RECORD_STATE(A)
 #endif
 
 #define MESSAGE_DESTINATION_SOLID LoraMessageDestination
@@ -41,9 +49,8 @@ extern unsigned long overrideStartMillis;
 extern unsigned long overrideDuration;
 extern bool overrideShort;
 
-
 //Recent Memory
 extern unsigned long lastStatusMillis;
-extern unsigned long lastWeatherMillis;
+//extern unsigned long lastWeatherMillis;
 
-
+extern volatile bool weatherRequired;

@@ -4,13 +4,14 @@
 #include "Callsign.h"
 #include "lib/RadioLib/src/Radiolib.h"
 #include "CSMA.h"
+#include "ArduinoWeatherStation.h"
 
 #define LORA_CHECK(A) { auto res = A; if(res) { Serial.print("FAILED " #A ": "); Serial.println(res); } } while(0)
 
 //Hardware pins:
 Module mod(SX_SELECT, SX_DIO1, -1, SX_BUSY);
 
-CSMAWrapper<SX1262> lora = &mod;
+RADIO_TYPE lora = &mod;
 bool initialised = false;
 
 //TODO: Put a streaming interface into RadioLib to avoid these buffers.
@@ -21,12 +22,17 @@ byte incomingBufferSize;
 static volatile bool packetWaiting = false;
 static void rxDone();
 
+
 void InitMessaging()
 {
   if (initialised)
     return;
   SPI.usingInterrupt(digitalPinToInterrupt(SX_DIO1));
 
+#ifdef DEBUG
+  Serial.print("Radio type: ");
+  Serial.println(XSTR(RADIO_TYPE));
+#endif
   // Might have to tweak these parameters to get long distance communications.
   // but testing suggests we can transmit 23km at -10 dBm. at +10 dBm we've got a fair bit of headroom.
   LORA_CHECK(lora.begin(
@@ -37,9 +43,15 @@ void InitMessaging()
   ));
   LORA_CHECK(lora.setOutputPower(outputPower));
   LORA_CHECK(lora.setCurrentLimit(140));
+  LORA_CHECK(lora.setDio2AsRfSwitch());
+#if defined(MOTEINO_96)
+  lora.setDio0Action(rxDone);
+#else
   lora.enableIsChannelBusy();
   lora.setRxDoneAction(rxDone);
-  LORA_CHECK(lora.startReceive(SX126X_RX_TIMEOUT_INF));
+#endif
+
+  LORA_CHECK(lora.startReceive(RX_TIMEOUT));
 
   initialised = true;
 }
@@ -51,6 +63,7 @@ static void rxDone()
 
 bool HandleMessageCommand(MessageSource& src)
 {
+#ifndef NO_COMMANDS
   byte descByte;
   if (src.readByte(descByte))
     return false;
@@ -91,7 +104,12 @@ bool HandleMessageCommand(MessageSource& src)
     }
   }
   return false;
+#else // !MOTEINO_96
+  return false;
+#endif 
 }
+
+
 
 LoraMessageSource::LoraMessageSource() : MessageSource()
 {}
@@ -112,24 +130,20 @@ MESSAGE_RESULT LoraMessageDestination::finishAndSend()
   if (m_iCurrentLocation < 0)
     return MESSAGE_NOT_IN_MESSAGE;
 
-#if false
-  Serial.print("Bailed: ");
-  Serial.println(lora._bailed);
-  Serial.print("Preamble: ");
-  Serial.println(lora._preambleCount);
-  Serial.print("Rx: ");
-  Serial.println(lora._rxCount);
-  Serial.print("Both: ");
-  Serial.println(lora._bothCount);
-  Serial.print("None: ");
-  Serial.println(lora._emptyCount);
-  Serial.print("ISR State: ");
-  Serial.println(lora._isrState);
-  Serial.print("Non IRQs: ");
-  Serial.println(lora._nonIRqs);
-#endif
-  bool ret = lora.transmit(outgoingBuffer, m_iCurrentLocation) == ERR_NONE;
-  lora.startReceive(SX126X_RX_TIMEOUT_INF);
+  auto state = lora.transmit(outgoingBuffer, m_iCurrentLocation);
+  if (state != ERR_NONE)
+  {
+    AWS_DEBUG_PRINT("Error transmitting message: ");
+    AWS_DEBUG_PRINTLN(state);
+  }
+  bool ret = state == ERR_NONE;
+  state = lora.startReceive(RX_TIMEOUT);
+  if (state != ERR_NONE)
+  {
+    AWS_DEBUG_PRINT("Error restarting receive: ");
+    AWS_DEBUG_PRINTLN(state);
+  }
+
   m_iCurrentLocation = -1;
   if (ret)
     return MESSAGE_OK;
@@ -162,6 +176,15 @@ bool LoraMessageSource::beginMessage()
   
   incomingBufferSize = lora.getPacketLength(false);
   auto state = lora.readData(incomingBuffer, maxPacketSize);
+  
+  #if 0 //defined(MONTEINO_96)
+  auto state2 = lora.startReceive();
+  if (state2 != ERR_NONE)
+  {
+    Serial.print("startReceive error: ");
+    Serial.println(state2);
+  }
+  #endif
   if (state != ERR_NONE)
   {
     Serial.print("readData error: ");

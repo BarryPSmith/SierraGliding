@@ -62,12 +62,12 @@ KissMessageSource::~KissMessageSource()
 
 bool KissMessageSource::readByteRaw(byte& dest)
 {
-  unsigned long startMillis = Timer1.millis();
+  unsigned long startMillis = millis();
   const unsigned long timeout = 1000;
   int data = -1;
   while (data == -1)
   {
-    if (Timer1.millis() - startMillis > timeout)
+    if (millis() - startMillis > timeout)
     {
       m_iCurrentLocation = -1;
       return false;

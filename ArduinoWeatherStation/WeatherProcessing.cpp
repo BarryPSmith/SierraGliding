@@ -10,7 +10,14 @@
 #error Multiple wind systems defined
 #endif
 
+volatile bool weatherRequired = true;
+//int overrun:
+//4 second interval, * 65536 = 2.5E5 seconds (several days)
+unsigned int tickCounts = 0;
+unsigned volatile int requiredTicks = 1;
+
 void countWind();
+void timer1Tick();
 #ifdef DAVIS_WIND
 byte getWindDirectionDavis();
 #elif defined(ARGENTDATA_WIND)
@@ -19,6 +26,7 @@ byte getWindDirectionArgentData();
 #error No Wind System Selected
 #endif
 void updateSendInterval(float batteryVoltage);
+void setTimerInterval();
 
 volatile int windCounts = 0;
 
@@ -163,16 +171,17 @@ void updateSendInterval(float batteryVoltage)
     overrideDuration = 0;
 
   if (oldInterval != weatherInterval)
-  {
-    unsigned long microInterval = weatherInterval * 1000;
-    /*if (microInterval <= Timer1.MaxMicros)
-      Timer1.SetInterval(weatherInterval * 1000);
-    else*/
-    {
-      int divisor = (microInterval - 1) / Timer1.MaxMicros + 1;
-      Timer1.setPeriod(weatherInterval / divisor);
-    }
-  }
+    setTimerInterval();
+}
+
+void setTimerInterval()
+{
+  unsigned long microInterval = weatherInterval * 1000;
+  auto sreg = SREG;
+  noInterrupts();
+  requiredTicks = (microInterval - 1) / Timer1.MaxMicros + 1;
+  SREG = sreg;
+  Timer1.setPeriod(microInterval / requiredTicks);
 }
 
 #if DEBUG_Speed
@@ -288,5 +297,18 @@ void sendDirectionDebug()
 
 void setupWeatherProcessing()
 {
+  Timer1.initialize(1000000);
+  setTimerInterval();
+  Timer1.start();
+  Timer1.attachInterrupt(&timer1Tick);
   setupWindCounter();
+}
+
+void timer1Tick()
+{
+  if (++tickCounts >= requiredTicks)
+  {
+    tickCounts = 0;
+    weatherRequired = true;
+  }
 }

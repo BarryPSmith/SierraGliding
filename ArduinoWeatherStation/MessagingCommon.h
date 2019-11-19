@@ -1,6 +1,9 @@
 #pragma once
 #include <Arduino.h>
 
+#define STR(A) #A
+#define XSTR(A) STR(A)
+
 enum MESSAGE_RESULT {
   MESSAGE_OK = 0,
   MESSAGE_END = 1,

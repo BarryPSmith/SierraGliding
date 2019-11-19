@@ -1,5 +1,4 @@
 // redirect millis to the timer1 implementations:
-
 #include <TimerOne.h>
 
 unsigned long millis() {
@@ -9,4 +8,3 @@ unsigned long millis() {
 unsigned long micros() {
   return Timer1.micros();
 }
-

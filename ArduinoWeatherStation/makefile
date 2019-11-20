@@ -1,5 +1,5 @@
 #COM port for upload
-PORT=COM16
+PORT=COM8
 PORT_MODEM=COM16
 #Hardware spects
 MCU=atmega328p

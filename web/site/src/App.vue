@@ -253,6 +253,7 @@ export default {
                     this.station_data_update(obj.reloadedData);
                 }
                 this.station.loading = false;
+                this.station_data_update();
             });
         },
         'station.id': function() {
@@ -553,6 +554,8 @@ export default {
                         this.update_annotation_ranges();
                         this.set_windspeed_range();
                     }
+                    //Ensure update() is called on all of our charts:
+                    this.station_data_update(false);
                 });
             });
         },
@@ -633,6 +636,8 @@ export default {
             if (!this.station.legend.winddir) {
                 return;
             }
+
+            this.charts.wind_direction.options.annotation.annotations = [];
                       
             for (const entry of this.station.legend.winddir) {
                 if (entry.start === undefined 

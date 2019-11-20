@@ -54,6 +54,7 @@ int main()
     KissMessageSource kissSrc;
     if (Serial.available() > 0 && kissSrc.beginMessage())
     {
+      sendMaxPowerCommand();
       LoraMessageDestination dst;
       dst.appendData(kissSrc, maxPacketSize);
     }

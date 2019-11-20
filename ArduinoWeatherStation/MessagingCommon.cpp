@@ -39,6 +39,18 @@ MESSAGE_RESULT MessageDestination::append(const char* data, size_t dataLen)
 {
   return append((byte*)data, dataLen);
 }
+MESSAGE_RESULT MessageDestination::append(const __FlashStringHelper* data, size_t dataLen)
+{
+  auto str = reinterpret_cast<const char*>(data);
+  for (int i = 0; i < dataLen; i++)
+  {
+    byte cur = pgm_read_byte(str + i);
+    auto ret = appendByte(cur);
+    if (ret)
+      return ret;
+  }
+  return MESSAGE_OK;
+}
 
 MESSAGE_RESULT MessageSource::readBytes(byte* dest, size_t dataLen)
 {

@@ -21,8 +21,8 @@ void AwsRecordState(int i);
 #define MESSAGE_DESTINATION_SOLID LoraMessageDestination
 #define MESSAGE_SOURCE_SOLID LoraMessageSource
 
-static const char* ver = "2.0." REV_ID; //Wind station Version 1.1
-//const char* statusMessageTemplate = "KN6DUC WindStation1";
+#define ver F("2.0." REV_ID) //Wind station Version 1.1
+//const char* statusMessageTemplate = F("KN6DUC WindStation1");
 //const int statusMessageLength = 13;
 
 //Station Specific Constants

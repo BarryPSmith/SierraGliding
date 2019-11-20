@@ -6,15 +6,17 @@
 #include "CSMA.h"
 #include "ArduinoWeatherStation.h"
 
-#define LORA_CHECK(A) { auto res = A; if(res) { Serial.print("FAILED " #A ": "); Serial.println(res); } } while(0)
+#define LORA_CHECK(A) { auto res = A; if(res) { Serial.print(F("FAILED " #A ": ")); Serial.println(res); } } while(0)
 
 //Hardware pins:
 Module mod(SX_SELECT, SX_DIO1, -1, SX_BUSY);
 
-RADIO_TYPE lora = &mod;
-bool initialised = false;
+//These use 100 bytes (Seems alot)
+RADIO_TYPE lora = &mod; //28 bytes
+bool initialised = false; //72 bytes
 
 //TODO: Put a streaming interface into RadioLib to avoid these buffers.
+//This uses 510 bytes.
 byte incomingBuffer[maxPacketSize];
 byte outgoingBuffer[maxPacketSize];
 byte incomingBufferSize;
@@ -29,10 +31,12 @@ void InitMessaging()
     return;
   SPI.usingInterrupt(digitalPinToInterrupt(SX_DIO1));
 
-#ifdef DEBUG
-  Serial.print("Radio type: ");
-  Serial.println(XSTR(RADIO_TYPE));
-#endif
+  AWS_DEBUG_PRINT(F("Mod size: "));
+  AWS_DEBUG_PRINTLN(sizeof(mod));
+  AWS_DEBUG_PRINT(F("Lora size: "));
+  AWS_DEBUG_PRINTLN(sizeof(lora));
+  AWS_DEBUG_PRINT(F("Radio type: "));
+  AWS_DEBUG_PRINTLN(F(XSTR(RADIO_TYPE)));
   // Might have to tweak these parameters to get long distance communications.
   // but testing suggests we can transmit 23km at -10 dBm. at +10 dBm we've got a fair bit of headroom.
   LORA_CHECK(lora.begin(
@@ -133,14 +137,14 @@ MESSAGE_RESULT LoraMessageDestination::finishAndSend()
   auto state = lora.transmit(outgoingBuffer, m_iCurrentLocation);
   if (state != ERR_NONE)
   {
-    AWS_DEBUG_PRINT("Error transmitting message: ");
+    AWS_DEBUG_PRINT(F("Error transmitting message: "));
     AWS_DEBUG_PRINTLN(state);
   }
   bool ret = state == ERR_NONE;
   state = lora.startReceive(RX_TIMEOUT);
   if (state != ERR_NONE)
   {
-    AWS_DEBUG_PRINT("Error restarting receive: ");
+    AWS_DEBUG_PRINT(F("Error restarting receive: "));
     AWS_DEBUG_PRINTLN(state);
   }
 
@@ -181,13 +185,13 @@ bool LoraMessageSource::beginMessage()
   auto state2 = lora.startReceive();
   if (state2 != ERR_NONE)
   {
-    Serial.print("startReceive error: ");
+    Serial.print(F("startReceive error: "));
     Serial.println(state2);
   }
   #endif
   if (state != ERR_NONE)
   {
-    Serial.print("readData error: ");
+    Serial.print(F("readData error: "));
     Serial.println(state);
     return false;
   }

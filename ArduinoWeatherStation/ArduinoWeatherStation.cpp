@@ -58,10 +58,10 @@ void setup() {
   //gotta do this first to get our timers running:
   setupWeatherProcessing();
   Serial.begin(tncBaud);
-  Serial.println("Starting...");
+  Serial.println(F("Starting..."));
   delay(50);
 
-  AWS_DEBUG_PRINTLN("Serial Begun");
+  AWS_DEBUG_PRINTLN(F("Serial Begun"));
 
 #ifdef DEBUG
   pinMode(5, OUTPUT);
@@ -72,11 +72,11 @@ void setup() {
 
   disableRFM69();
 
-  AWS_DEBUG_PRINTLN("Radios Disabled");
+  AWS_DEBUG_PRINTLN(F("Radios Disabled"));
 
   InitMessaging();
 
-  AWS_DEBUG_PRINTLN("Messaging Initialised");
+  AWS_DEBUG_PRINTLN(F("Messaging Initialised"));
 
   ZeroMessagingArrays();
     
@@ -95,7 +95,7 @@ void loop() {
   interrupts();
   if (localWeatherRequired)
   {
-    AWS_DEBUG_PRINTLN("I'm going to send a weather message.");
+    AWS_DEBUG_PRINTLN(F("I'm going to send a weather message."));
     sendWeatherMessage();
     #if DEBUG_Speed
     if (speedDebugging)
@@ -106,7 +106,7 @@ void loop() {
       sendDirectionDebug();
     debugThisRound = !debugThisRound;
     #endif
-    AWS_DEBUG_PRINTLN("Weather message sent.");
+    AWS_DEBUG_PRINTLN(F("Weather message sent."));
   }
   
   if (Timer1.millis() - lastStatusMillis > millisBetweenStatus)
@@ -114,9 +114,9 @@ void loop() {
     sendStatusMessage();
   }
 
-  AWS_DEBUG_PRINTLN("I'm tired. Goodnight.");
+  AWS_DEBUG_PRINTLN(F("I'm tired. Goodnight."));
   sleepUntilNextWeather();
-  AWS_DEBUG_PRINTLN("I'm Awake!");
+  AWS_DEBUG_PRINTLN(F("I'm Awake!"));
 }
 
 //A test board has a RFM69 on it for reading Davis weather stations.
@@ -132,11 +132,11 @@ void disableRFM69()
     auto rfmSleep = rf69.sleep();
     if (rfmSleep != ERR_NONE)
     {
-      AWS_DEBUG_PRINT("Unable to sleep RFM69: ");
+      AWS_DEBUG_PRINT(F("Unable to sleep RFM69: "));
       AWS_DEBUG_PRINTLN(rfmSleep);
     }
     else
-      AWS_DEBUG_PRINTLN("RFM Asleep.");
+      AWS_DEBUG_PRINTLN(F("RFM Asleep."));
   }
 }
 

@@ -100,7 +100,7 @@ void handleCommandMessage(MessageSource& msg, bool demandRelay, byte uniqueID, b
     response.appendByte(stationID);
     response.appendByte(uniqueID);
     response.appendByte(7);
-    response.append("IGNORED", 7);
+    response.append(F("IGNORED"), 7);
     /*
     byte msgBuffer[40];
     byte* responseBuffer = msgBuffer + messageOffset;
@@ -110,7 +110,7 @@ void handleCommandMessage(MessageSource& msg, bool demandRelay, byte uniqueID, b
     responseBuffer[1] = stationID;
     responseBuffer[2] = uniqueID;
     responseBuffer[3] = 7;
-    memcpy(responseBuffer + 4, "IGNORED", 7);
+    memcpy(responseBuffer + 4, F("IGNORED"), 7);
     size_t msgLength = 11;
     sendMessage(msgBuffer, msgLength, 40);
     */
@@ -371,7 +371,7 @@ bool handleDebugCommand(bool demandRelay, byte uniqueID)
   response.appendByte(uniqueID);
 
   //Version (a few bytes)
-  response.append(ver, strlen(ver));
+  response.append(ver, strlen_P((const char*)ver));
   response.appendByte(0);
   
    //recently relayed messages, max 61 bytes
@@ -399,5 +399,5 @@ void acknowledgeMessage(byte uniqueID, bool isSpecific, bool demandRelay)
     response.appendByte('K');
   response.appendByte(stationID);
   response.appendByte(uniqueID);
-  response.append("OK", 2);
+  response.append(F("OK"), 2);
 }

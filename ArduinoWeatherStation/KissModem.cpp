@@ -19,20 +19,20 @@ int main()
   
   InitMessaging();
   
-  Serial.print("Arduino LoRa modem. Version ");
+  Serial.print(F("Arduino LoRa modem. Version "));
   Serial.println(REV_ID);
   Serial.println();
-  Serial.println("Lora Parameters:");
-  Serial.print("Frequency: ");
+  Serial.println(F("Lora Parameters:"));
+  Serial.print(F("Frequency: "));
   Serial.println(LORA_FREQ);
-  Serial.print("Bandwidth: ");
+  Serial.print(F("Bandwidth: "));
   Serial.println(LORA_BW);
-  Serial.print("Spreading Factor: ");
+  Serial.print(F("Spreading Factor: "));
   Serial.println(LORA_SF);
-  Serial.print("Coding Rate: ");
+  Serial.print(F("Coding Rate: "));
   Serial.println(LORA_CR);
   Serial.println();
-  Serial.println("Starting...");
+  Serial.println(F("Starting..."));
    
   MessageDestination::prependCallsign = false;
   MessageSource::discardCallsign = false;
@@ -40,7 +40,7 @@ int main()
   
   
   sendMaxPowerCommand();
-  Serial.println("Max Power command sent");
+  Serial.println(F("Max Power command sent"));
 
   while (1)
   {
@@ -68,16 +68,16 @@ int main()
 void sendMaxPowerCommand()
 {
   LoraMessageDestination dest;
-  dest.append("KN6DUC", 6);
+  dest.append(F("KN6DUC"), 6);
   dest.appendT('C'); //Command
   dest.appendByte(0); //Station ID (0 = send to all)
   dest.appendByte(0); //Unique ID (0 = Always execute and reset recently heard commands)
-  dest.append("MP", 3); //Modem -> Power
+  dest.append(F("MP"), 3); //Modem -> Power
   dest.appendT<short>(22); //Maximum power. Don't know why we made it int, but there you go.
   auto res = dest.finishAndSend();
   if (res)
   {
-    Serial.print("Error sending maxPower message: ");
+    Serial.print(F("Error sending maxPower message: "));
     Serial.println(res);
   }
 }

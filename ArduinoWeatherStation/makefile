@@ -1,10 +1,10 @@
 #COM port for upload
-PORT=COM8
+PORT=COM11
 PORT_MODEM=COM16
 #Hardware spects
 MCU=atmega328p
 F_CPU=16000000L
-PROG_BAUD=57600
+PROG_BAUD=115200
 
 #Flags, etc.
 DEFINES=-DF_CPU=$(F_CPU) -DARDUINO=100 -DDEBUG
@@ -78,7 +78,7 @@ all.obj: $(SRCS_C) $(SRCS_H) revid
 	$(CC) $(INCLUDES) $(DEFINES) $(CFLAGS) $(SRCS_C) $(LDFLAGS) -o $@
 
 program: all.hex
-	avrdude -c arduino -p $(MCU) -P $(PORT) -b 57600 -U all.hex
+	avrdude -c arduino -p $(MCU) -P $(PORT) -b $(PROG_BAUD) -U all.hex
 
 #---------------------------------------
 	

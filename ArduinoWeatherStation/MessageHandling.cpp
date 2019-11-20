@@ -15,15 +15,16 @@ void recordWeatherForRelay(MessageSource& message, byte msgStatID, byte msgUniqu
 void relayMessage(MessageSource& message, byte msgFirstByte, byte msgStatID, byte msgUniqueID);
 void recordMessageRelay(byte msgType, byte msgStatID, byte msgUniqueID);
 
-byte recentlySeenStations[recentArraySize][5];
-byte recentlyRelayedMessages[recentArraySize][3];
-byte recentlyHandledCommands[recentArraySize];
+//These arrays use 320 bytes.
+byte recentlySeenStations[recentArraySize][5]; //100
+byte recentlyRelayedMessages[recentArraySize][3]; //60
+byte recentlyHandledCommands[recentArraySize]; //20
 byte curUniqueID = 0;
 
-byte stationsToRelayCommands[recentArraySize];
+byte stationsToRelayCommands[recentArraySize]; //20
 byte stationsToRelayWeather[recentArraySize]; //20 bytes
 
-byte weatherRelayBuffer[weatherRelayBufferSize];
+byte weatherRelayBuffer[weatherRelayBufferSize]; //100
 byte weatherRelayLength = 0;
 
 //Placement new operator.
@@ -282,9 +283,9 @@ void sendWeatherMessage()
 void sendStatusMessage()
 {
   /*sendMessage(statusMessageTemplate, 19, 19, 0);
-  Serial.print("!");
+  Serial.print(F("!"));
   Serial.print(Timer1.millis()); 
-  Serial.print(" ");
+  Serial.print(F(" "));
   Serial.print(lastStatusMillis + millisBetweenStatus);*/
   lastStatusMillis = Timer1.millis();
 }

@@ -43,6 +43,7 @@ class MessageDestination
     }
 
     MESSAGE_RESULT append(const byte* data, size_t dataLen);
+    MESSAGE_RESULT append(const __FlashStringHelper* data, size_t dataLen);
     MESSAGE_RESULT append(const char* data, size_t dataLen);
 
     MESSAGE_RESULT appendData(MessageSource& source, size_t maxBytes);

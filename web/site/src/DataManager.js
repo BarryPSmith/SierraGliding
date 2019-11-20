@@ -9,7 +9,9 @@ export default class DataManager {
         this.desiredResolution= 2000;
         this.minResolution= 1000;
         this.maxResolution= 4000;
-        this.maxDataPoints= 8000;
+        this.maxDataPoints = 8000;
+
+        this.unit = 'mph';
         
         // Sample properties=
         this.currentSampleInterval= null;
@@ -160,7 +162,7 @@ export default class DataManager {
             
             this.stationData.splice(i, 0, ...newStationData);
             this.windDirectionData.splice(i, 0, ...newStationData.map(this.get_wind_dir_entry));
-            this.windspeedData.splice(i, 0, ...newStationData.map(this.get_wind_spd_entry));
+            this.windspeedData.splice(i, 0, ...newStationData.map(this.get_wind_spd_entry, this));
             this.batteryData.splice(i, 0, ...newStationData.map(this.get_batt_entry));
 
             if (typeof this.onDataAdded == 'function')
@@ -201,9 +203,10 @@ export default class DataManager {
     }
     
     get_wind_spd_entry(entry) {
+        const factor = this.unit == 'mph' ? 1.6 : 1.0;
         return {
             x: new Date(entry.timestamp * 1000),
-            y: entry.windspeed
+            y: entry.windspeed / factor
         };
     }
     
@@ -230,7 +233,7 @@ export default class DataManager {
                 if (promiseToken == this.curPromiseToken) {
                     this.stationData = newStationData;
                     this.windDirectionData = newStationData.map(this.get_wind_dir_entry);
-                    this.windspeedData = newStationData.map(this.get_wind_spd_entry);
+                    this.windspeedData = newStationData.map(this.get_wind_spd_entry, this);
                     this.batteryData = newStationData.map(this.get_batt_entry);
 
                     if (typeof this.onDataReplaced == 'function')

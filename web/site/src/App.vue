@@ -301,7 +301,7 @@ export default {
             const chart = this.charts.windspeed;
             const start = this.cur_start();
             const end = this.cur_end();
-            const minMax = this.station.legend.windspeed[this.station.legend.windspeed.length - 1].top;
+            const minMax = this.station.legend.windspeed[this.station.legend.windspeed.length - 1].top / (this.dataManager.unit == 'mph' ? 1.6 : 1.0);
             let startIdx = bs(dataset, start, (element, needle) => element.x - needle);
             let endIdx = bs(dataset, end, (element, needle) => element.x - needle);
             if (startIdx < 0)
@@ -443,7 +443,7 @@ export default {
                         wsOpts.scales.yAxes[0].ticks.stepSize = 5;
                         const wsData = {
                             datasets: [{
-                                label: 'WindSpeed (km/h)',
+                                label: 'WindSpeed (' + this.dataManager.unit + ')',
                                 pointBackgroundColor: 'black',
                                 pointBorderColor: 'black',
                                 pointRadius: 0,
@@ -674,8 +674,7 @@ export default {
         },
         set_speed_annotations: function() {
             let lastVal = 0;
-            
-            
+            const factor = this.dataManager.unit == 'mph' ? 1.6 : 1.0;
             let last = {};
             this.charts.windspeed.options.annotation.annotations = [];
             for (const entry of this.station.legend.windspeed)
@@ -684,8 +683,8 @@ export default {
                     type: 'box',
                     xScaleID: 'x-axis-0',
                     yScaleID: 'y-axis-0',
-                    yMin: lastVal,
-                    yMax: entry.top,
+                    yMin: lastVal / factor,
+                    yMax: entry.top / factor,
                     //xMax: maxX,
                     //xMin: minX,
                     backgroundColor: entry.color,

@@ -24,6 +24,10 @@ unsigned long overrideStartMillis = 0;
 unsigned long overrideDuration = 0;
 bool overrideShort = false;
 
+#ifdef DEBUG
+extern volatile bool windTicked;
+#endif // DEBUG
+
 
 //Recent Memory
 unsigned long lastStatusMillis = 0;
@@ -88,14 +92,23 @@ void setup() {
 void loop() {
 
   readMessages();
-  bool localWeatherRequired;
+  
   noInterrupts();
-  localWeatherRequired = weatherRequired;
+  bool localWeatherRequired = weatherRequired;
   weatherRequired = false;
+#ifdef DEBUG
+  bool localWindTicked = windTicked;
+  windTicked = false;
+#endif
   interrupts();
+
+#ifdef DEBUG
+  if (localWindTicked)
+    AWS_DEBUG_PRINTLN(F("Wind Tick"));
+#endif
+
   if (localWeatherRequired)
   {
-    AWS_DEBUG_PRINTLN(F("I'm going to send a weather message."));
     sendWeatherMessage();
     #if DEBUG_Speed
     if (speedDebugging)
@@ -114,9 +127,7 @@ void loop() {
     sendStatusMessage();
   }
 
-  AWS_DEBUG_PRINTLN(F("I'm tired. Goodnight."));
   sleepUntilNextWeather();
-  AWS_DEBUG_PRINTLN(F("I'm Awake!"));
 }
 
 //A test board has a RFM69 on it for reading Davis weather stations.

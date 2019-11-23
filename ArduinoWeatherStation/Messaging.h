@@ -5,6 +5,7 @@
 #if defined(MOTEINO_96)
 #define SX_SELECT 10
 #define SX_DIO1 2
+#define SX_DIO2 3
 #define SX_BUSY -1
 #define RADIO_TYPE SX1278
 #define RX_TIMEOUT
@@ -12,6 +13,7 @@
 #else
 #define SX_SELECT 9
 #define SX_DIO1 2
+#define SX_DIO2 -1
 #define SX_BUSY 4
 #define RADIO_TYPE CSMAWrapper<SX1262>
 #define RX_TIMEOUT SX126X_RX_TIMEOUT_INF
@@ -27,6 +29,9 @@
 
 void InitMessaging();
 bool HandleMessageCommand(MessageSource& src);
+#ifdef DEBUG
+int scanChannel();
+#endif
 
 class LoraMessageSource : public MessageSource
 {

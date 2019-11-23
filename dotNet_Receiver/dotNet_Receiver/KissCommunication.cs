@@ -29,6 +29,8 @@ namespace dotNet_Receiver
 
         public Stream NonPacketStream { get; set; }
 
+        public Stream SerialStream { get; private set; }
+
         public static IPEndPoint CreateIPEndPoint(string endPoint)
         {
             string[] ep = endPoint.Split(':');
@@ -106,7 +108,9 @@ namespace dotNet_Receiver
                 port.StopBits = StopBits.One;
                 port.Handshake = Handshake.None;
                 port.Open();
+                SerialStream = port.BaseStream;
                 ReadStream(port.BaseStream);
+                SerialStream = null;
                 port.Close();
             }
         }
@@ -190,6 +194,34 @@ namespace dotNet_Receiver
 
         }
 
+        public void WriteSerial(Stream dataStream, byte writeType = 0x00)
+        {
+            if (SerialStream == null)
+                throw new InvalidOperationException("Serial Stream is not present.");
+
+            using (BinaryWriter writer = new BinaryWriter(SerialStream, Encoding.ASCII, true))
+            {
+                writer.Write(FEND);
+                writer.Write(writeType);
+                for (var cur = dataStream.ReadByte(); cur != -1; cur = dataStream.ReadByte())
+                {
+                    var curByte = (byte)cur;
+                    if (curByte == FESC)
+                    {
+                        writer.Write(FESC);
+                        writer.Write(TFESC);
+                    }
+                    else if (curByte == FEND)
+                    {
+                        writer.Write(FESC);
+                        writer.Write(TFEND);
+                    }
+                    else
+                        writer.Write(curByte);
+                }
+                writer.Write(FEND);
+            }
+        }
         public void Disconnect()
         {
             _disconnectRequested = true;

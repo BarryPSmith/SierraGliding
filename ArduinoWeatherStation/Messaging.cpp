@@ -9,7 +9,7 @@
 #define LORA_CHECK(A) { auto res = A; if(res) { Serial.print(F("FAILED " #A ": ")); Serial.println(res); } } while(0)
 
 //Hardware pins:
-Module mod(SX_SELECT, SX_DIO1, -1, SX_BUSY);
+Module mod(SX_SELECT, SX_DIO1, SX_DIO2, SX_BUSY);
 
 //These use 100 bytes (Seems alot)
 RADIO_TYPE lora = &mod; //28 bytes
@@ -46,11 +46,11 @@ void InitMessaging()
     LORA_CR
   ));
   LORA_CHECK(lora.setOutputPower(outputPower));
-  LORA_CHECK(lora.setCurrentLimit(140));
-  LORA_CHECK(lora.setDio2AsRfSwitch());
 #if defined(MOTEINO_96)
   lora.setDio0Action(rxDone);
 #else
+  LORA_CHECK(lora.setCurrentLimit(140));
+  LORA_CHECK(lora.setDio2AsRfSwitch());
   lora.enableIsChannelBusy();
   lora.setRxDoneAction(rxDone);
 #endif
@@ -59,6 +59,13 @@ void InitMessaging()
 
   initialised = true;
 }
+
+#ifdef DEBUG
+int scanChannel()
+{
+  return lora.scanChannel();
+}
+#endif
 
 static void rxDone()
 {

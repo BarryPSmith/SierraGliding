@@ -29,6 +29,9 @@ void updateSendInterval(float batteryVoltage);
 void setTimerInterval();
 
 volatile int windCounts = 0;
+#ifdef DEBUG
+volatile bool windTicked = false;
+#endif
 
 const float V_Ref = 3.8;
 const float BattVDivider = 49.1/10;
@@ -56,6 +59,8 @@ byte getWindDirection()
 byte getWindDirectionDavis()
 {
   int wdVoltage = analogRead(windDirPin);
+  AWS_DEBUG_PRINT("wdVoltage: ");
+  AWS_DEBUG_PRINTLN(wdVoltage);
   return wdVoltage / 4;
 }
 
@@ -134,31 +139,35 @@ void createWeatherData(MessageDestination& message)
   //Message format is W(StationID)(UniqueID)(DirHex)(Spd * 2)(Voltage)
     int batteryVoltageReading = analogRead(voltagePin);
     float battV = V_Ref * batteryVoltageReading / 1023 * BattVDivider;
-
+    AWS_DEBUG_PRINTLN(F("  ======================"));
+    AWS_DEBUG_PRINT(F("batteryVoltageReading: "));
+    AWS_DEBUG_PRINTLN(batteryVoltageReading);
+    AWS_DEBUG_PRINT(F("battV: "));
+    AWS_DEBUG_PRINTLN(battV);
+    AWS_DEBUG_PRINT(F("Wind Counts: "));
+    AWS_DEBUG_PRINTLN(windCounts);
     float windSpeed = getWindSpeed();
 
     //Update the send interval only after we calculate windSpeed, because windSpeed is dependent on weatherInterval
     updateSendInterval(battV);
   
     byte windDirection = getWindDirection();
+    AWS_DEBUG_PRINT(F("windDirection byte: "));
+    AWS_DEBUG_PRINTLN(windDirection);
     message.appendByte(windDirection);
-    message.appendByte((byte)(windSpeed * 2));
+    byte wsByte = (byte)(windSpeed * 2);
+    AWS_DEBUG_PRINT(F("windSpeed byte: "));
+    AWS_DEBUG_PRINTLN(wsByte);
+    message.appendByte(wsByte);
     //Lead Acid
     //Expected voltage range: 10 - 15V
     //Divide by 3, gives 0.33 - 5V
     //Binary values 674 - 1024 (range: 350)
     byte batteryByte = (byte)(255 * (battV - MinBattV) / (MaxBattV - MinBattV) + 0.5);
     message.appendByte(batteryByte);
-    AWS_DEBUG_PRINT(F("BVR: "));
-    AWS_DEBUG_PRINT(batteryVoltageReading);
-    AWS_DEBUG_PRINT(F(", BV: "));
-    AWS_DEBUG_PRINT(battV, 1);
-    //AWS_DEBUG_PRINT(SP, HEX);
-    AWS_DEBUG_PRINT(F(", BB: "));
-    AWS_DEBUG_PRINT(batteryByte, HEX);
-    AWS_DEBUG_PRINT(F(", BBI: "));
-    AWS_DEBUG_PRINT(7.5 + 7.5 / 255 * batteryByte);
-    AWS_DEBUG_PRINTLN();
+    AWS_DEBUG_PRINT(F("batteryByte: "));
+    AWS_DEBUG_PRINTLN(batteryByte, HEX);
+    AWS_DEBUG_PRINTLN(F("  ======================"));
 }
 
 void updateSendInterval(float batteryVoltage)
@@ -261,12 +270,18 @@ void countWind()
     return;
   lastWindCountMillis = Timer1.millis();
   windCounts++;
+  
+#ifdef DEBUG
+  windTicked = true;
+#endif
 }
 
 void setupWindCounter()
 {
   windCounts = 0;
-  digitalWrite(windSpdPin, HIGH);
+  //pinMode or digitalWrite should give the same results:
+  pinMode(windSpdPin, INPUT_PULLUP);
+  //digitalWrite(windSpdPin, HIGH);
   attachInterrupt(digitalPinToInterrupt(windSpdPin), countWind, RISING);
 }
 

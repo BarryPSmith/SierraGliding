@@ -1,4 +1,5 @@
-﻿using System;
+﻿using core_Receiver;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -162,16 +163,44 @@ Arguments:
                     if (serialArgIndex >= 0)
                         tasks.Add(Task.Run(() => _dataReceiver.ConnectSerial(serialAddress)));
 
-                    Console.WriteLine("Reading data. Press q key to exit.");
+                    Console.WriteLine("Reading data. Type '/' followed by a command to send. Press q key to exit.");
+                    CommandInterpreter interpreter = new CommandInterpreter(_dataReceiver);
+                    var trueOut = Console.Out;
+                    interpreter.Output = trueOut;
                     while (true)
                     {
-                        var key = Console.ReadKey();
-                        if (key.KeyChar == 'q')
+                        bool exit = false;
+                        try
                         {
-                            Console.WriteLine("Shutting Down...");
-                            _dataReceiver.Disconnect();
-                            Task.WaitAll(tasks.ToArray());
-                            return;
+                            var key = Console.ReadKey();
+                            using (var ms = new MemoryStream())
+                            using (StreamWriter sw = new StreamWriter(ms))
+                            {
+                                Console.SetOut(sw);
+                                var line2 = Console.ReadLine();
+                                var line = key.KeyChar + line2;
+                                if (!interpreter.HandleLine(line))
+                                {
+                                    exit = true;
+                                    Console.WriteLine("Shutting Down...");
+                                    _dataReceiver.Disconnect();
+                                    Task.WaitAll(tasks.ToArray());
+                                    return;
+                                }
+                                sw.Flush();
+                                trueOut.Write(sw.Encoding.GetString(ms.ToArray()));
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            if (exit)
+                                throw;
+                            else
+                                Console.Error.WriteLine(ex.Message);
+                        }
+                        finally
+                        {
+                            Console.SetOut(trueOut);
                         }
                     }
                 }

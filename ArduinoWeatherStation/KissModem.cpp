@@ -39,9 +39,10 @@ int main()
 
   
   
-  sendMaxPowerCommand();
-  Serial.println(F("Max Power command sent"));
+  //sendMaxPowerCommand();
+  //Serial.println(F("Max Power command sent"));
 
+  int i =0;
   while (1)
   {
     LoraMessageSource loraSrc;

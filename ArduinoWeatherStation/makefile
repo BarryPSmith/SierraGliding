@@ -1,6 +1,6 @@
 #COM port for upload
 PORT=COM11
-PORT_MODEM=COM16
+PORT_MODEM=COM7
 #Hardware spects
 MCU=atmega328p
 F_CPU=16000000L
@@ -8,9 +8,10 @@ PROG_BAUD=115200
 
 #Flags, etc.
 DEFINES=-DF_CPU=$(F_CPU) -DARDUINO=100 -DDEBUG
-DEFINES_MODEM=-DF_CPU=$(F_CPU) -DARDUINO=100 
-#-DMOTEINO_96
-CFLAGS= -mcall-prologues -mmcu=$(MCU) -Os -fdata-sections -ffunction-sections
+#We can put in these defines to save ~100 bytes of serial buffer memory if we need it.
+#-DSERIAL_RX_BUFFER_SIZE=8 -DSERIAL_TX_BUFFER_SIZE=16
+DEFINES_MODEM=-DF_CPU=$(F_CPU) -DARDUINO=100 -DMOTEINO_96 -DDEBUG
+CFLAGS= -mcall-prologues -mmcu=$(MCU) -Os -fdata-sections -ffunction-sections -flto -fno-exceptions
 LDFLAGS=-Wl,--gc-sections -Wl,--relax
 CC=avr-gcc
 
@@ -86,4 +87,4 @@ modem.obj: $(SRCS_MOD) $(SRCS_H) revid
     $(CC) $(INCLUDES) $(DEFINES_MODEM) $(CFLAGS) $(SRCS_MOD) $(LDFLAGS) -o $@
 
 program_modem: modem.hex
-    avrdude -c arduino -p $(MCU) -P $(PORT_MODEM) -b 57600 -U modem.hex
+    avrdude -c arduino -p $(MCU) -P $(PORT_MODEM) -b $(PROG_BAUD) -U modem.hex

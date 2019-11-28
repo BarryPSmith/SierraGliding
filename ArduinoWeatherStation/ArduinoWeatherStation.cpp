@@ -10,6 +10,7 @@
 #include "WeatherProcessing.h"
 #include "MessageHandling.h"
 #include "SleepyTime.h"
+#include "TimerTwo.h"
 
 //Setup Variables //1910
 unsigned long shortInterval = 4000 - 90 * (stationID - '1'); //Send interval when battery voltage is high. We make sure each station has a different interval to avoid them both transmitting simultaneously for extended periods.
@@ -40,10 +41,9 @@ void sleepUntilNextWeather();
 int main()
 {
   //Arduino library initialisaton:
-  //AFAICT, Init is only for the millis / micros timer
-  //init();
-  sei();
-
+  init();
+  TimerTwo::initialise();
+  
   randomSeed(digitalRead(A0));
 
 
@@ -61,11 +61,11 @@ int main()
 void setup() {
   //gotta do this first to get our timers running:
   setupWeatherProcessing();
+#ifdef DEBUG
   Serial.begin(tncBaud);
-  Serial.println(F("Starting..."));
+#endif // DEBUG
+  AWS_DEBUG_PRINTLN(F("Starting..."));
   delay(50);
-
-  AWS_DEBUG_PRINTLN(F("Serial Begun"));
 
 #ifdef DEBUG
   pinMode(5, OUTPUT);
@@ -86,7 +86,7 @@ void setup() {
     
   sendStatusMessage();
 
-  lastStatusMillis = Timer1.millis();
+  lastStatusMillis = millis();
 }
 
 void loop() {
@@ -122,7 +122,7 @@ void loop() {
     AWS_DEBUG_PRINTLN(F("Weather message sent."));
   }
   
-  if (Timer1.millis() - lastStatusMillis > millisBetweenStatus)
+  if (millis() - lastStatusMillis > millisBetweenStatus)
   {
     sendStatusMessage();
   }
@@ -153,16 +153,29 @@ void disableRFM69()
 
 void sleepUntilNextWeather()
 {
+#if DEBUG
   //Flush the serial or we risk writing garbage or being woken by a send complete message.
   Serial.flush();
+#endif
+#if false
   LowPower.idle(SLEEP_FOREVER,
                 ADC_OFF,
-                TIMER2_OFF,
-                TIMER1_ON,
+                TIMER2_ON,
+                TIMER1_OFF,
                 TIMER0_OFF,
                 SPI_ON,
+#ifdef DEBUG
                 USART0_ON,
+#else
+                USART0_OFF,
+#endif          
                 TWI_OFF);
+#else
+  LowPower.powerSave(SLEEP_FOREVER, //we're actually going to wake up on our next timer2 or wind tick.
+                     ADC_OFF,
+                     BOD_ON,
+                     TIMER2_ON);
+#endif
 }
 
 #ifdef DEBUG

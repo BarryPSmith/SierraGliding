@@ -245,7 +245,7 @@ void recordHeardStation(byte msgStatID)
     i--;
   memmove(recentlySeenStations + 1, recentlySeenStations, i * 5);
   
-  unsigned long curMillis = Timer1.millis();
+  unsigned long curMillis = millis();
   recentlySeenStations[0][0] = msgStatID;
   memcpy(recentlySeenStations[0] + 1, &curMillis, 4);
 }
@@ -282,12 +282,8 @@ void sendWeatherMessage()
 
 void sendStatusMessage()
 {
-  /*sendMessage(statusMessageTemplate, 19, 19, 0);
-  Serial.print(F("!"));
-  Serial.print(Timer1.millis()); 
-  Serial.print(F(" "));
-  Serial.print(lastStatusMillis + millisBetweenStatus);*/
-  lastStatusMillis = Timer1.millis();
+  // TODO
+  lastStatusMillis = millis();
 }
 
 void ZeroMessagingArrays()

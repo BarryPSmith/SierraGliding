@@ -1,4 +1,4 @@
-#include <TimerOne.h>
+#include "TimerTwo.h"
 #include "Messaging.h"
 #include "WeatherProcessing.h"
 #include "ArduinoWeatherStation.h"
@@ -11,13 +11,11 @@
 #endif
 
 volatile bool weatherRequired = true;
-//int overrun:
-//4 second interval, * 65536 = 2.5E5 seconds (several days)
-unsigned int tickCounts = 0;
-unsigned volatile int requiredTicks = 1;
+unsigned volatile long tickCounts = 0;
+unsigned long requiredTicks = 1;
 
 void countWind();
-void timer1Tick();
+void timer2Tick();
 #ifdef DAVIS_WIND
 byte getWindDirectionDavis();
 #elif defined(ARGENTDATA_WIND)
@@ -172,9 +170,8 @@ void createWeatherData(MessageDestination& message)
 
 void updateSendInterval(float batteryVoltage)
 {
-  //This is always called shortly after Timer1 resets. We shouldn't expect major issues
   unsigned long oldInterval = weatherInterval;
-  bool overrideActive = Timer1.millis() - overrideStartMillis < overrideDuration;
+  bool overrideActive = millis() - overrideStartMillis < overrideDuration;
   if ((!overrideActive && batteryVoltage < batteryThreshold - 2) ||
       (overrideActive && !overrideShort))
   {
@@ -185,22 +182,22 @@ void updateSendInterval(float batteryVoltage)
   {
     weatherInterval = shortInterval;
   }
-  //Ensure that once we get out of override, we won't accidently go back into it due to Timer1.millis wraparound.
+  //Ensure that once we get out of override, we won't accidently go back into it due to millis wraparound.
   if (!overrideActive)
     overrideDuration = 0;
-
-  if (oldInterval != weatherInterval)
-    setTimerInterval();
+  
+  setTimerInterval();
 }
 
 void setTimerInterval()
 {
-  unsigned long microInterval = weatherInterval * 1000;
-  auto sreg = SREG;
-  noInterrupts();
-  requiredTicks = (microInterval - 1) / Timer1.MaxMicros + 1;
-  SREG = sreg;
-  Timer1.setPeriod(microInterval / requiredTicks);
+  requiredTicks = weatherInterval / TimerTwo::MillisPerTick;
+  if (requiredTicks < 1)
+  {
+    AWS_DEBUG_PRINTLN("Required ticks is zero!");
+    requiredTicks = 1;
+  }
+  weatherInterval = requiredTicks * TimerTwo::MillisPerTick;
 }
 
 #if DEBUG_Speed
@@ -262,13 +259,13 @@ constexpr unsigned long minWindInterval = 6; //160 MPH = broken station;
 void countWind()
 {
   #if DEBUG_Speed
-  speedTicks[curSpeedLocation++] = Timer1.millis();
+  speedTicks[curSpeedLocation++] = millis();
   curSpeedLocation = curSpeedLocation % 200;
   #endif
   // debounce the signal:
-  if (Timer1.millis() - lastWindCountMillis < minWindInterval)
+  if (millis() - lastWindCountMillis < minWindInterval)
     return;
-  lastWindCountMillis = Timer1.millis();
+  lastWindCountMillis = millis();
   windCounts++;
   
 #ifdef DEBUG
@@ -290,7 +287,7 @@ void sendDirectionDebug()
 {
   static unsigned long lastDirectionDebug = 0;
   //Ensure we don't flood our messaging capabilities. We're sending 500 bytes, this should take about 5 seconds...
-  if (Timer1.millis() - lastDirectionDebug < 5000)
+  if (millis() - lastDirectionDebug < 5000)
     return;
   if (!directionDebugging)
   {
@@ -306,30 +303,28 @@ void sendDirectionDebug()
   msg[2] = getUniqueID();
   int* data = (int*)(msg + 3);
   size_t dataLen = (bufferSize - messageOffset - 3 - 15) / sizeof(int); //-15 to allow extra bytes for escaping
-  unsigned long lastMillis = Timer1.millis();
+  unsigned long lastMillis = millis();
   int i = 0;
   while (i < dataLen)
   {
-    if (Timer1.millis() - lastMillis < interval)
+    if (millis() - lastMillis < interval)
       continue;
     data[i++] = analogRead(windDirPin);
   }
   size_t messageLen = dataLen * 2 + 3;
   sendMessage(msgBuffer, messageLen, bufferSize);
-  lastDirectionDebug = Timer1.millis();
+  lastDirectionDebug = millis();
 }
 #endif
 
 void setupWeatherProcessing()
 {
-  Timer1.initialize(1000000);
   setTimerInterval();
-  Timer1.start();
-  Timer1.attachInterrupt(&timer1Tick);
+  TimerTwo::attachInterrupt(&timer2Tick);
   setupWindCounter();
 }
 
-void timer1Tick()
+void timer2Tick()
 {
   if (++tickCounts >= requiredTicks)
   {

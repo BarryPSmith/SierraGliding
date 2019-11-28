@@ -23,6 +23,7 @@
 
 unsigned long micros();
 void yield();
+void initADC();
 
 void delay(unsigned long ms)
 {
@@ -164,6 +165,10 @@ void init()
 	// this needs to be called before setup() or some functions won't
 	// work there
 	sei();
+
+  initADC();
+  //We don't use timers in the standard way, so return:
+  return;
 	
 	// on the ATmega168, timer 0 is also used for fast hardware pwm
 	// (using phase-correct PWM would mean that timer 0 overflowed half as often
@@ -270,7 +275,18 @@ void init()
 	sbi(TCCR5B, CS50);
 	sbi(TCCR5A, WGM50);		// put timer 5 in 8-bit phase correct pwm mode
 #endif
+	// the bootloader connects pins 0 and 1 to the USART; disconnect them
+	// here so they can be used as normal digital i/o; they will be
+	// reconnected in Serial.begin()
+#if defined(UCSRB)
+	UCSRB = 0;
+#elif defined(UCSR0B)
+	UCSR0B = 0;
+#endif
+}
 
+void initADC()
+{
 #if defined(ADCSRA)
 	// set a2d prescaler so we are inside the desired 50-200 KHz range.
 	#if F_CPU >= 16000000 // 16 MHz / 128 = 125 KHz
@@ -300,14 +316,5 @@ void init()
 	#endif
 	// enable a2d conversions
 	sbi(ADCSRA, ADEN);
-#endif
-
-	// the bootloader connects pins 0 and 1 to the USART; disconnect them
-	// here so they can be used as normal digital i/o; they will be
-	// reconnected in Serial.begin()
-#if defined(UCSRB)
-	UCSRB = 0;
-#elif defined(UCSR0B)
-	UCSR0B = 0;
 #endif
 }

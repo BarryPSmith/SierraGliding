@@ -6,7 +6,7 @@
 #include "CSMA.h"
 #include "ArduinoWeatherStation.h"
 
-#define LORA_CHECK(A) { auto res = A; if(res) { Serial.print(F("FAILED " #A ": ")); Serial.println(res); } } while(0)
+#define LORA_CHECK(A) { auto res = A; if(res) { AWS_DEBUG_PRINT(F("FAILED " #A ": ")); AWS_DEBUG_PRINTLN(res); } } while(0)
 
 //Hardware pins:
 Module mod(SX_SELECT, SX_DIO1, SX_DIO2, SX_BUSY);
@@ -192,14 +192,14 @@ bool LoraMessageSource::beginMessage()
   auto state2 = lora.startReceive();
   if (state2 != ERR_NONE)
   {
-    Serial.print(F("startReceive error: "));
-    Serial.println(state2);
+    AWS_DEBUG_PRINTLN(F("startReceive error: "));
+    AWS_DEBUG_PRINTLN(state2);
   }
   #endif
   if (state != ERR_NONE)
   {
-    Serial.print(F("readData error: "));
-    Serial.println(state);
+    AWS_DEBUG_PRINT(F("readData error: "));
+    AWS_DEBUG_PRINTLN(state);
     return false;
   }
 

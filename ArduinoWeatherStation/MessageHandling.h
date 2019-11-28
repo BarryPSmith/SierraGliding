@@ -7,7 +7,7 @@ void sendWeatherMessage();
 const int recentArraySize = 20; //We use 14 bytes for each of these. 280 bytes.
 
 //We keep track of recently seen stations to allow network debugging / optimisation
-extern byte recentlySeenStations[recentArraySize][5]; //5 bytes per record: 1 byte for station ID, 4 bytes for Timer1.millis() when seen. 100 bytes
+extern byte recentlySeenStations[recentArraySize][5]; //5 bytes per record: 1 byte for station ID, 4 bytes for millis() when seen. 100 bytes
 //We keep track of recently relayed messages to avoid relaying the same message multiple times
 extern byte recentlyRelayedMessages[recentArraySize][3]; //3 bytes per record: msg type, stationID, uniqueID. 60 bytes
 //We keep track of recently handled commands to avoid executing the same command multiple times

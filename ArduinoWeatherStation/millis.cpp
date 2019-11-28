@@ -1,10 +1,10 @@
 // redirect millis to the timer1 implementations:
-#include <TimerOne.h>
+#include "TimerTwo.h"
 
 unsigned long millis() {
-	return Timer1.millis();
+	return TimerTwo::millis();
 }
 
 unsigned long micros() {
-  return Timer1.micros();
+  return TimerTwo::micros();
 }

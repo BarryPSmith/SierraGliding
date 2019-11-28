@@ -71,8 +71,10 @@ Arguments:
                      idx >= 0;
                      idx = Array.FindIndex(args, idx + 1, arg => arg.Equals("--dest", StringComparison.OrdinalIgnoreCase)))
                 destUrls.Add(args[idx + 1]);
+#if false
             if (!destUrls.Any())
                 destUrls.Add("http://localhost:4000");
+#endif
 
             var npsFnIndex = Array.FindIndex(args, arg => arg.Equals("--nonPacket", StringComparison.OrdinalIgnoreCase));
             if (npsFnIndex >= 0)

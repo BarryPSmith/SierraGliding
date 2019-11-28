@@ -2,7 +2,7 @@
   "profiles": {
     "core_Receiver": {
       "commandName": "Project",
-      "commandLineArgs": "--serial COM15"
+      "commandLineArgs": "--serial COM16"
     }
   }
 }

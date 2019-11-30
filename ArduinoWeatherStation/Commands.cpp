@@ -3,6 +3,7 @@
 #include "Messaging.h"
 #include "MessageHandling.h"
 #include "ArduinoWeatherStation.h"
+#include "PermanentStorage.h"
 
 bool handleRelayCommand(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific);
 bool handleIntervalCommand(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific);
@@ -125,6 +126,10 @@ bool handleRelayCommand(MessageSource& msg, bool demandRelay, byte uniqueID, boo
     return false;
   if (dataLength == 0)
     return false;
+  byte stationsToRelayWeather[permanentArraySize], 
+       stationsToRelayCommands[permanentArraySize];
+  GET_PERMANENT(stationsToRelayWeather);
+  GET_PERMANENT(stationsToRelayCommands);
   for (int i = 0; i + 2 < dataLength; i+=3)
   {
     byte opByte;
@@ -146,6 +151,7 @@ bool handleRelayCommand(MessageSource& msg, bool demandRelay, byte uniqueID, boo
       return false;
 
     byte* list = isWeather ? stationsToRelayWeather : stationsToRelayCommands;
+
     if (isAdd)
     {
       //Check if it already exists, and check if we have space to add it
@@ -178,6 +184,8 @@ bool handleRelayCommand(MessageSource& msg, bool demandRelay, byte uniqueID, boo
         list[i - 1] = 0;
     }
   }
+  SET_PERMANENT(stationsToRelayWeather);
+  SET_PERMANENT(stationsToRelayCommands);
   acknowledgeMessage(uniqueID, isSpecific, demandRelay);
   return true;
 }
@@ -189,6 +197,7 @@ bool handleIntervalCommand(MessageSource& msg, bool demandRelay, byte uniqueID, 
   if (msg.readByte(dataLength) || dataLength == 0)
     return false;
 
+  unsigned long shortInterval, longInterval;
   if (dataLength == 2)
   {
     byte tmp;
@@ -222,6 +231,10 @@ bool handleIntervalCommand(MessageSource& msg, bool demandRelay, byte uniqueID, 
   }
   else
     return false;
+
+  SET_PERMANENT_S(shortInterval);
+  SET_PERMANENT_S(longInterval);
+
   acknowledgeMessage(uniqueID, isSpecific, demandRelay);
   return true;
 }
@@ -269,16 +282,16 @@ bool handleOverrideCommand(MessageSource& msg, bool demandRelay, byte uniqueID, 
 //Threshold command: C(ID)(UID)B(new threshold)
 bool handleThresholdCommand(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific)
 {
-  int tmp;
-  if (msg.read(tmp))
+  float batteryThreshold;
+  if (msg.read(batteryThreshold))
     return false;
-  batteryThreshold = tmp;
+  SET_PERMANENT_S(batteryThreshold);
   acknowledgeMessage(uniqueID, isSpecific, demandRelay);
   return true;
 }
 
 //Query command: C(ID)(UID)Q
-bool handleQueryCommand(bool demandRelay, byte uniqueID)
+bool handleQueryCommand(bool responseDemandRelay, byte uniqueID)
 {
   //Response is currently at 204 bytes. Beware buffer overrun.
   
@@ -286,19 +299,27 @@ bool handleQueryCommand(bool demandRelay, byte uniqueID)
   MESSAGE_DESTINATION_SOLID response;
   //byte messageBuffer[bufferSize];
   //byte* responseBuffer = messageBuffer + messageOffset;
-  if (demandRelay)
+  if (responseDemandRelay)
     response.appendByte('K' | 0x80);
   else
     response.appendByte('K');
   response.appendByte(stationID);
   response.appendByte(uniqueID);
 
-  //Version (4 bytes)
+  //Version (a few bytes)
   response.appendByte('V');
-  response.append(ver, 3);
+  response.append(ver, strlen_P((const char*)ver));
   response.appendByte(0);
   
   //Setup Variables (31 bytes)
+  bool demandRelay;
+  unsigned long shortInterval, longInterval;
+  float batteryThreshold;
+  GET_PERMANENT_S(demandRelay);
+  GET_PERMANENT_S(shortInterval);
+  GET_PERMANENT_S(longInterval);
+  GET_PERMANENT_S(batteryThreshold);
+
   response.appendByte(demandRelay);
   response.appendByte('I');
   response.appendT(weatherInterval);
@@ -318,13 +339,17 @@ bool handleQueryCommand(bool demandRelay, byte uniqueID)
 
   //Stations to relay, max 42 bytes:
   response.appendByte('R');
-  for (int i = 0; i < recentArraySize; i++)
+  byte stationsToRelayCommands[permanentArraySize];
+  GET_PERMANENT(stationsToRelayCommands);
+  for (int i = 0; i < permanentArraySize; i++)
   {
     if (!stationsToRelayCommands[i])
       break;
     response.appendByte(stationsToRelayCommands[i]);
   }
   response.appendByte(0);
+  byte stationsToRelayWeather[permanentArraySize];
+  GET_PERMANENT(stationsToRelayWeather);
   for (int i = 0; i < recentArraySize; i++)
   {
     if (!stationsToRelayWeather[i])
@@ -337,11 +362,11 @@ bool handleQueryCommand(bool demandRelay, byte uniqueID)
   response.appendByte('S');
   for (int i = 0; i < recentArraySize; i++)
   {
-    if (!recentlySeenStations[i][0])
+    if (!recentlySeenStations[i].id)
     {
       break;
     }
-    response.append(&recentlySeenStations[i][0], 5);
+    response.appendT(recentlySeenStations[i]);
   }
   response.appendByte(0);
 
@@ -377,9 +402,9 @@ bool handleDebugCommand(bool demandRelay, byte uniqueID)
    //recently relayed messages, max 61 bytes
   for (int i = 0; i < recentArraySize; i++)
   {
-    if (!recentlyRelayedMessages[i][0])
+    if (!recentlyRelayedMessages[i].type)
       break;
-    response.append(&recentlyRelayedMessages[i][0], 3);
+    response.appendT(recentlyRelayedMessages[i]);
   }
   response.appendByte(0);
   return true;

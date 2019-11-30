@@ -11,19 +11,14 @@
 #include "MessageHandling.h"
 #include "SleepyTime.h"
 #include "TimerTwo.h"
+#include "PermanentStorage.h"
 
-//Setup Variables //1910
-unsigned long shortInterval = 4000 - 90 * (stationID - '1'); //Send interval when battery voltage is high. We make sure each station has a different interval to avoid them both transmitting simultaneously for extended periods.
-unsigned long longInterval = 30000; //Send interval when battery voltage is low
-float batteryThreshold = 12.0;
 float batteryHysterisis = 0.05;
-bool demandRelay = false;
 
-constexpr unsigned long weatherTolerance = 100;
 unsigned long weatherInterval = 2000; //Current weather interval.
-unsigned long overrideStartMillis = 0;
-unsigned long overrideDuration = 0;
-bool overrideShort = false;
+unsigned long overrideStartMillis;
+unsigned long overrideDuration;
+bool overrideShort;
 
 #ifdef DEBUG
 extern volatile bool windTicked;
@@ -44,9 +39,6 @@ int main()
   init();
   TimerTwo::initialise();
   
-  randomSeed(digitalRead(A0));
-
-
   setup();
   while (1)
   {
@@ -59,7 +51,8 @@ int main()
 
 
 void setup() {
-  //gotta do this first to get our timers running:
+  randomSeed(analogRead(A0));
+
   setupWeatherProcessing();
 #ifdef DEBUG
   Serial.begin(tncBaud);
@@ -67,7 +60,9 @@ void setup() {
   AWS_DEBUG_PRINTLN(F("Starting..."));
   delay(50);
 
-#ifdef DEBUG
+  PermanentStorage::initialise();
+  
+#if 0 //Useful to be able to output a state with pins. However, it looks like we might use them.
   pinMode(5, OUTPUT);
   pinMode(6, OUTPUT);
   pinMode(7, OUTPUT);
@@ -81,9 +76,7 @@ void setup() {
   InitMessaging();
 
   AWS_DEBUG_PRINTLN(F("Messaging Initialised"));
-
-  ZeroMessagingArrays();
-    
+  
   sendStatusMessage();
 
   lastStatusMillis = millis();

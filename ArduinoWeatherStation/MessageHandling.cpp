@@ -5,6 +5,7 @@
 #include "MessageHandling.h"
 #include "WeatherProcessing.h"
 #include "Callsign.h"
+#include "PermanentStorage.h"
 
 extern void handleCommandMessage(MessageSource& message, bool demandRelay, byte uniqueID, bool isSpecific);
 
@@ -16,13 +17,10 @@ void relayMessage(MessageSource& message, byte msgFirstByte, byte msgStatID, byt
 void recordMessageRelay(byte msgType, byte msgStatID, byte msgUniqueID);
 
 //These arrays use 320 bytes.
-byte recentlySeenStations[recentArraySize][5]; //100
-byte recentlyRelayedMessages[recentArraySize][3]; //60
+RecentlySeenStation recentlySeenStations[recentArraySize]; //100
+RecentlyRelayedMessage recentlyRelayedMessages[recentArraySize]; //60
 byte recentlyHandledCommands[recentArraySize]; //20
 byte curUniqueID = 0;
-
-byte stationsToRelayCommands[recentArraySize]; //20
-byte stationsToRelayWeather[recentArraySize]; //20 bytes
 
 byte weatherRelayBuffer[weatherRelayBufferSize]; //100
 byte weatherRelayLength = 0;
@@ -64,7 +62,7 @@ void readMessages()
 
     //If it's a command addressed to us (or global), handle it:
     if (msgType == 'C' && (msgStatID == stationID || msgStatID == 0))
-      handleCommandMessage(msg, demandRelay, msgUniqueID, msgStatID != 0);
+      handleCommandMessage(msg, relayDemanded, msgUniqueID, msgStatID != 0);
 
     //Record the weather stations we hear:
     if (msgType == 'W')
@@ -74,7 +72,7 @@ void readMessages()
     bool relayRequired = 
       msgStatID != stationID 
       &&
-      (demandRelay
+      (relayDemanded
         ||
         shouldRelay(msgType, msgStatID, msgUniqueID));
     if (relayRequired && !haveRelayed(msgType, msgStatID, msgUniqueID))
@@ -94,6 +92,9 @@ bool shouldRelay(byte msgType, byte msgStatID, byte msgUniqueID)
   bool ret = false;
   if (msgType == 'C' || msgType == 'K' || msgType == 'R')
   {
+    byte stationsToRelayCommands[permanentArraySize];
+    GET_PERMANENT(stationsToRelayCommands);
+
     for (int i = 0; i < recentArraySize; i++)
     {
       if (!stationsToRelayCommands[i])
@@ -107,6 +108,8 @@ bool shouldRelay(byte msgType, byte msgStatID, byte msgUniqueID)
   }
   else if (msgType == 'W')
   {
+    byte stationsToRelayWeather[permanentArraySize];
+    GET_PERMANENT(stationsToRelayWeather);
     for (int i = 0; i < recentArraySize; i++)
     {
       if (!stationsToRelayWeather[i])
@@ -126,13 +129,13 @@ bool haveRelayed(byte msgType, byte msgStatID, byte msgUniqueID)
     //Check if we've already relayed this message (more appropriate for command relays than weather)
   for (int i = 0; i < recentArraySize; i++)
   {
-    if (!recentlyRelayedMessages[i][0])
+    if (!recentlyRelayedMessages[i].type)
     {
       break;
     }
-    if (recentlyRelayedMessages[i][0] == msgType &&
-        recentlyRelayedMessages[i][1] == msgStatID &&
-        recentlyRelayedMessages[i][2] == msgUniqueID)
+    if (recentlyRelayedMessages[i].type == msgType &&
+        recentlyRelayedMessages[i].stationID == msgStatID &&
+        recentlyRelayedMessages[i].msgID == msgUniqueID)
     {
       return true;
     }
@@ -143,16 +146,13 @@ bool haveRelayed(byte msgType, byte msgStatID, byte msgUniqueID)
 void recordMessageRelay(byte msgType, byte msgStatID, byte msgUniqueID)
 {  
   memmove(recentlyRelayedMessages + 1, recentlyRelayedMessages, (recentArraySize - 1) * 3);
-  recentlyRelayedMessages[0][0] = msgType;
-  recentlyRelayedMessages[0][1] = msgStatID;
-  recentlyRelayedMessages[0][2] = msgUniqueID;
+  recentlyRelayedMessages[0].type = msgType;
+  recentlyRelayedMessages[0].stationID = msgStatID;
+  recentlyRelayedMessages[0].msgID = msgUniqueID;
 }
 
 byte getUniqueID()
 {
-  //Seems wasteful to send a unique ID that requires escaping
-  if (curUniqueID == FEND || curUniqueID == FESC)
-    curUniqueID++;
   return curUniqueID++;
 }
 
@@ -231,23 +231,24 @@ void recordHeardStation(byte msgStatID)
   int i = 0;
   for (; i < recentArraySize; i++)
   {
-    if (!recentlySeenStations[i][0])
+    if (!recentlySeenStations[i].id)
     {
       break;
     }
-    if (i < recentArraySize - 1 && recentlySeenStations[i][0]==msgStatID)
+    if (i < recentArraySize - 1 && recentlySeenStations[i].id ==msgStatID)
     {
-      memmove(recentlySeenStations + i, recentlySeenStations + i +1, 5 * (recentArraySize - i - 1));
+      memmove(recentlySeenStations + i, 
+              recentlySeenStations + i + 1, 
+              sizeof(RecentlySeenStation) * (recentArraySize - i - 1));
       i--;
     }
   }
   if (i == recentArraySize)
     i--;
-  memmove(recentlySeenStations + 1, recentlySeenStations, i * 5);
+  memmove(recentlySeenStations + 1, recentlySeenStations, sizeof(RecentlySeenStation) * i);
   
-  unsigned long curMillis = millis();
-  recentlySeenStations[0][0] = msgStatID;
-  memcpy(recentlySeenStations[0] + 1, &curMillis, 4);
+  recentlySeenStations[0].id = msgStatID;
+  recentlySeenStations[0].millis = millis();
 }
 
 void sendWeatherMessage()
@@ -284,13 +285,4 @@ void sendStatusMessage()
 {
   // TODO
   lastStatusMillis = millis();
-}
-
-void ZeroMessagingArrays()
-{
-  memset(stationsToRelayCommands, 0, recentArraySize);
-  memset(stationsToRelayWeather, 0, recentArraySize);
-  memset(recentlySeenStations, 0, recentArraySize * 5);
-  memset(recentlyRelayedMessages, 0, recentArraySize * 3);
-  memset(recentlyHandledCommands, 0, recentArraySize);
 }

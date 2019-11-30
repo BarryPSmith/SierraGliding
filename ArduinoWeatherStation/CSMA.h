@@ -54,9 +54,8 @@ class CSMAWrapper : public T
       return(ERR_NONE);
     }
 
-    int16_t setPByte(const int8_t newValue) {
+    void setPByte(const int8_t newValue) {
       _p = newValue;
-      return(ERR_NONE);
     }
 
   private:

@@ -5,6 +5,7 @@
 #include "lib/RadioLib/src/Radiolib.h"
 #include "CSMA.h"
 #include "ArduinoWeatherStation.h"
+#include "PermanentStorage.h"
 
 #define LORA_CHECK(A) { auto res = A; if(res) { AWS_DEBUG_PRINT(F("FAILED " #A ": ")); AWS_DEBUG_PRINTLN(res); } } while(0)
 
@@ -39,13 +40,23 @@ void InitMessaging()
   AWS_DEBUG_PRINTLN(F(XSTR(RADIO_TYPE)));
   // Might have to tweak these parameters to get long distance communications.
   // but testing suggests we can transmit 23km at -10 dBm. at +10 dBm we've got a fair bit of headroom.
+  float frequency, bandwidth;
+  short txPower;
+  byte spreadingFactor, csmaP;
+  unsigned long csmaTimeslot;
+  GET_PERMANENT_S(frequency);
+  GET_PERMANENT_S(bandwidth);
+  GET_PERMANENT_S(txPower);
+  GET_PERMANENT_S(spreadingFactor);
+  GET_PERMANENT_S(csmaP);
+  GET_PERMANENT_S(csmaTimeslot);
   LORA_CHECK(lora.begin(
-    LORA_FREQ,
-    LORA_BW,
-    LORA_SF,
+    frequency,
+    bandwidth,
+    spreadingFactor,
     LORA_CR
   ));
-  LORA_CHECK(lora.setOutputPower(outputPower));
+  LORA_CHECK(lora.setOutputPower(txPower));
 #if defined(MOTEINO_96)
   lora.setDio0Action(rxDone);
 #else
@@ -53,6 +64,8 @@ void InitMessaging()
   LORA_CHECK(lora.setDio2AsRfSwitch());
   lora.enableIsChannelBusy();
   lora.setRxDoneAction(rxDone);
+  lora.setPByte(csmaP);
+  lora.setTimeSlot(csmaTimeslot);
 #endif
 
   LORA_CHECK(lora.startReceive(RX_TIMEOUT));
@@ -79,42 +92,95 @@ bool HandleMessageCommand(MessageSource& src)
   if (src.readByte(descByte))
     return false;
 
+  auto state = lora.standby();
+  if (state != ERR_NONE)
+    return false;
+  
   switch(descByte) {
   case 'P':
     {
-      int newPower;
-      if (src.read(newPower))
-        return false;
-      if (lora.standby())
-        return false;
-      bool ret = lora.setOutputPower(newPower) == ERR_NONE;
+      short txPower;
+      if (src.read(txPower))
+      {
+        state = ERR_UNKNOWN;
+        break;
+      }      
+      state = lora.setOutputPower(txPower) == ERR_NONE;
       lora.startReceive(SX126X_RX_TIMEOUT_INF);
-      return ret;
+      if (state == ERR_NONE)
+        SET_PERMANENT_S(txPower);
+      break;
     }
   case 'C':
     {
-      byte newP;
-      if (src.read(newP))
-        return false;
-      return lora.setPByte(newP);
+      byte csmaP;
+      if (src.read(csmaP))
+      {
+        state = ERR_UNKNOWN;
+        break;
+      }
+      lora.setPByte(csmaP);
+      SET_PERMANENT_S(csmaP);
+      state == ERR_NONE;
+      break;
     }
   case 'T':
     {
-      uint32_t newTimeSlot;
-      if (src.read(newTimeSlot))
-        return false;
-      lora.setTimeSlot(newTimeSlot);
-      return true;
+      uint32_t csmaTimeslot;
+      if (src.read(csmaTimeslot))
+      {
+        state = ERR_UNKNOWN;
+        break;
+      }      
+      lora.setTimeSlot(csmaTimeslot);
+      SET_PERMANENT_S(csmaTimeslot);
+      state = ERR_NONE;
+      break;
     }
   case 'F':
     {
-      float newFreq;
-      if (src.read(newFreq))
-        return false;
-      lora.setFrequency(newFreq);
+      float frequency;
+      if (src.read(frequency))
+      {
+        state = ERR_UNKNOWN;
+        break;
+      }      
+      state = lora.setFrequency(frequency);
+      if (state == ERR_NONE)
+        SET_PERMANENT_S(frequency);
+      break;
     }
+  case 'B':
+    {
+      float bandwidth;
+      if (src.read(bandwidth))
+      {
+        state = ERR_UNKNOWN;
+        break;
+      }
+      state = lora.setBandwidth(bandwidth);
+      if (state == ERR_NONE)
+        SET_PERMANENT_S(bandwidth);
+      break;
+    }
+  case 'S':
+    {
+      byte spreadingFactor;
+      if (src.read(spreadingFactor))
+      {
+        state = ERR_UNKNOWN;
+        break;
+      }
+      state = lora.setSpreadingFactor(spreadingFactor);
+      if (state == ERR_NONE)
+        SET_PERMANENT_S(spreadingFactor);
+      break;
+    }
+  default:
+    state == ERR_UNKNOWN;
   }
-  return false;
+  lora.startReceive(SX126X_RX_TIMEOUT_INF);
+  return state == ERR_NONE;
 #else // !MOTEINO_96
   return false;
 #endif 

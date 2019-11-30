@@ -2,6 +2,7 @@
 #include "Messaging.h"
 #include "WeatherProcessing.h"
 #include "ArduinoWeatherStation.h"
+#include "PermanentStorage.h"
 
 #define DAVIS_WIND
 //#define ARGENTDATA_WIND
@@ -172,15 +173,17 @@ void updateSendInterval(float batteryVoltage)
 {
   unsigned long oldInterval = weatherInterval;
   bool overrideActive = millis() - overrideStartMillis < overrideDuration;
+  float batteryThreshold;
+  GET_PERMANENT_S(batteryThreshold);
   if ((!overrideActive && batteryVoltage < batteryThreshold - 2) ||
       (overrideActive && !overrideShort))
   {
-    weatherInterval = longInterval;
+    GET_PERMANENT2(&weatherInterval, longInterval);
   }
   else if ((!overrideActive && batteryVoltage > batteryThreshold + 2) ||
     (overrideShort && overrideActive))
   {
-    weatherInterval = shortInterval;
+    GET_PERMANENT2(&weatherInterval, shortInterval);
   }
   //Ensure that once we get out of override, we won't accidently go back into it due to millis wraparound.
   if (!overrideActive)

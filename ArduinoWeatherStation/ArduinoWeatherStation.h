@@ -21,9 +21,7 @@ void AwsRecordState(int i);
 #define MESSAGE_DESTINATION_SOLID LoraMessageDestination
 #define MESSAGE_SOURCE_SOLID LoraMessageSource
 
-#define ver F("2.0." REV_ID) //Wind station Version 1.1
-//const char* statusMessageTemplate = F("KN6DUC WindStation1");
-//const int statusMessageLength = 13;
+#define ver F("2.0." REV_ID) //Wind station Version 2.0
 
 //Station Specific Constants
 const char stationID= '2';
@@ -31,18 +29,9 @@ const char stationID= '2';
 //Global Constants
 const unsigned long tncBaud = 38400;
 const unsigned long millisBetweenStatus = 600000; //We send our status messages this often. Note that status message stuff is currently commented out.
-const unsigned long wakePeriod = 50; //We won't go to sleep if our next weather send is due before this time
 
-//const int messageOffset = 8; //Start FEND, 0x00, Callsign
-const int minMessageSize = 18;// Radioshield will not transmit shorter than 15 bytes. We also need FEND 0x00 ... FEND
-const int extraMessageBytes = 9; //Minimum number of bytes needed to write FEND 0x00 CALLSIGN [...] FEND
 
-//Setup Variables
-extern unsigned long shortInterval; //Send interval when battery voltage is high
-extern unsigned long longInterval; //Send interval when battery voltage is low
-extern float batteryThreshold;
-extern float batteryHysterisis;
-extern bool demandRelay;
+extern float batteryHysterisis; //This should be a DEFINE
 
 extern unsigned long weatherInterval; //Current weather interval.
 extern unsigned long overrideStartMillis;
@@ -51,6 +40,5 @@ extern bool overrideShort;
 
 //Recent Memory
 extern unsigned long lastStatusMillis;
-//extern unsigned long lastWeatherMillis;
 
 extern volatile bool weatherRequired;

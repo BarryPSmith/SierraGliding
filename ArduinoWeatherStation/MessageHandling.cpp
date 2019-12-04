@@ -1,5 +1,5 @@
 
-#include <TimerOne.h>
+//#include <TimerOne.h>
 #include "ArduinoWeatherStation.h"
 #include "Messaging.h"
 #include "MessageHandling.h"

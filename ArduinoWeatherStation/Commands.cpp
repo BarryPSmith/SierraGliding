@@ -282,10 +282,10 @@ bool handleOverrideCommand(MessageSource& msg, bool demandRelay, byte uniqueID, 
 //Threshold command: C(ID)(UID)B(new threshold)
 bool handleThresholdCommand(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific)
 {
-  float batteryThreshold;
-  if (msg.read(batteryThreshold))
+  unsigned short batteryThreshold_mV;
+  if (msg.read(batteryThreshold_mV))
     return false;
-  SET_PERMANENT_S(batteryThreshold);
+  SET_PERMANENT_S(batteryThreshold_mV);
   acknowledgeMessage(uniqueID, isSpecific, demandRelay);
   return true;
 }
@@ -314,18 +314,18 @@ bool handleQueryCommand(bool responseDemandRelay, byte uniqueID)
   //Setup Variables (31 bytes)
   bool demandRelay;
   unsigned long shortInterval, longInterval;
-  float batteryThreshold;
+  unsigned short batteryThreshold_mV;
   GET_PERMANENT_S(demandRelay);
   GET_PERMANENT_S(shortInterval);
   GET_PERMANENT_S(longInterval);
-  GET_PERMANENT_S(batteryThreshold);
+  GET_PERMANENT_S(batteryThreshold_mV);
 
   response.appendByte(demandRelay);
   response.appendByte('I');
   response.appendT(weatherInterval);
   response.appendT(shortInterval);
   response.appendT(longInterval);
-  response.appendT(batteryThreshold);
+  response.appendT(batteryThreshold_mV);
   response.appendByte('M');
   unsigned long curMillis = millis();
   response.appendT(curMillis);

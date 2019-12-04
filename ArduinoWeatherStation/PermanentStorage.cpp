@@ -41,20 +41,25 @@ void PermanentStorage::initialise()
     initialised = true;
     const long shortInterval = 4000 - 90 * (stationID - '1');
     const long longInterval = 4000 - 90 * (stationID - '1'); //longInterval == shortInterval because it turns out the transmit is negligble draw.
-    const float batteryThreshold = 12.0;
+    const unsigned short batteryThreshold_mV = 12000;
     const bool demandRelay = false;
     const byte emptyBuffer[permanentArraySize] = { 0 };
 
+#ifdef USE_FP
     const float frequency = 425;
-    const short txPower = 10;
     const float bandwidth = 62.5;
+#else
+    const uint32_t frequency = 425000000;
+    const uint16_t bandwidth = 625;
+#endif
+    const short txPower = 10;
     const byte spreadingFactor = 7; //Maybe we can communicate with the RF96?
     const byte csmaP = 100; //40% chance to transmit
     const unsigned long csmaTimeslot = 4000; // 4ms
 
     SET_PERMANENT_S(shortInterval);
     SET_PERMANENT_S(longInterval);
-    SET_PERMANENT_S(batteryThreshold);
+    SET_PERMANENT_S(batteryThreshold_mV);
     SET_PERMANENT2(emptyBuffer, stationsToRelayCommands);
     SET_PERMANENT2(emptyBuffer, stationsToRelayWeather);
     SET_PERMANENT_S(initialised);
@@ -69,15 +74,15 @@ void PermanentStorage::initialise()
 #if DEBUG
   else
   {
-    long shortInterval = 4000 - 90 * (stationID - '1');
-    long longInterval = 4000 - 90 * (stationID - '1'); //longInterval == shortInterval because it turns out the transmit is negligble draw.
-    float batteryThreshold = 12.0;
+    long shortInterval;
+    long longInterval;
+    unsigned short batteryThreshold_mV;
     bool demandRelay = false;
     byte buffer[permanentArraySize] = { 0 };
     unsigned short crc;
     GET_PERMANENT_S(shortInterval);
     GET_PERMANENT_S(longInterval);
-    GET_PERMANENT_S(batteryThreshold);
+    GET_PERMANENT_S(batteryThreshold_mV);
     GET_PERMANENT2(buffer, stationsToRelayWeather);
     GET_PERMANENT_S(initialised);
 
@@ -85,7 +90,7 @@ void PermanentStorage::initialise()
     PRINT_VARIABLE(initialised);
     PRINT_VARIABLE(shortInterval);
     PRINT_VARIABLE(longInterval);
-    PRINT_VARIABLE(batteryThreshold);
+    PRINT_VARIABLE(batteryThreshold_mV);
     GET_PERMANENT2(buffer, stationsToRelayCommands);
     AWS_DEBUG_PRINT(F("stationsToRelayCommands:"));
     for (int i = 0; i < permanentArraySize; i++)
@@ -106,7 +111,12 @@ void PermanentStorage::initialise()
     AWS_DEBUG_PRINT(F("crc: "));
     AWS_DEBUG_PRINTLN(crc, HEX);
 
+#ifdef USE_FP
     float frequency, bandwidth;
+#else
+    uint32_t frequency;
+    uint16_t bandwidth;
+#endif
     short txPower;
     byte spreadingFactor, csmaP;
     unsigned long csmaTimeslot;

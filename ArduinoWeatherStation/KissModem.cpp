@@ -2,33 +2,51 @@
 #include "KissMessaging.h"
 #include "Messaging.h"
 #include <spi.h>
+#include "PermanentStorage.h"
 
 #define SERIALBAUD 38400
 
-void sendMaxPowerCommand();
 
+void sendMaxPowerCommand();
+extern void *__brkval;
 int main()
 {
   init();
 
+  randomSeed(analogRead(A0));
+
+  pinMode(A4, OUTPUT);
+  digitalWrite(A4, LOW);
+        delay(1);
+        digitalWrite(A4, HIGH);
+        delay(1);
+  digitalWrite(A4, LOW);
+        delay(1);
+        digitalWrite(A4, HIGH);
+        delay(1);
+  digitalWrite(A4, LOW);
+
   Serial.begin(SERIALBAUD);
   delay(10);
+
   SPI.begin();
   delay(10);
   Serial.println(XSTR(RADIO_TYPE));
   
+  PermanentStorage::initialise();
+
   InitMessaging();
   
   Serial.print(F("Arduino LoRa modem. Version "));
   Serial.println(REV_ID);
   Serial.println();
-  Serial.println(F("Lora Parameters:"));
+  /*Serial.println(F("Lora Parameters:"));
   Serial.print(F("Frequency: "));
   Serial.println(LORA_FREQ);
   Serial.print(F("Bandwidth: "));
   Serial.println(LORA_BW);
   Serial.print(F("Spreading Factor: "));
-  Serial.println(LORA_SF);
+  Serial.println(LORA_SF);*/
   Serial.print(F("Coding Rate: "));
   Serial.println(LORA_CR);
   Serial.println();
@@ -53,14 +71,16 @@ int main()
     }
     
     KissMessageSource kissSrc;
-    if (Serial.available() > 0 && kissSrc.beginMessage())
+    if (/*Serial.available() > 0 &&*/ kissSrc.beginMessage())
     {
-      sendMaxPowerCommand();
       LoraMessageDestination dst;
-      dst.appendData(kissSrc, maxPacketSize);
+      if (dst.appendData(kissSrc, maxPacketSize) != MESSAGE_END)
+        dst.abort();
+      else
+        dst.finishAndSend();
     }
 
-    if (serialEventRun) serialEventRun();
+    //if (serialEventRun) serialEventRun();
   }
 
   return 0;

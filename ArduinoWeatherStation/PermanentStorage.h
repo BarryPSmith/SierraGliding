@@ -43,15 +43,20 @@ typedef struct PermanentVariables
   bool initialised; //1
   unsigned long shortInterval, //4
                 longInterval;  //4
-  float batteryThreshold; //4
+  unsigned short batteryThreshold_mV; //2
   bool demandRelay; //1
   byte stationsToRelayCommands[permanentArraySize]; //20
   byte stationsToRelayWeather[permanentArraySize]; //20
-
+   
   //LoRa parameters:
+#ifdef USE_FP
   float frequency; //4
-  short txPower; //1
   float bandwidth; //4
+#else
+  uint32_t frequency;
+  uint16_t bandwidth;
+#endif
+  short txPower; //1
   byte spreadingFactor; //1
   byte csmaP;
   unsigned long csmaTimeslot;

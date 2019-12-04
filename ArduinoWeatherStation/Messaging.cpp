@@ -10,7 +10,7 @@
 #define LORA_CHECK(A) { auto res = A; if(res) { AWS_DEBUG_PRINT(F("FAILED " #A ": ")); AWS_DEBUG_PRINTLN(res); } } while(0)
 
 //Hardware pins:
-Module mod(SX_SELECT, SX_DIO1, SX_DIO2, SX_BUSY);
+Module mod(SX_SELECT, SX_DIO1, SX_BUSY);
 
 //These use 100 bytes (Seems alot)
 RADIO_TYPE lora = &mod; //28 bytes
@@ -31,7 +31,7 @@ void InitMessaging()
   if (initialised)
     return;
   SPI.usingInterrupt(digitalPinToInterrupt(SX_DIO1));
-
+  
   AWS_DEBUG_PRINT(F("Mod size: "));
   AWS_DEBUG_PRINTLN(sizeof(mod));
   AWS_DEBUG_PRINT(F("Lora size: "));
@@ -40,7 +40,12 @@ void InitMessaging()
   AWS_DEBUG_PRINTLN(F(XSTR(RADIO_TYPE)));
   // Might have to tweak these parameters to get long distance communications.
   // but testing suggests we can transmit 23km at -10 dBm. at +10 dBm we've got a fair bit of headroom.
+#ifdef USE_FP
   float frequency, bandwidth;
+#else
+  unsigned long frequency;
+  unsigned short bandwidth;
+#endif
   short txPower;
   byte spreadingFactor, csmaP;
   unsigned long csmaTimeslot;
@@ -50,17 +55,32 @@ void InitMessaging()
   GET_PERMANENT_S(spreadingFactor);
   GET_PERMANENT_S(csmaP);
   GET_PERMANENT_S(csmaTimeslot);
+#ifdef USE_FP
   LORA_CHECK(lora.begin(
     frequency,
     bandwidth,
     spreadingFactor,
-    LORA_CR
+    LORA_CR,
+    SX126X_SYNC_WORD_PRIVATE,
+    txPower,
+    140,
+    8,
+    0
   ));
-  LORA_CHECK(lora.setOutputPower(txPower));
+#else
+  LORA_CHECK(lora.begin_i(frequency,
+    bandwidth,
+    spreadingFactor,
+    LORA_CR,
+    SX126X_SYNC_WORD_PRIVATE,
+    txPower,
+    (uint8_t)(140 / 2.5),
+    8,
+    0));
+#endif
 #if defined(MOTEINO_96)
   lora.setDio0Action(rxDone);
 #else
-  LORA_CHECK(lora.setCurrentLimit(140));
   LORA_CHECK(lora.setDio2AsRfSwitch());
   lora.enableIsChannelBusy();
   lora.setRxDoneAction(rxDone);
@@ -69,6 +89,17 @@ void InitMessaging()
 #endif
 
   LORA_CHECK(lora.startReceive(RX_TIMEOUT));
+
+  /*AWS_DEBUG_PRINT("LoRa: ");
+  for (int i = 0; i < sizeof(lora); i++)
+  AWS_DEBUG_PRINTLN((byte*)lora, sizeof(lora));*/
+  /*AWS_DEBUG_PRINT("startTransmit: ");
+  int16_t (SX126x::*st)(uint8_t* data, size_t len, uint8_t addr)
+     = &SX126x::startTransmit;
+  //auto st = static_cast<int16_t (*)(uint8_t*, size_t, uint8_t)>(lora.startTransmit);
+  //int16_t (*st)(uint8_t*, size_t, uint8_t) = &lora.startTransmit;
+  SX126x* meh;
+  AWS_DEBUG_PRINTLN(&(meh->*st), HEX);*/
 
   initialised = true;
 }
@@ -139,26 +170,42 @@ bool HandleMessageCommand(MessageSource& src)
     }
   case 'F':
     {
+#ifdef USE_FP
       float frequency;
+#else
+      uint32_t frequency;
+#endif
       if (src.read(frequency))
       {
         state = ERR_UNKNOWN;
         break;
       }      
+#ifdef USE_FP
       state = lora.setFrequency(frequency);
+#else
+      state = lora.setFrequency_i(frequency);
+#endif
       if (state == ERR_NONE)
         SET_PERMANENT_S(frequency);
       break;
     }
   case 'B':
     {
+#ifdef USE_FP 
       float bandwidth;
+#else
+      uint16_t bandwidth;
+#endif
       if (src.read(bandwidth))
       {
         state = ERR_UNKNOWN;
         break;
       }
+#ifdef USE_FP
       state = lora.setBandwidth(bandwidth);
+#else
+      state = lora.setBandwidth_i(bandwidth);
+#endif
       if (state == ERR_NONE)
         SET_PERMANENT_S(bandwidth);
       break;
@@ -200,6 +247,11 @@ LoraMessageDestination::LoraMessageDestination()
 {
   if (prependCallsign)
     append((byte*)callSign, 6);
+}
+
+void LoraMessageDestination::abort()
+{
+  m_iCurrentLocation = -1;
 }
 
 MESSAGE_RESULT LoraMessageDestination::finishAndSend()
@@ -250,6 +302,8 @@ bool LoraMessageSource::beginMessage()
     return false;
   }
   packetWaiting = false;
+  //AWS_DEBUG_PRINTLN("Lora message begun");
+  //Serial.flush();
   
   incomingBufferSize = lora.getPacketLength(false);
   auto state = lora.readData(incomingBuffer, maxPacketSize);

@@ -24,7 +24,7 @@ byte getWindDirectionArgentData();
 #else
 #error No Wind System Selected
 #endif
-void updateSendInterval(float batteryVoltage);
+void updateSendInterval(unsigned short batteryVoltage_mv);
 void setTimerInterval();
 
 volatile int windCounts = 0;
@@ -32,10 +32,12 @@ volatile int windCounts = 0;
 volatile bool windTicked = false;
 #endif
 
-const float V_Ref = 3.8;
-const float BattVDivider = 49.1/10;
-const float MinBattV = 7.5;
-const float MaxBattV = 15.0;
+//We use unsigned long for these because they are involved in 32-bit calculations.
+constexpr unsigned long mV_Ref = 3800;
+constexpr unsigned long BattVNumerator = 491;
+constexpr unsigned long BattVDenominator = 100;
+constexpr unsigned long MinBatt_mV = 7500;
+constexpr unsigned long MaxBatt_mV = 15000;
 
 #if DEBUG_Speed
 const size_t speedTickLength = 200;
@@ -119,16 +121,16 @@ byte getWindDirectionArgentData()
   return 192;   // C (W)
 }
 
-inline float getWindSpeed()
+inline uint16_t getWindSpeed_x8()
 {
   noInterrupts();
   int localCounts = windCounts;
   windCounts = 0;
   interrupts();
 #ifdef ARGENTDATA_WIND
-  return (2400.0 * localCounts) / weatherInterval;
+  return (8 * 2400 * localCounts) / weatherInterval;
 #elif defined(DAVIS_WIND)
-  return (1600.0 * localCounts) / weatherInterval;
+  return (8 * 1600 * localCounts) / weatherInterval;
 #endif
 
 }
@@ -137,24 +139,33 @@ void createWeatherData(MessageDestination& message)
 {
   //Message format is W(StationID)(UniqueID)(DirHex)(Spd * 2)(Voltage)
     int batteryVoltageReading = analogRead(voltagePin);
-    float battV = V_Ref * batteryVoltageReading / 1023 * BattVDivider;
+    unsigned long batt_mV = mV_Ref * BattVNumerator * batteryVoltageReading / (BattVDenominator  * 1023);
     AWS_DEBUG_PRINTLN(F("  ======================"));
     AWS_DEBUG_PRINT(F("batteryVoltageReading: "));
     AWS_DEBUG_PRINTLN(batteryVoltageReading);
-    AWS_DEBUG_PRINT(F("battV: "));
-    AWS_DEBUG_PRINTLN(battV);
+    AWS_DEBUG_PRINT(F("batt_mV: "));
+    AWS_DEBUG_PRINTLN(batt_mV);
     AWS_DEBUG_PRINT(F("Wind Counts: "));
     AWS_DEBUG_PRINTLN(windCounts);
-    float windSpeed = getWindSpeed();
+    uint16_t windSpeed_x8 = getWindSpeed_x8();
 
     //Update the send interval only after we calculate windSpeed, because windSpeed is dependent on weatherInterval
-    updateSendInterval(battV);
+    updateSendInterval(batt_mV);
   
     byte windDirection = getWindDirection();
     AWS_DEBUG_PRINT(F("windDirection byte: "));
     AWS_DEBUG_PRINTLN(windDirection);
     message.appendByte(windDirection);
-    byte wsByte = (byte)(windSpeed * 2);
+    byte wsByte;
+    //Apply simple staged compression to the wsByte to allow accurate low wind while still capturing high wind.
+    if (windSpeed_x8 <= 400) //.5 km/h resolution to 50km/h. Max 100
+      wsByte = (byte)(windSpeed_x8 / 4);
+    else if (windSpeed_x8 < 1000) // 1 km/h resultion to 125km/h. Max 175
+      wsByte = (byte)(windSpeed_x8 / 8 + 50);
+    else if (windSpeed_x8 < 285 * 8) // 2 km/h resolution to 285km/h. Max 255
+      wsByte = (byte)(windSpeed_x8 / 16 + 113);
+    else //We're just going to report 285km/h. It'll be a long search for the station. And the mountain.
+      wsByte = 255;
     AWS_DEBUG_PRINT(F("windSpeed byte: "));
     AWS_DEBUG_PRINTLN(wsByte);
     message.appendByte(wsByte);
@@ -162,25 +173,25 @@ void createWeatherData(MessageDestination& message)
     //Expected voltage range: 10 - 15V
     //Divide by 3, gives 0.33 - 5V
     //Binary values 674 - 1024 (range: 350)
-    byte batteryByte = (byte)(255 * (battV - MinBattV) / (MaxBattV - MinBattV) + 0.5);
+    byte batteryByte = (byte)((255 * (batt_mV - MinBatt_mV)) / (MaxBatt_mV - MinBatt_mV));
     message.appendByte(batteryByte);
     AWS_DEBUG_PRINT(F("batteryByte: "));
     AWS_DEBUG_PRINTLN(batteryByte, HEX);
     AWS_DEBUG_PRINTLN(F("  ======================"));
 }
 
-void updateSendInterval(float batteryVoltage)
+void updateSendInterval(unsigned short batteryVoltage_mV)
 {
   unsigned long oldInterval = weatherInterval;
   bool overrideActive = millis() - overrideStartMillis < overrideDuration;
-  float batteryThreshold;
-  GET_PERMANENT_S(batteryThreshold);
-  if ((!overrideActive && batteryVoltage < batteryThreshold - 2) ||
+  unsigned short batteryThreshold_mV;
+  GET_PERMANENT_S(batteryThreshold_mV);
+  if ((!overrideActive && batteryVoltage_mV < batteryThreshold_mV - batteryHysterisis_mV) ||
       (overrideActive && !overrideShort))
   {
     GET_PERMANENT2(&weatherInterval, longInterval);
   }
-  else if ((!overrideActive && batteryVoltage > batteryThreshold + 2) ||
+  else if ((!overrideActive && batteryVoltage_mV > batteryThreshold_mV + batteryHysterisis_mV) ||
     (overrideShort && overrideActive))
   {
     GET_PERMANENT2(&weatherInterval, shortInterval);

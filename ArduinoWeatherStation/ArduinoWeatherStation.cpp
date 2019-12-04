@@ -3,7 +3,7 @@
 #define DEBUG_Direction 0
 
 #include <spi.h>
-#include <TimerOne.h>
+//#include <TimerOne.h>
 #include <LowPower.h>
 #include "lib/RadioLib/src/Radiolib.h"
 #include "ArduinoWeatherStation.h"
@@ -12,8 +12,6 @@
 #include "SleepyTime.h"
 #include "TimerTwo.h"
 #include "PermanentStorage.h"
-
-float batteryHysterisis = 0.05;
 
 unsigned long weatherInterval = 2000; //Current weather interval.
 unsigned long overrideStartMillis;
@@ -129,7 +127,7 @@ void loop() {
 void disableRFM69()
 {
   SPI.begin();
-
+#if 1
   {
     Module rfmMod(10, -1, -1);
     RF69 rf69 = &rfmMod;
@@ -142,6 +140,7 @@ void disableRFM69()
     else
       AWS_DEBUG_PRINTLN(F("RFM Asleep."));
   }
+#endif
 }
 
 void sleepUntilNextWeather()

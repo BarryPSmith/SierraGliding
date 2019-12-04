@@ -29,9 +29,7 @@ const char stationID= '2';
 //Global Constants
 const unsigned long tncBaud = 38400;
 const unsigned long millisBetweenStatus = 600000; //We send our status messages this often. Note that status message stuff is currently commented out.
-
-
-extern float batteryHysterisis; //This should be a DEFINE
+inline constexpr unsigned short batteryHysterisis_mV = 50;
 
 extern unsigned long weatherInterval; //Current weather interval.
 extern unsigned long overrideStartMillis;

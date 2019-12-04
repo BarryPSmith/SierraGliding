@@ -1,7 +1,8 @@
 #ifndef _CSMA_H
 #define _CSMA_H
 
-#include "lib/RadioLib/src/Radiolib.h"
+//#include "lib/RadioLib/src/Radiolib.h"
+#include "ArduinoWeatherStation.h"
 
 /*
 */
@@ -13,11 +14,14 @@ class CSMAWrapper : public T
       setP(100); //0.4
       setTimeSlot(20000); //20ms
     }
-
-    int16_t transmit(uint8_t* data, size_t len, uint8_t addr = 0) override {
+    int16_t transmit(uint8_t* data, size_t len, uint8_t addr = 0) /* override */ {
       delayCSMA();
+      
 
-      return(T::transmit(data, len, addr));
+      auto ret = T::transmit(data, len, addr);
+      
+
+      return ret;
     }
 
     // see http://www.ax25.net/kiss.aspx section 6
@@ -26,7 +30,7 @@ class CSMAWrapper : public T
       bool wasBusy = false;
       do
       {
-        if(wasBusy && (random(0, 255)) > _p) {
+        if(true /*wasBusy && (random(0, 255)) > _p*/) {
             delayMicroseconds(_timeSlot);
         }
         int16_t state = this->isChannelBusy(false);

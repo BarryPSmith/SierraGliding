@@ -1,18 +1,17 @@
 #COM port for upload
 PORT=COM8
-PORT_MODEM=COM15
+PORT_MODEM=COM7
 #Hardware spects
 MCU=atmega328p
 F_CPU=16000000L
-PROG_BAUD=57600
+PROG_BAUD=115200
 #115200
 
 #Flags, etc.
 DEFINES=-DF_CPU=$(F_CPU) -DARDUINO=100
 # We can put in these defines to save ~100 bytes of serial buffer memory if we need it.
 #-DSERIAL_RX_BUFFER_SIZE=8 -DSERIAL_TX_BUFFER_SIZE=16
-DEFINES_MODEM=-DF_CPU=$(F_CPU) -DARDUINO=100 -DDEBUG -DMODEM
-#-DMOTEINO_96
+DEFINES_MODEM=-DF_CPU=$(F_CPU) -DARDUINO=100 -DMODEM -DMOTEINO_96 -DDEBUG
 CFLAGS= -mcall-prologues -mmcu=$(MCU) -Os -fdata-sections -ffunction-sections -fno-exceptions -flto -std=c++17 -g
 LDFLAGS=-Wl,--gc-sections -Wl,--relax
 CC=avr-gcc

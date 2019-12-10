@@ -28,11 +28,12 @@ bool initialised = false; //72 bytes
 
 #ifdef MOTEINO_96
 static volatile bool packetWaiting;
-void rxDoneAction() { packetWaiting = true; }
+void rxDone() { packetWaiting = true; }
 #endif
 
 void updateIdleState()
 {
+#ifndef MOTEINO_96
   //If we need to relay weather from anyone, we want to listen continuously.
   //We don't need to use continuous listen for commands because they're sent with a long preamble.
   byte stationsToRelayWeather[permanentArraySize];
@@ -51,6 +52,9 @@ void updateIdleState()
 
   // TODO: We might want to put the unit to sleep entirely if the battery reaches a critical level.
   // (Although we should probably instead work on reducing current draw so it never reaches that level.)
+#else //MOTEINO_96
+  lora.startReceive();
+#endif
 }
 
 void InitMessaging()
@@ -84,12 +88,14 @@ void InitMessaging()
   GET_PERMANENT_S(csmaP);
   GET_PERMANENT_S(csmaTimeslot);
 #ifdef MOTEINO_96
+  float frequency = frequency_i / 1.0E6;
+  float bandwidth = bandwidth_i / 10.0;
   LORA_CHECK(lora.begin(
     frequency, 
     bandwidth, 
     spreadingFactor,
     LORA_CR, 
-    SX126X_SYNC_WORD_PRIVATE,
+    SX127X_SYNC_WORD,
     txPower,
     100, //currentLimit
     8, //preambleLength
@@ -307,10 +313,10 @@ MESSAGE_RESULT LoraMessageDestination::finishAndSend()
 
   
 #ifdef MOTEINO_96
-  LORA_CHECK(lora.setPreambleLenth(preambleLength));
+  LORA_CHECK(lora.setPreambleLength(preambleLength));
   auto state = LORA_CHECK(lora.transmit(_outgoingBuffer, m_iCurrentLocation));
   LORA_CHECK(lora.setPreambleLength(0xFFFF));
-  LORA_CHECK(lora.beginReceive());
+  LORA_CHECK(lora.startReceive());
 #else
   auto state = LORA_CHECK(lora.transmit(_outgoingBuffer, m_iCurrentLocation, preambleLength));
 #endif
@@ -343,10 +349,11 @@ bool LoraMessageSource::beginMessage()
   #if defined(MOTEINO_96)
   if (!packetWaiting)
     return false;
+  packetWaiting = false;
 
   _incomingMessageSize = lora.getPacketLength(false);
   auto state = LORA_CHECK(lora.readData(_incomingBuffer, _incomingMessageSize));
-  LORA_CHECK(lora.beginReceive());
+  LORA_CHECK(lora.startReceive());
   if (state != ERR_NONE)
     return false;
   #else

@@ -114,6 +114,18 @@ Arguments:
                     try
                     {
                         var packet = PacketDecoder.DecodeBytes(data as byte[] ?? data.ToArray());
+                        if (packet == null)
+                        {
+                            var localBytes = data.ToArray();
+                            Task.Run(() =>
+                            {
+                                nps?.Write(Encoding.UTF8.GetBytes(receivedTime.ToString()));
+                                nps?.Write(Encoding.UTF8.GetBytes("Unhandled Packet: "));
+                                nps?.Write(localBytes);
+                                nps?.Write(Encoding.UTF8.GetBytes("\n"));
+                            });
+                            return;
+                        }
                         //Do this in a Task to avoid waiting if we've scrolled up.
                         var consoleTask = Task.Run(() => Console.WriteLine($"Packet {receivedTime}: {packet.ToString()}"));
                         switch (packet.type)

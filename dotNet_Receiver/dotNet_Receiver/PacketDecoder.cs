@@ -52,7 +52,6 @@ namespace dotNet_Receiver
         {
             StringBuilder sb = new StringBuilder();
             sb.Append($"_{packetNumber}:{bufferLocation:X2}_,");
-            byte[] thisData = new byte[2];
             for (int i = 0; i + 1 < data.Length; i += 2)
             {
                 ushort value = BitConverter.ToUInt16(data, i);
@@ -66,18 +65,26 @@ namespace dotNet_Receiver
     {
         public static Packet DecodeBytes(byte[] inBytes)
         {
-            if (inBytes.Length < 8)
+            if (inBytes.Length < 4)
                 return null;
             var bytes = inBytes as byte[] ?? inBytes.ToArray();
 
-            var callSign = Encoding.ASCII.GetString(bytes, 0, 6);
-            var type = Encoding.ASCII.GetChars(bytes, 6, 1)[0];
-            var sendingStationID = bytes[7];
-            var uniqueID = bytes[8];
+            int cur = 0;
+#if false
+            var callSign = Encoding.ASCII.GetString(bytes, cur, 6);
+            cur += 6;
+#else
+            var x = Encoding.ASCII.GetChars(bytes, cur++, 1)[0];
+            if (x != 'X')
+                return null;
+#endif
+            var type = Encoding.ASCII.GetChars(bytes, cur++, 1)[0];
+            var sendingStationID = bytes[cur++];
+            var uniqueID = bytes[cur++];
 
             Packet ret = new Packet
             {
-                CallSign = callSign,
+                CallSign = "X",
                 type = type,
                 sendingStation = sendingStationID,
                 uniqueID = uniqueID
@@ -98,10 +105,11 @@ namespace dotNet_Receiver
                 switch (type)
                 {
                     case 'W':
-                        ret.packetData = DecodeWeatherPacket(bytes, sendingStationID, uniqueID);
+                        ret.packetData = DecodeWeatherPacket(bytes, sendingStationID, uniqueID, cur);
                         ret.GetDataString = 
                             data => (data as IList<SingleWeatherData>)?.ToCsv();
                         break;
+                        /*
                     case 'D':
                         ushort[] dirData = new ushort[(bytes.Length - 9) / 2];
                         Buffer.BlockCopy(bytes, 10, dirData, 0, dirData.Length * 2);
@@ -114,6 +122,7 @@ namespace dotNet_Receiver
                     case 'R':
                         // TODO: Other packet types
                         break;
+                        */
                 }
             return ret;
         }
@@ -132,9 +141,10 @@ namespace dotNet_Receiver
                 return wdByte * 360 / 255.0;
         }
 
-        private static IList<SingleWeatherData> DecodeWeatherPacket(byte[] bytes, byte stationID, byte uniqueID)
+        private static IList<SingleWeatherData> DecodeWeatherPacket(byte[] bytes, byte stationID, byte uniqueID,
+            int cur)
         {
-            var length = bytes[9];
+            var length = bytes[cur++];
             if (length < 3)
                 return new SingleWeatherData[0];
             var ret = new SingleWeatherData[1 + (length - 3) / 5];
@@ -142,9 +152,9 @@ namespace dotNet_Receiver
             {
                 sendingStation = stationID,
                 uniqueID = uniqueID,
-                windDirection = GetWindDirection(bytes[10], stationID == 49),
-                windSpeed = bytes[11] * 0.5,
-                batteryLevelH = 7.5 + bytes[12] / 255.0 * 7.5,
+                windDirection = GetWindDirection(bytes[cur++], stationID == 49),
+                windSpeed = bytes[cur++] * 0.5,
+                batteryLevelH = /*7.5 + */bytes[cur++] / 255.0 * 7.5,
             };
 
             for (int i = 1; i < ret.Length; i++)

@@ -18,8 +18,6 @@ namespace dotNet_Receiver
         const byte TFEND = 0xDC;
         const byte TFESC = 0xDD;
 
-        string _address;
-        int _port;
         volatile bool _disconnectRequested = false;
 
         public Action<IList<Byte>> PacketReceived { get; set; }
@@ -56,23 +54,17 @@ namespace dotNet_Receiver
 
         public void Connect(string address, int port)
         {
-            _address = address;
-            _port = port;
             var ep = new IPEndPoint(IPAddress.Parse(address), port);
             ConnectInternal(ep);
         }
 
         private void ConnectInternal(IPEndPoint ep)
         {
-            using (TcpClient client = new TcpClient(ep.Address.ToString(), ep.Port))
-            {
-                //client.Connect(ep);
-                using (var netStream = client.GetStream())
-                {
-                    ReadStream(netStream);
-                    IsConnected = false;
-                }
-            }
+            using TcpClient client = new TcpClient(ep.Address.ToString(), ep.Port);
+            //client.Connect(ep);
+            using var netStream = client.GetStream();
+            ReadStream(netStream);
+            IsConnected = false;
         }
 
         public void ConnectSerial(string portName)
@@ -83,14 +75,14 @@ namespace dotNet_Receiver
                 var allPorts = SerialPort.GetPortNames();
                 foreach (var testPortName in allPorts)
                 {
-                    using (var port = new SerialPort(testPortName))
-                        try
-                        {
-                            port.Open();
-                            portName = testPortName;
-                            break;
-                        }
-                        catch { }
+                    using var port = new SerialPort(testPortName);
+                    try
+                    {
+                        port.Open();
+                        portName = testPortName;
+                        break;
+                    }
+                    catch { }
                 }
             }
             if (string.IsNullOrEmpty(portName))
@@ -199,28 +191,26 @@ namespace dotNet_Receiver
             if (SerialStream == null)
                 throw new InvalidOperationException("Serial Stream is not present.");
 
-            using (BinaryWriter writer = new BinaryWriter(SerialStream, Encoding.ASCII, true))
+            using BinaryWriter writer = new BinaryWriter(SerialStream, Encoding.ASCII, true);
+            writer.Write(FEND);
+            writer.Write(writeType);
+            for (var cur = dataStream.ReadByte(); cur != -1; cur = dataStream.ReadByte())
             {
-                writer.Write(FEND);
-                writer.Write(writeType);
-                for (var cur = dataStream.ReadByte(); cur != -1; cur = dataStream.ReadByte())
+                var curByte = (byte)cur;
+                if (curByte == FESC)
                 {
-                    var curByte = (byte)cur;
-                    if (curByte == FESC)
-                    {
-                        writer.Write(FESC);
-                        writer.Write(TFESC);
-                    }
-                    else if (curByte == FEND)
-                    {
-                        writer.Write(FESC);
-                        writer.Write(TFEND);
-                    }
-                    else
-                        writer.Write(curByte);
+                    writer.Write(FESC);
+                    writer.Write(TFESC);
                 }
-                writer.Write(FEND);
+                else if (curByte == FEND)
+                {
+                    writer.Write(FESC);
+                    writer.Write(TFEND);
+                }
+                else
+                    writer.Write(curByte);
             }
+            writer.Write(FEND);
         }
         public void Disconnect()
         {

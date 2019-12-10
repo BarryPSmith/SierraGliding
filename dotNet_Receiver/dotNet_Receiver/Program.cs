@@ -27,7 +27,7 @@ Arguments:
 );
         }
 
-        static KissCommunication _dataReceiver = new KissCommunication();
+        static readonly KissCommunication _dataReceiver = new KissCommunication();
 
         static void Main(string[] args)
         {
@@ -175,23 +175,21 @@ Arguments:
                         try
                         {
                             var key = Console.ReadKey();
-                            using (var ms = new MemoryStream())
-                            using (StreamWriter sw = new StreamWriter(ms))
+                            using var ms = new MemoryStream();
+                            using StreamWriter sw = new StreamWriter(ms);
+                            Console.SetOut(sw);
+                            var line2 = Console.ReadLine();
+                            var line = key.KeyChar + line2;
+                            if (!interpreter.HandleLine(line))
                             {
-                                Console.SetOut(sw);
-                                var line2 = Console.ReadLine();
-                                var line = key.KeyChar + line2;
-                                if (!interpreter.HandleLine(line))
-                                {
-                                    exit = true;
-                                    Console.WriteLine("Shutting Down...");
-                                    _dataReceiver.Disconnect();
-                                    Task.WaitAll(tasks.ToArray());
-                                    return;
-                                }
-                                sw.Flush();
-                                trueOut.Write(sw.Encoding.GetString(ms.ToArray()));
+                                exit = true;
+                                Console.WriteLine("Shutting Down...");
+                                _dataReceiver.Disconnect();
+                                Task.WaitAll(tasks.ToArray());
+                                return;
                             }
+                            sw.Flush();
+                            trueOut.Write(sw.Encoding.GetString(ms.ToArray()));
                         }
                         catch (Exception ex)
                         {

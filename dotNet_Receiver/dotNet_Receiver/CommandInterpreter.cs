@@ -9,7 +9,7 @@ namespace core_Receiver
 {
     class CommandInterpreter
     {
-        KissCommunication _modem;
+        readonly KissCommunication _modem;
 
         public TextWriter Output { get; set; }
 
@@ -41,7 +41,8 @@ namespace core_Receiver
                     if (string.IsNullOrWhiteSpace(confirmation) ||
                         confirmation.StartsWith("Y", StringComparison.OrdinalIgnoreCase))
                     {
-                        _modem.WriteSerial(new MemoryStream(data));
+                        using MemoryStream dataStream = new MemoryStream(data);
+                        _modem.WriteSerial(dataStream);
                         Output.WriteLine("Command Sent.");
                     }
                     else
@@ -63,8 +64,8 @@ namespace core_Receiver
             public string Str { get; private set; }
 
             int _i = 0;
-            MemoryStream _ms = new MemoryStream();
-            BinaryWriter _bw;
+            readonly MemoryStream _ms = new MemoryStream();
+            readonly BinaryWriter _bw;
             enum State
             {
                 Normal,

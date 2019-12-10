@@ -1,6 +1,6 @@
 
 #include "TimerTwo.h"
-#include "Messaging.h"
+#include "LoraMessaging.h"
 #include "MessageHandling.h"
 #include "ArduinoWeatherStation.h"
 #include "PermanentStorage.h"
@@ -8,8 +8,9 @@
 bool handleRelayCommand(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific);
 bool handleIntervalCommand(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific);
 bool handleThresholdCommand(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific);
-bool handleQueryCommand(bool demandRelay, byte uniqueID);
-bool handleDebugCommand(bool demandRelay, byte uniqueID);
+bool handleQueryCommand(MessageSource& msg, bool demandRelay, byte uniqueID);
+void handleQueryConfigCommand(MessageDestination& response);
+void handleQueryVolatileCommand(MessageDestination& response);
 bool handleOverrideCommand(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific);
 void acknowledgeMessage(byte uniqueID, bool isSpecific, bool demandRelay);
 
@@ -38,6 +39,10 @@ void handleCommandMessage(MessageSource& msg, bool demandRelay, byte uniqueID, b
 
   bool handled = false;
   bool acknowledged = false;
+
+  AWS_DEBUG_PRINT(F("Command Received: "));
+  AWS_DEBUG_PRINTLN((char)command);
+
   switch (command)
   {
     case 'R': //Relay command
@@ -53,11 +58,7 @@ void handleCommandMessage(MessageSource& msg, bool demandRelay, byte uniqueID, b
     break;
 
     case 'Q': //Query
-      handled = handleQueryCommand(demandRelay, uniqueID);
-    break;
-
-    case 'D': //Debug Query
-      handled = handleDebugCommand(demandRelay, uniqueID);
+      handled = handleQueryCommand(msg, demandRelay, uniqueID);
     break;
 
     case 'O': //Override Interval
@@ -88,12 +89,12 @@ void handleCommandMessage(MessageSource& msg, bool demandRelay, byte uniqueID, b
     #endif
 
     default:
-    //Test code: Just acknowledge it.
+    //do nothing. handled = false, so we send "IGNORED"
     break;
   }
   if (!handled)
   {
-    MESSAGE_DESTINATION_SOLID response;
+    MESSAGE_DESTINATION_SOLID response(false);
     if (demandRelay)
       response.appendByte('K' | 0x80);
     else
@@ -102,19 +103,6 @@ void handleCommandMessage(MessageSource& msg, bool demandRelay, byte uniqueID, b
     response.appendByte(uniqueID);
     response.appendByte(7);
     response.append(F("IGNORED"), 7);
-    /*
-    byte msgBuffer[40];
-    byte* responseBuffer = msgBuffer + messageOffset;
-    responseBuffer[0] = 'K';
-    if (message[0] & 0x80)
-      responseBuffer[0] = 'K' | 0x80;
-    responseBuffer[1] = stationID;
-    responseBuffer[2] = uniqueID;
-    responseBuffer[3] = 7;
-    memcpy(responseBuffer + 4, F("IGNORED"), 7);
-    size_t msgLength = 11;
-    sendMessage(msgBuffer, msgLength, 40);
-    */
   }
 }
 
@@ -291,14 +279,14 @@ bool handleThresholdCommand(MessageSource& msg, bool demandRelay, byte uniqueID,
 }
 
 //Query command: C(ID)(UID)Q
-bool handleQueryCommand(bool responseDemandRelay, byte uniqueID)
+bool handleQueryCommand(MessageSource& msg, bool responseDemandRelay, byte uniqueID)
 {
-  //Response is currently at 204 bytes. Beware buffer overrun.
+  //Reponse is limited to 255 bytes. Beware buffer overrun.
+  byte queryType;
+  if (msg.readByte(queryType) != MESSAGE_OK)
+    queryType = 'C';
   
-  //const int bufferSize = 300;
-  MESSAGE_DESTINATION_SOLID response;
-  //byte messageBuffer[bufferSize];
-  //byte* responseBuffer = messageBuffer + messageOffset;
+  MESSAGE_DESTINATION_SOLID response(false);
   if (responseDemandRelay)
     response.appendByte('K' | 0x80);
   else
@@ -310,22 +298,32 @@ bool handleQueryCommand(bool responseDemandRelay, byte uniqueID)
   response.appendByte('V');
   response.append(ver, strlen_P((const char*)ver));
   response.appendByte(0);
-  
-  //Setup Variables (31 bytes)
-  bool demandRelay;
-  unsigned long shortInterval, longInterval;
-  unsigned short batteryThreshold_mV;
-  GET_PERMANENT_S(demandRelay);
-  GET_PERMANENT_S(shortInterval);
-  GET_PERMANENT_S(longInterval);
-  GET_PERMANENT_S(batteryThreshold_mV);
 
-  response.appendByte(demandRelay);
-  response.appendByte('I');
-  response.appendT(weatherInterval);
-  response.appendT(shortInterval);
-  response.appendT(longInterval);
-  response.appendT(batteryThreshold_mV);
+  switch (queryType)
+  {
+  case 'C':
+    handleQueryConfigCommand(response);
+    break;
+  case 'V':
+    handleQueryVolatileCommand(response);
+    break;
+  default:
+    response.abort();
+    return false;
+  }
+  return true;
+}
+
+void handleQueryConfigCommand(MessageDestination& response)
+{
+  // Just throw the whole config at them.
+  PermanentVariables variables;
+  PermanentStorage::getBytes(0, sizeof(PermanentVariables), &variables);
+  response.appendT(variables);
+}
+
+void handleQueryVolatileCommand(MessageDestination& response)
+{ 
   response.appendByte('M');
   unsigned long curMillis = millis();
   response.appendT(curMillis);
@@ -336,28 +334,7 @@ bool handleQueryCommand(bool responseDemandRelay, byte uniqueID)
     response.appendT(overrideShort);
   }
   response.appendByte(0);
-
-  //Stations to relay, max 42 bytes:
-  response.appendByte('R');
-  byte stationsToRelayCommands[permanentArraySize];
-  GET_PERMANENT(stationsToRelayCommands);
-  for (int i = 0; i < permanentArraySize; i++)
-  {
-    if (!stationsToRelayCommands[i])
-      break;
-    response.appendByte(stationsToRelayCommands[i]);
-  }
-  response.appendByte(0);
-  byte stationsToRelayWeather[permanentArraySize];
-  GET_PERMANENT(stationsToRelayWeather);
-  for (int i = 0; i < recentArraySize; i++)
-  {
-    if (!stationsToRelayWeather[i])
-      break;
-    response.appendByte(stationsToRelayWeather[i]);
-  }
-  response.appendByte(0);
-
+  
   //Recently seen stations, max 102 bytes
   response.appendByte('S');
   for (int i = 0; i < recentArraySize; i++)
@@ -379,27 +356,9 @@ bool handleQueryCommand(bool responseDemandRelay, byte uniqueID)
     response.appendByte(recentlyHandledCommands[i]);
   }
   response.appendByte(0);
-  return true;
-}
 
-//Debug command: C(ID)(UID)D
-bool handleDebugCommand(bool demandRelay, byte uniqueID)
-{
-  //byte messageBuffer[bufferSize];
-  //byte* responseBuffer = messageBuffer + messageOffset;
-  MESSAGE_DESTINATION_SOLID response;
-  if (demandRelay)
-    response.appendByte('K' | 0x80);
-  else
-    response.appendByte('K');
-  response.appendByte(stationID);
-  response.appendByte(uniqueID);
-
-  //Version (a few bytes)
-  response.append(ver, strlen_P((const char*)ver));
-  response.appendByte(0);
-  
-   //recently relayed messages, max 61 bytes
+  //recently relayed messages, max 62 bytes
+  response.appendByte('R');
   for (int i = 0; i < recentArraySize; i++)
   {
     if (!recentlyRelayedMessages[i].type)
@@ -407,7 +366,10 @@ bool handleDebugCommand(bool demandRelay, byte uniqueID)
     response.appendT(recentlyRelayedMessages[i]);
   }
   response.appendByte(0);
-  return true;
+
+  //message statistics:
+  response.appendByte('M');
+  appendMessageStatistics(response);
 }
 
 void acknowledgeMessage(byte uniqueID, bool isSpecific, bool demandRelay)
@@ -417,7 +379,7 @@ void acknowledgeMessage(byte uniqueID, bool isSpecific, bool demandRelay)
   if (demandRelay && !isSpecific)
     return;
   
-  MESSAGE_DESTINATION_SOLID response;
+  MESSAGE_DESTINATION_SOLID response(false);
   if (demandRelay)
     response.appendByte('K' | 0x80);
   else

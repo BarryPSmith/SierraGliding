@@ -1,5 +1,5 @@
 #pragma once
-#include "Messaging.h"
+#include "LoraMessaging.h"
 void setupWeatherProcessing();
 void createWeatherData(MessageDestination& message);
 void setupWindCounter();

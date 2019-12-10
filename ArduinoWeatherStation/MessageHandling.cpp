@@ -1,7 +1,7 @@
 
 //#include <TimerOne.h>
 #include "ArduinoWeatherStation.h"
-#include "Messaging.h"
+#include "LoraMessaging.h"
 #include "MessageHandling.h"
 #include "WeatherProcessing.h"
 #include "Callsign.h"
@@ -13,7 +13,7 @@ bool haveRelayed(byte msgType, byte msgStatID, byte msgUniqueID);
 void recordHeardStation(byte msgStatID);
 bool shouldRelay(byte msgType, byte msgStatID, byte msgUniqueID);
 void recordWeatherForRelay(MessageSource& message, byte msgStatID, byte msgUniqueID);
-void relayMessage(MessageSource& message, byte msgFirstByte, byte msgStatID, byte msgUniqueID);
+void relayMessage(MessageSource& message, byte msgType, byte msgFirstByte, byte msgStatID, byte msgUniqueID);
 void recordMessageRelay(byte msgType, byte msgStatID, byte msgUniqueID);
 
 //These arrays use 320 bytes.
@@ -37,6 +37,14 @@ void readMessages()
   MESSAGE_SOURCE_SOLID msg;
   while (msg.beginMessage())
   {
+    AWS_DEBUG_PRINTLN(F("Got one!"));
+    if (!MessageSource::s_discardCallsign)
+    {
+      byte zerothByte;
+      //Filter: First byte must be X if we're discarding callsign.
+      if (msg.readByte(zerothByte) || zerothByte != 'X')
+        continue;
+    }
     byte msgFirstByte;
     if (msg.readByte(msgFirstByte))
       continue; //= incomingBuffer[0] & 0x7F;
@@ -55,6 +63,13 @@ void readMessages()
     {
       continue;
     }
+
+    AWS_DEBUG_PRINT(F("Message Received. Type: "));
+    AWS_DEBUG_PRINT((char)msgType);
+    AWS_DEBUG_PRINT(F(", stationID: "));
+    AWS_DEBUG_PRINT((char)msgStatID);
+    AWS_DEBUG_PRINT(F(", ID: "));
+    AWS_DEBUG_PRINTLN(msgUniqueID);
         
     //If it's one of our messages relayed back to us, ignore it:
     if (msgType != 'C' && msgStatID == stationID)
@@ -80,7 +95,7 @@ void readMessages()
       if (msgType == 'W')
         recordWeatherForRelay(msg, msgStatID, msgUniqueID);
       else 
-        relayMessage(msg, msgFirstByte, msgStatID, msgUniqueID);
+        relayMessage(msg, msgType, msgFirstByte, msgStatID, msgUniqueID);
       recordMessageRelay(msgType, msgStatID, msgUniqueID);
     }   
   }
@@ -156,9 +171,10 @@ byte getUniqueID()
   return curUniqueID++;
 }
 
-void relayMessage(MessageSource& msg, byte msgFirstByte, byte msgStatID, byte msgUniqueID)
+void relayMessage(MessageSource& msg, byte msgType, byte msgFirstByte, byte msgStatID, byte msgUniqueID)
 {
-  MESSAGE_DESTINATION_SOLID relay;
+  //Outbound messages are 'C'
+  MESSAGE_DESTINATION_SOLID relay(msgType == 'C');
   relay.appendByte(msgFirstByte);
   relay.appendByte(msgStatID);
   relay.appendByte(msgUniqueID);
@@ -195,7 +211,7 @@ void recordWeatherForRelay(MessageSource& msg, byte msgStatID, byte msgUniqueID)
   //or our buffers might overflow.
   bool overflow = weatherRelayLength + dataSize + 2 > weatherRelayBufferSize;
   byte buffer[sizeof(MESSAGE_DESTINATION_SOLID)];
-  MESSAGE_DESTINATION_SOLID* msgDump = overflow ? new (buffer) MESSAGE_DESTINATION_SOLID() : 0;
+  MESSAGE_DESTINATION_SOLID* msgDump = overflow ? new (buffer) MESSAGE_DESTINATION_SOLID(false) : 0;
   size_t offset = overflow ? 0 : weatherRelayLength;
   bool sourceFaulted = false;
   if (overflow)
@@ -259,7 +275,7 @@ void sendWeatherMessage()
   //W (Station ID) (Unique ID) (8) (WS) (WD) (Batt) : (StationR) (UidR) (WsR) (WdR) (BattR)
   //If there are multiple relay messages included, each has an extra 5 bytes.
   
-  MESSAGE_DESTINATION_SOLID message;
+  MESSAGE_DESTINATION_SOLID message(false);
   message.appendByte('W');
   message.appendByte(stationID);
   message.appendByte(getUniqueID());
@@ -283,6 +299,13 @@ void sendWeatherMessage()
 
 void sendStatusMessage()
 {
-  // TODO
+  bool wasPrependCallsign = MessageDestination::s_prependCallsign;
+  MessageDestination::s_prependCallsign = true;
+  MESSAGE_DESTINATION_SOLID msg(false);
+  //msg.append(callSign, strlen(callSign));
+  msg.append(STATUS_MESSAGE, strlen_P((const char*)STATUS_MESSAGE));
+  msg.appendByte(stationID);
+  msg.finishAndSend();
+  MessageDestination::s_prependCallsign = wasPrependCallsign;
   lastStatusMillis = millis();
 }

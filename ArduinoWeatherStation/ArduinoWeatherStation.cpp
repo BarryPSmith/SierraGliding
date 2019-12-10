@@ -38,6 +38,7 @@ int main()
   TimerTwo::initialise();
   
   setup();
+
   while (1)
   {
     loop();
@@ -82,22 +83,17 @@ void setup() {
 
 void loop() {
 
+
   readMessages();
   
   noInterrupts();
   bool localWeatherRequired = weatherRequired;
   weatherRequired = false;
 #ifdef DEBUG
-  bool localWindTicked = windTicked;
-  windTicked = false;
+  messageDebugAction();
 #endif
   interrupts();
-
-#ifdef DEBUG
-  if (localWindTicked)
-    AWS_DEBUG_PRINTLN(F("Wind Tick"));
-#endif
-
+  
   if (localWeatherRequired)
   {
     sendWeatherMessage();
@@ -145,7 +141,7 @@ void disableRFM69()
 
 void sleepUntilNextWeather()
 {
-#if DEBUG
+#ifdef DEBUG
   //Flush the serial or we risk writing garbage or being woken by a send complete message.
   Serial.flush();
 #endif

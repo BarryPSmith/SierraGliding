@@ -1,7 +1,7 @@
-#include "Messaging.h"
+#include "LoraMessaging.h"
 
-bool MessageSource::discardCallsign = true;
-bool MessageDestination::prependCallsign = true;
+bool MessageSource::s_discardCallsign = true;
+bool MessageDestination::s_prependCallsign = true;
 
 MessageDestination::MessageDestination() {}
 

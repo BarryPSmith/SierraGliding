@@ -13,24 +13,22 @@
 #else
 #define SX_SELECT 9
 #define SX_DIO1 2
-//#define SX_DIO2 -1
 #define SX_BUSY 4
 #define RADIO_TYPE CSMAWrapper<SX1262>
 #define RX_TIMEOUT SX126X_RX_TIMEOUT_INF
 #endif
 #define outputPower 10
 
-/*#define LORA_FREQ 425.0
-#define LORA_BW 62.5
-#define LORA_SF 6*/
 #define LORA_CR 5
 
 #define maxPacketSize 255
 
 void InitMessaging();
 bool HandleMessageCommand(MessageSource& src);
+void appendMessageStatistics(MessageDestination& msg);
+
 #ifdef DEBUG
-int scanChannel();
+void messageDebugAction();
 #endif
 
 class LoraMessageSource : public MessageSource
@@ -41,15 +39,28 @@ class LoraMessageSource : public MessageSource
     bool beginMessage() override;
     MESSAGE_RESULT endMessage() override;
     MESSAGE_RESULT readByte(byte& dest) override;
+
+  private:
+#ifdef MOTEINO_96
+    byte _incomingBuffer[255];
+#else
+    byte* _incomingBuffer;
+#endif
+    byte _incomingMessageSize;
 };
 
 class LoraMessageDestination : public MessageDestination
 {
   public:
-    LoraMessageDestination();
+    LoraMessageDestination(bool isOutbound);
     ~LoraMessageDestination();
     LoraMessageDestination& operator=(const LoraMessageDestination) =delete;
     MESSAGE_RESULT appendByte(const byte data) override;
     MESSAGE_RESULT finishAndSend() override;
     void abort();
+    
+    static constexpr byte outgoingBufferSize = 255;
+  private:
+    byte _outgoingBuffer[outgoingBufferSize];
+    bool _isOutbound;
 };

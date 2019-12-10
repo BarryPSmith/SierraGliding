@@ -13,7 +13,7 @@ KissMessageDestination::KissMessageDestination()
   STREAM.write(FEND);
   STREAM.write((byte)0x00);
 
-  if (prependCallsign)
+  if (s_prependCallsign)
     append((byte*)callSign, 6);
 }
 
@@ -82,19 +82,22 @@ bool KissMessageSource::beginMessage()
 {
   byte data;
   bool matchedFend = false;
-  //Wait for FEND 0x00:
+  //Wait for FEND + messageType:
   while (true)
   {
     if (!readByteRaw(data))
       return false;
     if (data == FEND)
       matchedFend = true;
-    else if (matchedFend && data == 0x00)
+    else if (matchedFend && (data == 0x00 || data == 0x06))
+    {
+      _messageType = data;
       break;
+    }
     else
       matchedFend = false;
   }
-  if (discardCallsign)
+  if (s_discardCallsign)
   {
     //Read the callsign. Discard it for now, but we might want to filter on it later.
     for (int i = 0; i < 6; i++)

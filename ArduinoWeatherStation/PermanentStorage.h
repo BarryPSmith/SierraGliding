@@ -49,17 +49,13 @@ typedef struct PermanentVariables
   byte stationsToRelayWeather[permanentArraySize]; //20
    
   //LoRa parameters:
-#ifdef USE_FP
-  float frequency; //4
-  float bandwidth; //4
-#else
-  uint32_t frequency;
-  uint16_t bandwidth;
-#endif
+  uint32_t frequency_i;
+  uint16_t bandwidth_i;
   short txPower; //1
   byte spreadingFactor; //1
   byte csmaP;
   unsigned long csmaTimeslot;
+  unsigned short outboundPreambleLength;
 
   short crc; //2
 } PermanentVariables;

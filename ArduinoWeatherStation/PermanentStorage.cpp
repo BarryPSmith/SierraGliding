@@ -33,8 +33,6 @@ void PermanentStorage::initialise()
 {
   bool initialised;
   GET_PERMANENT_S(initialised);
-  AWS_DEBUG_PRINT(F("Initialised value: "));
-  AWS_DEBUG_PRINTLN(initialised);
   if (!initialised || !checkCRC())
   {
     AWS_DEBUG_PRINTLN(F("Initialising Default Parameters"));
@@ -45,17 +43,14 @@ void PermanentStorage::initialise()
     const bool demandRelay = false;
     const byte emptyBuffer[permanentArraySize] = { 0 };
 
-#ifdef USE_FP
-    const float frequency = 425;
-    const float bandwidth = 62.5;
-#else
-    const uint32_t frequency = 425000000;
-    const uint16_t bandwidth = 625;
-#endif
+
+    const uint32_t frequency_i = 425000000;
+    const uint16_t bandwidth_i = 625;
     const short txPower = 10;
     const byte spreadingFactor = 7; //Maybe we can communicate with the RF96?
     const byte csmaP = 100; //40% chance to transmit
     const unsigned long csmaTimeslot = 4000; // 4ms
+    const unsigned short outboundPreambleLength = 128; // allow end nodes to spend most of their time asleep.
 
     SET_PERMANENT_S(shortInterval);
     SET_PERMANENT_S(longInterval);
@@ -64,11 +59,12 @@ void PermanentStorage::initialise()
     SET_PERMANENT2(emptyBuffer, stationsToRelayWeather);
     SET_PERMANENT_S(initialised);
 
-    SET_PERMANENT_S(frequency);
+    SET_PERMANENT_S(frequency_i);
     SET_PERMANENT_S(txPower);
-    SET_PERMANENT_S(bandwidth);
+    SET_PERMANENT_S(bandwidth_i);
     SET_PERMANENT_S(spreadingFactor);
     SET_PERMANENT_S(csmaTimeslot);
+    SET_PERMANENT_S(outboundPreambleLength);
     setCRC();
   }
 #if DEBUG
@@ -111,27 +107,26 @@ void PermanentStorage::initialise()
     AWS_DEBUG_PRINT(F("crc: "));
     AWS_DEBUG_PRINTLN(crc, HEX);
 
-#ifdef USE_FP
-    float frequency, bandwidth;
-#else
-    uint32_t frequency;
-    uint16_t bandwidth;
-#endif
+    uint32_t frequency_i;
+    uint16_t bandwidth_i;
     short txPower;
     byte spreadingFactor, csmaP;
     unsigned long csmaTimeslot;
-    GET_PERMANENT_S(frequency);
-    GET_PERMANENT_S(bandwidth);
+    unsigned short outboundPreambleLength;
+    GET_PERMANENT_S(frequency_i);
+    GET_PERMANENT_S(bandwidth_i);
     GET_PERMANENT_S(txPower);
     GET_PERMANENT_S(spreadingFactor);
     GET_PERMANENT_S(csmaP);
     GET_PERMANENT_S(csmaTimeslot);
-    PRINT_VARIABLE(frequency);
-    PRINT_VARIABLE(bandwidth);
+    GET_PERMANENT_S(outboundPreambleLength);
+    PRINT_VARIABLE(frequency_i);
+    PRINT_VARIABLE(bandwidth_i);
     PRINT_VARIABLE(txPower);
     PRINT_VARIABLE(spreadingFactor);
     PRINT_VARIABLE(csmaP);
     PRINT_VARIABLE(csmaTimeslot);
+    PRINT_VARIABLE(outboundPreambleLength);
   }
 #endif
   _initialised = true;

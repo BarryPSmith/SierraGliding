@@ -1,31 +1,18 @@
 #include "revid.h"
 #include "KissMessaging.h"
-#include "Messaging.h"
+#include "LoraMessaging.h"
 #include <spi.h>
 #include "PermanentStorage.h"
+#include "StackCanary.h"
 
 #define SERIALBAUD 38400
 
-
-void sendMaxPowerCommand();
-extern void *__brkval;
 int main()
 {
   init();
 
   randomSeed(analogRead(A0));
-
-  pinMode(A4, OUTPUT);
-  digitalWrite(A4, LOW);
-        delay(1);
-        digitalWrite(A4, HIGH);
-        delay(1);
-  digitalWrite(A4, LOW);
-        delay(1);
-        digitalWrite(A4, HIGH);
-        delay(1);
-  digitalWrite(A4, LOW);
-
+  
   Serial.begin(SERIALBAUD);
   delay(10);
 
@@ -40,20 +27,13 @@ int main()
   Serial.print(F("Arduino LoRa modem. Version "));
   Serial.println(REV_ID);
   Serial.println();
-  /*Serial.println(F("Lora Parameters:"));
-  Serial.print(F("Frequency: "));
-  Serial.println(LORA_FREQ);
-  Serial.print(F("Bandwidth: "));
-  Serial.println(LORA_BW);
-  Serial.print(F("Spreading Factor: "));
-  Serial.println(LORA_SF);*/
   Serial.print(F("Coding Rate: "));
   Serial.println(LORA_CR);
   Serial.println();
   Serial.println(F("Starting..."));
    
-  MessageDestination::prependCallsign = false;
-  MessageSource::discardCallsign = false;
+  MessageDestination::s_prependCallsign = false;
+  MessageSource::s_discardCallsign = false;
 
   
   
@@ -71,34 +51,28 @@ int main()
     }
     
     KissMessageSource kissSrc;
-    if (/*Serial.available() > 0 &&*/ kissSrc.beginMessage())
+    if (Serial.available() > 0 && kissSrc.beginMessage())
     {
-      LoraMessageDestination dst;
-      if (dst.appendData(kissSrc, maxPacketSize) != MESSAGE_END)
-        dst.abort();
-      else
-        dst.finishAndSend();
+      if (kissSrc.getMessageType() == 0x00)
+      {
+        LoraMessageDestination dst(true);
+        auto result = dst.appendData(kissSrc, maxPacketSize);
+        if (result != MESSAGE_END)
+          dst.abort();
+        else
+          dst.finishAndSend();
+      }
+      else if (kissSrc.getMessageType() == 0x06)
+      {
+        if (HandleMessageCommand(kissSrc))
+          Serial.println("SUCCESS");
+        else
+          Serial.println("FAILURE");
+      }
     }
 
     //if (serialEventRun) serialEventRun();
   }
 
   return 0;
-}
-
-void sendMaxPowerCommand()
-{
-  LoraMessageDestination dest;
-  dest.append(F("KN6DUC"), 6);
-  dest.appendT('C'); //Command
-  dest.appendByte(0); //Station ID (0 = send to all)
-  dest.appendByte(0); //Unique ID (0 = Always execute and reset recently heard commands)
-  dest.append(F("MP"), 3); //Modem -> Power
-  dest.appendT<short>(22); //Maximum power. Don't know why we made it int, but there you go.
-  auto res = dest.finishAndSend();
-  if (res)
-  {
-    Serial.print(F("Error sending maxPower message: "));
-    Serial.println(res);
-  }
 }

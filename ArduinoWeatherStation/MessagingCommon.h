@@ -27,7 +27,7 @@ class MessageDestination
     int m_iCurrentLocation = 0;
   
   public:
-    static bool prependCallsign;
+    static bool s_prependCallsign;
 
     MessageDestination();
     
@@ -57,7 +57,7 @@ class MessageSource
     int m_iCurrentLocation = -1;
 
   public:
-    static bool discardCallsign;
+    static bool s_discardCallsign;
 
     MessageSource();
 

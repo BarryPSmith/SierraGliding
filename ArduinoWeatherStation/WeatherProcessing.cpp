@@ -1,5 +1,5 @@
 #include "TimerTwo.h"
-#include "Messaging.h"
+#include "LoraMessaging.h"
 #include "WeatherProcessing.h"
 #include "ArduinoWeatherStation.h"
 #include "PermanentStorage.h"
@@ -24,7 +24,7 @@ byte getWindDirectionArgentData();
 #else
 #error No Wind System Selected
 #endif
-void updateSendInterval(unsigned short batteryVoltage_mv);
+void updateSendInterval(unsigned short batteryVoltage_mv, bool startup);
 void setTimerInterval();
 
 volatile int windCounts = 0;
@@ -36,8 +36,7 @@ volatile bool windTicked = false;
 constexpr unsigned long mV_Ref = 3800;
 constexpr unsigned long BattVNumerator = 491;
 constexpr unsigned long BattVDenominator = 100;
-constexpr unsigned long MinBatt_mV = 7500;
-constexpr unsigned long MaxBatt_mV = 15000;
+constexpr unsigned long MaxBatt_mV = 7500;
 
 #if DEBUG_Speed
 const size_t speedTickLength = 200;
@@ -150,7 +149,7 @@ void createWeatherData(MessageDestination& message)
     uint16_t windSpeed_x8 = getWindSpeed_x8();
 
     //Update the send interval only after we calculate windSpeed, because windSpeed is dependent on weatherInterval
-    updateSendInterval(batt_mV);
+    updateSendInterval(batt_mV, false);
   
     byte windDirection = getWindDirection();
     AWS_DEBUG_PRINT(F("windDirection byte: "));
@@ -169,32 +168,29 @@ void createWeatherData(MessageDestination& message)
     AWS_DEBUG_PRINT(F("windSpeed byte: "));
     AWS_DEBUG_PRINTLN(wsByte);
     message.appendByte(wsByte);
-    //Lead Acid
-    //Expected voltage range: 10 - 15V
-    //Divide by 3, gives 0.33 - 5V
-    //Binary values 674 - 1024 (range: 350)
-    byte batteryByte = (byte)((255 * (batt_mV - MinBatt_mV)) / (MaxBatt_mV - MinBatt_mV));
+    
+    byte batteryByte = (byte)(255UL * batt_mV / MaxBatt_mV);
     message.appendByte(batteryByte);
     AWS_DEBUG_PRINT(F("batteryByte: "));
     AWS_DEBUG_PRINTLN(batteryByte, HEX);
     AWS_DEBUG_PRINTLN(F("  ======================"));
 }
 
-void updateSendInterval(unsigned short batteryVoltage_mV)
+void updateSendInterval(unsigned short batteryVoltage_mV, bool initial)
 {
   unsigned long oldInterval = weatherInterval;
   bool overrideActive = millis() - overrideStartMillis < overrideDuration;
   unsigned short batteryThreshold_mV;
   GET_PERMANENT_S(batteryThreshold_mV);
-  if ((!overrideActive && batteryVoltage_mV < batteryThreshold_mV - batteryHysterisis_mV) ||
+  if (initial || 
+    (!overrideActive && batteryVoltage_mV > batteryThreshold_mV + batteryHysterisis_mV) ||
+    (overrideActive && overrideShort))
+  {
+    GET_PERMANENT2(&weatherInterval, shortInterval);
+  } else if ((!overrideActive && batteryVoltage_mV < batteryThreshold_mV - batteryHysterisis_mV) ||
       (overrideActive && !overrideShort))
   {
     GET_PERMANENT2(&weatherInterval, longInterval);
-  }
-  else if ((!overrideActive && batteryVoltage_mV > batteryThreshold_mV + batteryHysterisis_mV) ||
-    (overrideShort && overrideActive))
-  {
-    GET_PERMANENT2(&weatherInterval, shortInterval);
   }
   //Ensure that once we get out of override, we won't accidently go back into it due to millis wraparound.
   if (!overrideActive)
@@ -205,12 +201,16 @@ void updateSendInterval(unsigned short batteryVoltage_mV)
 
 void setTimerInterval()
 {
+  AWS_DEBUG_PRINT(F("weather interval: "));
+  AWS_DEBUG_PRINTLN(weatherInterval);
   requiredTicks = weatherInterval / TimerTwo::MillisPerTick;
   if (requiredTicks < 1)
   {
-    AWS_DEBUG_PRINTLN("Required ticks is zero!");
+    AWS_DEBUG_PRINTLN(F("Required ticks is zero!"));
     requiredTicks = 1;
   }
+  AWS_DEBUG_PRINT(F("requiredTicks: "));
+  AWS_DEBUG_PRINTLN(requiredTicks);
   weatherInterval = requiredTicks * TimerTwo::MillisPerTick;
 }
 
@@ -333,7 +333,7 @@ void sendDirectionDebug()
 
 void setupWeatherProcessing()
 {
-  setTimerInterval();
+  updateSendInterval(0, true);
   TimerTwo::attachInterrupt(&timer2Tick);
   setupWindCounter();
 }

@@ -129,7 +129,7 @@ inline uint16_t getWindSpeed_x8()
 #ifdef ARGENTDATA_WIND
   return (8 * 2400 * localCounts) / weatherInterval;
 #elif defined(DAVIS_WIND)
-  return (8 * 1600 * localCounts) / weatherInterval;
+  return (8UL * 1600 * localCounts) / weatherInterval;
 #endif
 
 }

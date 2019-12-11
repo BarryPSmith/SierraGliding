@@ -118,7 +118,8 @@ function database(dbpath, drop, cb) {
                 Wind_Dir_Legend     TEXT NULL,
                 Wind_Direction_Offset FLOAT NOT NULL DEFAULT 0, -- Used to compensate for misaligned stations. Applied when data is added to the station_data
                 Display_Level       INTEGER NOT NULL DEFAULT 1, -- If we want to have some stations that are not usually displayed. 0 = Hidden, 1 = Public, 2 = Private (TODO: Figure out admin stuff)
-				Status_Message		TEXT NULL --If we want to temporarily display a status message when e.g. a station has a hardware fault
+				Status_Message		TEXT NULL, --If we want to temporarily display a status message when e.g. a station has a hardware fault
+                Battery_Range        TEXT NULL
             );
         `);
 
@@ -332,7 +333,8 @@ function main(db, cb) {
                 Lon AS lon,
                 Wind_Speed_Legend AS windspeedlegend,
                 Wind_Dir_Legend AS winddirlegend,
-				Status_Message AS statusMessage
+                Status_Message AS statusMessage,
+                Battery_Range as batteryRange
             FROM
                 stations
             WHERE
@@ -353,6 +355,7 @@ function main(db, cb) {
 
             station.windspeedlegend = JSON.parse(station.windspeedlegend);
             station.winddirlegend = JSON.parse(station.winddirlegend);
+            station.batteryRange = JSON.parse(station.batteryRange);
 
             res.json(station);
         });

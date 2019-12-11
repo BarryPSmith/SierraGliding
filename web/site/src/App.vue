@@ -271,7 +271,8 @@ export default {
             this.station_update();
         },
         'dataType': function() {
-            this.station_update();
+            this.station_update(true);
+            this.chart_range();
         }
     },
     methods: {
@@ -435,7 +436,7 @@ export default {
                     }
 
                     let wsElem = document.getElementById('windspeed');
-                    if (wsElem && this.dataType == 'wind') {
+                    if (wsElem && (this.dataType == 'wind')) {
                         let wsOpts = JSON.parse(JSON.stringify(commonOptions));
                         //Callbacks don't survive stringify/parse
                         wsOpts.plugins.zoom.pan.onPan = this.chart_panning;
@@ -469,7 +470,7 @@ export default {
                     }
                     
                     let wdElem = document.getElementById('wind_direction');
-                    if (wdElem && this.dataType == 'wind') {
+                    if (wdElem && (this.dataType == 'wind')) {
                         let wdOpts = JSON.parse(JSON.stringify(commonOptions));
                         wdOpts.plugins.zoom.pan.onPan = this.chart_panning;
                         wdOpts.plugins.zoom.pan.onPanComplete = this.chart_panComplete;
@@ -520,8 +521,8 @@ export default {
                     if (battElem && this.dataType == 'battery') {
                         let battOpts = JSON.parse(JSON.stringify(commonOptions));
                         battOpts.scales.yAxes[0].ticks.beginAtZero = false;
-                        battOpts.scales.yAxes[0].ticks.min = 10;
-                        battOpts.scales.yAxes[0].ticks.max = 15;
+                        battOpts.scales.yAxes[0].ticks.min = this.station.batteryRange.min;
+                        battOpts.scales.yAxes[0].ticks.max = this.station.batteryRange.max;
                         battOpts.plugins.zoom.pan.onPan = this.chart_panning;
                         battOpts.plugins.zoom.pan.onPanComplete = this.chart_panComplete;
                         if (!this.charts.battery) {
@@ -543,6 +544,8 @@ export default {
                                 options: battOpts
                             });
                         } else {
+                            this.charts.battery.options.scales.yAxes[0].ticks.min = this.station.batteryRange.min;
+                            this.charts.battery.options.scales.yAxes[0].ticks.max = this.station.batteryRange.max;
                             this.charts.battery.data.datasets[0].data = this.dataManager.batteryData;
                         }
                     }
@@ -775,6 +778,8 @@ export default {
                         this.station.legend.winddir.push(legend);
                     });
                 }
+
+                this.station.batteryRange = station.batteryRange;
             }).catch((err) => {
                 this.station.error = err.message;
             });

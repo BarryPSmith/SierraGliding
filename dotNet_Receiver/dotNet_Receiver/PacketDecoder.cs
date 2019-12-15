@@ -30,11 +30,10 @@ namespace dotNet_Receiver
         public double windDirection;
         public double windSpeed;
         public double batteryLevelH;
-        public double batteryLevelL => batteryLevelH - 7.5;
 
         public override string ToString()
         {
-            return $"{windDirection:F1} {windSpeed:F2} {batteryLevelH:F2} / {batteryLevelL:F2}";
+            return $"{windDirection:F1} {windSpeed:F2} {batteryLevelH:F2}";
         }
     }
 
@@ -130,6 +129,22 @@ namespace dotNet_Receiver
         private static string ToCsv<T>(this IEnumerable<T> source)
             => source?.Aggregate("", (run, cur) => run + (string.IsNullOrEmpty(run) ? "" : ", ") + cur);
 
+        private static double GetWindSpeed(byte wsByte)
+        {
+            // we got confused reading the Davis datasheet. This is a workaround until we can update the station data.
+            // in all fairness, who specifies revs / hour?
+            const double misreadDataSheet = 3.6 / 1.6;
+            double ret;
+            if (wsByte <= 100)
+                ret = wsByte * 0.5;
+            else if (wsByte <= 175)
+                ret = wsByte - 50;
+            else
+                ret = (wsByte - 113) * 2;
+            ret *= misreadDataSheet;
+            return ret;
+        }
+
         private static double GetWindDirection(byte wdByte, bool isLegacy)
         {
             if (isLegacy)
@@ -153,7 +168,7 @@ namespace dotNet_Receiver
                 sendingStation = stationID,
                 uniqueID = uniqueID,
                 windDirection = GetWindDirection(bytes[cur++], stationID == 49),
-                windSpeed = bytes[cur++] * 0.5,
+                windSpeed = GetWindSpeed(bytes[cur++]), 
                 batteryLevelH = /*7.5 + */bytes[cur++] / 255.0 * 7.5,
             };
 

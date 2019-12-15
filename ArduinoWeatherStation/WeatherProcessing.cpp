@@ -129,9 +129,21 @@ inline uint16_t getWindSpeed_x8()
 #ifdef ARGENTDATA_WIND
   return (8 * 2400 * localCounts) / weatherInterval;
 #elif defined(DAVIS_WIND)
-  return (8UL * 1600 * localCounts) / weatherInterval;
+  return (8UL * 3600 * localCounts) / weatherInterval;
 #endif
+}
 
+uint8_t getWindSpeedByte(const uint16_t windspeed_x8)
+{
+  //Apply simple staged compression to the wsByte to allow accurate low wind while still capturing high wind.
+  if (windSpeed_x8 <= 400) //.5 km/h resolution to 50km/h. Max 100
+    return (byte)(windSpeed_x8 / 4); //windspeed = byte * 0.5
+  else if (windSpeed_x8 < 1000) // 1 km/h resultion to 125km/h. Max 175
+    return (byte)(windSpeed_x8 / 8 + 50); //windspeed = byte - 50
+  else if (windSpeed_x8 < 285 * 8) // 2 km/h resolution to 285km/h. Max 255
+    return (byte)(windSpeed_x8 / 16 + 113); //windspeed = (byte - 113) * 2
+  else //We're just going to report 285km/h. It'll be a long search for the station. And the mountain.
+    return 255;
 }
 
 void createWeatherData(MessageDestination& message)
@@ -155,16 +167,8 @@ void createWeatherData(MessageDestination& message)
     AWS_DEBUG_PRINT(F("windDirection byte: "));
     AWS_DEBUG_PRINTLN(windDirection);
     message.appendByte(windDirection);
-    byte wsByte;
-    //Apply simple staged compression to the wsByte to allow accurate low wind while still capturing high wind.
-    if (windSpeed_x8 <= 400) //.5 km/h resolution to 50km/h. Max 100
-      wsByte = (byte)(windSpeed_x8 / 4);
-    else if (windSpeed_x8 < 1000) // 1 km/h resultion to 125km/h. Max 175
-      wsByte = (byte)(windSpeed_x8 / 8 + 50);
-    else if (windSpeed_x8 < 285 * 8) // 2 km/h resolution to 285km/h. Max 255
-      wsByte = (byte)(windSpeed_x8 / 16 + 113);
-    else //We're just going to report 285km/h. It'll be a long search for the station. And the mountain.
-      wsByte = 255;
+    byte wsByte = getWindSpeedByte(windSpeed_x8);
+    
     AWS_DEBUG_PRINT(F("windSpeed byte: "));
     AWS_DEBUG_PRINTLN(wsByte);
     message.appendByte(wsByte);

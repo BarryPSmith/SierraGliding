@@ -25,11 +25,12 @@ void AwsRecordState(int i);
 #define STATUS_MESSAGE F(" SierraGliding Weather Station. github.com/BarryPSmith/SierraGliding for source. SierraGliding.us for location. This station identified by first three bytes=XW")
 
 //Station Specific Constants
-const char stationID= '2';
+inline constexpr char stationID= '2';
 
 //Global Constants
-const unsigned long tncBaud = 38400;
-const unsigned long millisBetweenStatus = 600000; //We send our status messages this often. Note that status message stuff is currently commented out.
+inline constexpr unsigned long tncBaud = 38400;
+inline constexpr unsigned long millisBetweenStatus = 600000; //We send our status messages every ten minutes.
+inline constexpr unsigned long maxMillisBetweenPings = 1300000; //If we don't receive a ping in just under 20 minutes, we restart.
 inline constexpr unsigned short batteryHysterisis_mV = 50;
 
 extern unsigned long weatherInterval; //Current weather interval.
@@ -41,3 +42,33 @@ extern bool overrideShort;
 extern unsigned long lastStatusMillis;
 
 extern volatile bool weatherRequired;
+
+extern unsigned long lastPingMillis;
+
+#ifndef DEBUG
+inline void signalError(const byte count = 5, const unsigned long delay_ms = 70)
+{
+  bool zeroHigh = true;
+  for (byte i = 0; i < count; i++)
+  {
+    delay(delay_ms);
+    if (zeroHigh)
+    {
+      digitalWrite(0, LOW);
+      digitalWrite(1, HIGH);
+    }
+    else
+    {
+      digitalWrite(0, HIGH);
+      digitalWrite(1, LOW);
+    }
+    zeroHigh = !zeroHigh;
+  }
+  delay(delay_ms);
+  digitalWrite(0, LOW);
+  digitalWrite(1, LOW);
+}
+#define SIGNALERROR(...) signalError(__VA_ARGS__)
+#else
+#define SIGNALERROR(...) do {} while (0)
+#endif // !DEBUG

@@ -11,7 +11,7 @@ namespace core_Receiver
     {
         readonly KissCommunication _modem;
 
-        public TextWriter Output { get; set; }
+        public TextWriter Output { get; set; } = Console.Out;
 
         public CommandInterpreter(KissCommunication modem)
         {
@@ -30,27 +30,35 @@ namespace core_Receiver
                 case ':': //Commands (TODO)
                     break;
                 case '/': //Simple
-                    var reader = new SimpleLineReader(line.Substring(1));
-                    reader.Go();
-                    var data = reader.Encoded;
-                    Output.WriteLine("Command: ");
-                    for (int i = 0; i < data.Length; i++)
-                        Output.Write($"{Encoding.ASCII.GetChars(data, i, 1)[0]} {data[i]:X2} ");
-                    Output.Write("Continue? ");
-                    var confirmation = Console.ReadLine();
-                    if (string.IsNullOrWhiteSpace(confirmation) ||
-                        confirmation.StartsWith("Y", StringComparison.OrdinalIgnoreCase))
-                    {
-                        using MemoryStream dataStream = new MemoryStream(data);
-                        _modem.WriteSerial(dataStream);
-                        Output.WriteLine("Command Sent.");
-                    }
-                    else
-                        Output.WriteLine("Command Cancelled.");
+                    HandleSimpleLine(line, 0x00);
+                    break;
+                case '6':
+                    HandleSimpleLine(line, 0x06);
                     break;
             }
 
             return true;
+        }
+
+        void HandleSimpleLine(string line, byte packetType)
+        {
+            var reader = new SimpleLineReader(line.Substring(1));
+            reader.Go();
+            var data = reader.Encoded;
+            Output.WriteLine("Command: ");
+            for (int i = 0; i < data.Length; i++)
+                Output.Write($"{Encoding.ASCII.GetChars(data, i, 1)[0]} {data[i]:X2} ");
+            Output.Write("Continue? ");
+            var confirmation = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(confirmation) ||
+                confirmation.StartsWith("Y", StringComparison.OrdinalIgnoreCase))
+            {
+                using MemoryStream dataStream = new MemoryStream(data);
+                _modem.WriteSerial(dataStream, packetType);
+                Output.WriteLine("Command Sent.");
+            }
+            else
+                Output.WriteLine("Command Cancelled.");
         }
 
         class SimpleLineReader

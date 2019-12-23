@@ -40,6 +40,8 @@ class LoraMessageSource : public MessageSource
     MESSAGE_RESULT endMessage() override;
     MESSAGE_RESULT readByte(byte& dest) override;
 
+    MESSAGE_RESULT seek(const byte newPosition);
+
   private:
 #ifdef MOTEINO_96
     byte _incomingBuffer[255];

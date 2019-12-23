@@ -63,7 +63,7 @@ MESSAGE_RESULT MessageSource::readBytes(byte* dest, size_t dataLen)
   return MESSAGE_OK;
 }
 
-size_t MessageSource::getCurrentLocation()
+int MessageSource::getCurrentLocation()
 {
   return m_iCurrentLocation;
 }

@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
@@ -15,6 +16,8 @@ namespace dotNet_Receiver
         public event EventHandler<Exception> OnException;
         
         readonly string _url;
+
+        public TextWriter OutputWriter => Program.OutputWriter;
 
         public DataPosting(string url)
         {
@@ -57,12 +60,12 @@ namespace dotNet_Receiver
                 {
                     var response = await _client.PostAsync(uri, content);
                     if (response.IsSuccessStatusCode)
-                        Console.WriteLine($"Succesfully posted {packet.sendingStation}/{packet.type}{packet.uniqueID} to {url}.");
+                        OutputWriter.WriteLine($"Succesfully posted {packet.sendingStation}/{packet.type}{packet.uniqueID} to {url}.");
                     else
                     {
-                        Console.WriteLine($"Post of {packet.sendingStation}/{packet.type}{packet.uniqueID} to {url} failed ({response.StatusCode}): {response.ReasonPhrase}");
-                        Console.WriteLine($"Content: {response.Content.ReadAsStringAsync().Result}");
-                        Console.WriteLine($"JSON: {json}");
+                        OutputWriter.WriteLine($"Post of {packet.sendingStation}/{packet.type}{packet.uniqueID} to {url} failed ({response.StatusCode}): {response.ReasonPhrase}");
+                        OutputWriter.WriteLine($"Content: {response.Content.ReadAsStringAsync().Result}");
+                        OutputWriter.WriteLine($"JSON: {json}");
                     }
                 }
                 catch (Exception ex)

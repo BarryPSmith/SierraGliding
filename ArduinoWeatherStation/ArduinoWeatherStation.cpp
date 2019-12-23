@@ -2,6 +2,7 @@
 #define DEBUG_Speed 0
 #define DEBUG_Direction 0
 
+#include <avr/wdt.h>
 #include <spi.h>
 //#include <TimerOne.h>
 #include <LowPower.h>
@@ -30,6 +31,7 @@ void setup();
 void loop();
 void disableRFM69();
 void sleepUntilNextWeather();
+void restart();
 
 int main()
 {
@@ -51,10 +53,18 @@ int main()
 
 void setup() {
   randomSeed(analogRead(A0));
+  
+  //Enable the watchdog early to catch initialisation hangs (Side note: This limits initialisation to 8 seconds)
+  wdt_enable(WDTO_8S);
 
   setupWeatherProcessing();
 #ifdef DEBUG
   Serial.begin(tncBaud);
+#else //Use the serial LEDs as status lights:
+  pinMode(0, OUTPUT);
+  pinMode(1, OUTPUT);
+  digitalWrite(0, LOW);
+  digitalWrite(1, LOW);
 #endif // DEBUG
   AWS_DEBUG_PRINTLN(F("Starting..."));
   delay(50);
@@ -69,9 +79,7 @@ void setup() {
 #endif
 
   disableRFM69();
-
-  AWS_DEBUG_PRINTLN(F("Radios Disabled"));
-
+  
   InitMessaging();
 
   AWS_DEBUG_PRINTLN(F("Messaging Initialised"));
@@ -82,8 +90,6 @@ void setup() {
 }
 
 void loop() {
-
-
   readMessages();
   
   noInterrupts();
@@ -115,11 +121,16 @@ void loop() {
   }
 
   sleepUntilNextWeather();
+
+  if (millis() - lastPingMillis > maxMillisBetweenPings)
+    restart();
+
+  wdt_reset();
 }
 
 //A test board has a RFM69 on it for reading Davis weather stations.
 // But some testing revealed the davis station was faulty.
-//So we put it both to sleep.
+//So we put it to sleep.
 void disableRFM69()
 {
   SPI.begin();
@@ -166,6 +177,17 @@ void sleepUntilNextWeather()
 #endif
 }
 
+void restart()
+{
+  // Just allow the watchdog timer to timeout. Signal error as we're going down.
+  while (1)
+  {
+    AWS_DEBUG_PRINT(F("RESTARTING!")); //By including this in the loop we will flash the LEDs in debug mode too.
+    delay(500);
+    SIGNALERROR(3, 200);
+  }
+}
+
 #ifdef DEBUG
 void AwsRecordState(int i)
 {
@@ -174,4 +196,9 @@ void AwsRecordState(int i)
   digitalWrite(7, i & 4 ? 1 : 0);
   digitalWrite(8, i & 8 ? 1 : 0);
 }
+#endif
+
+#ifndef DEBUG
+//Export signalError here.
+extern inline void signalError(byte count, unsigned long delay_ms);
 #endif

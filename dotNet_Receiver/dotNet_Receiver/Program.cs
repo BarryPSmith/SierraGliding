@@ -11,6 +11,8 @@ namespace dotNet_Receiver
 {
     class Program
     {
+        const string CallSign = "KN6DUC";
+
         static void Help()
         {
             Console.WriteLine(
@@ -29,11 +31,14 @@ Arguments:
 
         static readonly KissCommunication _dataReceiver = new KissCommunication();
 
+        static public volatile TextWriter ErrorWriter = Console.Error;
+        static public volatile TextWriter OutputWriter = Console.Out;
+
         static void Main(string[] args)
         {
 #if DEBUG
             for (int i = 0; i < args.Length; i++)
-                Console.WriteLine($"{i}: {args[i]}");
+                OutputWriter.WriteLine($"{i}: {args[i]}");
 #endif
 
             if (!(args?.Length > 0))
@@ -80,7 +85,7 @@ Arguments:
             if (npsFnIndex >= 0)
                 npsFn = args[npsFnIndex + 1];
 
-            Console.WriteLine("srcAddress: " + srcAddress);
+            OutputWriter.WriteLine("srcAddress: " + srcAddress);
 
 #if local_storage
             var dbArgIdx = Array.FindIndex(args, arg => arg.Equals("--db", StringComparison.OrdinalIgnoreCase));
@@ -91,13 +96,15 @@ Arguments:
             var serverPosters = destUrls.Select(url =>
             {
                 var ret = new DataPosting(url);
-                ret.OnException += (sender, ex) => Console.Error.WriteLine($"Post error ({url}): {ex.GetType()}: {ex.Message}");
+                ret.OnException += (sender, ex) => 
+                    ErrorWriter.WriteLine($"Post error ({url}): {ex.GetType()}: {ex.Message}");
                 return ret;
             }).ToList();
 
             Stream nps = null;
             FileStream npsFs = null;
-            if (string.IsNullOrEmpty(npsFn))
+            bool npsIsStandardOut = string.IsNullOrEmpty(npsFn);
+            if (npsIsStandardOut)
             {
                 nps = Console.OpenStandardOutput();
             }
@@ -163,7 +170,7 @@ Arguments:
                     }
                     catch (Exception ex)
                     {
-                        Console.Error.WriteLine($"Error {DateTime.Now}: {ex}");
+                        ErrorWriter.WriteLine($"Error {DateTime.Now}: {ex}");
                     }
                 };
 
@@ -171,50 +178,7 @@ Arguments:
             {
                 if (!Console.IsInputRedirected)
                 {
-                    List<Task> tasks = new List<Task>();
-                    if (!string.IsNullOrEmpty(srcAddress))
-                        tasks.Add(Task.Run(() => _dataReceiver.Connect(srcAddress)));
-                    if (serialArgIndex >= 0)
-                        tasks.Add(Task.Run(() => _dataReceiver.ConnectSerial(serialAddress)));
-
-                    Console.WriteLine("Reading data. Type '/' followed by a command to send. Press q key to exit.");
-                    CommandInterpreter interpreter = new CommandInterpreter(_dataReceiver);
-                    var trueOut = Console.Out;
-                    interpreter.Output = trueOut;
-                    while (true)
-                    {
-                        bool exit = false;
-                        try
-                        {
-                            var key = Console.ReadKey();
-                            using var ms = new MemoryStream();
-                            using StreamWriter sw = new StreamWriter(ms);
-                            Console.SetOut(sw);
-                            var line2 = Console.ReadLine();
-                            var line = key.KeyChar + line2;
-                            if (!interpreter.HandleLine(line))
-                            {
-                                exit = true;
-                                Console.WriteLine("Shutting Down...");
-                                _dataReceiver.Disconnect();
-                                Task.WaitAll(tasks.ToArray());
-                                return;
-                            }
-                            sw.Flush();
-                            trueOut.Write(sw.Encoding.GetString(ms.ToArray()));
-                        }
-                        catch (Exception ex)
-                        {
-                            if (exit)
-                                throw;
-                            else
-                                Console.Error.WriteLine(ex.Message);
-                        }
-                        finally
-                        {
-                            Console.SetOut(trueOut);
-                        }
-                    }
+                    RunInteractive(srcAddress, serialArgIndex, serialAddress, npsIsStandardOut, nps);
                 }
                 else
                 {
@@ -222,7 +186,11 @@ Arguments:
                     if (!string.IsNullOrEmpty(srcAddress))
                         tasks.Add(TryForever(() => _dataReceiver.Connect(srcAddress)));
                     if (serialArgIndex >= 0)
-                        tasks.Add(TryForever(() => _dataReceiver.ConnectSerial(serialAddress)));
+                        tasks.Add(TryForever(() =>
+                        {
+                            _dataReceiver.ConnectSerial(serialAddress);
+                            StartPingLoop();
+                        }));
                     Task.WaitAll(tasks.ToArray());
                 }
             }
@@ -232,6 +200,100 @@ Arguments:
                 {
                     npsFs.Flush();
                     npsFs.Close();
+                }
+            }
+        }
+
+        private static void StartPingLoop()
+        {
+            Thread t = new Thread(PingLoop);
+            t.IsBackground = true;
+            t.Name = "PingThread";
+            t.Start();
+        }
+
+        private static void RunInteractive(string srcAddress, int serialArgIndex, string serialAddress,
+            bool npsIsStandardOut, Stream nps)
+        {
+            List<Task> tasks = new List<Task>();
+            if (!string.IsNullOrEmpty(srcAddress))
+                tasks.Add(Task.Run(() => _dataReceiver.Connect(srcAddress)));
+            if (serialArgIndex >= 0)
+                tasks.Add(Task.Run(() =>
+                {
+                    _dataReceiver.ConnectSerial(serialAddress);
+                    StartPingLoop();
+                }));
+
+            OutputWriter.WriteLine("Reading data. Type '/' followed by a command to send. Press q key to exit.");
+            CommandInterpreter interpreter = new CommandInterpreter(_dataReceiver);
+            while (true)
+            {
+                bool exit = false;
+                using var ms = new MemoryStream();
+                using var safeStream = Stream.Synchronized(ms);
+                using StreamWriter sw = new StreamWriter(safeStream);
+                try
+                {
+                    var key = Console.ReadKey();
+                    OutputWriter = sw;
+                    //While we're doing this, 
+                    ErrorWriter = sw;
+                    if (npsIsStandardOut)
+                        _dataReceiver.NonPacketStream = safeStream;
+                    var line2 = Console.ReadLine();
+                    var line = key.KeyChar + line2;
+                    if (!interpreter.HandleLine(line))
+                    {
+                        exit = true;
+                        Console.WriteLine("Shutting Down...");
+                        _dataReceiver.Disconnect();
+                        Task.WaitAll(tasks.ToArray());
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    if (exit)
+                        throw;
+                    else
+                        Console.Error.WriteLine(ex.Message);
+                }
+                finally
+                {
+                    OutputWriter = Console.Out;
+                    ErrorWriter = Console.Error;
+                    _dataReceiver.NonPacketStream = nps;
+                    sw.Flush();
+                    Console.Write(sw.Encoding.GetString(ms.ToArray()));
+                }
+            }
+        }
+
+        private static void PingLoop()
+        {
+            //Ping is XP{80}{00}KN6DUC
+            byte i = 0;
+            byte[] ping = Encoding.ASCII.GetBytes("XP##" + CallSign);
+            using MemoryStream ms = new MemoryStream(ping);
+            ping[3] = 0x80; //No destination / Demand relay
+            while (true)
+            {
+                try
+                {
+                    ping[4] = i; //This isn't used, but is around for debugging.
+                    _dataReceiver.WriteSerial(ms);
+                    OutputWriter.WriteLine($"Ping sent: {i}");
+                    unchecked
+                    {
+                        i++;
+                    }
+                    Thread.Sleep(TimeSpan.FromMinutes(5));
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Ping Error ({i}): {ex}");
+                    Thread.Sleep(TimeSpan.FromMinutes(1));
                 }
             }
         }

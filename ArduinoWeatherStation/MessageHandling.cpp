@@ -6,6 +6,7 @@
 #include "WeatherProcessing.h"
 #include "Callsign.h"
 #include "PermanentStorage.h"
+#include <string.h>
 
 extern void handleCommandMessage(MessageSource& message, bool demandRelay, byte uniqueID, bool isSpecific);
 
@@ -15,6 +16,7 @@ bool shouldRelay(byte msgType, byte msgStatID, byte msgUniqueID);
 void recordWeatherForRelay(MessageSource& message, byte msgStatID, byte msgUniqueID);
 void relayMessage(MessageSource& message, byte msgType, byte msgFirstByte, byte msgStatID, byte msgUniqueID);
 void recordMessageRelay(byte msgType, byte msgStatID, byte msgUniqueID);
+void checkPing(MessageSource& message);
 
 //These arrays use 320 bytes.
 RecentlySeenStation recentlySeenStations[recentArraySize]; //100
@@ -53,16 +55,26 @@ void readMessages()
     byte msgType = msgFirstByte & 0x7F;
     byte msgStatID;
     byte msgUniqueID;
-    if (msgType == 'C' || msgType == 'K' || msgType == 'W' || msgType == 'R')
+    if (msgType == 'C' || msgType == 'K' || msgType == 'W' || msgType == 'R'
+      || msgType == 'P')
     {
       if (msg.readByte(msgStatID) ||
         msg.readByte(msgUniqueID))
+      {
+        AWS_DEBUG_PRINTLN(F("Unable to read message header."));
+        SIGNALERROR();
         continue;
+      }
     }
     else
     {
+      AWS_DEBUG_PRINT(F("Unknown message type: "));
+      AWS_DEBUG_PRINTLN(msgType);
+      SIGNALERROR();
       continue;
     }
+
+    int afterHeader = msg.getCurrentLocation();
 
     AWS_DEBUG_PRINT(F("Message Received. Type: "));
     AWS_DEBUG_PRINT((char)msgType);
@@ -70,6 +82,9 @@ void readMessages()
     AWS_DEBUG_PRINT((char)msgStatID);
     AWS_DEBUG_PRINT(F(", ID: "));
     AWS_DEBUG_PRINTLN(msgUniqueID);
+
+    if (msgType == 'P')
+      checkPing(msg);
         
     //If it's one of our messages relayed back to us, ignore it:
     if (msgType != 'C' && msgStatID == stationID)
@@ -92,10 +107,17 @@ void readMessages()
         shouldRelay(msgType, msgStatID, msgUniqueID));
     if (relayRequired && !haveRelayed(msgType, msgStatID, msgUniqueID))
     {
+      if (msg.seek(afterHeader))
+      {
+        AWS_DEBUG_PRINTLN(F("Unable to seek to afterHeader"));
+        continue;
+      }
+
       if (msgType == 'W')
         recordWeatherForRelay(msg, msgStatID, msgUniqueID);
       else 
         relayMessage(msg, msgType, msgFirstByte, msgStatID, msgUniqueID);
+
       recordMessageRelay(msgType, msgStatID, msgUniqueID);
     }   
   }
@@ -308,4 +330,22 @@ void sendStatusMessage()
   msg.finishAndSend();
   MessageDestination::s_prependCallsign = wasPrependCallsign;
   lastStatusMillis = millis();
+}
+
+void checkPing(MessageSource& msg)
+{
+  byte callSignBuffer[sizeof(callSign) - 1];
+  if (msg.readBytes(callSignBuffer, sizeof(callSignBuffer)) != MESSAGE_OK)
+  {
+    AWS_DEBUG_PRINTLN(F("Unable to read ping callsign"));
+    SIGNALERROR();
+  }
+  else if (memcmp(callSignBuffer, callSign, sizeof(callSignBuffer)) != 0)
+  {
+    AWS_DEBUG_PRINT(F("Ping callsign does not match: "));
+    AWS_DEBUG_PRINTLN(callSignBuffer, sizeof(callSignBuffer));
+    SIGNALERROR();
+  }
+  else
+    lastPingMillis = millis();
 }

@@ -29,6 +29,8 @@ namespace dotNet_Receiver
 
         public Stream SerialStream { get; private set; }
 
+        public TextWriter OutputWriter => Program.OutputWriter;
+
         public static IPEndPoint CreateIPEndPoint(string endPoint)
         {
             string[] ep = endPoint.Split(':');
@@ -71,7 +73,7 @@ namespace dotNet_Receiver
         {
             if (string.IsNullOrEmpty(portName))
             {
-                Console.WriteLine("No Serial port specified, using first available...");
+                OutputWriter.WriteLine("No Serial port specified, using first available...");
                 var allPorts = SerialPort.GetPortNames();
                 foreach (var testPortName in allPorts)
                 {
@@ -91,7 +93,7 @@ namespace dotNet_Receiver
                 return;
             }
 
-            Console.WriteLine($"Using serial port {portName}");
+            OutputWriter.WriteLine($"Using serial port {portName}");
             using (var port = new SerialPort(portName))
             {
                 port.BaudRate = 38400;
@@ -191,26 +193,29 @@ namespace dotNet_Receiver
             if (SerialStream == null)
                 throw new InvalidOperationException("Serial Stream is not present.");
 
-            using BinaryWriter writer = new BinaryWriter(SerialStream, Encoding.ASCII, true);
-            writer.Write(FEND);
-            writer.Write(writeType);
-            for (var cur = dataStream.ReadByte(); cur != -1; cur = dataStream.ReadByte())
+            lock (SerialStream)
             {
-                var curByte = (byte)cur;
-                if (curByte == FESC)
+                using BinaryWriter writer = new BinaryWriter(SerialStream, Encoding.ASCII, true);
+                writer.Write(FEND);
+                writer.Write(writeType);
+                for (var cur = dataStream.ReadByte(); cur != -1; cur = dataStream.ReadByte())
                 {
-                    writer.Write(FESC);
-                    writer.Write(TFESC);
+                    var curByte = (byte)cur;
+                    if (curByte == FESC)
+                    {
+                        writer.Write(FESC);
+                        writer.Write(TFESC);
+                    }
+                    else if (curByte == FEND)
+                    {
+                        writer.Write(FESC);
+                        writer.Write(TFEND);
+                    }
+                    else
+                        writer.Write(curByte);
                 }
-                else if (curByte == FEND)
-                {
-                    writer.Write(FESC);
-                    writer.Write(TFEND);
-                }
-                else
-                    writer.Write(curByte);
+                writer.Write(FEND);
             }
-            writer.Write(FEND);
         }
         public void Disconnect()
         {

@@ -81,5 +81,5 @@ class MessageSource
     }
     MESSAGE_RESULT readBytes(byte* dest, size_t dataLen);
 
-    size_t getCurrentLocation();
+    int getCurrentLocation();
 };

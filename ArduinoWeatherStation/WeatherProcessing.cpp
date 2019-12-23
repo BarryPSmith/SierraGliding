@@ -133,7 +133,7 @@ inline uint16_t getWindSpeed_x8()
 #endif
 }
 
-uint8_t getWindSpeedByte(const uint16_t windspeed_x8)
+uint8_t getWindSpeedByte(const uint16_t windSpeed_x8)
 {
   //Apply simple staged compression to the wsByte to allow accurate low wind while still capturing high wind.
   if (windSpeed_x8 <= 400) //.5 km/h resolution to 50km/h. Max 100

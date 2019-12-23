@@ -35,9 +35,12 @@ void updateIdleState()
 {
 #ifndef MOTEINO_96
   //If we need to relay weather from anyone, we want to listen continuously.
-  //We don't need to use continuous listen for commands because they're sent with a long preamble.
+  //We also need to listen continuously if we're set to relay commands: Although commands are sent with a long preamble, acknowledgement is not.
   byte stationsToRelayWeather[permanentArraySize];
   GET_PERMANENT(stationsToRelayWeather);
+
+  byte stationsToRelayCommands[permanentArraySize];
+  GET_PERMANENT(stationsToRelayCommands);
   
   uint16_t outboundPreambleLength;
   GET_PERMANENT_S(outboundPreambleLength);
@@ -46,7 +49,8 @@ void updateIdleState()
 #if defined(MODEM)
   newState = IdleStates::ContinuousReceive;
 #else
-  newState = stationsToRelayWeather[0] ? IdleStates::ContinuousReceive : IdleStates::IntermittentReceive;
+  bool mustRelay = stationsToRelayWeather[0] || stationsToRelayCommands[0];
+  newState = mustRelay ? IdleStates::ContinuousReceive : IdleStates::IntermittentReceive;
 #endif
   LORA_CHECK(lora.setIdleState(newState));
 
@@ -74,8 +78,6 @@ void InitMessaging()
   AWS_DEBUG_PRINTLN(sizeof(lora));
   AWS_DEBUG_PRINT(F("Radio type: "));
   AWS_DEBUG_PRINTLN(F(XSTR(RADIO_TYPE)));
-  // Might have to tweak these parameters to get long distance communications.
-  // but testing suggests we can transmit 23km at -10 dBm. at +10 dBm we've got a fair bit of headroom.
   unsigned long frequency_i;
   unsigned short bandwidth_i;
   GET_PERMANENT_S(frequency_i);
@@ -87,48 +89,56 @@ void InitMessaging()
   GET_PERMANENT_S(spreadingFactor);
   GET_PERMANENT_S(csmaP);
   GET_PERMANENT_S(csmaTimeslot);
+  
+  int state = ERR_UNKNOWN;
+  while (state != ERR_NONE)
+  {
 #ifdef MOTEINO_96
-  float frequency = frequency_i / 1.0E6;
-  float bandwidth = bandwidth_i / 10.0;
-  LORA_CHECK(lora.begin(
-    frequency, 
-    bandwidth, 
-    spreadingFactor,
-    LORA_CR, 
-    SX127X_SYNC_WORD,
-    txPower,
-    100, //currentLimit
-    8, //preambleLength
-    0 //gain
-    ));
-  lora.setDio0Action(rxDone);
-  LORA_CHECK(lora.startReceive(RX_TIMEOUT));
+    float frequency = frequency_i / 1.0E6;
+    float bandwidth = bandwidth_i / 10.0;
+
+    auto state = LORA_CHECK(lora.begin(
+      frequency, 
+      bandwidth, 
+      spreadingFactor,
+      LORA_CR, 
+      SX127X_SYNC_WORD,
+      txPower,
+      100, //currentLimit
+      8, //preambleLength
+      0 //gain
+      ));
+    lora.setDio0Action(rxDone);
+    LORA_CHECK(lora.startReceive(RX_TIMEOUT));
 #else //!MOTEINO_96
 #ifdef USE_FP
-  float frequency = frequency_i / 1000000.0;
-  float bandwidth = bandwidth_i / 10.0;
-  LORA_CHECK(lora.begin(
-    frequency,
-    bandwidth,
-    spreadingFactor,
-    LORA_CR,
-    SX126X_SYNC_WORD_PRIVATE,
-    txPower,
-    140, //currentLimit
-    8, //preambleLength
-    0 //TCXO voltage
-  ));
+    float frequency = frequency_i / 1000000.0;
+    float bandwidth = bandwidth_i / 10.0;
+    auto state = LORA_CHECK(lora.begin(
+      frequency,
+      bandwidth,
+      spreadingFactor,
+      LORA_CR,
+      SX126X_SYNC_WORD_PRIVATE,
+      txPower,
+      140, //currentLimit
+      8, //preambleLength
+      0 //TCXO voltage
+    ));
 #else //!USE_FP
-  LORA_CHECK(lora.begin_i(frequency_i,
-    bandwidth_i,
-    spreadingFactor,
-    LORA_CR,
-    SX126X_SYNC_WORD_PRIVATE,
-    txPower,
-    (uint8_t)(140 / 2.5), //current limit
-    0xFFFF, //Preamble length
-    0)); //TCXO voltage
+    auto state = LORA_CHECK(lora.begin_i(frequency_i,
+      bandwidth_i,
+      spreadingFactor,
+      LORA_CR,
+      SX126X_SYNC_WORD_PRIVATE,
+      txPower,
+      (uint8_t)(140 / 2.5), //current limit
+      0xFFFF, //Preamble length
+      0)); //TCXO voltage
 #endif //!USE_FP
+    if (state != ERR_NONE)
+      SIGNALERROR(4, 150);
+  }
   LORA_CHECK(lora.setDio2AsRfSwitch());
   lora.enableIsChannelBusy();
   lora.initBuffer();
@@ -317,9 +327,25 @@ MESSAGE_RESULT LoraMessageDestination::finishAndSend()
   auto state = LORA_CHECK(lora.transmit(_outgoingBuffer, m_iCurrentLocation));
   LORA_CHECK(lora.setPreambleLength(0xFFFF));
   LORA_CHECK(lora.startReceive());
-#else
+#else //!MOTENINO_96
+#ifndef DEBUG 
+  //If we're not in debug there is no visual indication of a message being sent at the station
+  //So we light up the TX light on the board:
+  digitalWrite(0, HIGH);
+#endif //DEBUG
+
   auto state = LORA_CHECK(lora.transmit(_outgoingBuffer, m_iCurrentLocation, preambleLength));
-#endif
+
+#ifndef DEBUG
+  if (state == ERR_NONE)
+  {
+    delay(20); //Ensure that the LED remains visible for a short period. We could put the unit to sleep while we do this, but... meh.
+    digitalWrite(0, LOW);
+  }
+  else //Flash the TX/RX LEDs to indicate an error condition:
+    signalError();
+#endif //DEBUG
+#endif //!MOTENINO_96
   bool ret = state == ERR_NONE;
 
   m_iCurrentLocation = -1;
@@ -399,6 +425,20 @@ MESSAGE_RESULT LoraMessageSource::readByte(byte& dest)
   else
   {
     dest = _incomingBuffer[m_iCurrentLocation++];
+    return MESSAGE_OK;
+  }
+}
+
+MESSAGE_RESULT LoraMessageSource::seek(const byte newPosition)
+{
+  if (newPosition >= _incomingMessageSize)
+  {
+    m_iCurrentLocation == -1;
+    return MESSAGE_END;
+  } 
+  else
+  {
+    m_iCurrentLocation = newPosition;
     return MESSAGE_OK;
   }
 }

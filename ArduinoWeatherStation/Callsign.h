@@ -1,2 +1,2 @@
 #pragma once
-static const char* callSign = "KN6DUC";
+inline constexpr char callSign[] = "KN6DUC";

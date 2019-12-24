@@ -343,7 +343,8 @@ void checkPing(MessageSource& msg)
   else if (memcmp(callSignBuffer, callSign, sizeof(callSignBuffer)) != 0)
   {
     AWS_DEBUG_PRINT(F("Ping callsign does not match: "));
-    AWS_DEBUG_PRINTLN(callSignBuffer, sizeof(callSignBuffer));
+    for (int i = 0; i < sizeof(callSignBuffer); i++)
+      AWS_DEBUG_PRINTLN((char)callSignBuffer[i]);
     SIGNALERROR();
   }
   else

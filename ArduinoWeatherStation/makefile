@@ -1,10 +1,10 @@
 #COM port for upload
-PORT=COM15
+PORT=COM11
 PORT_MODEM=COM7
 #Hardware spects
 MCU=atmega328p
 F_CPU=16000000L
-PROG_BAUD=57600
+PROG_BAUD=115200
 #115200
 
 #Flags, etc.

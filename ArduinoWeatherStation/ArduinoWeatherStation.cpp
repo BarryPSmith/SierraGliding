@@ -26,6 +26,7 @@ extern volatile bool windTicked;
 
 //Recent Memory
 unsigned long lastStatusMillis = 0;
+unsigned long lastPingMillis = 0;
 
 void setup();
 void loop();

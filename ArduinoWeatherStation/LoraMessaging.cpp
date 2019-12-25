@@ -14,6 +14,7 @@ static inline int16_t lora_check(const int16_t result, const __FlashStringHelper
   {
     AWS_DEBUG_PRINT(msg);
     AWS_DEBUG_PRINTLN(result);
+    SIGNALERROR();
   }
   return result;
 }
@@ -65,6 +66,11 @@ void InitMessaging()
 {
   if (initialised)
     return;
+
+#if SX_RESET >= 0
+  pinMode(SX_RESET, OUTPUT);
+#endif
+
   
   MessageDestination::s_prependCallsign = false;
   MessageSource::s_discardCallsign = false;
@@ -97,7 +103,7 @@ void InitMessaging()
     float frequency = frequency_i / 1.0E6;
     float bandwidth = bandwidth_i / 10.0;
 
-    auto state = LORA_CHECK(lora.begin(
+    state = LORA_CHECK(lora.begin(
       frequency, 
       bandwidth, 
       spreadingFactor,
@@ -114,7 +120,7 @@ void InitMessaging()
 #ifdef USE_FP
     float frequency = frequency_i / 1000000.0;
     float bandwidth = bandwidth_i / 10.0;
-    auto state = LORA_CHECK(lora.begin(
+    state = LORA_CHECK(lora.begin(
       frequency,
       bandwidth,
       spreadingFactor,
@@ -126,7 +132,12 @@ void InitMessaging()
       0 //TCXO voltage
     ));
 #else //!USE_FP
-    auto state = LORA_CHECK(lora.begin_i(frequency_i,
+#ifdef SX_RESET
+    digitalWrite(SX_RESET, LOW);
+    delay(1);
+    digitalWrite(SX_RESET, HIGH);
+#endif
+    state = LORA_CHECK(lora.begin_i(frequency_i,
       bandwidth_i,
       spreadingFactor,
       LORA_CR,
@@ -137,7 +148,10 @@ void InitMessaging()
       0)); //TCXO voltage
 #endif //!USE_FP
     if (state != ERR_NONE)
+    {
       SIGNALERROR(4, 150);
+      delay(50);
+    }
   }
   LORA_CHECK(lora.setDio2AsRfSwitch());
   lora.enableIsChannelBusy();

@@ -1,17 +1,24 @@
 #COM port for upload
-PORT=COM11
-PORT_MODEM=COM7
+PORT=COM4
+PORT_MODEM=COM4
 #Hardware spects
 MCU=atmega328p
-F_CPU=16000000L
-PROG_BAUD=115200
 #115200
 
+#Boards:
+# 0: Mt Tom Rev 1 (Not implemented)
+# 1: Breadboard Modem
+# 2: Moteino Modem (Not implemented)
+# 3: Flynns Rev 1
+# 4: Flynns Rev 2
+BOARD = 4
+!INCLUDE Boards.makefile
+
 #Flags, etc.
-DEFINES=-DF_CPU=$(F_CPU) -DARDUINO=100
+DEFINES=$(BOARD_DEFINES) -DARDUINO=100
 # We can put in these defines to save ~100 bytes of serial buffer memory if we need it.
 #-DSERIAL_RX_BUFFER_SIZE=8 -DSERIAL_TX_BUFFER_SIZE=16
-DEFINES_MODEM=-DF_CPU=$(F_CPU) -DARDUINO=100 -DMODEM -DMOTEINO_96 -DDEBUG
+DEFINES_MODEM=$(BOARD_DEFINES) -DARDUINO=100 -DMODEM -DMOTEINO_96 -DDEBUG
 CFLAGS= -mcall-prologues -mmcu=$(MCU) -Os -fdata-sections -ffunction-sections -fno-exceptions -flto -std=c++17 -g
 LDFLAGS=-Wl,--gc-sections -Wl,--relax
 CC=avr-gcc

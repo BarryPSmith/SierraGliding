@@ -28,15 +28,16 @@ void updateSendInterval(unsigned short batteryVoltage_mv, bool startup);
 void setTimerInterval();
 
 volatile int windCounts = 0;
-#ifdef DEBUG
-volatile bool windTicked = false;
-#endif
+
 
 //We use unsigned long for these because they are involved in 32-bit calculations.
-constexpr unsigned long mV_Ref = 3800;
-constexpr unsigned long BattVNumerator = 491;
-constexpr unsigned long BattVDenominator = 100;
+constexpr unsigned long mV_Ref = REF_MV;
+constexpr unsigned long BattVNumerator = BATTV_NUM;
+constexpr unsigned long BattVDenominator = BATTV_DEN;
 constexpr unsigned long MaxBatt_mV = 7500;
+constexpr int voltagePin = BATT_PIN;
+constexpr int windDirPin = WIND_DIR_PIN;
+constexpr int windSpdPin = WIND_SPD_PIN;
 
 #if DEBUG_Speed
 const size_t speedTickLength = 200;
@@ -273,7 +274,7 @@ void circularMemCpy(void* dest, void* src0, size_t srcOffset, size_t srcSize, si
 #endif
 
 unsigned long lastWindCountMillis;
-constexpr unsigned long minWindInterval = 6; //160 MPH = broken station;
+constexpr unsigned long minWindInterval = 3; //Debounce. 330 kph = broken station;
 void countWind()
 {
   #if DEBUG_Speed
@@ -285,10 +286,6 @@ void countWind()
     return;
   lastWindCountMillis = millis();
   windCounts++;
-  
-#ifdef DEBUG
-  windTicked = true;
-#endif
 }
 
 void setupWindCounter()

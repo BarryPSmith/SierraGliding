@@ -23,6 +23,11 @@ bool overrideShort;
 extern volatile bool windTicked;
 #endif // DEBUG
 
+#ifndef STACK_DUMP_SIZE
+#define STACK_DUMP_SIZE 128
+#endif
+volatile uint16_t oldSP __attribute__ ((section (".noinit")));
+volatile byte oldStack[STACK_DUMP_SIZE] __attribute__ ((section (".noinit")));
 
 //Recent Memory
 unsigned long lastStatusMillis = 0;
@@ -50,13 +55,35 @@ int main()
   return 0;
 }
 
-
+extern uint8_t __stack;
+ISR (WDT_vect, ISR_NAKED)
+{
+  //Dump the stack:
+  oldSP = SP;
+  auto stackSize = (uint16_t)(&__stack) - oldSP;
+  if (stackSize > STACK_DUMP_SIZE)
+    stackSize = STACK_DUMP_SIZE;
+  memcpy((void*)oldStack,(void*) (oldSP + 1), stackSize);
+    
+#ifdef SOFT_WDT
+	// Disable the WDT and jump to where we start painting the stack.
+  // We don't jump to reset vector, so that the newly running code is able to tell whether SP has been reset
+	wdt_disable();
+  SP = 0;
+  asm volatile("jmp .stackPaintStart");
+#else
+  //Just wait for the WDT to time out a second time:
+  sei();
+  while (1);
+#endif
+}
 
 void setup() {
   randomSeed(analogRead(A0));
   
   //Enable the watchdog early to catch initialisation hangs (Side note: This limits initialisation to 8 seconds)
   wdt_enable(WDTO_8S);
+  WDTCSR |= (1 << WDIE);
 
   setupWeatherProcessing();
 #ifdef DEBUG
@@ -67,8 +94,21 @@ void setup() {
   digitalWrite(0, LOW);
   digitalWrite(1, LOW);
 #endif // DEBUG
-  AWS_DEBUG_PRINTLN(F("Starting..."));
   delay(50);
+  
+  if (oldSP >= 0x100)
+  {
+    AWS_DEBUG_PRINT(F("Previous Stack Pointer: "));
+    AWS_DEBUG_PRINTLN(oldSP, HEX);
+    AWS_DEBUG_PRINT(F("Previous Stack: "));
+    for (int i = 0; i < STACK_DUMP_SIZE; i++)
+    {
+      AWS_DEBUG_PRINT(oldStack[i], HEX);
+      AWS_DEBUG_PRINT(' ');
+    }
+    AWS_DEBUG_PRINTLN();
+  }
+  AWS_DEBUG_PRINTLN(F("Starting..."));
 
   PermanentStorage::initialise();
   
@@ -79,9 +119,20 @@ void setup() {
   pinMode(8, OUTPUT);
 #endif
 
+#ifdef DISABLE_RFM69
   disableRFM69();
+#endif
   
   InitMessaging();
+  if (oldSP > 0x100)
+  {
+    MESSAGE_DESTINATION_SOLID msg(false);
+    msg.appendByte('S');
+    msg.appendByte(stationID);
+    msg.appendByte(0x00);
+	msg.appendT(oldSP);
+    msg.append((byte*)oldStack, STACK_DUMP_SIZE);
+  }
 
   AWS_DEBUG_PRINTLN(F("Messaging Initialised"));
   

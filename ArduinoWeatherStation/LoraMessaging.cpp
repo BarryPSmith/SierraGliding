@@ -67,7 +67,7 @@ void InitMessaging()
   if (initialised)
     return;
 
-#if SX_RESET >= 0
+#if defined(SX_RESET) && SX_RESET >= 0
   pinMode(SX_RESET, OUTPUT);
 #endif
 
@@ -99,6 +99,14 @@ void InitMessaging()
   int state = ERR_UNKNOWN;
   while (state != ERR_NONE)
   {
+#ifdef SX_RESET
+    digitalWrite(SX_RESET, LOW);
+    delay(1);
+    digitalWrite(SX_RESET, HIGH);
+    delay(1);
+#endif
+    
+
 #ifdef MOTEINO_96
     float frequency = frequency_i / 1.0E6;
     float bandwidth = bandwidth_i / 10.0;
@@ -132,11 +140,6 @@ void InitMessaging()
       0 //TCXO voltage
     ));
 #else //!USE_FP
-#ifdef SX_RESET
-    digitalWrite(SX_RESET, LOW);
-    delay(1);
-    digitalWrite(SX_RESET, HIGH);
-#endif
     state = LORA_CHECK(lora.begin_i(frequency_i,
       bandwidth_i,
       spreadingFactor,
@@ -150,7 +153,8 @@ void InitMessaging()
     if (state != ERR_NONE)
     {
       SIGNALERROR(4, 150);
-      delay(50);
+      AWS_DEBUG_PRINTLN(F("==========="));
+      delay(500);
     }
   }
   LORA_CHECK(lora.setDio2AsRfSwitch());

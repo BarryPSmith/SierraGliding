@@ -7,25 +7,18 @@
 #include "ArduinoWeatherStation.h"
 #include "PermanentStorage.h"
 
-//I hope the compiler is smart enough to optimise away all of the 'msg's.
-static inline int16_t lora_check(const int16_t result, const __FlashStringHelper* msg) 
-{
-  if (result != ERR_NONE && result != NO_PACKET_AVAILABLE)
-  {
-    AWS_DEBUG_PRINT(msg);
-    AWS_DEBUG_PRINTLN(result);
-    SIGNALERROR();
-  }
-  return result;
-}
-#define LORA_CHECK(A) lora_check(A, F("FAILED " #A ": "))
+extern inline int16_t lora_check(const int16_t result, const __FlashStringHelper* msg);
 
 //Hardware pins:
 Module mod(SX_SELECT, SX_DIO1, SX_BUSY);
+#ifndef MOTEINO_96
+SX1262 lora = &mod;
+CSMAWrapper<SX1262> csma = &lora;
+#else
+SX1278 lora = &mod;
+#endif
 
-//These use 100 bytes (Seems alot)
-RADIO_TYPE lora = &mod; //28 bytes
-bool initialised = false; //72 bytes
+bool initialised = false;
 
 #ifdef MOTEINO_96
 static volatile bool packetWaiting;
@@ -45,7 +38,7 @@ void updateIdleState()
   
   uint16_t outboundPreambleLength;
   GET_PERMANENT_S(outboundPreambleLength);
-  lora._senderPremableLength = outboundPreambleLength;
+  csma._senderPremableLength = outboundPreambleLength;
   IdleStates newState;
 #if defined(MODEM)
   newState = IdleStates::ContinuousReceive;
@@ -53,7 +46,7 @@ void updateIdleState()
   bool mustRelay = stationsToRelayWeather[0] || stationsToRelayCommands[0];
   newState = mustRelay ? IdleStates::ContinuousReceive : IdleStates::IntermittentReceive;
 #endif
-  LORA_CHECK(lora.setIdleState(newState));
+  LORA_CHECK(csma.setIdleState(newState));
 
   // TODO: We might want to put the unit to sleep entirely if the battery reaches a critical level.
   // (Although we should probably instead work on reducing current draw so it never reaches that level.)
@@ -78,12 +71,6 @@ void InitMessaging()
 
   SPI.usingInterrupt(digitalPinToInterrupt(SX_DIO1));
   
-  AWS_DEBUG_PRINT(F("Mod size: "));
-  AWS_DEBUG_PRINTLN(sizeof(mod));
-  AWS_DEBUG_PRINT(F("Lora size: "));
-  AWS_DEBUG_PRINTLN(sizeof(lora));
-  AWS_DEBUG_PRINT(F("Radio type: "));
-  AWS_DEBUG_PRINTLN(F(XSTR(RADIO_TYPE)));
   unsigned long frequency_i;
   unsigned short bandwidth_i;
   GET_PERMANENT_S(frequency_i);
@@ -123,7 +110,8 @@ void InitMessaging()
       0 //gain
       ));
     lora.setDio0Action(rxDone);
-    LORA_CHECK(lora.startReceive(RX_TIMEOUT));
+    LORA_CHECK(lora.startReceive());
+  }
 #else //!MOTEINO_96
 #ifdef USE_FP
     float frequency = frequency_i / 1000000.0;
@@ -158,10 +146,9 @@ void InitMessaging()
     }
   }
   LORA_CHECK(lora.setDio2AsRfSwitch());
-  lora.enableIsChannelBusy();
-  lora.initBuffer();
-  lora.setPByte(csmaP);
-  lora.setTimeSlot(csmaTimeslot);
+  csma.initBuffer();
+  csma.setPByte(csmaP);
+  csma.setTimeSlot(csmaTimeslot);
   updateIdleState();
   //LORA_CHECK(lora.setIdleState(IdleStates::ContinuousReceive));
 #endif //!MOTEINO_96
@@ -203,7 +190,7 @@ bool HandleMessageCommand(MessageSource& src)
         state = ERR_UNKNOWN;
         break;
       }
-      lora.setPByte(csmaP);
+      csma.setPByte(csmaP);
       SET_PERMANENT_S(csmaP);
       state == ERR_NONE;
       break;
@@ -216,7 +203,7 @@ bool HandleMessageCommand(MessageSource& src)
         state = ERR_UNKNOWN;
         break;
       }      
-      lora.setTimeSlot(csmaTimeslot);
+      csma.setTimeSlot(csmaTimeslot);
       SET_PERMANENT_S(csmaTimeslot);
       state = ERR_NONE;
       break;
@@ -286,7 +273,8 @@ bool HandleMessageCommand(MessageSource& src)
   default:
     state = ERR_UNKNOWN;
   }
-  LORA_CHECK(lora.enterIdleState());
+  updateIdleState();
+  //LORA_CHECK(csma.enterIdleState());
   return state == ERR_NONE;
 #else // !MOTEINO_96
   return false;
@@ -296,9 +284,9 @@ bool HandleMessageCommand(MessageSource& src)
 void appendMessageStatistics(MessageDestination& msg)
 {
 #ifndef MOTEINO_96
-  msg.appendT(lora._crcErrorRate);
-  msg.appendT(lora._droppedPacketRate);
-  msg.appendT(lora._averageDelayTime);
+  msg.appendT(csma._crcErrorRate);
+  msg.appendT(csma._droppedPacketRate);
+  msg.appendT(csma._averageDelayTime);
 #endif
 }
 
@@ -346,13 +334,14 @@ MESSAGE_RESULT LoraMessageDestination::finishAndSend()
   LORA_CHECK(lora.setPreambleLength(0xFFFF));
   LORA_CHECK(lora.startReceive());
 #else //!MOTENINO_96
+
 #ifndef DEBUG 
   //If we're not in debug there is no visual indication of a message being sent at the station
   //So we light up the TX light on the board:
   digitalWrite(0, HIGH);
 #endif //DEBUG
 
-  auto state = LORA_CHECK(lora.transmit(_outgoingBuffer, m_iCurrentLocation, preambleLength));
+  auto state = LORA_CHECK(csma.transmit(_outgoingBuffer, m_iCurrentLocation, preambleLength));
 
 #ifndef DEBUG
   if (state == ERR_NONE)
@@ -401,7 +390,7 @@ bool LoraMessageSource::beginMessage()
   if (state != ERR_NONE)
     return false;
   #else
-  LORA_CHECK(lora.dequeueMessage(&_incomingBuffer, &_incomingMessageSize));
+  LORA_CHECK(csma.dequeueMessage(&_incomingBuffer, &_incomingMessageSize));
   //we don't use state to determine whether to handle the message
   if (_incomingBuffer == 0)
     return false;
@@ -464,21 +453,5 @@ MESSAGE_RESULT LoraMessageSource::seek(const byte newPosition)
 #ifdef DEBUG
 void messageDebugAction()
 {
-#if 0
-  AWS_DEBUG_PRINT(millis());
-  AWS_DEBUG_PRINT('\t');
-  AWS_DEBUG_PRINT(lora._lastPreambleDetMicros);
-  AWS_DEBUG_PRINT('\t');
-  AWS_DEBUG_PRINT(lora._curStatus);
-  AWS_DEBUG_PRINT('\t');
-  AWS_DEBUG_PRINT(lora._maybeReceiving);
-  AWS_DEBUG_PRINT('\t');
-  AWS_DEBUG_PRINT(lora._entryMicros);
-  AWS_DEBUG_PRINT('\t');
-  AWS_DEBUG_PRINT(lora._isrState);
-  AWS_DEBUG_PRINT('\t');
-  AWS_DEBUG_PRINT(lora._isrIrqStatus);
-  AWS_DEBUG_PRINTLN();
-#endif
 }
 #endif

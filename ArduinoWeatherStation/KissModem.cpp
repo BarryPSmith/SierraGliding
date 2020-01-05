@@ -4,6 +4,7 @@
 #include <spi.h>
 #include "PermanentStorage.h"
 #include "StackCanary.h"
+#include <avr/wdt.h>
 
 #define SERIALBAUD 38400
 
@@ -15,6 +16,23 @@ int main()
   
   Serial.begin(SERIALBAUD);
   delay(10);
+
+  if (oldSP >= 0x100)
+  {
+    Serial.print(F("Previous Stack Pointer: "));
+    Serial.println(oldSP, HEX);
+    Serial.print(F("Previous Stack: "));
+    for (int i = 0; i < STACK_DUMP_SIZE; i++)
+    {
+      Serial.print(oldStack[i], HEX);
+      Serial.print(' ');
+    }
+    Serial.println();
+  }
+
+  //Enable the watchdog early to catch initialisation hangs (Side note: This limits initialisation to 8 seconds)
+  wdt_enable(WDTO_8S);
+  WDTCSR |= (1 << WDIE);
 
   SPI.begin();
   delay(10);
@@ -35,11 +53,6 @@ int main()
   MessageDestination::s_prependCallsign = false;
   MessageSource::s_discardCallsign = false;
 
-  
-  
-  //sendMaxPowerCommand();
-  //Serial.println(F("Max Power command sent"));
-
   int i =0;
   while (1)
   {
@@ -48,6 +61,11 @@ int main()
     {
       KissMessageDestination dst;
       dst.appendData(loraSrc, maxPacketSize);
+      if (dst.finishAndSend() == MESSAGE_OK)
+      {
+        wdt_reset();
+        watchdogLoops = 0;
+      }
     }
     
     KissMessageSource kissSrc;

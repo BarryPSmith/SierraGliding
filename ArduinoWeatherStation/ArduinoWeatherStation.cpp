@@ -10,9 +10,9 @@
 #include "ArduinoWeatherStation.h"
 #include "WeatherProcessing.h"
 #include "MessageHandling.h"
-#include "SleepyTime.h"
 #include "TimerTwo.h"
 #include "PermanentStorage.h"
+#include "StackCanary.h"
 
 unsigned long weatherInterval = 2000; //Current weather interval.
 unsigned long overrideStartMillis;
@@ -23,15 +23,10 @@ bool overrideShort;
 extern volatile bool windTicked;
 #endif // DEBUG
 
-#ifndef STACK_DUMP_SIZE
-#define STACK_DUMP_SIZE 128
-#endif
-volatile uint16_t oldSP __attribute__ ((section (".noinit")));
-volatile byte oldStack[STACK_DUMP_SIZE] __attribute__ ((section (".noinit")));
-
 //Recent Memory
 unsigned long lastStatusMillis = 0;
 unsigned long lastPingMillis = 0;
+
 
 void setup();
 void loop();
@@ -53,29 +48,6 @@ int main()
     if (serialEventRun) serialEventRun();
   }
   return 0;
-}
-
-extern uint8_t __stack;
-ISR (WDT_vect, ISR_NAKED)
-{
-  //Dump the stack:
-  oldSP = SP;
-  auto stackSize = (uint16_t)(&__stack) - oldSP;
-  if (stackSize > STACK_DUMP_SIZE)
-    stackSize = STACK_DUMP_SIZE;
-  memcpy((void*)oldStack,(void*) (oldSP + 1), stackSize);
-    
-#ifdef SOFT_WDT
-	// Disable the WDT and jump to where we start painting the stack.
-  // We don't jump to reset vector, so that the newly running code is able to tell whether SP has been reset
-	wdt_disable();
-  SP = 0;
-  asm volatile("jmp .stackPaintStart");
-#else
-  //Just wait for the WDT to time out a second time:
-  sei();
-  while (1);
-#endif
 }
 
 void setup() {

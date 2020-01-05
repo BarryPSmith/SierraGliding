@@ -1,12 +1,22 @@
 //Found this on the AVR-freaks forum. Very, very useful.
 #include <stdint.h>
 #include <avr/io.h>
+#include <avr/interrupt.h>
+#include <avr/wdt.h>
+#include <string.h>
+#include "StackCanary.h"
 
 extern uint8_t _end;
 extern uint8_t __stack;
-extern uint16_t oldSP;
-#define STACK_CANARY 0xc5
 void StackPaint(void) __attribute__ ((naked)) __attribute__ ((section (".init1"))) __attribute__ ((used));
+
+volatile uint16_t oldSP __attribute__ ((section (".noinit")));
+volatile uint8_t oldStack[STACK_DUMP_SIZE] __attribute__ ((section (".noinit")));
+
+#if defined(WATCHDOG_LOOPS) && WATCHDOG_LOOPS > 0
+unsigned volatile int watchdogLoops = 0;
+#endif
+
 
 void StackPaint(void)
 {
@@ -54,4 +64,37 @@ uint16_t StackCount(void)
     }
 
     return c;
+}
+
+ISR (WDT_vect, ISR_NAKED)
+{
+#if defined(WATCHDOG_LOOPS) && WATCHDOG_LOOPS > 0
+  if (watchdogLoops < WATCHDOG_LOOPS)
+  {
+    watchdogLoops++;
+    WDTCSR |= (1 << WDIE);
+    return;
+  }
+#endif
+
+  //Dump the stack:
+  oldSP = SP;
+  auto stackSize = (uint16_t)(&__stack) - oldSP;
+  if (stackSize > STACK_DUMP_SIZE)
+    stackSize = STACK_DUMP_SIZE;
+  memcpy((void*)oldStack,(void*) (oldSP + 1), stackSize);
+   
+
+
+#ifdef SOFT_WDT
+	// Disable the WDT and jump to where we start painting the stack.
+  // We don't jump to reset vector, so that the newly running code is able to tell whether SP has been reset
+	wdt_disable();
+  SP = 0;
+  asm volatile("jmp .stackPaintStart");
+#else
+  //Just wait for the WDT to time out a second time:
+  //sei();
+  while (1);
+#endif
 }

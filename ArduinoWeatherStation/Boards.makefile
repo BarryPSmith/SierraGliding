@@ -1,27 +1,36 @@
-!IF $(BOARD) == 0
-!ERROR Makefile for Mt Tom Rev1 doesn't exist (0)
+ifeq ($(BOARD), 0)
+$(error Makefile for Mt Tom Rev1 doesn't exist (0))
 
-!ELSE IF $(BOARD) == 1
-!MESSAGE Running Makefile for Breadboard Modem (1)
+else ifeq ($(BOARD), 1)
+$(info Running Makefile for Breadboard Modem (1))
 BOARD_DEFINES = \
     -DF_CPU=16000000L \
     -DSX_BUSY=4 \
     -DSX_DIO1=2 \
-    -DSX_SELECT=9
+    -DSX_SELECT=9 \
+    -DWATCHDOG_LOOPS=15 \
+    -DMODEM
 
-PROG_BAUD=57600 \
-MODEM = 1
-#TODO: Change the target?
+PROG_BAUD=115200
+MODEM=1
 
-!ELSE IF $(BOARD) == 2
-!ERROR Haven't done makefile for Moteino / RFM96 (2)
-!MESSAGE Running Makefile for Moteino / RMF96 Modem (2)
-F_CPU = 16000000L
+else ifeq ($(BOARD), 2)
+$(info Running Makefile for Moteino / RMF96 Modem (2))
 PROG_BAUD = 115200
 MODEM = 1
+BOARD_DEFINES = \
+    -DF_CPU=16000000L \
+    -DSX_DIO1=2 \
+    -DSX_DIO2=3 \
+    -DSX_SELECT=10 \
+    -DSX_BUSY=-1 \
+    -DNO_COMMANDS \
+    -DMOTEINO_96 \
+    -DWATCHDOG_LOOPS=15 \
+    -DMODEM
 
-!ELSE IF $(BOARD) == 3
-!MESSAGE Running Makefile for Flynns Rev1 / Arduino Nano (3)
+else ifeq ($(BOARD), 3)
+$(info Running Makefile for Flynns Rev1 / Arduino Nano (3))
 BOARD_DEFINES = -DSTATION_ID='2' \
     -DF_CPU=16000000L \
     -DREF_MV=3800 \
@@ -39,8 +48,8 @@ BOARD_DEFINES = -DSTATION_ID='2' \
 
 PROG_BAUD = 57600
 
-!ELSE IF $(BOARD) == 4
-!MESSAGE Running Makefile for Flynns Rev2 / 8MHz AtMega328P (4)
+else ifeq ($(BOARD), 4)
+$(info Running Makefile for Flynns Rev2 / 8MHz AtMega328P (4))
 BOARD_DEFINES = \
     -DF_CPU=8000000L \
     -DSTATION_ID='2' \
@@ -58,4 +67,4 @@ BOARD_DEFINES = \
 
 PROG_BAUD=57600
 
-!ENDIF
+endif

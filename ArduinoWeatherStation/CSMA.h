@@ -1,7 +1,7 @@
 #ifndef _CSMA_H
 #define _CSMA_H
 
-//#include "lib/RadioLib/src/Radiolib.h"
+#include "lib/RadioLib/src/Radiolib.h"
 #include "ArduinoWeatherStation.h"
 
 inline uint8_t getLowNibble(const uint8_t input) { return input & 0x0F; }
@@ -11,6 +11,18 @@ inline void setHiNibble(uint8_t* dest, const uint8_t value) { *dest = getLowNibb
 
 #define NO_PACKET_AVAILABLE -1000
 #define NOT_ENOUGH_SPACE -1001
+
+inline int16_t lora_check(const int16_t result, const __FlashStringHelper* msg) 
+{
+  if (result != ERR_NONE && result != NO_PACKET_AVAILABLE)
+  {
+    AWS_DEBUG_PRINT(msg);
+    AWS_DEBUG_PRINTLN(result);
+    SIGNALERROR();
+  }
+  return result;
+}
+#define LORA_CHECK(A) lora_check(A, F("FAILED " #A ": "))
 
 enum class IdleStates {
   NotInitialised,
@@ -22,34 +34,39 @@ enum class IdleStates {
 /*
 */
 template<class T, uint8_t bufferSize = 255, uint8_t maxQueue = 8>
-class CSMAWrapper : public T
+class CSMAWrapper
 {
+  static constexpr uint32_t MaxDelay = 5000000; // 5 seconds
+  static constexpr uint16_t averagingPeriod = 256;
+
   public:
-    CSMAWrapper(Module* mod) : T(mod) {
+    CSMAWrapper(T* base) {
+      _base = base;
       setP(100); //0.4
       setTimeSlot(20000); //20ms
     }
 
-    static constexpr uint16_t averagingPeriod = 256;
+    T* _base;
 
     void initBuffer()
     {
       s_packetWaiting = false;
-      this->setRxDoneAction(rxDoneActionStatic);
+      _base->setRxDoneAction(rxDoneActionStatic);
     }
 
     int16_t transmit(uint8_t* data, size_t len, uint16_t preambleLength, uint8_t addr = 0) {
-      delayCSMA();
+      LORA_CHECK(delayCSMA());
       
-      auto ret = this->setPreambleLength(preambleLength);
+      auto ret = _base->setPreambleLength(preambleLength);
       if (ret != ERR_NONE)
         return ret;
-      ret = T::transmit(data, len, addr);
+      ret = _base->transmit(data, len, addr);
       enterIdleState();
 
       return ret;
     }
 
+    #define CHECK_TIMEOUT() do { if(micros() - entryMicros > MaxDelay) return(ERR_RX_TIMEOUT); } while (0)
     // see http://www.ax25.net/kiss.aspx section 6 for CSMA implementation.
     // this is a blocking function that will queue any messages received while it waits.
     int16_t delayCSMA()
@@ -58,17 +75,22 @@ class CSMAWrapper : public T
       bool wasBusy = false;
       do
       {
+        CHECK_TIMEOUT();
         if(wasBusy && (random(0, 255)) > _p) {
           uint32_t startMicros = micros();
           while (micros() - startMicros < _timeSlot) {
+            CHECK_TIMEOUT();
             readIfPossible();
           }
         }
-        int16_t state = this->isChannelBusy(true);
+        int16_t state = _base->isChannelBusy(true);
         wasBusy = (state == LORA_DETECTED);
+        if (wasBusy)
+          delay(10); //We're not going to use the scanChannel, so we need to give the receive some time to detect,
         while(state == LORA_DETECTED) {
+          CHECK_TIMEOUT();
           readIfPossible();
-          state = this->isChannelBusy(true);
+          state = _base->isChannelBusy(false);
         }
         if(state != CHANNEL_FREE) {
           return(state);
@@ -110,6 +132,7 @@ class CSMAWrapper : public T
         *buffer = 0;
         *length = 0;
         
+        //AWS_DEBUG_PRINTLN("Returning on _writeBufferLenPointer == 0");
         return(state); //Receive error or NO_PACKET_AVAILABLE
       }
 
@@ -117,13 +140,21 @@ class CSMAWrapper : public T
       *length = _messageLengths[_readBufferLenPointer];
 
       _readBufferLenPointer++;
+
+      return(state);
+      //Not sure what the code below is about... replaces NO_PACET_AVAILABLE with ERR_NONE.
       if (state != NO_PACKET_AVAILABLE)
+      {
+        AWS_DEBUG_PRINTLN("Returning on station != NO_PACKET_AVAILABLE");
         return(state);
+      }
       else
         return ERR_NONE;
     }
 
     int16_t readIfPossible() {
+      LORA_CHECK(_base->processLoop());
+
       if (!s_packetWaiting) {
         return(NO_PACKET_AVAILABLE);
       }
@@ -134,12 +165,12 @@ class CSMAWrapper : public T
         return(NOT_ENOUGH_SPACE);
       }
       uint8_t bufferEnd = getEndOfBuffer();
-      uint8_t packetSize = this->getPacketLength(false);
+      uint8_t packetSize = _base->getPacketLength(false);
       if (bufferSize - bufferEnd < packetSize) {
         return(NOT_ENOUGH_SPACE);
       }
 
-      int16_t state = this->readData(_buffer + bufferEnd, packetSize);
+      int16_t state = _base->readData(_buffer + bufferEnd, packetSize);
       enterIdleState();
 
       //calculate some statistics:
@@ -176,7 +207,9 @@ class CSMAWrapper : public T
       if (newState == _idleState)
         return ERR_NONE;
       _idleState = newState;
-      if (newState == IdleStates::Sleep || this->isChannelBusy(false) == CHANNEL_FREE)
+      if (newState == IdleStates::Sleep 
+        || _base->_curStatus != SX126X_STATUS_MODE_RX
+        || _base->isChannelBusy(false) == CHANNEL_FREE)
         return enterIdleState();
       else
         return LORA_DETECTED;
@@ -184,15 +217,15 @@ class CSMAWrapper : public T
 
     int16_t enterIdleState()
     {
-      this->setPreambleLength(_senderPremableLength);
+      _base->setPreambleLength(_senderPremableLength);
       switch (_idleState)
       {
       case IdleStates::IntermittentReceive:
-        return this->startReceiveDutyCycleAuto();
+        return _base->startReceiveDutyCycleAuto();
       case IdleStates::ContinuousReceive:
-        return this->startReceive();
+        return _base->startReceive();
       case IdleStates::Sleep:
-        return this->sleep();
+        return _base->sleep();
       default:
         return ERR_UNKNOWN;
       }

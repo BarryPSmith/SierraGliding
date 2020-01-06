@@ -17,6 +17,10 @@ int main()
   Serial.begin(SERIALBAUD);
   delay(10);
 
+  Serial.print(F("oldSP: "));
+  Serial.println(oldSP, HEX);
+  Serial.print(F("MCUSR_Mirror: "));
+  Serial.println(MCUSR_Mirror, HEX);
   if (oldSP >= 0x100)
   {
     Serial.print(F("Previous Stack Pointer: "));
@@ -54,8 +58,12 @@ int main()
   MessageSource::s_discardCallsign = false;
 
   int i =0;
+  
   while (1)
   {
+    Serial.print(watchdogLoops);
+    Serial.print(" ");
+    Serial.println(WDTCSR, HEX);
     LoraMessageSource loraSrc;
     if (loraSrc.beginMessage())
     {

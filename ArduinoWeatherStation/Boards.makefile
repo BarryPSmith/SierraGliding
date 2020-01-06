@@ -28,6 +28,7 @@ BOARD_DEFINES = \
     -DMOTEINO_96 \
     -DWATCHDOG_LOOPS=15 \
     -DMODEM
+OBJFOLDER = Motein96_
 
 else ifeq ($(BOARD), 3)
 $(info Running Makefile for Flynns Rev1 / Arduino Nano (3))

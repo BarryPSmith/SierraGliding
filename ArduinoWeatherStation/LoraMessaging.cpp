@@ -394,6 +394,13 @@ bool LoraMessageSource::beginMessage()
   //we don't use state to determine whether to handle the message
   if (_incomingBuffer == 0)
     return false;
+  if (_incomingMessageSize == 0)
+  {
+    AWS_DEBUG_PRINT(F("Message size zero. Buffer: "));
+    AWS_DEBUG_PRINTLN((uint16_t)_incomingBuffer, HEX);
+    AWS_DEBUG_PRINT(F("Base Buffer: "));
+    AWS_DEBUG_PRINTLN((uint16_t) csma._buffer, HEX);
+  }
   #endif
 
   

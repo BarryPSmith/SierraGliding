@@ -60,7 +60,7 @@ byte getWindDirection()
 byte getWindDirectionDavis()
 {
   int wdVoltage = analogRead(windDirPin);
-  AWS_DEBUG_PRINT("wdVoltage: ");
+  AWS_DEBUG_PRINT(F("wdVoltage: "));
   AWS_DEBUG_PRINTLN(wdVoltage);
   return wdVoltage / 4;
 }

@@ -2,7 +2,7 @@
 #define STACK_CANARY 0xc5
 
 #if defined(WATCHDOG_LOOPS) && WATCHDOG_LOOPS > 0
-extern unsigned volatile int watchdogLoops;
+extern unsigned volatile char watchdogLoops;
 #endif
 
 
@@ -14,4 +14,5 @@ uint16_t StackCount(void);
 
 extern volatile uint16_t oldSP;
 extern volatile uint8_t oldStack[STACK_DUMP_SIZE];
+extern volatile uint8_t MCUSR_Mirror;
 

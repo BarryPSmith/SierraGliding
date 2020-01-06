@@ -1,6 +1,5 @@
 #COM port for upload
-PORT=COM4
-PORT_MODEM=COM15
+PORT=COM15
 #Hardware spects
 MCU=atmega328p
 #115200
@@ -60,7 +59,7 @@ RADIO_LIB=lib/RadioLib/src/Module.cpp lib/RadioLib/src/modules/SX126x/SX126x.cpp
 
 LIBRARIES=lib/Low-Power/LowPower.cpp $(RADIO_LIB) $(ARDUINO_LIBSWDIRS)
 
-OBJFOLDER = obj
+OBJFOLDER := $(OBJFOLDER)obj
 ifeq ($(MODEM), 1)
 SRCS_C = KissModem.cpp MessagingCommon.cpp LoraMessaging.cpp KissMessaging.cpp \
 			../../ArduinoCore-avr/cores/arduino/wiring.c \
@@ -76,7 +75,6 @@ SRCS_C = ArduinoWeatherStation.cpp Commands.cpp MessageHandling.cpp \
 		 $(LIBRARIES)
 endif
 
-SRCS_H = *.h
 OBJS1	= $(SRCS_C:.cpp=.o)
 
 ifeq ($(DEBUG), 1)
@@ -90,13 +88,16 @@ $(info Folders: $(FOLDERS))
 
 VPATH = $(FOLDERS)
 
+.SUFFIXES:
+
 
 all: $(OBJFOLDER)/all.hex
 
 clean:
-	rm -rf *.o *.hex *.obj *.elf
+	del /S *.o *.hex *.obj *.elf
+	#rm -rf *.o *.hex *.obj *.elf
 
-obj:
+$(OBJFOLDER):
 	mkdir $(OBJFOLDER)
 	
 %.hex: %.obj
@@ -107,22 +108,24 @@ checkSize: all.elf
 	avr-size all.elf
 	avr-size all.elf
 
-all.elf: $(SRCS_C) $(SRCS_H)
+all.elf: $(SRCS_C)
 	$(CC) $(INCLUDES) $(DEFINES) $(CFLAGS) $(OBJS) $(LDFLAGS) -o $@
 
 revid:
 	gitver.cmd
 
-$(OBJFOLDER)/%.o: %.c $(SRCS_H) | obj
+#TODO: Dependency bullshit.
+
+$(OBJFOLDER)/%.o: %.c *.h | $(OBJFOLDER)
 	$(CC) $(INCLUDES) $(DEFINES) $(CFLAGS) -c $< -o $(OBJFOLDER)/$(notdir $@)
 
-$(OBJFOLDER)/%.o: %.cpp $(SRCS_H) | obj
+$(OBJFOLDER)/%.o: %.cpp *.h | $(OBJFOLDER)
 	$(CC) $(INCLUDES) $(DEFINES) $(CFLAGS) -c $< -o $(OBJFOLDER)/$(notdir $@)
 
 $(OBJFOLDER)/all.obj: $(OBJS)
 	$(CC) $(INCLUDES) $(DEFINES) $(CFLAGS) $(OBJS) $(LDFLAGS) -o $@
 
 program: $(OBJFOLDER)/all.hex
-	avrdude -c arduino -p $(MCU) -P $(PORT) -b $(PROG_BAUD) -U all.hex
+	avrdude -c arduino -p $(MCU) -P $(PORT) -b $(PROG_BAUD) -U $(OBJFOLDER)/all.hex
 	ECHO INFO : All done
 	

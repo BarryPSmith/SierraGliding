@@ -3,3 +3,4 @@ revid.h
 *.hex
 *.elf
 *.obj
+obj*

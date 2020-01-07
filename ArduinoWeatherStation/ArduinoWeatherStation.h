@@ -25,7 +25,9 @@ void AwsRecordState(int i);
 #define STATUS_MESSAGE F(" SierraGliding Weather Station. github.com/BarryPSmith/SierraGliding for source. SierraGliding.us for location. This station identified by first three bytes=XW")
 
 //Station Specific Constants
-inline constexpr char stationID= '2';
+#ifdef STATION_ID
+inline constexpr char stationID = STATION_ID;
+#endif
 
 //Global Constants
 inline constexpr unsigned long tncBaud = 38400;

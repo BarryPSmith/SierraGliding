@@ -1,5 +1,5 @@
 #COM port for upload
-PORT=COM15
+PORT=COM14
 #Hardware spects
 MCU=atmega328p
 #115200
@@ -12,12 +12,13 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 2: Moteino Modem
 # 3: Flynns Rev 1
 # 4: Flynns Rev 2
-BOARD = 1
-#make / nmake: !INCLUDE
+# 5: Dorji Modem
+BOARD = 5
 include Boards.makefile
 
 #Flags, etc.
-DEFINES=$(BOARD_DEFINES) -DARDUINO=100
+DEFINES=$(BOARD_DEFINES) -DARDUINO=100 
+#-DRADIOLIB_DEBUG -DRADIOLIB_VERBOSE
 CFLAGS= -mcall-prologues -mmcu=$(MCU) -Os -fdata-sections -ffunction-sections -fno-exceptions -flto -std=c++17 -g
 LDFLAGS=-Wl,--gc-sections -Wl,--relax
 CC=avr-gcc
@@ -95,7 +96,7 @@ all: $(OBJFOLDER)/all.hex
 
 clean:
 	del /S *.o *.hex *.obj *.elf
-	#rm -rf *.o *.hex *.obj *.elf
+#rm -rf *.o *.hex *.obj *.elf
 
 $(OBJFOLDER):
 	mkdir $(OBJFOLDER)

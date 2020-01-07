@@ -20,13 +20,7 @@ inline int16_t lora_check(const int16_t result, const __FlashStringHelper* msg)
     AWS_DEBUG_PRINT(msg);
     AWS_DEBUG_PRINTLN(result);
     SIGNALERROR();
-    if (result == 105)
-    {
-      AWS_DEBUG_PRINT(F("Stack count: "));
-      AWS_DEBUG_PRINTLN(StackCount());
-    }
   }
-
   return result;
 }
 #define LORA_CHECK(A) lora_check(A, F("FAILED " #A ": "))
@@ -139,8 +133,6 @@ class CSMAWrapper
         *buffer = 0;
         *length = 0;
         
-        if (state == 105)
-          AWS_DEBUG_PRINTLN(F("Returning on _writeBufferLenPointer == 0"));
         return(state); //Receive error or NO_PACKET_AVAILABLE
       }
 
@@ -149,13 +141,10 @@ class CSMAWrapper
 
       _readBufferLenPointer++;
       
-      if (state == 105)
-        AWS_DEBUG_PRINTLN(F("Returning with 105 from final of dequeMessage"));
       return(state);
       //Not sure what the code below is about... replaces NO_PACET_AVAILABLE with ERR_NONE.
       if (state != NO_PACKET_AVAILABLE)
       {
-        AWS_DEBUG_PRINTLN(F("Returning on station != NO_PACKET_AVAILABLE"));
         return(state);
       }
       else
@@ -166,22 +155,17 @@ class CSMAWrapper
       LORA_CHECK(_base->processLoop());
 
       if (!s_packetWaiting) {
-        //AWS_DEBUG_PRINTLN(F("Returning on !s_packetWaiting"));
         return(NO_PACKET_AVAILABLE);
       }
 
-      AWS_DEBUG_PRINTLN(F("Got one in CSMA"));
+      //AWS_DEBUG_PRINTLN(F("Got one in CSMA"));
 
       if (_writeBufferLenPointer == maxQueue) {
-        //if (NOT_ENOUGH_SPACE == 105)
-          AWS_DEBUG_PRINTLN(F("Returning on _writeBufferLenPointer == maxQueue"));
         return(NOT_ENOUGH_SPACE);
       }
       uint8_t bufferEnd = getEndOfBuffer();
       uint8_t packetSize = _base->getPacketLength(false);
       if (bufferSize - bufferEnd < packetSize) {
-        //if (NOT_ENOUGH_SPACE == 105)
-          AWS_DEBUG_PRINTLN(F("Returning on bufferSize - bufferEnd < packetSize"));
         return(NOT_ENOUGH_SPACE);
       }
 
@@ -203,14 +187,12 @@ class CSMAWrapper
         droppedPackets;
 
       if (state != ERR_NONE) {
-        AWS_DEBUG_PRINTLN(F("Returning on state != ERR_NONE after base->readData"));
         return(state);
       }
 
       _messageLengths[_writeBufferLenPointer] = packetSize;
       _writeBufferLenPointer++;
       s_packetWaiting = false;
-      AWS_DEBUG_PRINTLN(F("Returning from readIfPossible with ERR_NONE"));
       return(ERR_NONE);
     }
 
@@ -253,7 +235,7 @@ class CSMAWrapper
     uint16_t _crcErrorRate;
     uint16_t _droppedPacketRate;
     uint32_t _averageDelayTime;
-  //private:
+  private:
     uint8_t _buffer[bufferSize];
     uint8_t _messageLengths[maxQueue];
     uint8_t _readBufferLenPointer = 0;

@@ -37,8 +37,8 @@ void PermanentStorage::initialise()
   {
     AWS_DEBUG_PRINTLN(F("Initialising Default Parameters"));
     initialised = true;
-    const long shortInterval = 4000 - 90 * (stationID - '1');
-    const long longInterval = 4000 - 90 * (stationID - '1'); //longInterval == shortInterval because it turns out the transmit is negligble draw.
+    const long shortInterval = 4000;// - 90 * (stationID - '1');
+    const long longInterval = 4000;// - 90 * (stationID - '1'); //longInterval == shortInterval because it turns out the transmit is negligble draw.
     const unsigned short batteryThreshold_mV = 12000;
     const bool demandRelay = false;
     const byte emptyBuffer[permanentArraySize] = { 0 };

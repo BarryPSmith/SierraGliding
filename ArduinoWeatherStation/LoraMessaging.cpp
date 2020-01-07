@@ -62,6 +62,14 @@ void InitMessaging()
 
 #if defined(SX_RESET) && SX_RESET >= 0
   pinMode(SX_RESET, OUTPUT);
+  pinMode(SX_SELECT, OUTPUT);
+#endif
+#ifdef SX_SWITCH
+  pinMode(SX_SWITCH, OUTPUT);
+  digitalWrite(SX_SWITCH, HIGH);
+  // If we really wanted to save power, we could turn the switch off when in sleep.
+  // Best way to do that would be to update Radiolib
+  // But the datasheet suggests the switch draws 20uA. We're a long way from that being important.
 #endif
 
   
@@ -84,13 +92,25 @@ void InitMessaging()
   GET_PERMANENT_S(csmaTimeslot);
   
   int state = ERR_UNKNOWN;
+  
+  SPI.begin();
   while (state != ERR_NONE)
   {
-#ifdef SX_RESET
+#if defined(SX_RESET)
+    digitalWrite(SX_SELECT, HIGH);
     digitalWrite(SX_RESET, LOW);
-    delay(1);
+    delay(100);
     digitalWrite(SX_RESET, HIGH);
-    delay(1);
+    delay(100);
+    while (state != ERR_NONE)
+    {
+      uint8_t status;
+      lora.getStatus(&status);
+      AWS_DEBUG_PRINT(F("Status: "));
+      AWS_DEBUG_PRINTLN(status);
+      state = LORA_CHECK(lora.standby());
+      delay(1000);
+    }
 #endif
     
 
@@ -125,7 +145,7 @@ void InitMessaging()
       txPower,
       140, //currentLimit
       8, //preambleLength
-      0 //TCXO voltage
+      1.7 //TCXO voltage
     ));
 #else //!USE_FP
     state = LORA_CHECK(lora.begin_i(frequency_i,
@@ -136,7 +156,12 @@ void InitMessaging()
       txPower,
       (uint8_t)(140 / 2.5), //current limit
       0xFFFF, //Preamble length
-      0)); //TCXO voltage
+#ifdef SX_TCXOV_X10
+      SX_TCXOV_X10
+#else
+      0 //TCXO voltage
+#endif
+    ));
 #endif //!USE_FP
     if (state != ERR_NONE)
     {
@@ -394,13 +419,6 @@ bool LoraMessageSource::beginMessage()
   //we don't use state to determine whether to handle the message
   if (_incomingBuffer == 0)
     return false;
-  if (_incomingMessageSize == 0)
-  {
-    AWS_DEBUG_PRINT(F("Message size zero. Buffer: "));
-    AWS_DEBUG_PRINTLN((uint16_t)_incomingBuffer, HEX);
-    AWS_DEBUG_PRINT(F("Base Buffer: "));
-    AWS_DEBUG_PRINTLN((uint16_t) csma._buffer, HEX);
-  }
   #endif
 
   

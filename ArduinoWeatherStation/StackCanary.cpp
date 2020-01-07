@@ -32,13 +32,25 @@ void StackPaint(void)
 #else
     // Technically this isn't StackPaint, but it's in .init1 and it makes sense to sit here.
     // This is to be able to tell if we crashed and the WDT saved us
+
+    //Set the zero reg and zero the status reg so we can use regular C code:
     __asm volatile("eor r1, r1\n\t"
                   "out	0x3f, r1"::);
-    if (!(MCUSR & _BV(WDRF)))
-      oldSP = 0xAA;
-    register uint8_t oldMCUSR asm("r2");
+
+    // optiboot gives us the actual MCUSR in r2.
+    // (normal optiboot preserves MCUSR, but dual optiboot on the Moteino doesn't)
+#ifdef USE_ACTUAL_MCUSR
     MCUSR_Mirror = MCUSR;
+#else
+    register uint8_t oldMCUSR asm("r2");
+    MCUSR_Mirror = oldMCUSR;
+#endif
     MCUSR = 0;
+
+#ifndef ALWAYS_DUMP_STACK
+    if (!(MCUSR_Mirror & _BV(WDRF)))
+      oldSP = 0xAA;
+#endif
 
 
     __asm volatile (".stackPaintStart:\n"

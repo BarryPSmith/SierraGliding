@@ -34,12 +34,16 @@ void disableRFM69();
 void sleepUntilNextWeather();
 void restart();
 
+void TestBoard();
+
 int main()
 {
   //Arduino library initialisaton:
   init();
   TimerTwo::initialise();
   
+  //TestBoard();
+
   setup();
 
   while (1)

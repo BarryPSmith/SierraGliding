@@ -1,5 +1,5 @@
 #COM port for upload
-PORT=COM14
+PORT=COM4
 #Hardware spects
 MCU=atmega328p
 #115200
@@ -13,12 +13,12 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 3: Flynns Rev 1
 # 4: Flynns Rev 2
 # 5: Dorji Modem
-BOARD = 5
+BOARD = 4
 include Boards.makefile
 
 #Flags, etc.
-DEFINES=$(BOARD_DEFINES) -DARDUINO=100 
-#-DRADIOLIB_DEBUG -DRADIOLIB_VERBOSE
+DEFINES=$(BOARD_DEFINES) -DARDUINO=100 #-DRADIOLIB_DEBUG 
+#-DRADIOLIB_VERBOSE
 CFLAGS= -mcall-prologues -mmcu=$(MCU) -Os -fdata-sections -ffunction-sections -fno-exceptions -flto -std=c++17 -g
 LDFLAGS=-Wl,--gc-sections -Wl,--relax
 CC=avr-gcc
@@ -39,14 +39,12 @@ ARDUINO_BASE_LIBS=^/wiring_analog.c \
 			^/print.cpp ^/WMath.cpp
 
 #Serial is included in modem and debug builds:
-ifeq ($(or $(DEBUG), $(MODEM)), 1) 
-ARDUINO_BASE_LIBS += ^/HardwareSerial.cpp ^/HardwareSerial0.cpp
-endif
-
 ifeq ($(DEBUG), 1)
+ARDUINO_BASE_LIBS += ^/HardwareSerial.cpp ^/HardwareSerial0.cpp
 DEFINES += -DDEBUG
 endif
 ifeq ($(MODEM), 1)
+ARDUINO_BASE_LIBS += ^/HardwareSerial.cpp ^/HardwareSerial0.cpp
 DEFINES += -DMODEM
 endif
 

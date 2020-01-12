@@ -8,6 +8,8 @@
 
 #define SERIALBAUD 38400
 
+//Testing stuff:
+#if 0
 void printState()
   {
     Serial.print(digitalRead(SX_RESET));
@@ -75,7 +77,7 @@ void TestBoard()
   Serial.println(ret2, HEX);
   while(1);
 }
-
+#endif
 
 int main()
 {

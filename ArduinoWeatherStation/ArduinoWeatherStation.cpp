@@ -6,6 +6,7 @@
 #include <spi.h>
 //#include <TimerOne.h>
 #include <LowPower.h>
+#include <avr/power.h>
 #include "lib/RadioLib/src/Radiolib.h"
 #include "ArduinoWeatherStation.h"
 #include "WeatherProcessing.h"
@@ -35,13 +36,15 @@ void sleepUntilNextWeather();
 void restart();
 
 void TestBoard();
+void savePower();
 
 int main()
 {
   //Arduino library initialisaton:
   init();
   TimerTwo::initialise();
-  
+  //Disabling savePower() until we can test it:
+  //savePower();
   //TestBoard();
 
   setup();
@@ -52,6 +55,61 @@ int main()
     if (serialEventRun) serialEventRun();
   }
   return 0;
+}
+
+void savePower()
+{
+  constexpr int PinCount = 20;
+  bool pinsInUse[PinCount];
+  memset(pinsInUse, 0, PinCount);
+      pinsInUse[BATT_PIN] 
+    = pinsInUse[WIND_DIR_PIN]
+    = pinsInUse[WIND_SPD_PIN]
+    = pinsInUse[SX_BUSY]
+    = pinsInUse[SX_DIO1]
+    = pinsInUse[SX_SELECT]
+#ifdef SX_RESET
+    = pinsInUse[SX_RESET]
+#endif
+    = true;
+    
+  for (int i = 0; i < PinCount; i++)
+  {
+    if (!pinsInUse[i])
+      pinMode(i, INPUT_PULLUP);
+  }
+
+  power_twi_disable();
+#ifndef DEBUG
+  power_usart0_disable();
+#endif
+  power_timer0_disable();
+  power_timer1_disable();
+
+  DIDR0 = _BV(ADC0D) | _BV(ADC1D) | _BV(ADC2D) | _BV(ADC3D) | _BV(ADC4D) | _BV(ADC5D);
+  DIDR1 = _BV(AIN0D) | _BV(AIN1D);
+}
+
+extern SX1262 lora;
+#include "CSMA.h"
+extern CSMAWrapper<SX1262> csma;
+void TestBoard()
+{
+  //sleep the radio:
+  InitMessaging();
+  csma.setIdleState(IdleStates::IntermittentReceive);
+  //lora.sleep();
+
+  while (1)
+  {
+    //32 ms per loop. This should give us about 2 seconds of sleep:
+    for (int i = 0; i < 60; i++)
+      LowPower.powerSave(SLEEP_FOREVER, //we're actually going to wake up on our next timer2 or wind tick.
+                       ADC_OFF,
+                       BOD_OFF,
+                       TIMER2_ON);
+    delay(1000);
+  }
 }
 
 void setup() {
@@ -200,7 +258,7 @@ void sleepUntilNextWeather()
 #else
   LowPower.powerSave(SLEEP_FOREVER, //we're actually going to wake up on our next timer2 or wind tick.
                      ADC_OFF,
-                     BOD_ON,
+                     BOD_OFF,
                      TIMER2_ON);
 #endif
 }

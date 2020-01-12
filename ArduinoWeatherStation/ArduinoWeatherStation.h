@@ -26,7 +26,10 @@ void AwsRecordState(int i);
 
 //Station Specific Constants
 #ifdef STATION_ID
+#define STR(A) #A
+#define XSTR(A) STR(A)
 inline constexpr char stationID = STATION_ID;
+#pragma message ("StationID: " XSTR(STATION_ID))
 #endif
 
 //Global Constants

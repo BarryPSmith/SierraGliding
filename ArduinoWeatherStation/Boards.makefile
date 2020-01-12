@@ -30,7 +30,7 @@ BOARD_DEFINES = \
 
 else ifeq ($(BOARD), 3)
 $(info Running Makefile for Flynns Rev1 / Arduino Nano (3))
-BOARD_DEFINES = -DSTATION_ID='2' \
+BOARD_DEFINES = -DSTATION_ID=\'2\' \
     -DF_CPU=16000000L \
     -DREF_MV=3800 \
     -DBATTV_NUM=491 \
@@ -52,7 +52,7 @@ else ifeq ($(BOARD), 4)
 $(info Running Makefile for Flynns Rev2 / 8MHz AtMega328P (4))
 BOARD_DEFINES = \
     -DF_CPU=8000000L \
-    -DSTATION_ID='3' \
+    -DSTATION_ID=\'2\' \
     -DREF_MV=3300 \
     -DBATTV_NUM=391 \
     -DBATTV_DEN=100 \
@@ -64,8 +64,7 @@ BOARD_DEFINES = \
     -DSX_DIO1=3 \
     -DSX_SELECT=9 \
     -DSX_TCXOV_X10=18 \
-    -DSX_RESET=A1 \
-    -DMODEM
+    -DSX_RESET=A1 
 
 PROG_BAUD=57600
 
@@ -73,7 +72,7 @@ else ifeq ($(BOARD), 5)
 $(info Running Makefile for Dorji Test Board (5))
 BOARD_DEFINES = \
     -DF_CPU=16000000L \
-    -DSTATION_ID='4' \
+    -DSTATION_ID=\'4\' \
     -DSX_BUSY=3 \
     -DSX_SELECT=7 \
     -DSX_DIO1=5 \

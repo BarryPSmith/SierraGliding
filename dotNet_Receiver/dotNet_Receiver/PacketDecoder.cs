@@ -131,9 +131,6 @@ namespace dotNet_Receiver
 
         private static double GetWindSpeed(byte wsByte)
         {
-            // we got confused reading the Davis datasheet. This is a workaround until we can update the station data.
-            // in all fairness, who specifies revs / hour?
-            const double misreadDataSheet = 3.6 / 1.6;
             double ret;
             if (wsByte <= 100)
                 ret = wsByte * 0.5;
@@ -141,7 +138,6 @@ namespace dotNet_Receiver
                 ret = wsByte - 50;
             else
                 ret = (wsByte - 113) * 2;
-            ret *= misreadDataSheet;
             return ret;
         }
 

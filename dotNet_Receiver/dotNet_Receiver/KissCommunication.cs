@@ -8,6 +8,8 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO.Ports;
+using System.Diagnostics;
+using System.Collections.Concurrent;
 
 namespace dotNet_Receiver
 {
@@ -102,10 +104,33 @@ namespace dotNet_Receiver
                 port.StopBits = StopBits.One;
                 port.Handshake = Handshake.None;
                 port.Open();
+                port.BaseStream.ReadTimeout = 100;
                 SerialStream = port.BaseStream;
                 ReadStream(port.BaseStream);
                 SerialStream = null;
                 port.Close();
+            }
+        }
+
+        int ReadOrWriteStream(Stream stream)
+        {
+            while (true)
+            {
+                try
+                {
+                    //Console.WriteLine("Reading a byte...");
+                    return stream.ReadByte();
+                }
+                catch (TimeoutException)
+                {
+                    if (_disconnectRequested)
+                        return -1;
+                    if (_writeQueue.TryDequeue(out var toWrite))
+                    {
+                        WriteSerialInternal(toWrite.stream, toWrite.writeType);
+                        Console.WriteLine("Wrote stream...");
+                    }
+                }
             }
         }
 
@@ -115,11 +140,11 @@ namespace dotNet_Receiver
             bool inPacket = false;
             bool awaitingNull = false;
             List<byte> curPacket = new List<byte>();
-            for (var curByte = netStream.ReadByte(); curByte != -1; curByte = netStream.ReadByte())
+            for (var curByte = ReadOrWriteStream(netStream); curByte != -1; curByte = ReadOrWriteStream(netStream))
             {
                 if (_disconnectRequested)
                     break;
-
+                
                 if (curByte == FEND)
                 {
                     if (inPacket)
@@ -185,14 +210,20 @@ namespace dotNet_Receiver
                 }
                 curPacket.Add((byte)curByte);
             }
-
         }
+
+        ConcurrentQueue<(Stream stream, byte writeType)> _writeQueue = new ConcurrentQueue<(Stream stream, byte writeType)>();
 
         public void WriteSerial(Stream dataStream, byte writeType = 0x00)
         {
             if (SerialStream == null)
                 throw new InvalidOperationException("Serial Stream is not present.");
 
+            _writeQueue.Enqueue((dataStream, writeType));
+        }
+
+        private void WriteSerialInternal(Stream dataStream, byte writeType)
+        {
             lock (SerialStream)
             {
                 using BinaryWriter writer = new BinaryWriter(SerialStream, Encoding.ASCII, true);

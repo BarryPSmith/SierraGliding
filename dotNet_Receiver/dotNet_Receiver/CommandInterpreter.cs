@@ -53,7 +53,7 @@ namespace core_Receiver
             if (string.IsNullOrWhiteSpace(confirmation) ||
                 confirmation.StartsWith("Y", StringComparison.OrdinalIgnoreCase))
             {
-                using MemoryStream dataStream = new MemoryStream(data);
+                MemoryStream dataStream = new MemoryStream(data);
                 _modem.WriteSerial(dataStream, packetType);
                 Output.WriteLine("Command Sent.");
             }

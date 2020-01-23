@@ -186,11 +186,13 @@ Arguments:
                     if (!string.IsNullOrEmpty(srcAddress))
                         tasks.Add(TryForever(() => _dataReceiver.Connect(srcAddress)));
                     if (serialArgIndex >= 0)
+                    {
                         tasks.Add(TryForever(() =>
                         {
                             _dataReceiver.ConnectSerial(serialAddress);
-                            StartPingLoop();
                         }));
+                        StartPingLoop();
+                    }
                     Task.WaitAll(tasks.ToArray());
                 }
             }
@@ -219,11 +221,13 @@ Arguments:
             if (!string.IsNullOrEmpty(srcAddress))
                 tasks.Add(Task.Run(() => _dataReceiver.Connect(srcAddress)));
             if (serialArgIndex >= 0)
+            {
                 tasks.Add(Task.Run(() =>
                 {
                     _dataReceiver.ConnectSerial(serialAddress);
-                    StartPingLoop();
                 }));
+                StartPingLoop();
+            }
 
             OutputWriter.WriteLine("Reading data. Type '/' followed by a command to send. Press q key to exit.");
             CommandInterpreter interpreter = new CommandInterpreter(_dataReceiver);
@@ -272,16 +276,20 @@ Arguments:
 
         private static void PingLoop()
         {
-            //Ping is XP{80}{00}KN6DUC
+            // Give the serial port time to connect:
+            Thread.Sleep(1000);
+            //         0  1  2  345678
+            // Ping is P{80}{00}KN6DUC
+            // X is prepended by modem
             byte i = 0;
-            byte[] ping = Encoding.ASCII.GetBytes("XP##" + CallSign);
-            using MemoryStream ms = new MemoryStream(ping);
-            ping[3] = 0x80; //No destination / Demand relay
             while (true)
             {
                 try
                 {
-                    ping[4] = i; //This isn't used, but is around for debugging.
+                    byte[] ping = Encoding.ASCII.GetBytes("P##" + CallSign);
+                    ping[1] = 0x80; //No destination / Demand relay
+                    ping[2] = i; //This isn't used, but is around for debugging.
+                    MemoryStream ms = new MemoryStream(ping);
                     _dataReceiver.WriteSerial(ms);
                     OutputWriter.WriteLine($"Ping sent: {i}");
                     unchecked

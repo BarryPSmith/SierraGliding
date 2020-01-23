@@ -13,7 +13,7 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 3: Flynns Rev 1
 # 4: Flynns Rev 2
 # 5: Dorji Modem
-BOARD = 4
+BOARD = 1
 include Boards.makefile
 
 #Flags, etc.
@@ -40,7 +40,7 @@ ARDUINO_BASE_LIBS=^/wiring_analog.c \
 
 #Serial is included in modem and debug builds:
 ifeq ($(DEBUG), 1)
-ARDUINO_BASE_LIBS += ^/HardwareSerial.cpp ^/HardwareSerial0.cpp
+#ARDUINO_BASE_LIBS += ^/HardwareSerial.cpp ^/HardwareSerial0.cpp
 DEFINES += -DDEBUG
 endif
 ifeq ($(MODEM), 1)

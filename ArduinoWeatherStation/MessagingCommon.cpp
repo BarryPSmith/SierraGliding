@@ -22,7 +22,7 @@ MESSAGE_RESULT MessageDestination::appendData(MessageSource& source, size_t maxB
 
 size_t MessageDestination::getCurrentLocation()
 {
-  return m_iCurrentLocation;
+  return _currentLocation;
 }
 
 MESSAGE_RESULT MessageDestination::append(const byte* data, size_t dataLen)
@@ -65,7 +65,12 @@ MESSAGE_RESULT MessageSource::readBytes(byte* dest, size_t dataLen)
 
 int MessageSource::getCurrentLocation()
 {
-  return m_iCurrentLocation;
+  return _currentLocation;
 }
 
 MessageSource::MessageSource() {}
+
+byte MessageSource::getMessageLength()
+{
+  return _length;
+}

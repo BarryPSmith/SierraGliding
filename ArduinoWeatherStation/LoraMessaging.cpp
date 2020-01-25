@@ -336,12 +336,12 @@ LoraMessageDestination::LoraMessageDestination(bool isOutbound)
 
 void LoraMessageDestination::abort()
 {
-  m_iCurrentLocation = -1;
+  _currentLocation = -1;
 }
 
 MESSAGE_RESULT LoraMessageDestination::finishAndSend()
 {
-  if (m_iCurrentLocation < 0)
+  if (_currentLocation < 0)
     return MESSAGE_NOT_IN_MESSAGE;
 
   uint16_t preambleLength = 8;
@@ -366,7 +366,7 @@ MESSAGE_RESULT LoraMessageDestination::finishAndSend()
   digitalWrite(0, HIGH);
 #endif //DEBUG
 
-  auto state = LORA_CHECK(csma.transmit(_outgoingBuffer, m_iCurrentLocation, preambleLength));
+  auto state = LORA_CHECK(csma.transmit(_outgoingBuffer, _currentLocation, preambleLength));
 
 #ifndef DEBUG
   if (state == ERR_NONE)
@@ -380,7 +380,7 @@ MESSAGE_RESULT LoraMessageDestination::finishAndSend()
 #endif //!MOTENINO_96
   bool ret = state == ERR_NONE;
 
-  m_iCurrentLocation = -1;
+  _currentLocation = -1;
   if (ret)
     return MESSAGE_OK;
   else
@@ -390,48 +390,36 @@ MESSAGE_RESULT LoraMessageDestination::finishAndSend()
 
 MESSAGE_RESULT LoraMessageDestination::appendByte(const byte data)
 {
-  if (m_iCurrentLocation < 0)
+  if (_currentLocation < 0)
     return MESSAGE_NOT_IN_MESSAGE;
-  else if (m_iCurrentLocation >= maxPacketSize)
+  else if (_currentLocation >= maxPacketSize)
   {
     return MESSAGE_BUFFER_OVERRUN;
   }
 
-  _outgoingBuffer[m_iCurrentLocation++] = data;
+  _outgoingBuffer[_currentLocation++] = data;
 
   return MESSAGE_OK;
 }
 
 bool LoraMessageSource::beginMessage()
 {
-  #if defined(MOTEINO_96)
-  if (!packetWaiting)
-    return false;
-  packetWaiting = false;
-
-  _incomingMessageSize = lora.getPacketLength(false);
-  auto state = LORA_CHECK(lora.readData(_incomingBuffer, _incomingMessageSize));
-  LORA_CHECK(lora.startReceive());
-  if (state != ERR_NONE)
-    return false;
-  #else
   LORA_CHECK(csma.dequeueMessage(&_incomingBuffer, &_incomingMessageSize));
   //we don't use state to determine whether to handle the message
   if (_incomingBuffer == 0)
     return false;
-  #endif
-
-  
   
   if (s_discardCallsign)
   {
     if (_incomingMessageSize <= 6)
       return false;
-    m_iCurrentLocation = 6;
+    _currentLocation = 6;
+    _length = _incomingMessageSize - 6;
   }
   else
   {
-    m_iCurrentLocation = 0;
+    _currentLocation = 0;
+    _length = _incomingMessageSize;
   }
 
   return true;
@@ -439,24 +427,24 @@ bool LoraMessageSource::beginMessage()
 
 MESSAGE_RESULT LoraMessageSource::endMessage()
 {
-  if (m_iCurrentLocation < 0)
+  if (_currentLocation < 0)
     return MESSAGE_NOT_IN_MESSAGE;
-  m_iCurrentLocation = -1;
+  _currentLocation = -1;
   return MESSAGE_END;
 }
 
 MESSAGE_RESULT LoraMessageSource::readByte(byte& dest)
 {
-  if (m_iCurrentLocation < 0)
+  if (_currentLocation < 0)
     return MESSAGE_NOT_IN_MESSAGE;
-  if (m_iCurrentLocation >= _incomingMessageSize)
+  if (_currentLocation >= _incomingMessageSize)
   {
-    m_iCurrentLocation = -1;
+    _currentLocation = -1;
     return MESSAGE_END;
   }
   else
   {
-    dest = _incomingBuffer[m_iCurrentLocation++];
+    dest = _incomingBuffer[_currentLocation++];
     return MESSAGE_OK;
   }
 }
@@ -465,12 +453,12 @@ MESSAGE_RESULT LoraMessageSource::seek(const byte newPosition)
 {
   if (newPosition >= _incomingMessageSize)
   {
-    m_iCurrentLocation == -1;
+    _currentLocation == -1;
     return MESSAGE_END;
   } 
   else
   {
-    m_iCurrentLocation = newPosition;
+    _currentLocation = newPosition;
     return MESSAGE_OK;
   }
 }

@@ -24,7 +24,7 @@ class MessageSource;
 class MessageDestination
 {  
   protected:
-    int m_iCurrentLocation = 0;
+    int _currentLocation = 0;
   
   public:
     static bool s_prependCallsign;
@@ -54,7 +54,8 @@ class MessageDestination
 class MessageSource
 {
   protected:
-    int m_iCurrentLocation = -1;
+    int _currentLocation = -1;
+    byte _length;
 
   public:
     static bool s_discardCallsign;
@@ -74,12 +75,14 @@ class MessageSource
     //Reads the next byte
     virtual MESSAGE_RESULT readByte(byte& dest) = 0;
 
+
     template<class T>
     MESSAGE_RESULT read(T& dest)
     {
       return readBytes((byte*)&dest, sizeof(T));
     }
     MESSAGE_RESULT readBytes(byte* dest, size_t dataLen);
-
+    
+    byte getMessageLength();
     int getCurrentLocation();
 };

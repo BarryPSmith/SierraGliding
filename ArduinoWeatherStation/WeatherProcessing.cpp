@@ -154,15 +154,6 @@ uint8_t getWindSpeedByte(const uint16_t windSpeed_x8)
 static byte simpleMessagesSent = 255;
 constexpr byte complexMessageFrequency = 10;
 
-byte getNextWeatherMessageSize()
-{
-  bool isComplex = simpleMessagesSent >= complexMessageFrequency - 1;
-  if (isComplex)
-    return 5;
-  else
-    return 3;
-}
-
 void createWeatherData(MessageDestination& message)
 {
 #ifdef WIND_PWR_PIN

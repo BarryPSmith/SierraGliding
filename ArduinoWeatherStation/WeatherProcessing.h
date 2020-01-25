@@ -2,7 +2,6 @@
 #include "LoraMessaging.h"
 void setupWeatherProcessing();
 void createWeatherData(MessageDestination& message);
-byte getNextWeatherMessageSize();
 
 #if DEBUG_Speed
 bool speedDebugging = true;

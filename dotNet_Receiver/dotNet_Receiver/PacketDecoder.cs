@@ -149,17 +149,24 @@ namespace dotNet_Receiver
             return wdByte * 360 / 255.0;
         }
 
-        private static SingleWeatherData DecodeWeatherPacket(Span<byte> data, bool isFirst, out int len)
+        private static SingleWeatherData DecodeWeatherPacket(Span<byte> data, out int packetLen)
         {
-            int cur = isFirst ? 2 : 3;
-            len = data[cur++];
-            if (len + cur > data.Length)
+            if (data.Length < 3)
+            {
+                packetLen = 0;
+                return null;
+            }
+
+            int cur = 0;
+            var len = data[2];
+            packetLen = len + 2;
+            if (packetLen > data.Length)
                 return null;
 
             SingleWeatherData ret = new SingleWeatherData()
             {
-                sendingStation = data[0],
-                uniqueID = data[1],
+                sendingStation = data[cur++],
+                uniqueID = data[cur++],
                 windDirection = GetWindDirection(data[cur++]),
                 windSpeed = GetWindSpeed(data[cur++])
             };
@@ -167,9 +174,9 @@ namespace dotNet_Receiver
             if (len > 2)
                 ret.batteryLevelH = data[cur++] / 255.0 * 7.5;
             if (len > 3)
-                ret.internalTemp = GetTemp(data[cur++]);
-            if (len > 4)
                 ret.externalTemp = GetTemp(data[cur++]);
+            if (len > 4)
+                ret.internalTemp = GetTemp(data[cur++]);
             return ret;
         }
 
@@ -180,16 +187,15 @@ namespace dotNet_Receiver
         {
             int cur = 0;
             var ret = new List<SingleWeatherData>();
-            bool isFirst = true;
             while (cur < bytes.Length)
             {
-                var packet = DecodeWeatherPacket(bytes.Slice(cur), isFirst, out var len);
+                var packet = DecodeWeatherPacket(bytes.Slice(cur), out var len);
+                if (packet == null)
+                    throw new NullReferenceException("Decode Weather Packet returned null");
                 ret.Add(packet);
                 cur += len;
-                isFirst = false;
             }
             return ret;
         }
-
     }
 }

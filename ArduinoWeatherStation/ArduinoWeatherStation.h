@@ -42,6 +42,7 @@ extern unsigned long weatherInterval; //Current weather interval.
 extern unsigned long overrideStartMillis;
 extern unsigned long overrideDuration;
 extern bool overrideShort;
+extern bool sleepEnabled;
 
 //Recent Memory
 extern unsigned long lastStatusMillis;

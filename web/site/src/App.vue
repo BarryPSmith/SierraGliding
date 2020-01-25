@@ -289,7 +289,11 @@ export default {
                             duration: 0,
                             easing: 'linear'
                         },
+                        hover: {
+                            animationDuration: 0
+                        },
                         responsive: true,
+                        responsiveAnimationDuration: 0,
                         maintainAspectRatio: false,
                         scales: {
                             yAxes: [{

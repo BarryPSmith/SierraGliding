@@ -54,7 +54,7 @@ BOARD_DEFINES = \
     -DF_CPU=8000000L \
     -DSTATION_ID=\'2\' \
     -DREF_MV=3300 \
-    -DBATTV_NUM=391 \
+    -DBATTV_NUM=491 \
     -DBATTV_DEN=100 \
     -DBATT_PIN=A3 \
     -DWIND_TYPE=DAVIS_WIND \
@@ -64,7 +64,8 @@ BOARD_DEFINES = \
     -DSX_DIO1=3 \
     -DSX_SELECT=9 \
     -DSX_TCXOV_X10=18 \
-    -DSX_RESET=A1 
+    -DSX_RESET=A1 \
+    -DNO_INTERNAL_TEMP
 
 PROG_BAUD=57600
 
@@ -84,4 +85,27 @@ BOARD_DEFINES = \
 
 PROG_BAUD=115200
 MODEM=1
+
+else ifeq ($(BOARD), 6)
+$(info Running Makefile for PCB Rev1 (6))
+BOARD_DEFINES = \
+    -DF_CPU=8000000L \
+    -DSTATION_ID=\'3\' \
+    -DREF_MV=3300 \
+    -DBATT_PIN=A0 \
+    -DBATTV_NUM=101 \
+    -DBATTV_DEN=33 \
+    -DWIND_TYPE=DAVS_WIND \
+    -DWIND_DIR_PIN=A5 \
+    -DWIND_SPD_PIN=2 \
+    -DWIND_PWR_PIN=A2 \
+    -DTEMP_SENSE=A4 \
+    -DSX_BUSY=4 \
+    -DSX_DIO1=3 \
+    -DSX_SELECT=10 \
+    -DSX_TCXOV_X10=18 \
+    -DSX_RESET=9 
+
+PROG_BAUD=57600
+
 endif

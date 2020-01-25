@@ -3,6 +3,7 @@
 #include "WeatherProcessing.h"
 #include "ArduinoWeatherStation.h"
 #include "PermanentStorage.h"
+#include <avr/boot.h>
 
 #define DAVIS_WIND
 //#define ARGENTDATA_WIND
@@ -25,10 +26,13 @@ byte getWindDirectionArgentData();
 #error No Wind System Selected
 #endif
 void updateSendInterval(unsigned short batteryVoltage_mv, bool startup);
+void updateCanSleep(unsigned short batteryVoltage_mV);
 void setTimerInterval();
+void setupWindCounter();
+signed char getExternalTemperature();
+signed char getInternalTemperature();
 
 volatile int windCounts = 0;
-
 
 //We use unsigned long for these because they are involved in 32-bit calculations.
 constexpr unsigned long mV_Ref = REF_MV;
@@ -147,38 +151,88 @@ uint8_t getWindSpeedByte(const uint16_t windSpeed_x8)
     return 255;
 }
 
+static byte simpleMessagesSent = 255;
+constexpr byte complexMessageFrequency = 10;
+
+byte getNextWeatherMessageSize()
+{
+  bool isComplex = simpleMessagesSent >= complexMessageFrequency - 1;
+  if (isComplex)
+    return 5;
+  else
+    return 3;
+}
+
 void createWeatherData(MessageDestination& message)
 {
-  //Message format is W(StationID)(UniqueID)(DirHex)(Spd * 2)(Voltage)
-    int batteryVoltageReading = analogRead(voltagePin);
-    unsigned long batt_mV = mV_Ref * BattVNumerator * batteryVoltageReading / (BattVDenominator  * 1023);
-    AWS_DEBUG_PRINTLN(F("  ======================"));
-    AWS_DEBUG_PRINT(F("batteryVoltageReading: "));
-    AWS_DEBUG_PRINTLN(batteryVoltageReading);
-    AWS_DEBUG_PRINT(F("batt_mV: "));
-    AWS_DEBUG_PRINTLN(batt_mV);
-    AWS_DEBUG_PRINT(F("Wind Counts: "));
-    AWS_DEBUG_PRINTLN(windCounts);
-    uint16_t windSpeed_x8 = getWindSpeed_x8();
+#ifdef WIND_PWR_PIN
+  digitalWrite(WIND_PWR_PIN, HIGH);
+  delay(1);
+#endif
 
-    //Update the send interval only after we calculate windSpeed, because windSpeed is dependent on weatherInterval
-    updateSendInterval(batt_mV, false);
+  bool isComplex = simpleMessagesSent >= complexMessageFrequency - 1;
   
-    byte windDirection = getWindDirection();
-    AWS_DEBUG_PRINT(F("windDirection byte: "));
-    AWS_DEBUG_PRINTLN(windDirection);
-    message.appendByte(windDirection);
-    byte wsByte = getWindSpeedByte(windSpeed_x8);
+  //Message format is W(StationID)(UniqueID)(DirHex)(Spd * 2)(Voltage)
+  int batteryVoltageReading = analogRead(voltagePin);
+  unsigned long batt_mV = mV_Ref * BattVNumerator * batteryVoltageReading / (BattVDenominator  * 1023);
+  AWS_DEBUG_PRINTLN(F("  ======================"));
+  AWS_DEBUG_PRINT(F("batteryVoltageReading: "));
+  AWS_DEBUG_PRINTLN(batteryVoltageReading);
+  AWS_DEBUG_PRINT(F("batt_mV: "));
+  AWS_DEBUG_PRINTLN(batt_mV);
+  AWS_DEBUG_PRINT(F("Wind Counts: "));
+  AWS_DEBUG_PRINTLN(windCounts);
+  uint16_t windSpeed_x8 = getWindSpeed_x8();
+
+  //Update the send interval only after we calculate windSpeed, because windSpeed is dependent on weatherInterval
+  updateSendInterval(batt_mV, false);
+  updateCanSleep(batt_mV);
+  
+  byte windDirection = getWindDirection();
+  AWS_DEBUG_PRINT(F("windDirection byte: "));
+  AWS_DEBUG_PRINTLN(windDirection);
+  message.appendByte(windDirection);
+  byte wsByte = getWindSpeedByte(windSpeed_x8);
+  #ifdef WIND_PWR_PIN
+  digitalWrite(WIND_PWR_PIN, LOW);
+  #endif
+
+  AWS_DEBUG_PRINT(F("windSpeed byte: "));
+  AWS_DEBUG_PRINTLN(wsByte);
+  message.appendByte(wsByte);
     
-    AWS_DEBUG_PRINT(F("windSpeed byte: "));
-    AWS_DEBUG_PRINTLN(wsByte);
-    message.appendByte(wsByte);
-    
+  if (isComplex)
+  {
     byte batteryByte = (byte)(255UL * batt_mV / MaxBatt_mV);
     message.appendByte(batteryByte);
     AWS_DEBUG_PRINT(F("batteryByte: "));
     AWS_DEBUG_PRINTLN(batteryByte, HEX);
-    AWS_DEBUG_PRINTLN(F("  ======================"));
+
+    byte externalTempByte = getExternalTemperature();
+    message.appendByte(externalTempByte);
+    AWS_DEBUG_PRINT(F("externalTempByte: "));
+    AWS_DEBUG_PRINTLN(externalTempByte, HEX);
+
+    byte internalTempByte = getInternalTemperature();
+    message.appendByte(internalTempByte);
+    AWS_DEBUG_PRINT(F("internalTempByte: "));
+    AWS_DEBUG_PRINTLN(internalTempByte, HEX);
+    
+    simpleMessagesSent = 0;
+  }
+  else
+    simpleMessagesSent++;
+  
+  AWS_DEBUG_PRINTLN(F("  ======================"));
+}
+
+void updateCanSleep(unsigned short batteryVoltage_mV)
+{
+  // This is a lazy attempt at battery charge regulation:
+  // If the voltage is too high, increase current consumption by not sleeping.
+  unsigned short batteryUpperThresh_mV;
+  GET_PERMANENT_S(batteryUpperThresh_mV);
+  sleepEnabled = batteryVoltage_mV < batteryUpperThresh_mV;
 }
 
 void updateSendInterval(unsigned short batteryVoltage_mV, bool initial)
@@ -337,6 +391,70 @@ void setupWeatherProcessing()
   updateSendInterval(0, true);
   TimerTwo::attachInterrupt(&timer2Tick);
   setupWindCounter();
+#ifdef WIND_PWR_PIN
+  pinMode(WIND_PWR_PIN, OUTPUT);
+  digitalWrite(WIND_PWR_PIN, LOW);
+#endif
+}
+
+byte getInternalTemperature()
+{
+#ifdef NO_INTERNAL_TEMP
+  return 0;
+#endif
+  const signed char tsOffset = boot_signature_byte_get(2);
+  const byte tsGain = boot_signature_byte_get(3);
+
+  auto oldMux = ADMUX;
+  // Set 1.1V internal reference, set to channel 8 (internal temperature reference)
+  ADMUX = _BV(REFS0) | _BV(REFS1) | _BV(MUX3);
+  // Wait a short while to ensure the ADC reference capacitor is stable:
+  // We can reduce this to 5us, see the last post in https://forum.arduino.cc/index.php?topic=22922.0
+  // (We only have a 10nF capacitor on Aref, not 100nF like the arduino, so we're probably OK with just 1ms delay here.)
+  delay(10);
+  // Start the conversion
+  ADCSRA = ADCSRA | _BV(ADSC);
+  // Wait for conversion
+  while (!(ADCSRA & _BV(ADIF)));
+
+  // Restore the old reference, allow the reference cap to settle
+  ADMUX = oldMux;
+  delay(1);
+
+  int temp_x2_offset = (((int)ADC - (273 + 100 - tsOffset)) * 256) / tsGain + 25;
+  temp_x2_offset += 64;
+  if (temp_x2_offset < 0)
+    temp_x2_offset = 0;
+  if (temp_x2_offset > 255)
+    temp_x2_offset = 255;
+  return temp_x2_offset;
+}
+
+byte getExternalTemperature()
+{
+#ifndef TEMP_SENSE
+  return 0;
+#else
+  auto reading = analogRead(TEMP_SENSE);
+  // V = Vref * R1 / (R1 + R2)
+  // V / (Vref * R1) = 1 / (R1 + R2)
+  // R1 * Vref / V = R1 + R2
+  // 0 = (1 - Vref / V) R1 + R2
+  // R1 = R2 / (Vref / V - 1)
+  // R2 / R1 = Vref / V - 1
+  // Vref / V = 1023 / reading
+  float r2_r1 = 1023.0 / reading - 1;
+  float B = 3892;
+  float T0 = 273.15 + 25;
+  float T = 1/(1/T0 + B * log(r2_r1));
+  T -= 273.15;
+  //We send temperature as a byte, ranging from -32 to 95 C (1 LSB = half a degree)
+  if (T < -32)
+    T = -32;
+  if (T > 95)
+    T = 95;
+  return (T + 0.5 + 32) * 2;
+#endif
 }
 
 void timer2Tick()

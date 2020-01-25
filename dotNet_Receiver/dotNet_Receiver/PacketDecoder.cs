@@ -30,6 +30,8 @@ namespace dotNet_Receiver
         public double windDirection;
         public double windSpeed;
         public double batteryLevelH;
+        public double internalTemp;
+        public double externalTemp;
 
         public override string ToString()
         {
@@ -78,8 +80,9 @@ namespace dotNet_Receiver
                 return null;
 #endif
             var type = Encoding.ASCII.GetChars(bytes, cur++, 1)[0];
-            var sendingStationID = bytes[cur++];
-            var uniqueID = bytes[cur++];
+
+            var sendingStationID = bytes[cur];
+            var uniqueID = bytes[cur + 1];
 
             Packet ret = new Packet
             {
@@ -104,7 +107,7 @@ namespace dotNet_Receiver
                 switch (type)
                 {
                     case 'W':
-                        ret.packetData = DecodeWeatherPacket(bytes, sendingStationID, uniqueID, cur);
+                        ret.packetData = DecodeWeatherPackets(bytes.AsSpan(cur), sendingStationID, uniqueID);
                         ret.GetDataString = 
                             data => (data as IList<SingleWeatherData>)?.ToCsv();
                         break;
@@ -141,47 +144,50 @@ namespace dotNet_Receiver
             return ret;
         }
 
-        private static double GetWindDirection(byte wdByte, bool isLegacy)
+        private static double GetWindDirection(byte wdByte)
         {
-            if (isLegacy)
-                return byte.TryParse(Encoding.ASCII.GetString(new[] { wdByte }, 0, 1), NumberStyles.HexNumber, CultureInfo.InvariantCulture.NumberFormat, out var wd) ?
-                    wd * 22.5
-                    :
-                    -1;
-            else
-                return wdByte * 360 / 255.0;
+            return wdByte * 360 / 255.0;
         }
 
-        private static IList<SingleWeatherData> DecodeWeatherPacket(byte[] bytes, byte stationID, byte uniqueID,
-            int cur)
+        private static SingleWeatherData DecodeWeatherPacket(Span<byte> data, bool isFirst, out int len)
         {
-            var length = bytes[cur++];
-            if (length < 3)
-                return new SingleWeatherData[0];
-            var ret = new SingleWeatherData[1 + (length - 3) / 5];
-            ret[0] = new SingleWeatherData
+            int cur = isFirst ? 2 : 3;
+            len = data[cur++];
+            if (len + cur > data.Length)
+                return null;
+
+            SingleWeatherData ret = new SingleWeatherData()
             {
-                sendingStation = stationID,
-                uniqueID = uniqueID,
-                windDirection = GetWindDirection(bytes[cur++], stationID == 49),
-                windSpeed = GetWindSpeed(bytes[cur++]), 
-                batteryLevelH = /*7.5 + */bytes[cur++] / 255.0 * 7.5,
+                sendingStation = data[0],
+                uniqueID = data[1],
+                windDirection = GetWindDirection(data[cur++]),
+                windSpeed = GetWindSpeed(data[cur++])
             };
 
-            for (int i = 1; i < ret.Length; i++)
-            {
-                int offset = 8 + 5 * i;
-                byte sendingStationID = bytes[offset];
-                ret[i] = new SingleWeatherData
-                {
-                    sendingStation = sendingStationID,
-                    uniqueID = bytes[offset + 1],
-                    windDirection = GetWindDirection(bytes[offset + 2], sendingStationID == 49),
-                    windSpeed = bytes[offset + 3] * 0.5,
-                    batteryLevelH = 7.5 + bytes[offset + 4] / 255.0 * 7.5
-                };
-            }
+            if (len > 2)
+                ret.batteryLevelH = data[cur++] / 255.0 * 7.5;
+            if (len > 3)
+                ret.internalTemp = GetTemp(data[cur++]);
+            if (len > 4)
+                ret.externalTemp = GetTemp(data[cur++]);
+            return ret;
+        }
 
+        private static double GetTemp(byte tempByte)
+            => (tempByte - 64.0) / 2;
+
+        private static IList<SingleWeatherData> DecodeWeatherPackets(Span<byte> bytes, byte stationID, byte uniqueID)
+        {
+            int cur = 0;
+            var ret = new List<SingleWeatherData>();
+            bool isFirst = true;
+            while (cur < bytes.Length)
+            {
+                var packet = DecodeWeatherPacket(bytes.Slice(cur), isFirst, out var len);
+                ret.Add(packet);
+                cur += len;
+                isFirst = false;
+            }
             return ret;
         }
 

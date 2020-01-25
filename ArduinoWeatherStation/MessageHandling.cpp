@@ -209,17 +209,12 @@ void recordWeatherForRelay(MessageSource& msg, byte msgStatID, byte msgUniqueID)
   //0 W
   //1 Station ID - Take
   //2 Unique ID - Take
-  //3 Data Length - Use but don't record specifically
+  //3 Data Length - Take
   //4 Data - Take
   //assert(message[0] & 0x7F == 'W');
 
   //Relayed:
   //(Sending Station ID)(Message Unique ID)(Message Data)
-
-  //E.g. if we append a single packet, we will append 5 bytes:
-  //(1) (0x01) (WD) (WS) (Batt)
-  //if we append a packet that already has a single relay, we will append 10 bytes:
-  //(1) (0x01) (WD1) (WS1) (Batt1) (2) (0x01) (WD2) (WS2) (Batt2)
   
   //Note: We must be careful when setting up the network that there are not multiple paths for weather messages to get relayed
   //it won't necessarily cause problems, but it will use unnecessary bandwidth
@@ -243,9 +238,11 @@ void recordWeatherForRelay(MessageSource& msg, byte msgStatID, byte msgUniqueID)
     msgDump->appendByte(weatherRelayLength);
     msgDump->appendByte(weatherRelayBuffer[0]);
     msgDump->appendByte(weatherRelayBuffer[1]);
+    msgDump->appendByte(weatherRelayBuffer[2]);
   }
   weatherRelayBuffer[offset + 0] = msgStatID;
   weatherRelayBuffer[offset + 1] = msgUniqueID;
+  weatherRelayBuffer[offset + 2] = dataSize;
 
   for (int i = 2; i < dataSize; i++)
   {
@@ -301,7 +298,7 @@ void sendWeatherMessage()
   message.appendByte('W');
   message.appendByte(stationID);
   message.appendByte(getUniqueID());
-  message.appendByte(3 + weatherRelayLength);
+  message.appendByte(getNextWeatherMessageSize() + weatherRelayLength);
   createWeatherData(message);
   message.append(weatherRelayBuffer, weatherRelayLength);
   weatherRelayLength = 0;

@@ -19,6 +19,7 @@ unsigned long weatherInterval = 2000; //Current weather interval.
 unsigned long overrideStartMillis;
 unsigned long overrideDuration;
 bool overrideShort;
+bool sleepEnabled = true;
 
 #ifdef DEBUG
 extern volatile bool windTicked;
@@ -32,7 +33,7 @@ unsigned long lastPingMillis = 0;
 void setup();
 void loop();
 void disableRFM69();
-void sleepUntilNextWeather();
+void sleep(adc_t adc_state);
 void restart();
 
 void TestBoard();
@@ -205,13 +206,12 @@ void loop() {
   {
     sendStatusMessage();
   }
-
-  sleepUntilNextWeather();
-
+  
   if (millis() - lastPingMillis > maxMillisBetweenPings)
     restart();
 
   wdt_reset();
+  sleep(ADC_OFF);
 }
 
 //A test board has a RFM69 on it for reading Davis weather stations.
@@ -233,33 +233,6 @@ void disableRFM69()
     else
       AWS_DEBUG_PRINTLN(F("RFM Asleep."));
   }
-#endif
-}
-
-void sleepUntilNextWeather()
-{
-#ifdef DEBUG
-  //Flush the serial or we risk writing garbage or being woken by a send complete message.
-  Serial.flush();
-#endif
-#if false
-  LowPower.idle(SLEEP_FOREVER,
-                ADC_OFF,
-                TIMER2_ON,
-                TIMER1_OFF,
-                TIMER0_OFF,
-                SPI_ON,
-#ifdef DEBUG
-                USART0_ON,
-#else
-                USART0_OFF,
-#endif          
-                TWI_OFF);
-#else
-  LowPower.powerSave(SLEEP_FOREVER, //we're actually going to wake up on our next timer2 or wind tick.
-                     ADC_OFF,
-                     BOD_OFF,
-                     TIMER2_ON);
 #endif
 }
 
@@ -288,3 +261,29 @@ void AwsRecordState(int i)
 //Export signalError here.
 extern inline void signalError(byte count, unsigned long delay_ms);
 #endif
+
+void yield()
+{
+  //We leave the ADC_ON to hopefully get a less pronounced effect as the LDO goes from low current to running current.
+  sleep(ADC_ON);
+}
+
+void sleep(adc_t adc_state)
+{
+  //If we've disabled sleep for some reason...
+  if (!sleepEnabled)
+    return;
+  // Or interrupts aren't enabled (= no wakeup)
+  if (!(SREG & SREG_I))
+    return;
+#ifdef DEBUG
+  // Or there's data in the serial buffer
+  if (UCSR0B & UDRIE0 || (UCSR0A & TXC0) == 0)
+    return;
+#endif
+
+  LowPower.powerSave(SLEEP_FOREVER, //we're actually going to wake up on our next timer2 or wind tick.
+                    ADC_OFF,
+                    BOD_OFF,
+                    TIMER2_ON);
+}

@@ -39,14 +39,15 @@ void PermanentStorage::initialise()
     initialised = true;
     const long shortInterval = 4000;// - 90 * (stationID - '1');
     const long longInterval = 4000;// - 90 * (stationID - '1'); //longInterval == shortInterval because it turns out the transmit is negligble draw.
-    const unsigned short batteryThreshold_mV = 12000;
+    const unsigned short batteryThreshold_mV = 4000;
+    const unsigned short batteryUpperThresh_mV = 4700;
     const bool demandRelay = false;
     const byte emptyBuffer[permanentArraySize] = { 0 };
 
 
     const uint32_t frequency_i = 425000000;
     const uint16_t bandwidth_i = 625;
-    const short txPower = 10;
+    const short txPower = -9;
     const byte spreadingFactor = 7; //Maybe we can communicate with the RF96?
     const byte csmaP = 100; //40% chance to transmit
     const unsigned long csmaTimeslot = 4000; // 4ms
@@ -55,6 +56,7 @@ void PermanentStorage::initialise()
     SET_PERMANENT_S(shortInterval);
     SET_PERMANENT_S(longInterval);
     SET_PERMANENT_S(batteryThreshold_mV);
+    SET_PERMANENT_S(batteryUpperThresh_mV);
     SET_PERMANENT2(emptyBuffer, stationsToRelayCommands);
     SET_PERMANENT2(emptyBuffer, stationsToRelayWeather);
     SET_PERMANENT_S(initialised);
@@ -72,13 +74,15 @@ void PermanentStorage::initialise()
   {
     long shortInterval;
     long longInterval;
-    unsigned short batteryThreshold_mV;
+    unsigned short batteryThreshold_mV,
+      batteryUpperThresh_mV;
     bool demandRelay = false;
     byte buffer[permanentArraySize] = { 0 };
     unsigned short crc;
     GET_PERMANENT_S(shortInterval);
     GET_PERMANENT_S(longInterval);
     GET_PERMANENT_S(batteryThreshold_mV);
+    GET_PERMANENT_S(batteryUpperThresh_mV);
     GET_PERMANENT2(buffer, stationsToRelayWeather);
     GET_PERMANENT_S(initialised);
 
@@ -87,6 +91,7 @@ void PermanentStorage::initialise()
     PRINT_VARIABLE(shortInterval);
     PRINT_VARIABLE(longInterval);
     PRINT_VARIABLE(batteryThreshold_mV);
+    PRINT_VARIABLE(batteryUpperThresh_mV);
     GET_PERMANENT2(buffer, stationsToRelayCommands);
     AWS_DEBUG_PRINT(F("stationsToRelayCommands:"));
     for (int i = 0; i < permanentArraySize; i++)

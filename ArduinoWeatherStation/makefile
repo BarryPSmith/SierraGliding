@@ -13,7 +13,8 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 3: Flynns Rev 1
 # 4: Flynns Rev 2
 # 5: Dorji Modem
-BOARD = 1
+# 6: First attempt at a printed PCB
+BOARD = 6
 include Boards.makefile
 
 #Flags, etc.
@@ -35,20 +36,22 @@ INCLUDES=-I../../ArduinoCore-avr/cores/arduino \
 		 -Ilib/RadioLib/src
 #		 -Ilib/TimerOne 
 ARDUINO_BASE_LIBS=^/wiring_analog.c \
-			^/wiring_digital.c ^/winterrupts.c ^/hooks.c \
-			^/print.cpp ^/WMath.cpp
+			^/wiring_digital.c ^/WInterrupts.c ^/hooks.c \
+			^/Print.cpp ^/WMath.cpp
 
 #Serial is included in modem and debug builds:
 ifeq ($(DEBUG), 1)
-#ARDUINO_BASE_LIBS += ^/HardwareSerial.cpp ^/HardwareSerial0.cpp
-DEFINES += -DDEBUG
-endif
-ifeq ($(MODEM), 1)
 ARDUINO_BASE_LIBS += ^/HardwareSerial.cpp ^/HardwareSerial0.cpp
+DEFINES += -DDEBUG
+else ifeq ($(MODEM), 1)
+ARDUINO_BASE_LIBS += ^/HardwareSerial.cpp ^/HardwareSerial0.cpp
+endif
+
+ifeq ($(MODEM), 1)
 DEFINES += -DMODEM
 endif
 
-ARDUINO_LIBS=^/SPI/src/spi.cpp
+ARDUINO_LIBS=^/SPI/src/SPI.cpp
 ARDUINO_LIBSWDIRS = \
 				$(patsubst ^/%, ../../ArduinoCore-avr/cores/arduino/%, $(ARDUINO_BASE_LIBS)) \
 				$(patsubst ^/%, ../../ArduinoCore-avr/libraries/%, $(ARDUINO_LIBS))
@@ -62,7 +65,7 @@ OBJFOLDER := $(OBJFOLDER)obj
 ifeq ($(MODEM), 1)
 SRCS_C = KissModem.cpp MessagingCommon.cpp LoraMessaging.cpp KissMessaging.cpp \
 			../../ArduinoCore-avr/cores/arduino/wiring.c \
-			PermanentStorage.cpp stackCanary.cpp \
+			PermanentStorage.cpp StackCanary.cpp \
 			lib/RadioLib/src/modules/SX127x/SX1278.cpp \
 			lib/RadioLib/src/modules/SX127x/SX127x.cpp \
 			$(LIBRARIES)
@@ -70,7 +73,7 @@ OBJFOLDER := $(OBJFOLDER)_mod
 else
 SRCS_C = ArduinoWeatherStation.cpp Commands.cpp MessageHandling.cpp \
 		 LoraMessaging.cpp WeatherProcessing.cpp MessagingCommon.cpp \
-		delay.c millis.cpp TimerTwo.cpp PermanentStorage.cpp stackCanary.cpp \
+		delay.c millis.cpp TimerTwo.cpp PermanentStorage.cpp StackCanary.cpp \
 		 $(LIBRARIES)
 endif
 
@@ -103,11 +106,10 @@ $(OBJFOLDER):
 	avr-objcopy -R .eeprom -O ihex $< $@
 	echo INFO : $@ Built
 
-checkSize: all.elf
-	avr-size all.elf
-	avr-size all.elf
+checkSize: $(OBJFOLDER)/all.elf
+	avr-size $(OBJFOLDER)/all.elf
 
-all.elf: $(SRCS_C)
+$(OBJFOLDER)/all.elf: $(OBJS)
 	$(CC) $(INCLUDES) $(DEFINES) $(CFLAGS) $(OBJS) $(LDFLAGS) -o $@
 
 revid:

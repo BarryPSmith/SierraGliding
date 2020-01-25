@@ -29,8 +29,8 @@ void updateSendInterval(unsigned short batteryVoltage_mv, bool startup);
 void updateCanSleep(unsigned short batteryVoltage_mV);
 void setTimerInterval();
 void setupWindCounter();
-signed char getExternalTemperature();
-signed char getInternalTemperature();
+byte getExternalTemperature();
+byte getInternalTemperature();
 
 volatile int windCounts = 0;
 
@@ -184,9 +184,6 @@ void createWeatherData(MessageDestination& message)
   AWS_DEBUG_PRINTLN(windDirection);
   message.appendByte(windDirection);
   byte wsByte = getWindSpeedByte(windSpeed_x8);
-  #ifdef WIND_PWR_PIN
-  digitalWrite(WIND_PWR_PIN, LOW);
-  #endif
 
   AWS_DEBUG_PRINT(F("windSpeed byte: "));
   AWS_DEBUG_PRINTLN(wsByte);
@@ -215,6 +212,9 @@ void createWeatherData(MessageDestination& message)
     simpleMessagesSent++;
   
   AWS_DEBUG_PRINTLN(F("  ======================"));
+  #ifdef WIND_PWR_PIN
+  digitalWrite(WIND_PWR_PIN, LOW);
+  #endif
 }
 
 void updateCanSleep(unsigned short batteryVoltage_mV)

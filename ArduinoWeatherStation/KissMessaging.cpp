@@ -24,20 +24,20 @@ KissMessageDestination::~KissMessageDestination()
 
 MESSAGE_RESULT KissMessageDestination::finishAndSend()
 {
-  if (m_iCurrentLocation < 0)
+  if (_currentLocation < 0)
     return MESSAGE_NOT_IN_MESSAGE;
 
-  while(m_iCurrentLocation < minPacketSize)
+  while(_currentLocation < minPacketSize)
     appendByte(0);
     
   STREAM.write(FEND);
-  m_iCurrentLocation = -1;
+  _currentLocation = -1;
   return MESSAGE_END;
 }
     
 MESSAGE_RESULT KissMessageDestination::appendByte(const byte data)
 {
-  if (m_iCurrentLocation < 0)
+  if (_currentLocation < 0)
     return MESSAGE_NOT_IN_MESSAGE;
   if (data == FEND)
   {
@@ -51,7 +51,7 @@ MESSAGE_RESULT KissMessageDestination::appendByte(const byte data)
   }
   else
     STREAM.write(data);
-  m_iCurrentLocation++;
+  _currentLocation++;
   return MESSAGE_OK;
 }
 
@@ -69,7 +69,7 @@ bool KissMessageSource::readByteRaw(byte& dest)
   {
     if (millis() - startMillis > timeout)
     {
-      m_iCurrentLocation = -1;
+      _currentLocation = -1;
       return false;
     }
     data = STREAM.read();
@@ -106,13 +106,13 @@ bool KissMessageSource::beginMessage()
         return false;
     }
   }
-  m_iCurrentLocation = 0;
+  _currentLocation = 0;
   return true;
 }
 
 MESSAGE_RESULT KissMessageSource::endMessage()
 {
-  if (m_iCurrentLocation < 0)
+  if (_currentLocation < 0)
     return MESSAGE_NOT_IN_MESSAGE;
   byte data;
   while (true)
@@ -127,17 +127,17 @@ MESSAGE_RESULT KissMessageSource::endMessage()
 MESSAGE_RESULT KissMessageSource::readByte(byte& dest)
 {
   {
-    if (m_iCurrentLocation < 0)
+    if (_currentLocation < 0)
       return MESSAGE_NOT_IN_MESSAGE;
     if (!readByteRaw(dest))
       return MESSAGE_TIMEOUT;
     if (dest == FEND)
     {
-      m_iCurrentLocation = -1;
+      _currentLocation = -1;
       return MESSAGE_END;
     }
 
-    m_iCurrentLocation++;
+    _currentLocation++;
     if (dest != FESC)
       return MESSAGE_OK;
     if (!readByteRaw(dest))
@@ -147,7 +147,7 @@ MESSAGE_RESULT KissMessageSource::readByte(byte& dest)
     case TFEND: dest = FEND; break;
     case TFESC: dest = FESC; break;
     case FEND:
-      m_iCurrentLocation = -1;
+      _currentLocation = -1;
       return MESSAGE_END;
     }
 

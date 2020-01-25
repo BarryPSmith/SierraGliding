@@ -86,12 +86,12 @@ class CSMAWrapper
         }
         int16_t state = _base->isChannelBusy(true);
         wasBusy = (state == LORA_DETECTED);
-        if (wasBusy)
-          delay(10); //We're not going to use the scanChannel, so we need to give the receive some time to detect,
         while(state == LORA_DETECTED) {
+          delay(10); // If we spam the modem with detectCAD, it can never receieve a message.
+                     // Also the delay lets our MCU sleep.
           CHECK_TIMEOUT();
           readIfPossible();
-          state = _base->isChannelBusy(false);
+          state = _base->isChannelBusy(true);
         }
         if(state != CHANNEL_FREE) {
           return(state);

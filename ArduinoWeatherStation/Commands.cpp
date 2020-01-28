@@ -1,23 +1,22 @@
-
 #include "TimerTwo.h"
 #include "LoraMessaging.h"
 #include "MessageHandling.h"
 #include "ArduinoWeatherStation.h"
 #include "PermanentStorage.h"
+#include "WeatherProcessing.h"
 
 namespace Commands
 {
   //We keep track of recently handled commands to avoid executing the same command multiple times
   byte recentlyHandledCommands[MessageHandling::recentArraySize];
 
-
-  bool handleRelayCommand(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific);
-  bool handleIntervalCommand(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific);
-  bool handleThresholdCommand(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific);
+  bool handleRelayCommand(MessageSource& msg);
+  bool handleIntervalCommand(MessageSource& msg);
+  bool handleThresholdCommand(MessageSource& msg);
   bool handleQueryCommand(MessageSource& msg, bool demandRelay, byte uniqueID);
   void handleQueryConfigCommand(MessageDestination& response);
   void handleQueryVolatileCommand(MessageDestination& response);
-  bool handleOverrideCommand(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific);
+  bool handleOverrideCommand(MessageSource& msg);
   void acknowledgeMessage(byte uniqueID, bool isSpecific, bool demandRelay);
 
   void handleCommandMessage(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific)
@@ -44,7 +43,7 @@ namespace Commands
       return;
 
     bool handled = false;
-    bool acknowledged = false;
+    bool ackRequired = true;
 
     AWS_DEBUG_PRINT(F("Command Received: "));
     AWS_DEBUG_PRINTLN((char)command);
@@ -52,28 +51,33 @@ namespace Commands
     switch (command)
     {
       case 'R': //Relay command
-        handled = handleRelayCommand(msg, demandRelay, uniqueID, isSpecific);
+        handled = handleRelayCommand(msg);
         break;
 
       case 'I': //Interval command
-        handled = handleIntervalCommand(msg, demandRelay, uniqueID, isSpecific);
+        handled = handleIntervalCommand(msg);
       break;
 
       case 'B': //Battery threshold command
-        handled = handleThresholdCommand(msg, demandRelay, uniqueID, isSpecific);
+        handled = handleThresholdCommand(msg);
       break;
 
       case 'Q': //Query
         handled = handleQueryCommand(msg, demandRelay, uniqueID);
+        ackRequired = false;
       break;
 
       case 'O': //Override Interval
-        handled = handleOverrideCommand(msg, demandRelay, uniqueID, isSpecific);
+        handled = handleOverrideCommand(msg);
+        break;
 
       case 'M':
         handled = HandleMessageCommand(msg);
-        if (handled)
-          acknowledgeMessage(uniqueID, isSpecific, demandRelay);
+        break;
+
+      case 'W':
+        handled = WeatherProcessing::handleWeatherCommand(msg);
+        break;
 
       #if DEBUG_Speed
       case 'S':
@@ -98,6 +102,9 @@ namespace Commands
       //do nothing. handled = false, so we send "IGNORED"
       break;
     }
+    if (handled && ackRequired)
+      acknowledgeMessage(uniqueID, isSpecific, demandRelay);
+
     if (!handled)
     {
       MESSAGE_DESTINATION_SOLID response(false);
@@ -113,7 +120,7 @@ namespace Commands
   }
 
   //Relay command: C(ID)(UID)R(dataLength)((+|-)(C|W)(RelayID))*
-  bool handleRelayCommand(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific)
+  bool handleRelayCommand(MessageSource& msg)
   {
     byte dataLength;
     if (msg.readByte(dataLength))
@@ -180,12 +187,11 @@ namespace Commands
     }
     SET_PERMANENT(stationsToRelayWeather);
     SET_PERMANENT(stationsToRelayCommands);
-    acknowledgeMessage(uniqueID, isSpecific, demandRelay);
     return true;
   }
 
   //Interval command: C(ID)(UID)I(length)(new short interval)(new long interval)
-  bool handleIntervalCommand(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific)
+  bool handleIntervalCommand(MessageSource& msg)
   {
     byte dataLength;
     if (msg.readByte(dataLength) || dataLength == 0)
@@ -228,13 +234,11 @@ namespace Commands
 
     SET_PERMANENT_S(shortInterval);
     SET_PERMANENT_S(longInterval);
-
-    acknowledgeMessage(uniqueID, isSpecific, demandRelay);
     return true;
   }
 
   //Override command: C(ID)(UID)O(L|S)(Duration)(S|M|H)
-  bool handleOverrideCommand(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific)
+  bool handleOverrideCommand(MessageSource& msg)
   {
     byte destByte;
     if (msg.readByte(destByte))
@@ -269,18 +273,16 @@ namespace Commands
 
     overrideDuration = val * multiplier;
     overrideStartMillis = millis();
-    acknowledgeMessage(uniqueID, isSpecific, demandRelay);
     return true;
   }
-
+  
   //Threshold command: C(ID)(UID)B(new threshold)
-  bool handleThresholdCommand(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific)
+  bool handleThresholdCommand(MessageSource& msg)
   {
     unsigned short batteryThreshold_mV;
     if (msg.read(batteryThreshold_mV))
       return false;
     SET_PERMANENT_S(batteryThreshold_mV);
-    acknowledgeMessage(uniqueID, isSpecific, demandRelay);
     return true;
   }
 

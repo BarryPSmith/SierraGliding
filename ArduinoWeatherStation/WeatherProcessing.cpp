@@ -15,6 +15,7 @@ namespace WeatherProcessing
   unsigned volatile long tickCounts = 0;
   unsigned long requiredTicks = 100;
 
+  void calibrateWindDirection();
   void countWind();
   void timer2Tick();
   void signalWindCalibration(unsigned long durationRemaining);
@@ -560,6 +561,35 @@ namespace WeatherProcessing
     {
       tickCounts = 0;
       weatherRequired = true;
+    }
+  }
+
+  bool handleWeatherCommand(MessageSource& src)
+  {
+    byte commandType;
+    if (src.readByte(commandType))
+      return false;
+
+    byte newValue, tsOffset, tsGain;
+    if (commandType == 'O' || commandType == 'G' &&
+        src.readByte(newValue))
+      return false;
+
+    switch (commandType)
+    {
+    case 'C': // WC - perform wind calibration
+      calibrateWindDirection();
+      return true;
+    case 'O': // WO - set temp offset
+      tsOffset = newValue;
+      SET_PERMANENT(tsOffset);
+      return true;
+    case 'G': // WG - set temp gain
+      tsGain = newValue;
+      SET_PERMANENT(tsGain);
+      return true;
+    default:
+      return false;
     }
   }
 }

@@ -5,7 +5,7 @@ namespace WeatherProcessing
 {
   void setupWeatherProcessing();
   void createWeatherData(MessageDestination& message);
-  void calibrateWindDirection();
+  bool handleWeatherCommand(MessageSource& src);
   extern volatile bool weatherRequired;
 
   #if DEBUG_Speed

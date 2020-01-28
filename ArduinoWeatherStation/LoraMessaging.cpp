@@ -18,8 +18,6 @@ CSMAWrapper<SX1262> csma = &lora;
 SX1278 lora = &mod;
 #endif
 
-bool initialised = false;
-
 #ifdef MOTEINO_96
 static volatile bool packetWaiting;
 void rxDone() { packetWaiting = true; }
@@ -57,8 +55,6 @@ void updateIdleState()
 
 void InitMessaging()
 {
-  if (initialised)
-    return;
 
 #if defined(SX_RESET) && SX_RESET >= 0
   pinMode(SX_RESET, OUTPUT);
@@ -177,9 +173,6 @@ void InitMessaging()
   updateIdleState();
   //LORA_CHECK(lora.setIdleState(IdleStates::ContinuousReceive));
 #endif //!MOTEINO_96
-
-  
-  initialised = true;
 }
 
 bool HandleMessageCommand(MessageSource& src)
@@ -366,11 +359,15 @@ MESSAGE_RESULT LoraMessageDestination::finishAndSend()
 #ifndef DEBUG
   if (state == ERR_NONE)
   {
-    delay(20); //Ensure that the LED remains visible for a short period. We could put the unit to sleep while we do this, but... meh.
     digitalWrite(LED_PIN0, LED_OFF);
   }
   else //Flash the TX/RX LEDs to indicate an error condition:
+  {
     signalError();
+
+    //If a message failed to send, try to re-initialise:
+    InitMessaging();
+  }
 #endif //DEBUG
 
   bool ret = state == ERR_NONE;

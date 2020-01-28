@@ -40,9 +40,10 @@ void PermanentStorage::initialise()
     // These default tsOffset / tsGain values correspond to the datasheet example values on page 215.
     signed char tsOffset = -75;
     byte tsGain = 164;
+    int wdCalibMin = 0;
+    int wdCalibMax = 1023;
     const bool demandRelay = false;
     const byte emptyBuffer[permanentArraySize] = { 0 };
-
 
     const uint32_t frequency_i = 425000000;
     const uint16_t bandwidth_i = 625;
@@ -56,8 +57,6 @@ void PermanentStorage::initialise()
     SET_PERMANENT_S(longInterval);
     SET_PERMANENT_S(batteryThreshold_mV);
     SET_PERMANENT_S(batteryUpperThresh_mV);
-    SET_PERMANENT_S(tsOffset);
-    SET_PERMANENT_S(tsGain);
     SET_PERMANENT2(emptyBuffer, stationsToRelayCommands);
     SET_PERMANENT2(emptyBuffer, stationsToRelayWeather);
     SET_PERMANENT_S(initialised);
@@ -68,6 +67,11 @@ void PermanentStorage::initialise()
     SET_PERMANENT_S(spreadingFactor);
     SET_PERMANENT_S(csmaTimeslot);
     SET_PERMANENT_S(outboundPreambleLength);
+    
+    SET_PERMANENT_S(tsOffset);
+    SET_PERMANENT_S(tsGain);
+    SET_PERMANENT_S(wdCalibMin);
+    SET_PERMANENT_S(wdCalibMax);
     setCRC();
   }
 #if DEBUG
@@ -82,6 +86,7 @@ void PermanentStorage::initialise()
     unsigned short crc;
     signed char tsOffset;
     byte tsGain;
+    int wdCalibMin, wdCalibMax;
 
     GET_PERMANENT_S(shortInterval);
     GET_PERMANENT_S(longInterval);
@@ -140,6 +145,11 @@ void PermanentStorage::initialise()
     PRINT_VARIABLE(csmaP);
     PRINT_VARIABLE(csmaTimeslot);
     PRINT_VARIABLE(outboundPreambleLength);
+
+    GET_PERMANENT_S(wdCalibMin);
+    GET_PERMANENT_S(wdCalibMax);
+    PRINT_VARIABLE(wdCalibMin);
+    PRINT_VARIABLE(wdCalibMax);
   }
 #endif
   _initialised = true;

@@ -120,14 +120,13 @@ void setup() {
   wdt_enable(WDTO_8S);
   WDTCSR |= (1 << WDIE);
 
-  setupWeatherProcessing();
+  WeatherProcessing::setupWeatherProcessing();
 #ifdef DEBUG
   Serial.begin(tncBaud);
 #else //Use the serial LEDs as status lights:
-  pinMode(0, OUTPUT);
-  pinMode(1, OUTPUT);
-  digitalWrite(0, LOW);
-  digitalWrite(1, LOW);
+  pinMode(LED_PIN0, OUTPUT);
+  pinMode(LED_PIN1, OUTPUT);
+  signalOff();
 #endif // DEBUG
   delay(50);
   
@@ -180,12 +179,13 @@ void loop() {
   readMessages();
   
   noInterrupts();
-  bool localWeatherRequired = weatherRequired;
-  weatherRequired = false;
-#ifdef DEBUG
-  messageDebugAction();
-#endif
+  bool localWeatherRequired = WeatherProcessing::weatherRequired;
+  WeatherProcessing::weatherRequired = false;
   interrupts();
+
+  #ifdef DEBUG
+  messageDebugAction();
+  #endif
   
   if (localWeatherRequired)
   {

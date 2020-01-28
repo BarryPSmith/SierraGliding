@@ -356,7 +356,7 @@ MESSAGE_RESULT LoraMessageDestination::finishAndSend()
 #ifndef DEBUG 
   //If we're not in debug there is no visual indication of a message being sent at the station
   //So we light up the TX light on the board:
-  digitalWrite(0, HIGH);
+  digitalWrite(LED_PIN0, LED_ON);
 #endif //DEBUG
 
   auto beforeTxMicros = micros();
@@ -367,7 +367,7 @@ MESSAGE_RESULT LoraMessageDestination::finishAndSend()
   if (state == ERR_NONE)
   {
     delay(20); //Ensure that the LED remains visible for a short period. We could put the unit to sleep while we do this, but... meh.
-    digitalWrite(0, LOW);
+    digitalWrite(LED_PIN0, LED_OFF);
   }
   else //Flash the TX/RX LEDs to indicate an error condition:
     signalError();

@@ -60,6 +60,8 @@ typedef struct PermanentVariables
 
   signed char tsOffset;
   byte tsGain;
+  int wdCalibMin, 
+    wdCalibMax;
 
   short crc; //2
 } PermanentVariables;

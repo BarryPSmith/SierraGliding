@@ -57,6 +57,10 @@ extern volatile bool weatherRequired;
 extern unsigned long lastPingMillis;
 
 #ifndef DEBUG
+#define LED_PIN0 = 0;
+#define LED_PIN1 = 1;
+#define LED_OFF HIGH;
+#define LED_ON LOW;
 inline void signalError(const byte count = 5, const unsigned long delay_ms = 70)
 {
   bool zeroHigh = true;
@@ -65,19 +69,24 @@ inline void signalError(const byte count = 5, const unsigned long delay_ms = 70)
     delay(delay_ms);
     if (zeroHigh)
     {
-      digitalWrite(0, LOW);
-      digitalWrite(1, HIGH);
+      digitalWrite(LED_PIN0, LED_OFF);
+      digitalWrite(LED_PIN1, LED_ON);
     }
     else
     {
-      digitalWrite(0, HIGH);
-      digitalWrite(1, LOW);
+      digitalWrite(LED_PIN0, LED_ON);
+      digitalWrite(LED_PIN1, LED_OFF);
     }
     zeroHigh = !zeroHigh;
   }
   delay(delay_ms);
-  digitalWrite(0, LOW);
-  digitalWrite(1, LOW);
+  signalOff();
+}
+
+inline void signalOff()
+{
+  digitalWrite(LED_PIN0, LED_OFF);
+  digitalWrite(LED_PIN1, LED_OFF);
 }
 #define SIGNALERROR(...) signalError(__VA_ARGS__)
 #else

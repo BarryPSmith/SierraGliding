@@ -282,21 +282,10 @@ void sendWeatherMessage()
   message.appendByte('W');
   message.appendByte(stationID);
   message.appendByte(getUniqueID());
-  createWeatherData(message);
+  WeatherProcessing::createWeatherData(message);
   message.append(weatherRelayBuffer, weatherRelayLength);
   weatherRelayLength = 0;
   message.finishAndSend();
-  
-  /*byte* weatherMessage = weatherMessageBuffer + messageOffset;
-  weatherMessage[0] = 'W'; //Message type
-  weatherMessage[1] = stationID; //Station ID
-  weatherMessage[2] = getUniqueID();
-  weatherMessage[3] = 3 + weatherRelayLength; //Data length
-  size_t msgSize = createWeatherData(weatherMessage + 4); //Our data
-  //assert(msgSize == 3);
-  msgSize = singleStationWeatherMessageSize + weatherRelayLength; //the relay data has been built in place in the weather buffer.
-  sendMessage(weatherMessageBuffer, msgSize, weatherMessageBufferSize);
-  weatherRelayLength = 0;*/
 }
 
 void sendStatusMessage()

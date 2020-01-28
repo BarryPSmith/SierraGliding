@@ -170,13 +170,13 @@ void setup() {
 
   AWS_DEBUG_PRINTLN(F("Messaging Initialised"));
   
-  sendStatusMessage();
+  MessageHandling::sendStatusMessage();
 
   lastStatusMillis = millis();
 }
 
 void loop() {
-  readMessages();
+  MessageHandling::readMessages();
   
   noInterrupts();
   bool localWeatherRequired = WeatherProcessing::weatherRequired;
@@ -189,7 +189,7 @@ void loop() {
   
   if (localWeatherRequired)
   {
-    sendWeatherMessage();
+    MessageHandling::sendWeatherMessage();
     #if DEBUG_Speed
     if (speedDebugging)
       sendSpeedDebugMessage();
@@ -204,7 +204,7 @@ void loop() {
   
   if (millis() - lastStatusMillis > millisBetweenStatus)
   {
-    sendStatusMessage();
+    MessageHandling::sendStatusMessage();
   }
   
   if (millis() - lastPingMillis > maxMillisBetweenPings)

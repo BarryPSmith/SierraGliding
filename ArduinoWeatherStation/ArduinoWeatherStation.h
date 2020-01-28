@@ -52,8 +52,6 @@ extern bool sleepEnabled;
 //Recent Memory
 extern unsigned long lastStatusMillis;
 
-extern volatile bool weatherRequired;
-
 extern unsigned long lastPingMillis;
 
 #ifndef DEBUG

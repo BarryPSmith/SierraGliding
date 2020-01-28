@@ -96,12 +96,16 @@ namespace WeatherProcessing
   #ifdef ARGENTDATA_WIND
     return;
   #endif
+#ifdef WIND_PWR_PIN
+    digitalWrite(WIND_PWR_PIN, HIGH);
+    delayMicroseconds(1000);
+#endif
     //This must be long enough for an accurate calibration, but not so long that the watchdog kicks in.
     constexpr unsigned long calibrationDuration = 6000;
     unsigned long entryMillis = millis();
     int minValue = 1023;
     int maxValue = 0;
-    long pwrVoltage = 1023;
+    int pwrVoltage = 1023;
     while (millis() - entryMillis < calibrationDuration)
     {
       #ifdef WIND_PWR_PIN
@@ -113,22 +117,33 @@ namespace WeatherProcessing
           continue;
         }
       #endif
-      int wdVoltageScaled = (analogRead(windDirPin) * 1023) / pwrVoltage;
+      int wdVoltageScaled = (analogRead(windDirPin) * 1023L) / pwrVoltage;
       if (wdVoltageScaled < minValue)
         minValue = wdVoltageScaled;
       if (wdVoltageScaled > maxValue)
         maxValue = wdVoltageScaled;
 
-      signalWindCalibration(millis() - entryMillis);
+      signalWindCalibration(calibrationDuration - (millis() - entryMillis));
     }
-    SET_PERMANENT2(&minValue, wdCalibMin);
-    SET_PERMANENT2(&maxValue, wdCalibMax);
-    AWS_DEBUG_PRINTLN(F("Calibration Result: "));
-    PRINT_VARIABLE(minValue);
-    PRINT_VARIABLE(maxValue);
+#ifdef WIND_PWR_PIN
+    digitalWrite(WIND_PWR_PIN, LOW);
+#endif
 #ifndef DEBUG
     signalOff();
 #endif
+    if (maxValue > minValue + 100)
+    {
+      SET_PERMANENT2(&minValue, wdCalibMin);
+      SET_PERMANENT2(&maxValue, wdCalibMax);
+    }
+    else
+    {
+      SIGNALERROR();
+      AWS_DEBUG_PRINTLN(F("Calibration failed!"));
+    }
+    AWS_DEBUG_PRINTLN(F("Calibration Result: "));
+    PRINT_VARIABLE(minValue);
+    PRINT_VARIABLE(maxValue);
   }
 
   void signalWindCalibration(unsigned long durationRemaining)
@@ -290,7 +305,7 @@ namespace WeatherProcessing
     unsigned long weatherPrepMicros = micros() - entryMicros;
     PRINT_VARIABLE(weatherPrepMicros);
   #endif
-  #if 0
+  #if 1
     AWS_DEBUG_PRINTLN(F("  ======================"));
     AWS_DEBUG_PRINT(F("batteryVoltageReading: "));
     AWS_DEBUG_PRINTLN(batteryVoltageReading);
@@ -519,7 +534,7 @@ namespace WeatherProcessing
     PRINT_VARIABLE(tsOffset);
     PRINT_VARIABLE(tsGain);
 
-    int temp_x2_offset = (((int)ADC + tsOffset - (273 + 100)) * 256) / tsGain + 100 * 2;
+    int temp_x2_offset = (((long)ADC + tsOffset - (273 + 100)) * 256) / tsGain + 100 * 2;
     temp_x2_offset += 64;
     if (temp_x2_offset < 0)
       temp_x2_offset = 0;
@@ -533,7 +548,7 @@ namespace WeatherProcessing
   #ifndef TEMP_SENSE
     return 0;
   #else
-    auto reading = analogRead(TEMP_SENSE);
+    auto tempReading = analogRead(TEMP_SENSE);
     // V = Vref * R1 / (R1 + R2)
     // V / (Vref * R1) = 1 / (R1 + R2)
     // R1 * Vref / V = R1 + R2
@@ -541,10 +556,16 @@ namespace WeatherProcessing
     // R1 = R2 / (Vref / V - 1)
     // R2 / R1 = Vref / V - 1
     // Vref / V = 1023 / reading
-    float r2_r1 = 1023.0 / reading - 1;
-    float B = 3892;
-    float T0 = 273.15 + 25;
-    float T = 1/(1/T0 + B * log(r2_r1));
+    float r2_r1 = 1023.0 / tempReading - 1;
+    constexpr float invB = 1/3892.0;
+    constexpr float T0 = 273.15 + 25;
+    float T = 1/(1/T0 + invB * log(r2_r1));
+
+    PRINT_VARIABLE(tempReading);
+    PRINT_VARIABLE(r2_r1);
+    PRINT_VARIABLE(log(r2_r1));
+    PRINT_VARIABLE(T);
+
     T -= 273.15;
     //We send temperature as a byte, ranging from -32 to 95 C (1 LSB = half a degree)
     if (T < -32)

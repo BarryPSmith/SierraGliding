@@ -29,13 +29,20 @@ namespace dotNet_Receiver
         public byte uniqueID;
         public double windDirection;
         public double windSpeed;
-        public double batteryLevelH;
-        public double internalTemp;
-        public double externalTemp;
+        public double? batteryLevelH;
+        public double? internalTemp;
+        public double? externalTemp;
 
         public override string ToString()
         {
-            return $"{windDirection:F1} {windSpeed:F2} {batteryLevelH:F2}";
+            var ret = $"WD: {windDirection:F1} WS:{windSpeed:F2}";
+            if (batteryLevelH.HasValue)
+                ret += $" B:{batteryLevelH:F2}";
+            if (externalTemp.HasValue)
+                ret += $" ET:{externalTemp:F1}";
+            if (internalTemp.HasValue)
+                ret += $" IT:{internalTemp:F1}";
+            return ret;
         }
     }
 
@@ -92,40 +99,28 @@ namespace dotNet_Receiver
                 uniqueID = uniqueID
             };
 
-            //Special case, which we should probably remove and make the windspeed debug follow the standard protocol:
-            if (bytes[7] == 1 || bytes[7] == 2)
+            switch (type)
             {
-                return new WindSpeedDebugPacket
-                {
-                    packetNumber = bytes[7],
-                    bufferLocation = bytes[8],
-                    data = bytes.Skip(9).ToArray()
-                };
+                case 'W':
+                    ret.packetData = DecodeWeatherPackets(bytes.AsSpan(cur));
+                    ret.GetDataString = 
+                        data => (data as IList<SingleWeatherData>)?.ToCsv();
+                    break;
+                    /*
+                case 'D':
+                    ushort[] dirData = new ushort[(bytes.Length - 9) / 2];
+                    Buffer.BlockCopy(bytes, 10, dirData, 0, dirData.Length * 2);
+                    ret.packetData = dirData;
+                    ret.GetDataString =
+                        data => (data as ushort[])?.ToCsv();
+                    break;
+                case 'C':
+                case 'K':
+                case 'R':
+                    // TODO: Other packet types
+                    break;
+                    */
             }
-
-            else
-                switch (type)
-                {
-                    case 'W':
-                        ret.packetData = DecodeWeatherPackets(bytes.AsSpan(cur), sendingStationID, uniqueID);
-                        ret.GetDataString = 
-                            data => (data as IList<SingleWeatherData>)?.ToCsv();
-                        break;
-                        /*
-                    case 'D':
-                        ushort[] dirData = new ushort[(bytes.Length - 9) / 2];
-                        Buffer.BlockCopy(bytes, 10, dirData, 0, dirData.Length * 2);
-                        ret.packetData = dirData;
-                        ret.GetDataString =
-                            data => (data as ushort[])?.ToCsv();
-                        break;
-                    case 'C':
-                    case 'K':
-                    case 'R':
-                        // TODO: Other packet types
-                        break;
-                        */
-                }
             return ret;
         }
 
@@ -157,7 +152,7 @@ namespace dotNet_Receiver
                 return null;
             }
 
-            int cur = 0;
+            int cur = 3;
             var len = data[2];
             packetLen = len + 3; // +3: Station ID, message ID, length
             if (packetLen > data.Length)
@@ -165,8 +160,8 @@ namespace dotNet_Receiver
 
             SingleWeatherData ret = new SingleWeatherData()
             {
-                sendingStation = data[cur++],
-                uniqueID = data[cur++],
+                sendingStation = data[0],
+                uniqueID = data[1],
                 windDirection = GetWindDirection(data[cur++]),
                 windSpeed = GetWindSpeed(data[cur++])
             };
@@ -183,7 +178,7 @@ namespace dotNet_Receiver
         private static double GetTemp(byte tempByte)
             => (tempByte - 64.0) / 2;
 
-        private static IList<SingleWeatherData> DecodeWeatherPackets(Span<byte> bytes, byte stationID, byte uniqueID)
+        private static IList<SingleWeatherData> DecodeWeatherPackets(Span<byte> bytes)
         {
             int cur = 0;
             var ret = new List<SingleWeatherData>();

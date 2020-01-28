@@ -55,10 +55,10 @@ extern unsigned long lastStatusMillis;
 extern unsigned long lastPingMillis;
 
 #ifndef DEBUG
-#define LED_PIN0 = 0;
-#define LED_PIN1 = 1;
-#define LED_OFF HIGH;
-#define LED_ON LOW;
+#define LED_PIN0 0
+#define LED_PIN1 1
+#define LED_OFF HIGH
+#define LED_ON LOW
 inline void signalError(const byte count = 5, const unsigned long delay_ms = 70)
 {
   bool zeroHigh = true;

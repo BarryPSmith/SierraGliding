@@ -152,27 +152,34 @@ uint8_t getWindSpeedByte(const uint16_t windSpeed_x8)
 }
 
 static byte simpleMessagesSent = 255;
-constexpr byte complexMessageFrequency = 10;
+constexpr byte complexMessageFrequency 
+#ifdef DEBUG
+  = 3;
+#else
+  = 10;
+#endif
 
 void createWeatherData(MessageDestination& message)
 {
+#ifdef DEBUG
+  unsigned long entryMicros = micros();
+#endif // DEBUG
+
 #ifdef WIND_PWR_PIN
   digitalWrite(WIND_PWR_PIN, HIGH);
-  delay(1);
+  delayMicroseconds(1000); //use delayuS instead of standard to avoid putting the device to sleep.
 #endif
 
   bool isComplex = simpleMessagesSent >= complexMessageFrequency - 1;
-  
+
+
+  byte length = isComplex ? 5 : 2;
+  message.appendByte(length);
+
   //Message format is W(StationID)(UniqueID)(DirHex)(Spd * 2)(Voltage)
   int batteryVoltageReading = analogRead(voltagePin);
   unsigned long batt_mV = mV_Ref * BattVNumerator * batteryVoltageReading / (BattVDenominator  * 1023);
-  AWS_DEBUG_PRINTLN(F("  ======================"));
-  AWS_DEBUG_PRINT(F("batteryVoltageReading: "));
-  AWS_DEBUG_PRINTLN(batteryVoltageReading);
-  AWS_DEBUG_PRINT(F("batt_mV: "));
-  AWS_DEBUG_PRINTLN(batt_mV);
-  AWS_DEBUG_PRINT(F("Wind Counts: "));
-  AWS_DEBUG_PRINTLN(windCounts);
+  
   uint16_t windSpeed_x8 = getWindSpeed_x8();
 
   //Update the send interval only after we calculate windSpeed, because windSpeed is dependent on weatherInterval
@@ -180,45 +187,62 @@ void createWeatherData(MessageDestination& message)
   updateCanSleep(batt_mV);
   
   byte windDirection = getWindDirection();
-  AWS_DEBUG_PRINT(F("windDirection byte: "));
-  AWS_DEBUG_PRINTLN(windDirection);
   message.appendByte(windDirection);
   byte wsByte = getWindSpeedByte(windSpeed_x8);
 
-  AWS_DEBUG_PRINT(F("windSpeed byte: "));
-  AWS_DEBUG_PRINTLN(wsByte);
   message.appendByte(wsByte);
     
+  byte batteryByte, externalTempByte, internalTempByte;
   if (isComplex)
   {
-    byte batteryByte = (byte)(255UL * batt_mV / MaxBatt_mV);
+    batteryByte = (byte)(255UL * batt_mV / MaxBatt_mV);
     message.appendByte(batteryByte);
-    AWS_DEBUG_PRINT(F("batteryByte: "));
-    AWS_DEBUG_PRINTLN(batteryByte, HEX);
 
-    byte externalTempByte = getExternalTemperature();
+    externalTempByte = getExternalTemperature();
     message.appendByte(externalTempByte);
-    AWS_DEBUG_PRINT(F("externalTempByte: "));
-    AWS_DEBUG_PRINTLN(externalTempByte, HEX);
 
-    byte internalTempByte = getInternalTemperature();
+    internalTempByte = getInternalTemperature();
     message.appendByte(internalTempByte);
-    AWS_DEBUG_PRINT(F("internalTempByte: "));
-    AWS_DEBUG_PRINTLN(internalTempByte, HEX);
     
     simpleMessagesSent = 0;
   }
   else
     simpleMessagesSent++;
-  
-  AWS_DEBUG_PRINTLN(F("  ======================"));
   #ifdef WIND_PWR_PIN
   digitalWrite(WIND_PWR_PIN, LOW);
   #endif
+#ifdef DEBUG
+  unsigned long weatherPrepMicros = micros() - entryMicros;
+  PRINT_VARIABLE(weatherPrepMicros);
+#endif
+#if 0
+  AWS_DEBUG_PRINTLN(F("  ======================"));
+  AWS_DEBUG_PRINT(F("batteryVoltageReading: "));
+  AWS_DEBUG_PRINTLN(batteryVoltageReading);
+  AWS_DEBUG_PRINT(F("batt_mV: "));
+  AWS_DEBUG_PRINTLN(batt_mV);
+  AWS_DEBUG_PRINT(F("Wind Counts: "));
+  AWS_DEBUG_PRINTLN(windCounts);
+  AWS_DEBUG_PRINT(F("windDirection byte: "));
+  AWS_DEBUG_PRINTLN(windDirection);
+  AWS_DEBUG_PRINT(F("windSpeed byte: "));
+  AWS_DEBUG_PRINTLN(wsByte);
+  if (isComplex)
+  {
+    PRINT_VARIABLE(batteryByte);
+    PRINT_VARIABLE(externalTempByte);
+    PRINT_VARIABLE(internalTempByte);
+  }
+  AWS_DEBUG_PRINTLN(F("  ======================"));
+#endif
 }
 
 void updateCanSleep(unsigned short batteryVoltage_mV)
 {
+//#ifdef DEBUG
+  sleepEnabled = true;
+  return;
+//#endif
   // This is a lazy attempt at battery charge regulation:
   // If the voltage is too high, increase current consumption by not sleeping.
   unsigned short batteryUpperThresh_mV;
@@ -393,8 +417,11 @@ byte getInternalTemperature()
 #ifdef NO_INTERNAL_TEMP
   return 0;
 #endif
-  const signed char tsOffset = boot_signature_byte_get(2);
-  const byte tsGain = boot_signature_byte_get(3);
+  signed char tsOffset;// = boot_signature_byte_get(3);
+  byte tsGain;// = boot_signature_byte_get(5);
+  // The documentation around factory values of tsOffset and tsGain is bullshit. So we're going to have to manually calculate them...
+  GET_PERMANENT_S(tsOffset);
+  GET_PERMANENT_S(tsGain);
 
   auto oldMux = ADMUX;
   // Set 1.1V internal reference, set to channel 8 (internal temperature reference)
@@ -412,7 +439,12 @@ byte getInternalTemperature()
   ADMUX = oldMux;
   delay(1);
 
-  int temp_x2_offset = (((int)ADC - (273 + 100 - tsOffset)) * 256) / tsGain + 25;
+  AWS_DEBUG_PRINT("Weather reading: ");
+  AWS_DEBUG_PRINTLN(ADC);
+  PRINT_VARIABLE(tsOffset);
+  PRINT_VARIABLE(tsGain);
+
+  int temp_x2_offset = (((int)ADC + tsOffset - (273 + 100)) * 256) / tsGain + 100 * 2;
   temp_x2_offset += 64;
   if (temp_x2_offset < 0)
     temp_x2_offset = 0;

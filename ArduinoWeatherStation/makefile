@@ -1,5 +1,5 @@
 #COM port for upload
-PORT=COM4
+PORT=COM11
 #Hardware spects
 MCU=atmega328p
 #115200

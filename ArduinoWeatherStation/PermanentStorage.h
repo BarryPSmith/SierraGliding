@@ -58,6 +58,9 @@ typedef struct PermanentVariables
   unsigned long csmaTimeslot;
   unsigned short outboundPreambleLength;
 
+  signed char tsOffset;
+  byte tsGain;
+
   short crc; //2
 } PermanentVariables;
 

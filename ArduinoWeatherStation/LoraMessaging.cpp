@@ -108,7 +108,7 @@ void InitMessaging()
       lora.getStatus(&status);
       AWS_DEBUG_PRINT(F("Status: "));
       AWS_DEBUG_PRINTLN(status);
-      state = LORA_CHECK(lora.standby());
+      state = LORA_CHECK(lora.standby(SX126X_STANDBY_RC));
       delay(1000);
     }
 #endif
@@ -189,7 +189,7 @@ bool HandleMessageCommand(MessageSource& src)
   if (src.readByte(descByte))
     return false;
 
-  auto state = lora.standby();
+  auto state = lora.standby(SX126X_STANDBY_RC);
   if (state != ERR_NONE)
     return false;
   
@@ -352,13 +352,6 @@ MESSAGE_RESULT LoraMessageDestination::finishAndSend()
     preambleLength = outboundPreambleLength;
   }
 
-  
-#ifdef MOTEINO_96
-  LORA_CHECK(lora.setPreambleLength(preambleLength));
-  auto state = LORA_CHECK(lora.transmit(_outgoingBuffer, m_iCurrentLocation));
-  LORA_CHECK(lora.setPreambleLength(0xFFFF));
-  LORA_CHECK(lora.startReceive());
-#else //!MOTENINO_96
 
 #ifndef DEBUG 
   //If we're not in debug there is no visual indication of a message being sent at the station
@@ -366,7 +359,9 @@ MESSAGE_RESULT LoraMessageDestination::finishAndSend()
   digitalWrite(0, HIGH);
 #endif //DEBUG
 
+  auto beforeTxMicros = micros();
   auto state = LORA_CHECK(csma.transmit(_outgoingBuffer, _currentLocation, preambleLength));
+  PRINT_VARIABLE(micros() - beforeTxMicros);
 
 #ifndef DEBUG
   if (state == ERR_NONE)
@@ -377,7 +372,7 @@ MESSAGE_RESULT LoraMessageDestination::finishAndSend()
   else //Flash the TX/RX LEDs to indicate an error condition:
     signalError();
 #endif //DEBUG
-#endif //!MOTENINO_96
+
   bool ret = state == ERR_NONE;
 
   _currentLocation = -1;

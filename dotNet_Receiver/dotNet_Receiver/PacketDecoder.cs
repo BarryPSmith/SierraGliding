@@ -159,7 +159,7 @@ namespace dotNet_Receiver
 
             int cur = 0;
             var len = data[2];
-            packetLen = len + 2;
+            packetLen = len + 3; // +3: Station ID, message ID, length
             if (packetLen > data.Length)
                 return null;
 

@@ -56,13 +56,25 @@ class CSMAWrapper
     }
 
     int16_t transmit(uint8_t* data, size_t len, uint16_t preambleLength, uint8_t addr = 0) {
+      
+      auto entryMicros = micros();
       LORA_CHECK(delayCSMA());
+      auto delayMicros = micros() - entryMicros;
       
       auto ret = _base->setPreambleLength(preambleLength);
+      auto preambleMicros = micros() - entryMicros;
       if (ret != ERR_NONE)
         return ret;
       ret = _base->transmit(data, len, addr);
+      
+      auto txMicros = micros() - entryMicros;
       enterIdleState();
+      auto idleMicros = micros() - entryMicros;
+      PRINT_VARIABLE(delayMicros);
+      PRINT_VARIABLE(preambleMicros);
+      PRINT_VARIABLE(txMicros);
+      PRINT_VARIABLE(idleMicros);
+      
 
       return ret;
     }
@@ -73,6 +85,7 @@ class CSMAWrapper
     int16_t delayCSMA()
     {
       uint32_t entryMicros = micros();
+      uint32_t beforeIsChannelBusy, afterIsChannelBusy;
       bool wasBusy = false;
       do
       {
@@ -84,14 +97,14 @@ class CSMAWrapper
             readIfPossible();
           }
         }
-        int16_t state = _base->isChannelBusy(true);
+        int16_t state = _base->isChannelBusy(true, false);
         wasBusy = (state == LORA_DETECTED);
         while(state == LORA_DETECTED) {
           delay(10); // If we spam the modem with detectCAD, it can never receieve a message.
                      // Also the delay lets our MCU sleep.
           CHECK_TIMEOUT();
           readIfPossible();
-          state = _base->isChannelBusy(true);
+          state = _base->isChannelBusy(true, false);
         }
         if(state != CHANNEL_FREE) {
           return(state);

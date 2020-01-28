@@ -128,7 +128,6 @@ namespace dotNet_Receiver
                     if (_writeQueue.TryDequeue(out var toWrite))
                     {
                         WriteSerialInternal(toWrite.stream, toWrite.writeType);
-                        Console.WriteLine("Wrote stream...");
                     }
                 }
             }

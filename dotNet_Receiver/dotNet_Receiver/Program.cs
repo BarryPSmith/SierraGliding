@@ -134,7 +134,7 @@ Arguments:
                             return;
                         }
                         //Do this in a Task to avoid waiting if we've scrolled up.
-                        var consoleTask = Task.Run(() => Console.WriteLine($"Packet {receivedTime}: {packet.ToString()}"));
+                        var consoleTask = Task.Run(() => OutputWriter.WriteLine($"Packet {receivedTime}: {packet.ToString()}"));
                         switch (packet.type)
                         {
                             case 'W': //Weather data

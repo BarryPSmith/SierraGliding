@@ -274,16 +274,16 @@ void sleep(adc_t adc_state)
   if (!sleepEnabled)
     return;
   // Or interrupts aren't enabled (= no wakeup)
-  if (!(SREG & SREG_I))
+  if (bit_is_clear(SREG, SREG_I))
     return;
 #ifdef DEBUG
   // Or there's data in the serial buffer
-  if (UCSR0B & UDRIE0 || (UCSR0A & TXC0) == 0)
+  if (bit_is_set(UCSR0B, UDRIE0) || bit_is_clear(UCSR0A, TXC0))
     return;
 #endif
-
+  //return;
   LowPower.powerSave(SLEEP_FOREVER, //we're actually going to wake up on our next timer2 or wind tick.
-                    ADC_OFF,
+                    adc_state,
                     BOD_OFF,
                     TIMER2_ON);
 }

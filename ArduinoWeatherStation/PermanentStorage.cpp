@@ -25,10 +25,6 @@ void PermanentStorage::setCRC()
   eeprom_write_block(&crc, (void*)offsetof(PermanentVariables, crc), sizeof(short));
 }
 
-#define PRINT_VARIABLE(a) do { \
-  AWS_DEBUG_PRINT(F(#a ": ")); \
-  AWS_DEBUG_PRINTLN(a); \
-  } while (0)
 void PermanentStorage::initialise()
 {
   bool initialised;
@@ -41,6 +37,9 @@ void PermanentStorage::initialise()
     const long longInterval = 4000;// - 90 * (stationID - '1'); //longInterval == shortInterval because it turns out the transmit is negligble draw.
     const unsigned short batteryThreshold_mV = 4000;
     const unsigned short batteryUpperThresh_mV = 4700;
+    // These default tsOffset / tsGain values correspond to the datasheet example values on page 215.
+    signed char tsOffset = -75;
+    byte tsGain = 164;
     const bool demandRelay = false;
     const byte emptyBuffer[permanentArraySize] = { 0 };
 
@@ -48,7 +47,7 @@ void PermanentStorage::initialise()
     const uint32_t frequency_i = 425000000;
     const uint16_t bandwidth_i = 625;
     const short txPower = -9;
-    const byte spreadingFactor = 7; //Maybe we can communicate with the RF96?
+    const byte spreadingFactor = 5; //Maybe we can communicate with the RF96?
     const byte csmaP = 100; //40% chance to transmit
     const unsigned long csmaTimeslot = 4000; // 4ms
     const unsigned short outboundPreambleLength = 128; // allow end nodes to spend most of their time asleep.
@@ -57,6 +56,8 @@ void PermanentStorage::initialise()
     SET_PERMANENT_S(longInterval);
     SET_PERMANENT_S(batteryThreshold_mV);
     SET_PERMANENT_S(batteryUpperThresh_mV);
+    SET_PERMANENT_S(tsOffset);
+    SET_PERMANENT_S(tsGain);
     SET_PERMANENT2(emptyBuffer, stationsToRelayCommands);
     SET_PERMANENT2(emptyBuffer, stationsToRelayWeather);
     SET_PERMANENT_S(initialised);
@@ -79,10 +80,15 @@ void PermanentStorage::initialise()
     bool demandRelay = false;
     byte buffer[permanentArraySize] = { 0 };
     unsigned short crc;
+    signed char tsOffset;
+    byte tsGain;
+
     GET_PERMANENT_S(shortInterval);
     GET_PERMANENT_S(longInterval);
     GET_PERMANENT_S(batteryThreshold_mV);
     GET_PERMANENT_S(batteryUpperThresh_mV);
+    GET_PERMANENT_S(tsOffset);
+    GET_PERMANENT_S(tsGain);
     GET_PERMANENT2(buffer, stationsToRelayWeather);
     GET_PERMANENT_S(initialised);
 
@@ -92,6 +98,8 @@ void PermanentStorage::initialise()
     PRINT_VARIABLE(longInterval);
     PRINT_VARIABLE(batteryThreshold_mV);
     PRINT_VARIABLE(batteryUpperThresh_mV);
+    PRINT_VARIABLE(tsOffset);
+    PRINT_VARIABLE(tsGain);
     GET_PERMANENT2(buffer, stationsToRelayCommands);
     AWS_DEBUG_PRINT(F("stationsToRelayCommands:"));
     for (int i = 0; i < permanentArraySize; i++)

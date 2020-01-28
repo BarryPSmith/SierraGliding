@@ -18,6 +18,11 @@ void AwsRecordState(int i);
 #define AWS_RECORD_STATE(A)
 #endif
 
+#define PRINT_VARIABLE(a) do { \
+  AWS_DEBUG_PRINT(F(#a ": ")); \
+  AWS_DEBUG_PRINTLN(a); \
+  } while (0)
+
 #define MESSAGE_DESTINATION_SOLID LoraMessageDestination
 #define MESSAGE_SOURCE_SOLID LoraMessageSource
 

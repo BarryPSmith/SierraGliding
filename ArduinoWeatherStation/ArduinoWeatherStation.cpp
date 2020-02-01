@@ -14,6 +14,7 @@
 #include "TimerTwo.h"
 #include "PermanentStorage.h"
 #include "StackCanary.h"
+#include "RemoteProgramming.h"
 
 unsigned long weatherInterval = 2000; //Current weather interval.
 unsigned long overrideStartMillis;
@@ -144,7 +145,14 @@ void setup() {
   }
   AWS_DEBUG_PRINTLN(F("Starting..."));
 
+  pinMode(SX_SELECT, OUTPUT);
+  pinMode(FLASH_SELECT, OUTPUT);
+  digitalWrite(SX_SELECT, HIGH);
+  digitalWrite(FLASH_SELECT, HIGH);
+
   PermanentStorage::initialise();
+  if (!RemoteProgramming::remoteProgrammingInit())
+    AWS_DEBUG_PRINTLN(F("!! Remote programming failed to initialise !!"));
   
 #if 0 //Useful to be able to output a state with pins. However, it looks like we might use them.
   pinMode(5, OUTPUT);

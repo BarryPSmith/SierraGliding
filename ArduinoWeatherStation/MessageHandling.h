@@ -4,6 +4,7 @@ namespace MessageHandling
   void sendStatusMessage();
   void readMessages();
   void sendWeatherMessage();
+  byte getUniqueID();
 
   constexpr int recentArraySize = 20;
 

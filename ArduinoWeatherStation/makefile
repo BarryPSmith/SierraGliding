@@ -1,5 +1,5 @@
 #COM port for upload
-PORT=COM11
+PORT=COM4
 #Hardware spects
 MCU=atmega328p
 #115200
@@ -33,7 +33,8 @@ INCLUDES=-I../../ArduinoCore-avr/cores/arduino \
 		 -I../../ArduinoCore-avr/libraries/SoftwareSerial/src \
 		 -Ilib/RadioLib/src \
 		 -Ilib/Low-Power \
-		 -Ilib/RadioLib/src
+		 -Ilib/RadioLib/src \
+		 -Ilib/SPIFlash
 #		 -Ilib/TimerOne 
 ARDUINO_BASE_LIBS=^/wiring_analog.c \
 			^/wiring_digital.c ^/WInterrupts.c ^/hooks.c \
@@ -59,21 +60,20 @@ ARDUINO_LIBSWDIRS = \
 RADIO_LIB=lib/RadioLib/src/Module.cpp lib/RadioLib/src/modules/SX126x/SX126x.cpp \
 		lib/RadioLib/src/modules/SX126x/SX1262.cpp lib/RadioLib/src/modules/RF69/RF69.cpp \
 
-LIBRARIES=lib/Low-Power/LowPower.cpp $(RADIO_LIB) $(ARDUINO_LIBSWDIRS)
+LIBRARIES=lib/Low-Power/LowPower.cpp lib/SPIFlash/SPIFlash.cpp $(RADIO_LIB) $(ARDUINO_LIBSWDIRS)
 
 OBJFOLDER := $(OBJFOLDER)obj
 ifeq ($(MODEM), 1)
 SRCS_C = KissModem.cpp MessagingCommon.cpp LoraMessaging.cpp KissMessaging.cpp \
 			../../ArduinoCore-avr/cores/arduino/wiring.c \
 			PermanentStorage.cpp StackCanary.cpp \
-			lib/RadioLib/src/modules/SX127x/SX1278.cpp \
-			lib/RadioLib/src/modules/SX127x/SX127x.cpp \
 			$(LIBRARIES)
 OBJFOLDER := $(OBJFOLDER)_mod
 else
 SRCS_C = ArduinoWeatherStation.cpp Commands.cpp MessageHandling.cpp \
 		 LoraMessaging.cpp WeatherProcessing.cpp MessagingCommon.cpp \
-		delay.c millis.cpp TimerTwo.cpp PermanentStorage.cpp StackCanary.cpp \
+		 delay.c millis.cpp TimerTwo.cpp PermanentStorage.cpp StackCanary.cpp \
+		 RemoteProgramming.cpp \
 		 $(LIBRARIES)
 endif
 

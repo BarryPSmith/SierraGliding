@@ -34,7 +34,7 @@ void AwsRecordState(int i);
 #define STR(A) #A
 #define XSTR(A) STR(A)
 inline constexpr char stationID = STATION_ID;
-#pragma message ("StationID: " XSTR(STATION_ID))
+//#pragma message ("StationID: " XSTR(STATION_ID))
 #endif
 
 //Global Constants
@@ -59,6 +59,12 @@ extern unsigned long lastPingMillis;
 #define LED_PIN1 1
 #define LED_OFF HIGH
 #define LED_ON LOW
+inline void signalOff()
+{
+  digitalWrite(LED_PIN0, LED_OFF);
+  digitalWrite(LED_PIN1, LED_OFF);
+}
+
 inline void signalError(const byte count = 5, const unsigned long delay_ms = 70)
 {
   bool zeroHigh = true;
@@ -79,12 +85,6 @@ inline void signalError(const byte count = 5, const unsigned long delay_ms = 70)
   }
   delay(delay_ms);
   signalOff();
-}
-
-inline void signalOff()
-{
-  digitalWrite(LED_PIN0, LED_OFF);
-  digitalWrite(LED_PIN1, LED_OFF);
 }
 #define SIGNALERROR(...) signalError(__VA_ARGS__)
 #else

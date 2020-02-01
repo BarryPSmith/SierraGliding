@@ -7,11 +7,8 @@
 #include "Callsign.h"
 #include "PermanentStorage.h"
 #include <string.h>
+#include "Commands.h"
 
-namespace Commands
-{
-  extern void handleCommandMessage(MessageSource& message, bool demandRelay, byte uniqueID, bool isSpecific);
-}
 
 //Placement new operator.
 void* operator new(size_t size, void* ptr)

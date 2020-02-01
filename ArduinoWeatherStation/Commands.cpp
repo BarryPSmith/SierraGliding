@@ -4,6 +4,7 @@
 #include "ArduinoWeatherStation.h"
 #include "PermanentStorage.h"
 #include "WeatherProcessing.h"
+#include "RemoteProgramming.h"
 
 namespace Commands
 {
@@ -77,6 +78,10 @@ namespace Commands
 
       case 'W':
         handled = WeatherProcessing::handleWeatherCommand(msg);
+        break;
+
+      case 'P':
+        handled = RemoteProgramming::handleProgrammingCommand(msg, uniqueID, demandRelay, &ackRequired);
         break;
 
       #if DEBUG_Speed

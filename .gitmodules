@@ -7,3 +7,6 @@
 [submodule "ArduinoWeatherStation/lib/TimerOne"]
 	path = ArduinoWeatherStation/lib/TimerOne
 	url = https://github.com/BarryPSmith/TimerOne.git
+[submodule "ArduinoWeatherStation/lib/SPIFlash"]
+	path = ArduinoWeatherStation/lib/SPIFlash
+	url = https://github.com/LowPowerLab/SPIFlash.git

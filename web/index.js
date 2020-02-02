@@ -168,7 +168,7 @@ function main(db, cb) {
      * Returns basic metadata about all stations
      * managed in the database as a GeoJSON FeatureCollection
      */
-    router.get('/stations', (req, res) => {
+    router.get('/stationFeatures', (req, res) => {
         db.all(`
             SELECT
                 ID AS id,
@@ -220,6 +220,29 @@ function main(db, cb) {
 
             res.json(stations);
         });
+    });
+
+    router.get('/stations', (req, res) => {
+        db.all(`
+            SELECT
+                ID AS id,
+                Name AS name,
+                Wind_Speed_Legend,
+                Wind_Dir_Legend
+            FROM
+                stations
+            WHERE
+                id >= 0;
+        `, (err, stations) => {
+            if (err) return (err, res);
+
+            for (const idx in stations) {
+                stations[idx].Wind_Speed_Legend = JSON.parse(stations[idx].Wind_Speed_Legend);
+                stations[idx].Wind_Dir_Legend = JSON.parse(stations[idx].Wind_Dir_Legend);
+            }
+
+            res.json(stations)
+            })
     });
 
     /**

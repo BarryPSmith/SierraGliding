@@ -1,5 +1,9 @@
+import NanoEvents from 'nanoevents'
+
 export default class DataManager {
     constructor(station_id) {
+        this.emitter = new NanoEvents();
+
         // Sets that contain the data:
         this.windspeedData= [];
         this.windDirectionData= [];
@@ -30,6 +34,14 @@ export default class DataManager {
         // This promiseToken is changed every time a complete reload is called.
         // When that happens; all updates should be no-ops.
         this.curPromiseToken= Math.random() //We could make this a GUID, but it seems overkill.
+    }
+
+    on() {
+        return this.emitter.on.apply(this.emitter, arguments);
+    }
+
+    data_updated() {
+        this.emitter.emit('data_updated');
     }
         
     //Ensures that data is available from start until end with an acceptable resolution.
@@ -74,25 +86,33 @@ export default class DataManager {
             (start < this.currentStart && this.get_actual_end() < actualEnd);
         
         let thePromise = null;
-        if (refreshRequired)
+        if (refreshRequired) {
             thePromise = this.load_data(start, end, actualEnd);
-        else
+        } else {
             thePromise = this.add_data(start, end, actualEnd);
+        }
             
         //We're going to tack on refreshRequired so the caller can choose not to wait on the promise.
         thePromise.refreshRequired = refreshRequired;
 
-        if (cb)
+        if (cb) {
             return thePromise.then(
-                () => { cb(refreshRequired, null); },
-                (err) => { cb(refreshRequired, err); });
-        else
+                () => { 
+                    this.data_updated();
+                    cb(refreshRequired, null); 
+                },
+                (err) => { 
+                    cb(refreshRequired, err); 
+                });
+        } else {
             return thePromise.then((anyChange) => {
+                this.data_updated();
                 return {
                     reloadedData: refreshRequired,
                     anyChange: anyChange
                 };
             });
+        }
     }
     
     end_is_now() {

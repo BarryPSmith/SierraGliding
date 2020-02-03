@@ -1,4 +1,12 @@
+<template>
+    <!--I don't know what all this div bullshit is about.
+        But it seems to be necessary so the chart doesn't grow without bounds.-->
+    <canvas ref="chart" />
+</template>
+
 <script>
+import { EventBus } from '../eventBus.js';
+
 export default {
     name: 'chartBase',
 
@@ -52,7 +60,8 @@ export default {
                     }
                 }
             },
-            isPanning: false
+            isPanning: false,
+            timer: null,
         };
     },
 
@@ -66,12 +75,35 @@ export default {
             }
         },
         dataManager: function() {
-            this.dataManager.on('data_updated', this.update_chart);
-            this.update_chart();
+            this.on_dataManager_changed();
         }
     },
 
     methods: {
+        base_mounted: function() {
+            EventBus.$on('socket-message', this.on_socket_message);
+            this.ensure_chart(); 
+            this.on_dataManager_changed();
+            this.chart_range();
+            this.setup_timer();
+        },
+
+        setup_timer() {
+            this.timer = setInterval(() => {
+                if (this.chart) {
+                    this.chart.options.plugins.zoom.pan.rangeMax.x = new Date();
+                }
+            }, 1000);
+        },
+
+        on_dataManager_changed: function() {
+            if (!this.dataManager) {
+                return;
+            }
+            this.dataManager.on('data_updated', this.update_chart);
+            this.update_chart();
+        },
+
         set_chartEnd: function(newVal) {
             if (this.chartEnd === newVal) {
                 return;
@@ -155,6 +187,11 @@ export default {
                 this.update_annotation_range();
                 this.chart.update();
             }
+        },
+
+        on_socket_message: function(msg) {
+            if (!this.chartEnd && !this.isPanning)
+                this.chart_range();
         }
     }
 }

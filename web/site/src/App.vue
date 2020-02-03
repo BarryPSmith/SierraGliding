@@ -6,48 +6,16 @@
 
 <script>
 // === Components ===
-import DataManager from './DataManager.js';
 import stationList from './components/stationList.vue';
+import { EventBus } from './eventBus.js';
 
 export default {
     name: 'app',
     data: function() {
         return {
-            ws: false,
-            mode: 'map',
-            auth: false,
-            duration: 300,
-            chartEnd: null,
-            isPanning: false,
-            dataType: 'wind',
-            fullSize: false,
-            station: {
-                id: false,
-                error: false,
-                loading: true,
-                name: '',
-                lon: 0,
-                lat: 0,
-            },
-            stations: {
-                type: 'FeatureCollection',
-                features: []
-            },
-            error: {
-                title: '',
-                body: ''
-            },
-            credentials: {
-                map: 'pk.eyJ1IjoiaW5nYWxscyIsImEiOiJjam42YjhlMG4wNTdqM2ttbDg4dmh3YThmIn0.uNAoXsEXts4ljqf2rKWLQg'
-            },
-            map: false,
-            charts: {
-                windspeed: false,
-                wind_direction: false,
-                battery: false,
-            },
-            modal: false,
-            timer: false
+            ws: null,
+            stations: null,
+            timer: null,
         }
     },
     components: { stationList },
@@ -55,6 +23,7 @@ export default {
     },
     mounted: function(e) {
         this.fetch_stations();
+        this.init_socket();
     },
     watch: {
     },
@@ -70,6 +39,19 @@ export default {
                 this.stations = stations;
             });
         },
+
+        init_socket: function() {
+            let protocol = 'ws';
+            if (window.location.protocol=='https:')
+                protocol = 'wss';
+            this.ws = new WebSocket(`${protocol}://${window.location.hostname}:${window.location.port}`);
+            this.ws.onmessage = this.socket_onMessage;
+            this.ws.onclose = this.init_socket;
+        },
+
+        socket_onMessage: function(msg) {
+            EventBus.$emit('socket-message', JSON.parse(msg.data));
+        }
     }
 }
 </script>

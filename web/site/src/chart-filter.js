@@ -31,9 +31,18 @@ function filterData(chartInstance) {
                 eI = j
             }
         }
-        if (sI==null) sI = 0
-        if (originalData[originalData.length - 1].x < s) eI = 0
-            else if (eI==null) eI = originalData.length
+        if (sI==null || sI == 0) {
+            sI = 0;
+        } else {
+            sI--;
+        }
+        if (originalData[originalData.length - 1].x < s) {
+            eI = 0;
+        } else if (eI==null || eI == originalData.length) {
+            eI = originalData.length;
+        } else {
+            eI++;
+        }
 
         dataset.data = originalData.slice(sI, eI)
     }

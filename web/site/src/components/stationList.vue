@@ -1,15 +1,16 @@
 <template>
     <div>
-        <div class="flex-parent-inline fr px24">
-            <button @click='duration =   300' :class='dur300' class="btn btn--pill btn--pill-hl">5 Minutes</button>
-            <button @click='duration =  3600' :class='dur3600' class="btn btn--pill btn--pill-hc">1 Hour</button>
-            <button @click='duration = 14400' :class='dur14400' class="btn btn--pill btn--pill-hc">4 Hours</button>
-            <button @click='duration = 42200' :class='dur42200' class="btn btn--pill btn--pill-hc">12 Hours</button>
-            <button @click='duration = 84400' :class='dur84400' class="btn btn--pill btn--pill-hr">24 Hours</button>
-        </div>
+        <select class="fr px24" v-model="duration">
+            <option value="300">5 Minutes</option>
+            <option value="3600">1 Hour</option>
+            <option value="43200">12 Hours</option>
+            <option value="86400">24 Hours</option>
+            <option value="604800">1 Week</option>
+            <option value="2592000">1 Month</option>
+        </select>
         <div class='h-full w-full'>
-            <div class='align-center border-b border--gray-light h36 my6'>
-                <h1 class='txt-h4'>Active Stations!</h1>
+            <div class='align-center border-b border--gray h36 my6'>
+                <h1 class='txt-h4'>Active Stations</h1>
             </div>
             <singleStationView v-for='cstation in stations'
                                :station="cstation"
@@ -27,9 +28,11 @@ export default {
     props: [ 'stations' ],
     data: function() { 
         return {
-            chartEnd: new Date(),
+            chartEnd: null,
             duration: 300
         };
+    },
+    mounted: function () {
     },
     watch: {
         'chartEnd': function() { 
@@ -62,6 +65,10 @@ export default {
                 'btn--stroke': this.duration === 84400
             }
         }
+    },
+
+    methods: {
+
     }
 }
 </script>

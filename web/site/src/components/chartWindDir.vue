@@ -1,13 +1,3 @@
-<template>
-    <!--I don't know what all this div bullshit is about.
-        But it seems to be necessary so the chart doesn't grow without bounds.-->
-    <div>
-        <div display:block style="height:300px; max-height: 300px">
-            <canvas ref="chart" />
-        </div>
-    </div>
-</template>
-
 <script>
 import chartBase from './chartBase.vue';
 
@@ -17,8 +7,11 @@ export default {
 
     props: [ 'legend' ],
 
+    created: function() {console.error('chartWindDir Created');},
+    beforeDestroy: function() {console.error('chartWindDir beforeDestroy');},
+
     mounted: function() { 
-        this.ensure_chart(); 
+        this.base_mounted();
         this.set_direction_annotations();
     },
 

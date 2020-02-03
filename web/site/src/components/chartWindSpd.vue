@@ -1,13 +1,3 @@
-<template>
-    <!--I don't know what all this div bullshit is about.
-        But it seems to be necessary so the chart doesn't grow without bounds.-->
-    <div>
-        <div display:block style="height:300px; max-height: 300px">
-            <canvas ref="chart" />
-        </div>
-    </div>
-</template>
-
 <script>
 import chartBase from './chartBase.vue';
 import bs from '../../node_modules/binary-search/index.js';
@@ -18,7 +8,7 @@ export default {
     props: ['legend'],
 
     mounted: function() {
-        this.ensure_chart();
+        this.base_mounted();
         this.set_speed_annotations();
         this.set_windspeed_range();
     },
@@ -37,7 +27,10 @@ export default {
 
         'dataManager': function() {
             if (this.chart)
+            {
                 this.chart.data.datasets[0].label = 'Wind Speed (' + this.dataManager.unit + ')';
+                this.set_speed_annotations();
+            }
         }
     },
 

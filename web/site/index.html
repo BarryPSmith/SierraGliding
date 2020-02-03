@@ -17,10 +17,27 @@
             grid-template-columns: 100%;
         }
 
+        .rightGridSingle {
+            display: grid;
+            grid-auto-rows: 1fr;
+            grid-template-columns: minmax(0, 1fr) auto;
+        }
+
+        .rightGridDouble {
+            display: grid;
+            grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+            grid-template-columns: minmax(0, 1fr) auto;
+        }
+
         .splitGrid {
             display: grid;
             grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
             grid-template-columns: 100%;
+        }
+
+        .outlineText {
+            -webkit-text-stroke-width: 1px;
+            -webkit-text-stroke-color: black
         }
     </style>
 

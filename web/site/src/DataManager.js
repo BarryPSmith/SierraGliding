@@ -98,7 +98,6 @@ export default class DataManager {
         if (cb) {
             return thePromise.then(
                 () => { 
-                    this.data_updated();
                     cb(refreshRequired, null); 
                 },
                 (err) => { 
@@ -106,7 +105,6 @@ export default class DataManager {
                 });
         } else {
             return thePromise.then((anyChange) => {
-                this.data_updated();
                 return {
                     reloadedData: refreshRequired,
                     anyChange: anyChange
@@ -185,8 +183,7 @@ export default class DataManager {
             this.windspeedData.splice(i, 0, ...newStationData.map(this.get_wind_spd_entry, this));
             this.batteryData.splice(i, 0, ...newStationData.map(this.get_batt_entry));
 
-            if (typeof this.onDataAdded == 'function')
-                    this.onDataAdded();
+            this.data_updated();
 
             return true;
         });;
@@ -210,8 +207,7 @@ export default class DataManager {
                 cur.splice(0, 50);
             }
         }       
-        if (typeof this.onDataAdded == 'function')
-            this.onDataAdded();
+        this.data_updated();
 
     }
         
@@ -256,8 +252,7 @@ export default class DataManager {
                     this.windspeedData = newStationData.map(this.get_wind_spd_entry, this);
                     this.batteryData = newStationData.map(this.get_batt_entry);
 
-                    if (typeof this.onDataReplaced == 'function')
-                        this.onDataReplaced();
+                    this.data_updated();
 
                     return true;
                 } else {

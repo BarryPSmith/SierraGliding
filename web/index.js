@@ -237,8 +237,17 @@ function main(db, cb) {
             if (err) return (err, res);
 
             for (const idx in stations) {
-                stations[idx].Wind_Speed_Legend = JSON.parse(stations[idx].Wind_Speed_Legend);
-                stations[idx].Wind_Dir_Legend = JSON.parse(stations[idx].Wind_Dir_Legend);
+                try {
+                    stations[idx].Wind_Speed_Legend = JSON.parse(stations[idx].Wind_Speed_Legend);
+                } catch(err) {
+                    console.error(err);
+                }
+                try {
+                    stations[idx].Wind_Dir_Legend = JSON.parse(stations[idx].Wind_Dir_Legend);
+                } catch(err) {
+                    console.error(err);
+                }
+                
             }
 
             res.json(stations)

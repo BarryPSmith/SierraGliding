@@ -55,10 +55,10 @@ namespace WeatherProcessing
   byte getWindDirection()
   {
   #ifdef DAVIS_WIND
-#pragma message 'using davis wind'
+#pragma message "using davis wind"
     return getWindDirectionDavis();
   #elif ARGENTDATA_WIND
-#pragma message 'using ad wind'
+#pragma message "using ad wind"
     return getWindDirectionArgentData();
   #endif
   }

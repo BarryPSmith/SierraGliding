@@ -8,6 +8,9 @@
 #if defined(DAVIS_WIND) && defined(ARGENTDATA_WIND)
 #error Multiple wind systems defined
 #endif
+#if !defined(DAVIS_WIND) && !defined(ARGENTDATA_WIND)
+#error No wind system defined
+#endif
 
 namespace WeatherProcessing
 {
@@ -52,8 +55,10 @@ namespace WeatherProcessing
   byte getWindDirection()
   {
   #ifdef DAVIS_WIND
+#pragma message 'using davis wind'
     return getWindDirectionDavis();
   #elif ARGENTDATA_WIND
+#pragma message 'using ad wind'
     return getWindDirectionArgentData();
   #endif
   }
@@ -181,7 +186,7 @@ namespace WeatherProcessing
     //NW 224
     //NNW 240
     int wdVoltage = analogRead(windDirPin);
-  
+    PRINT_VARIABLE(wdVoltage);
     if (wdVoltage < 168)
       return 80;  // 5 (ESE)
     if (wdVoltage < 195)

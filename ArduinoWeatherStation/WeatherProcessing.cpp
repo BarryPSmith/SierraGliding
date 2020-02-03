@@ -559,7 +559,7 @@ namespace WeatherProcessing
     float r2_r1 = 1023.0 / tempReading - 1;
     constexpr float invB = 1/3892.0;
     constexpr float T0 = 273.15 + 25;
-    float T = 1/(1/T0 + invB * log(r2_r1));
+    float T = 1/(1/T0 - invB * log(r2_r1));
 
     PRINT_VARIABLE(tempReading);
     PRINT_VARIABLE(r2_r1);

@@ -103,12 +103,13 @@ export default {
                     else
                         return value;
                 }
+                wdOpts.title.text = 'Wind Direction';
                 this.chart = new Chart(wdElem, {
                     type: 'line',
                     data: {
                         allData: [],
                         datasets: [{
-                            label: 'Wind Direction',
+                            //label: 'Wind Direction',
                             pointBackgroundColor: 'black',
                             pointBorderColor: 'black',
                             pointRadius: 2,

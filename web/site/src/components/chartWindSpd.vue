@@ -115,10 +115,11 @@ export default {
                 wsOpts.plugins.zoom.pan.onPan = this.chart_panning;
                 wsOpts.plugins.zoom.pan.onPanComplete = this.chart_panComplete;
                 wsOpts.scales.yAxes[0].ticks.stepSize = 5;
+                wsOpts.title.text = 'Wind Speed';
                 const wsData = {
                     allData: [],
                     datasets: [{
-                        label: 'Wind Speed',
+                        //label: 'Wind Speed',
                         pointBackgroundColor: 'black',
                         pointBorderColor: 'black',
                         pointRadius: 0,

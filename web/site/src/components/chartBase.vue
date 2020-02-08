@@ -47,6 +47,12 @@ export default {
                         annotations: [],
                         drawTime: 'beforeDatasetsDraw'
                 },
+                legend: {
+                    display: false
+                },
+                title: {
+                    display: true
+                },
                         
                 plugins: {
                     zoom: {

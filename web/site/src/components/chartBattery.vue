@@ -27,7 +27,7 @@ export default {
 
         'label': function() {
             if (this.chart) {
-                this.chart.data.datasets[0].label = this.label;
+                this.chart.options.titles.text = this.label;
             }
         }
     },
@@ -55,12 +55,12 @@ export default {
                 }
                 battOpts.plugins.zoom.pan.onPan = this.chart_panning;
                 battOpts.plugins.zoom.pan.onPanComplete = this.chart_panComplete;
+                battOpts.title.text = this.label;
                 this.chart = new Chart(battElem, {
                     type: 'line',
                     data: {
                         allData: [],
                         datasets: [{
-                            label: this.label,
                             pointBackgroundColor: 'black',
                             pointBorderColor: 'black',
                             pointRadius: 0,

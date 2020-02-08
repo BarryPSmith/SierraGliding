@@ -130,6 +130,8 @@ function database(dbpath, drop, cb) {
                 Windspeed           FLOAT NOT NULL,
                 Wind_Direction      FLOAT NOT NULL,
                 Battery_Level       Float NULL,
+                Internal_Temp       FLOAT NULL,
+                External_Temp       FLOAT NULL,
                 PRIMARY KEY(Station_ID, Timestamp)
             );
         `);
@@ -228,7 +230,8 @@ function main(db, cb) {
                 ID AS id,
                 Name AS name,
                 Wind_Speed_Legend,
-                Wind_Dir_Legend
+                Wind_Dir_Legend,
+                Battery_Range
             FROM
                 stations
             WHERE
@@ -245,6 +248,11 @@ function main(db, cb) {
                 try {
                     stations[idx].Wind_Dir_Legend = JSON.parse(stations[idx].Wind_Dir_Legend);
                 } catch(err) {
+                    console.error(err);
+                }
+                try {
+                    stations[idx].Battery_Range = JSON.parse(stations[idx].Battery_Range);
+                } catch (err) {
                     console.error(err);
                 }
                 
@@ -441,7 +449,9 @@ function main(db, cb) {
                 Timestamp AS timestamp,
                 Windspeed AS windspeed,
                 Wind_Direction AS wind_direction,
-                COALESCE(Battery_Level, 0) AS battery_level
+                Battery_Level AS battery_level,
+                Internal_Temp as internal_temp,
+                External_Temp as external_temp
             FROM
                 station_data
             WHERE
@@ -492,11 +502,19 @@ function main(db, cb) {
 
                 if (!bin.length) continue;
 
+                const withBatt = bin.filter(b => {
+                    return typeof(b.battery_level) == 'number';
+                });
+                const withIT = bin.filter(b => typeof(b.internal_temp) == 'number');
+                const withET = bin.filter(b => typeof(b.external_temp) == 'number');
+
                 sampled.push({
                     timestamp: bin_lwr,
                     windspeed: stats.median(bin.map(b => b.windspeed)),
                     wind_direction: stats.median(bin.map(b => b.wind_direction)),
-                    battery_level: stats.median(bin.map(b => b.battery_level))
+                    battery_level: withBatt.length ? stats.median(withBatt.map(b => b.battery_level)) : null,
+                    internal_temp: withIT.length ? stats.median(withIT.map(b => b.internal_temp)) : null,
+                    external_temp: withET.length ? stats.median(withET.map(b => b.external_temp)) : null
                 });
             }
 
@@ -546,20 +564,26 @@ function main(db, cb) {
                     Timestamp,
                     Windspeed,
                     Wind_Direction,
-                    Battery_Level
+                    Battery_Level,
+                    Internal_Temp,
+                    External_Temp
                 ) VALUES (
                     $id,
                     $timestamp,
                     $windspeed,
                     $winddir,
-                    $battery
+                    $battery,
+                    $internal_temp,
+                    $external_temp
                 )
             `, {
                 $id: req.params.id,
                 $timestamp: moment.unix(req.body.timestamp).unix(),
                 $windspeed: req.body.wind_speed,
                 $winddir: req.body.wind_direction,
-                $battery: req.body.battery ? req.body.battery : null
+                $battery: typeof(req.body.battery) == 'number' ? req.body.battery : null,
+                $internal_temp: typeof(req.body.internal_temp) == 'number' ? req.body.internal_temp : null,
+                $external_temp: typeof(req.body.external_temp) == 'number' ? req.body.external_temp : null
             }, (err) => {
                 if (err) return error(err, res);
 
@@ -572,7 +596,9 @@ function main(db, cb) {
                         timestamp: moment.unix(req.body.timestamp).unix(),
                         windspeed: req.body.wind_speed,
                         wind_direction: req.body.wind_direction,
-                        battery_level: req.body.battery ? req.body.battery : null
+                        battery_level: req.body.battery,
+                        internal_temp: req.body.internal_temp,
+                        external_temp: req.body.external_temp
                     }));
                 });
             }); //exec insert

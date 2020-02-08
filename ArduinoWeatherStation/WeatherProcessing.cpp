@@ -198,7 +198,7 @@ namespace WeatherProcessing
     if (wdVoltage < 406)
       return 96;  // 6 (SE)
     if (wdVoltage < 477)
-      return 114;  // 9 (SSW)
+      return 144;  // 9 (SSW)
     if (wdVoltage < 570)
       return 128;  // 8 (S)
     if (wdVoltage < 662)
@@ -216,7 +216,7 @@ namespace WeatherProcessing
     if (wdVoltage < 949)
       return 208; // D (WNW)
     if (wdVoltage < 977)
-      return 64; // E (NW)
+      return 224; // E (NW)
     return 192;   // C (W)
   }
 
@@ -227,7 +227,7 @@ namespace WeatherProcessing
     windCounts = 0;
     interrupts();
   #ifdef ARGENTDATA_WIND
-    return (8 * 2400 * localCounts) / weatherInterval;
+    return (8UL * 2400 * localCounts) / weatherInterval;
   #elif defined(DAVIS_WIND)
     return (8UL * 3600 * localCounts) / weatherInterval;
   #endif
@@ -275,6 +275,7 @@ namespace WeatherProcessing
     int batteryVoltageReading = analogRead(voltagePin);
     unsigned long batt_mV = mV_Ref * BattVNumerator * batteryVoltageReading / (BattVDenominator  * 1023);
   
+    auto localCounts = windCounts;
     uint16_t windSpeed_x8 = getWindSpeed_x8();
 
     //Update the send interval only after we calculate windSpeed, because windSpeed is dependent on weatherInterval
@@ -317,7 +318,7 @@ namespace WeatherProcessing
     AWS_DEBUG_PRINT(F("batt_mV: "));
     AWS_DEBUG_PRINTLN(batt_mV);
     AWS_DEBUG_PRINT(F("Wind Counts: "));
-    AWS_DEBUG_PRINTLN(windCounts);
+    AWS_DEBUG_PRINTLN(localCounts);
     AWS_DEBUG_PRINT(F("windDirection byte: "));
     AWS_DEBUG_PRINTLN(windDirection);
     AWS_DEBUG_PRINT(F("windSpeed byte: "));

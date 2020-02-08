@@ -76,7 +76,8 @@ export default {
         },
         dataManager: function() {
             this.on_dataManager_changed();
-        }
+        },
+        dataSource: function() { this.update_chart(); }
     },
 
     methods: {
@@ -133,6 +134,8 @@ export default {
         },
 
         chart_range: function() {
+            if (!this.chart)
+                return;
             if (this.chart_range_derived)
                 this.chart_range_derived();
             this.chart.options.scales.xAxes[0].time.min = this.cur_start();

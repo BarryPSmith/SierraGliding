@@ -8,6 +8,8 @@ export default class DataManager {
         this.windspeedData= [];
         this.windDirectionData= [];
         this.batteryData= [];
+        this.internalTempData = [];
+        this.externalTempData = [];
         
         // Resolution properties=
         this.desiredResolution= 2000;
@@ -181,7 +183,9 @@ export default class DataManager {
             this.stationData.splice(i, 0, ...newStationData);
             this.windDirectionData.splice(i, 0, ...newStationData.map(this.get_wind_dir_entry));
             this.windspeedData.splice(i, 0, ...newStationData.map(this.get_wind_spd_entry, this));
-            this.batteryData.splice(i, 0, ...newStationData.map(this.get_batt_entry));
+            this.batteryData.splice(i, 0, ...this.get_batt_entries(...newStationData));
+            this.internalTempData.splice(i, 0, ...this.get_internalTemp_entries(...newStationData));
+            this.externalTempData.splice(i, 0, ...this.get_externalTemp_entries(...newStationData));
 
             this.data_updated();
 
@@ -199,10 +203,13 @@ export default class DataManager {
         this.stationData.push(newDataPoint);
         this.windDirectionData.push(this.get_wind_dir_entry(newDataPoint));
         this.windspeedData.push(this.get_wind_spd_entry(newDataPoint));
-        this.batteryData.push(this.get_batt_entry(newDataPoint));
+        this.batteryData.push(...this.get_batt_entries(newDataPoint));
+        this.internalTempData.push(...this.get_internalTemp_entries(newDataPoint));
+        this.externalTempData.push(...this.get_externalTemp_entries(newDataPoint));
         
         //Trim if necessary.
-        for (const cur of [this.stationData, this.windDirectionData, this.windspeedData, this.batteryData]) {
+        for (const cur of [this.stationData, this.windDirectionData, this.windspeedData, this.batteryData,
+                           this.internalTempData, this.externalTempData]) {
             if (cur.length > this.maxDataPoints) {
                 cur.splice(0, 50);
             }
@@ -225,12 +232,34 @@ export default class DataManager {
             y: entry.windspeed / factor
         };
     }
+
+    get_batt_entries() {
+        return Array.from(arguments)
+            .filter(entry => typeof(entry.battery_level) == 'number')
+            .map(entry => { 
+                return {
+                    x: new Date(entry.timestamp * 1000),
+                    y: entry.battery_level
+                };
+            });
+    }
     
-    get_batt_entry(entry) {
-        return {
-            x: new Date(entry.timestamp * 1000),
-            y: entry.battery_level
-        };
+    get_internalTemp_entries() {
+        return Array.from(arguments)
+            .filter(entry => typeof(entry.internal_temp) == 'number')
+            .map(entry => { return {
+                x: new Date(entry.timestamp * 1000),
+                y: entry.internal_temp,
+            }});
+    }
+
+    get_externalTemp_entries() {
+        return Array.from(arguments)
+            .filter(entry => typeof(entry.internal_temp) == 'number')
+            .map(entry => { return {
+                x: new Date(entry.timestamp * 1000),
+                y: entry.external_temp,
+            }});
     }
     
     load_data(start, end, actualEnd) {
@@ -250,7 +279,9 @@ export default class DataManager {
                     this.stationData = newStationData;
                     this.windDirectionData = newStationData.map(this.get_wind_dir_entry);
                     this.windspeedData = newStationData.map(this.get_wind_spd_entry, this);
-                    this.batteryData = newStationData.map(this.get_batt_entry);
+                    this.batteryData = this.get_batt_entries(...newStationData);
+                    this.internalTempData = this.get_internalTemp_entries(...newStationData);
+                    this.externalTempData = this.get_externalTemp_entries(...newStationData);
 
                     this.data_updated();
 

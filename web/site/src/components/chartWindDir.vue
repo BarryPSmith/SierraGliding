@@ -7,9 +7,6 @@ export default {
 
     props: [ 'legend' ],
 
-    created: function() {console.error('chartWindDir Created');},
-    beforeDestroy: function() {console.error('chartWindDir beforeDestroy');},
-
     mounted: function() { 
         this.base_mounted();
         this.set_direction_annotations();
@@ -17,9 +14,9 @@ export default {
 
 
     data: function() {
-    return {
-        dataSource: 'windDirectionData'
-        };
+        return {
+            dataSource: 'windDirectionData'
+            };
     },
 
     watch: {

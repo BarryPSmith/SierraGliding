@@ -1,3 +1,4 @@
+#/bin/sh
 git log --pretty=format:'#define REV_ID "%h"' -n 1 > "$1revid.h"
 retVal=$?
 if [ $retVal -ne 0 ]

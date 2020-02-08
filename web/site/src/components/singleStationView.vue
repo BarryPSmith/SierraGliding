@@ -51,6 +51,34 @@
                   v-bind:chartEnd="chartEnd"/>
         -->
         </div>
+        <div v-if="!collapsed">
+            <p v-if="!detailed" v-on:click="detailed_click"
+               class="cursor-pointer txt-xs">[[ Show Details ]]</p>
+            <p v-if="detailed" v-on:click="detailed_click"
+               class="cursor-pointer txt-xs">[[ Hide Details ]]</p>
+            <div v-if="detailed">
+                <chartBattery :dataManager="dataManager"
+                              :duration="duration"
+                              :chartEnd.sync="chartEnd"
+                              :range="station.Battery_Range" />
+            </div>
+            <div v-if="detailed">
+                <chartBattery :dataManager="dataManager"
+                              :duration="duration"
+                              :chartEnd.sync="chartEnd"
+                              :range="{min:-15, max:45}" 
+                              :dataSource="'externalTempData'"
+                              :label="'External Temperature'"/>
+            </div>
+            <div v-if="detailed">
+                <chartBattery :dataManager="dataManager"
+                              :duration="duration"
+                              :chartEnd.sync="chartEnd"
+                              :range="{min:-15, max:45}" 
+                              :dataSource="'internalTempData'"
+                              :label="'Case Temperature'"/>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -75,6 +103,7 @@ export default {
             timer: false,
             dataManager: null,
             collapsed: true,
+            detailed: false,
         };
     },
 
@@ -118,6 +147,10 @@ export default {
             if (!this.collapsed && this.station) {
                 window.location.hash = this.station.id;
             }
+        },
+
+        detailed_click: function() {
+            this.detailed = !this.detailed;
         },
 
         init_dataManager() {

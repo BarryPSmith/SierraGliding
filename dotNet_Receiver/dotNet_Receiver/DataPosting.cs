@@ -49,7 +49,9 @@ namespace dotNet_Receiver
                     timestamp = now.ToUnixTimeSeconds(),
                     wind_speed = subPacket.windSpeed,
                     wind_direction = subPacket.windDirection,
-                    battery = subPacket.batteryLevelH
+                    battery = subPacket.batteryLevelH,
+                    external_temp = subPacket.externalTemp,
+                    internal_temp = subPacket.internalTemp
                 };
                 var json = JsonConvert.SerializeObject(toSerialize);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");

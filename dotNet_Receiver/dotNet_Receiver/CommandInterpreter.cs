@@ -1,5 +1,4 @@
-﻿using dotNet_Receiver;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -53,12 +52,31 @@ namespace core_Receiver
             if (string.IsNullOrWhiteSpace(confirmation) ||
                 confirmation.StartsWith("Y", StringComparison.OrdinalIgnoreCase))
             {
-                MemoryStream dataStream = new MemoryStream(data);
-                _modem.WriteSerial(dataStream, packetType);
+                RecordSentCommand(data);
+                _modem.WriteSerial(data, packetType);
                 Output.WriteLine("Command Sent.");
             }
             else
                 Output.WriteLine("Command Cancelled.");
+        }
+
+        static void RecordSentCommand(byte[] data)
+        {
+            //0 1    2    3 4
+            //# Stat UnId ...
+            //C 0x00 0x00 Q V 
+            if (data.Length < 4 || data[0] != 'C')
+                return;
+            var cmdType = (char)data[3];
+            string commandIdentifier = cmdType.ToString();
+            if (cmdType == 'Q')
+            {
+                char queryType = 'C';
+                if (data.Length >= 5)
+                    queryType = (char)data[4];
+                commandIdentifier += queryType;
+            }
+            PacketDecoder.RecentCommands[data[2]] = commandIdentifier;
         }
 
         class SimpleLineReader

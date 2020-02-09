@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace dotNet_Receiver
+namespace core_Receiver
 {
     class Program
     {
@@ -33,6 +33,9 @@ Arguments:
 
         static public volatile TextWriter ErrorWriter = Console.Error;
         static public volatile TextWriter OutputWriter = Console.Out;
+
+        static Stream _nps = null;
+        static List<DataPosting> _serverPosters;
 
         static void Main(string[] args)
         {
@@ -76,10 +79,6 @@ Arguments:
                      idx >= 0;
                      idx = Array.FindIndex(args, idx + 1, arg => arg.Equals("--dest", StringComparison.OrdinalIgnoreCase)))
                 destUrls.Add(args[idx + 1]);
-#if false
-            if (!destUrls.Any())
-                destUrls.Add("http://localhost:4000");
-#endif
 
             var npsFnIndex = Array.FindIndex(args, arg => arg.Equals("--nonPacket", StringComparison.OrdinalIgnoreCase));
             if (npsFnIndex >= 0)
@@ -93,7 +92,7 @@ Arguments:
                 fn = args[dbArgIdx + 1];
             DataStorage storage = fn != null ? new DataStorage(fn) : null;
 #endif
-            var serverPosters = destUrls.Select(url =>
+            _serverPosters = destUrls.Select(url =>
             {
                 var ret = new DataPosting(url);
                 ret.OnException += (sender, ex) => 
@@ -101,43 +100,80 @@ Arguments:
                 return ret;
             }).ToList();
 
-            Stream nps = null;
             FileStream npsFs = null;
             bool npsIsStandardOut = string.IsNullOrEmpty(npsFn);
             if (npsIsStandardOut)
             {
-                nps = Console.OpenStandardOutput();
+                _nps = Console.OpenStandardOutput();
             }
             else if (!npsFn.Equals("DISCARD", StringComparison.OrdinalIgnoreCase))
             {
-                nps = npsFs = new FileStream(npsFn, FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete, 4096);
+                _nps = npsFs = new FileStream(npsFn, FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete, 4096);
             }
-            _dataReceiver.NonPacketStream = nps;
+            _dataReceiver.NonPacketStream = _nps;
 
-            _dataReceiver.PacketReceived =
-                data =>
+            _dataReceiver.PacketReceived += OnPacketReceived;
+
+            try
+            {
+                if (!Console.IsInputRedirected)
                 {
-                    DateTime receivedTime = DateTime.Now;
-                    try
+                    RunInteractive(srcAddress, serialArgIndex, serialAddress, npsIsStandardOut, _nps);
+                }
+                else
+                {
+                    RunNonInteractive(srcAddress, serialAddress, serialArgIndex);
+                }
+            }
+            finally
+            {
+                if (npsFs != null)
+                {
+                    npsFs.Flush();
+                    npsFs.Close();
+                }
+            }
+        }
+
+        private static void RunNonInteractive(string srcAddress, string serialAddress, int serialArgIndex)
+        {
+            List<Task> tasks = new List<Task>();
+            if (!string.IsNullOrEmpty(srcAddress))
+                tasks.Add(TryForever(() => _dataReceiver.Connect(srcAddress)));
+            if (serialArgIndex >= 0)
+            {
+                tasks.Add(TryForever(() =>
+                {
+                    _dataReceiver.ConnectSerial(serialAddress);
+                }));
+                StartPingLoop();
+            }
+            Task.WaitAll(tasks.ToArray());
+        }
+
+        private static void OnPacketReceived(object sender, IList<byte> data)
+        {
+            DateTime receivedTime = DateTime.Now;
+            try
+            {
+                var packet = PacketDecoder.DecodeBytes(data as byte[] ?? data.ToArray());
+                if (packet == null)
+                {
+                    var localBytes = data.ToArray();
+                    Task.Run(() =>
                     {
-                        var packet = PacketDecoder.DecodeBytes(data as byte[] ?? data.ToArray());
-                        if (packet == null)
-                        {
-                            var localBytes = data.ToArray();
-                            Task.Run(() =>
-                            {
-                                nps?.Write(Encoding.UTF8.GetBytes(receivedTime.ToString()));
-                                nps?.Write(Encoding.UTF8.GetBytes("Unhandled Packet: "));
-                                nps?.Write(localBytes);
-                                nps?.Write(Encoding.UTF8.GetBytes("\n"));
-                            });
-                            return;
-                        }
-                        //Do this in a Task to avoid waiting if we've scrolled up.
-                        var consoleTask = Task.Run(() => OutputWriter.WriteLine($"Packet {receivedTime}: {packet.ToString()}"));
-                        switch (packet.type)
-                        {
-                            case 'W': //Weather data
+                        _nps?.Write(Encoding.UTF8.GetBytes(receivedTime.ToString()));
+                        _nps?.Write(Encoding.UTF8.GetBytes("Unhandled Packet: "));
+                        _nps?.Write(localBytes);
+                        _nps?.Write(Encoding.UTF8.GetBytes("\n"));
+                    });
+                    return;
+                }
+                //Do this in a Task to avoid waiting if we've scrolled up.
+                var consoleTask = Task.Run(() => OutputWriter.WriteLine($"Packet {receivedTime}: {packet.ToString()}"));
+                switch (packet.type)
+                {
+                    case 'W': //Weather data
 #if local_storage
                                 try
                                 {
@@ -148,61 +184,29 @@ Arguments:
                                     Console.Error.WriteLine($"Store Error {DateTime.Now}: {ex}");
                                 }
 #endif
-                                foreach (var serverPoster in serverPosters)
-                                    serverPoster?.SendWeatherDataAsync(packet, receivedTime);
-                                break;
+                        foreach (var serverPoster in _serverPosters)
+                            serverPoster?.SendWeatherDataAsync(packet, receivedTime);
+                        break;
 #if false
                             case 'D': //Wind direciton debug data
                                 File.AppendAllLines(log, new[] { packet.GetDataString(packet.packetData) });
                                 break;
 #endif
-                            default:
-                                //nps is often stdOut in debugging, don't write to it from multiple threads:
-                                var localBytes = data.ToArray();
-                                consoleTask.ContinueWith(notUsed =>
-                                {
-                                    nps?.Write(Encoding.UTF8.GetBytes("Unhandled Packet: "));
-                                    nps?.Write(localBytes);
-                                    nps?.Write(Encoding.UTF8.GetBytes("\n"));
-                                });
-                                break;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        ErrorWriter.WriteLine($"Error {DateTime.Now}: {ex}");
-                    }
-                };
-
-            try
-            {
-                if (!Console.IsInputRedirected)
-                {
-                    RunInteractive(srcAddress, serialArgIndex, serialAddress, npsIsStandardOut, nps);
-                }
-                else
-                {
-                    List<Task> tasks = new List<Task>();
-                    if (!string.IsNullOrEmpty(srcAddress))
-                        tasks.Add(TryForever(() => _dataReceiver.Connect(srcAddress)));
-                    if (serialArgIndex >= 0)
-                    {
-                        tasks.Add(TryForever(() =>
+                    default:
+                        //nps is often stdOut in debugging, don't write to it from multiple threads:
+                        var localBytes = data.ToArray();
+                        consoleTask.ContinueWith(notUsed =>
                         {
-                            _dataReceiver.ConnectSerial(serialAddress);
-                        }));
-                        StartPingLoop();
-                    }
-                    Task.WaitAll(tasks.ToArray());
+                            _nps?.Write(Encoding.UTF8.GetBytes("Unhandled Packet: "));
+                            _nps?.Write(localBytes);
+                            _nps?.Write(Encoding.UTF8.GetBytes("\n"));
+                        });
+                        break;
                 }
             }
-            finally
+            catch (Exception ex)
             {
-                if (npsFs != null)
-                {
-                    npsFs.Flush();
-                    npsFs.Close();
-                }
+                ErrorWriter.WriteLine($"Error {DateTime.Now}: {ex}");
             }
         }
 
@@ -289,8 +293,7 @@ Arguments:
                     byte[] ping = Encoding.ASCII.GetBytes("P##" + CallSign);
                     ping[1] = 0x80; //No destination / Demand relay
                     ping[2] = i; //This isn't used, but is around for debugging.
-                    MemoryStream ms = new MemoryStream(ping);
-                    _dataReceiver.WriteSerial(ms);
+                    _dataReceiver.WriteSerial(ping);
                     OutputWriter.WriteLine($"Ping sent: {i}");
                     unchecked
                     {

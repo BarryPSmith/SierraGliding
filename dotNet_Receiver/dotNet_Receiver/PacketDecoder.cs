@@ -1,51 +1,21 @@
-﻿using System;
+﻿using core_Receiver.Packets;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace dotNet_Receiver
+namespace core_Receiver
 {
-    class Packet
-    {
-        public string CallSign;
-        public byte sendingStation;
-        public byte uniqueID;
-        public char type;
 
-        public object packetData;
+    enum BasicResponse { OK, Ignored };
 
-        protected char GetChar(byte b) => Encoding.ASCII.GetChars(new[] { b })[0];
-        public override string ToString()
-            => $"{CallSign} {GetChar(sendingStation)} {uniqueID:X2} {type} {GetDataString?.Invoke(packetData)}";
 
-        internal Func<object, string> GetDataString;
-    }
 
-    class SingleWeatherData
-    {
-        public byte sendingStation;
-        public byte uniqueID;
-        public double windDirection;
-        public double windSpeed;
-        public double? batteryLevelH;
-        public double? internalTemp;
-        public double? externalTemp;
 
-        public override string ToString()
-        {
-            var ret = $"WD: {windDirection:F1} WS:{windSpeed:F2}";
-            if (batteryLevelH.HasValue)
-                ret += $" B:{batteryLevelH:F2}";
-            if (externalTemp.HasValue)
-                ret += $" ET:{externalTemp:F1}";
-            if (internalTemp.HasValue)
-                ret += $" IT:{internalTemp:F1}";
-            return ret;
-        }
-    }
-
+#if false
     /// <summary>
     /// We were getting electrical noise on the wind speed counter.
     /// This data format was used to confirm what was going on. There was no proper protocol. It will likely change in the future
@@ -68,9 +38,12 @@ namespace dotNet_Receiver
             return sb.ToString();
         }
     }
+#endif
 
     static class PacketDecoder
     {
+        public static Dictionary<byte, string> RecentCommands { get; } = new Dictionary<byte, string>();
+
         public static Packet DecodeBytes(byte[] inBytes)
         {
             if (inBytes.Length < 4)
@@ -90,6 +63,7 @@ namespace dotNet_Receiver
 
             var sendingStationID = bytes[cur];
             var uniqueID = bytes[cur + 1];
+            int dataStart = cur + 2;
 
             Packet ret = new Packet
             {
@@ -106,6 +80,37 @@ namespace dotNet_Receiver
                     ret.GetDataString = 
                         data => (data as IList<SingleWeatherData>)?.ToCsv();
                     break;
+                case 'K':
+                    bool knownCommand = RecentCommands.TryGetValue(uniqueID, out var cmdType);
+                    if (knownCommand)
+                    {
+                        switch (cmdType)
+                        {
+                            case "QC":
+                                ret.packetData = new QueryConfigResponse(bytes.AsSpan(dataStart));
+                                break;
+                            case "QV":
+                                ret.packetData = new QueryVolatileResponse(bytes.AsSpan(dataStart));
+                                break;
+                            case "PQ":
+                            case "PFR":
+                            default:
+                                knownCommand = false;
+                                break;
+                        }
+                    }
+                    if (!knownCommand)
+                    {
+                        if (bytes.Length >= dataStart + "OK".Length &&
+                                    Encoding.ASCII.GetString(bytes, dataStart, "OK".Length) == "OK")
+                            ret.packetData = BasicResponse.OK;
+                        else if (bytes.Length >= dataStart + "IGNORED".Length &&
+                            Encoding.ASCII.GetString(bytes, dataStart, "IGNORED".Length) == "IGNORED")
+                            ret.packetData = BasicResponse.Ignored;
+                        else
+                            ret.packetData = bytes.Skip(dataStart).ToCsv(b => $"{Packet.GetChar(b)}:{b}");
+                    }
+                    break;
                     /*
                 case 'D':
                     ushort[] dirData = new ushort[(bytes.Length - 9) / 2];
@@ -114,7 +119,6 @@ namespace dotNet_Receiver
                     ret.GetDataString =
                         data => (data as ushort[])?.ToCsv();
                     break;
-                case 'C':
                 case 'K':
                 case 'R':
                     // TODO: Other packet types
@@ -124,8 +128,12 @@ namespace dotNet_Receiver
             return ret;
         }
 
-        private static string ToCsv<T>(this IEnumerable<T> source)
-            => source?.Aggregate("", (run, cur) => run + (string.IsNullOrEmpty(run) ? "" : ", ") + cur);
+        public static string ToCsv<T>(this IEnumerable<T> source, Func<T, string> transformer = null)
+        {
+            if (transformer == null)
+                transformer = A => A.ToString();
+            return source?.Aggregate("", (run, cur) => run + (string.IsNullOrEmpty(run) ? "" : ", ") + transformer(cur));
+        }
 
         private static double GetWindSpeed(byte wsByte)
         {

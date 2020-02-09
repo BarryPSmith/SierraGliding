@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using core_Receiver.Packets;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -7,7 +8,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace dotNet_Receiver
+namespace core_Receiver
 {
     class DataPosting : DataStorageBase
     {

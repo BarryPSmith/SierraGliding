@@ -3,7 +3,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.0</TargetFramework>
-    <StartupObject>dotNet_Receiver.Program</StartupObject>
+    <StartupObject>core_Receiver.Program</StartupObject>
   </PropertyGroup>
 
   <ItemGroup>

@@ -307,17 +307,20 @@ namespace MessageHandling
     byte callSignBuffer[sizeof(callSign) - 1];
     if (msg.readBytes(callSignBuffer, sizeof(callSignBuffer)) != MESSAGE_OK)
     {
-      AWS_DEBUG_PRINTLN(F("Unable to read ping callsign"));
+      AWS_DEBUG_PRINTLN(F("Ping: can't read callsign"));
       SIGNALERROR();
     }
     else if (memcmp(callSignBuffer, callSign, sizeof(callSignBuffer)) != 0)
     {
-      AWS_DEBUG_PRINT(F("Ping callsign does not match: "));
+      AWS_DEBUG_PRINT(F("Ping: callsign mismatch: "));
       for (int i = 0; i < sizeof(callSignBuffer); i++)
         AWS_DEBUG_PRINTLN((char)callSignBuffer[i]);
       SIGNALERROR();
     }
     else
+    {
+      AWS_DEBUG_PRINTLN(F("Ping Successful"));
       lastPingMillis = millis();
+    }
   }
 }

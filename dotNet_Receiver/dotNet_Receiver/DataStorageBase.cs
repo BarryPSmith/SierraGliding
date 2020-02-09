@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace dotNet_Receiver
+namespace core_Receiver
 {
     //TODO: Rename this something more useful
     class DataStorageBase

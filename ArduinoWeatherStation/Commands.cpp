@@ -40,72 +40,72 @@ namespace Commands
     //Can't delay with streaming messages. Perhaps a short delay before committing our response.
 
     byte command;
-    if (msg.readByte(command))
-      return;
-
     bool handled = false;
     bool ackRequired = true;
 
-    AWS_DEBUG_PRINT(F("Command Received: "));
-    AWS_DEBUG_PRINTLN((char)command);
-
-    switch (command)
+    if (msg.readByte(command) == MESSAGE_OK)
     {
-      case 'R': //Relay command
-        handled = handleRelayCommand(msg);
+      AWS_DEBUG_PRINT(F("Command Received: "));
+      AWS_DEBUG_PRINTLN((char)command);
+
+      switch (command)
+      {
+        case 'R': //Relay command
+          handled = handleRelayCommand(msg);
+          break;
+
+        case 'I': //Interval command
+          handled = handleIntervalCommand(msg);
         break;
 
-      case 'I': //Interval command
-        handled = handleIntervalCommand(msg);
-      break;
-
-      case 'B': //Battery threshold command
-        handled = handleThresholdCommand(msg);
-      break;
-
-      case 'Q': //Query
-        handled = handleQueryCommand(msg, demandRelay, uniqueID);
-        ackRequired = false;
-      break;
-
-      case 'O': //Override Interval
-        handled = handleOverrideCommand(msg);
+        case 'B': //Battery threshold command
+          handled = handleThresholdCommand(msg);
         break;
 
-      case 'M':
-        handled = HandleMessageCommand(msg);
+        case 'Q': //Query
+          handled = handleQueryCommand(msg, demandRelay, uniqueID);
+          ackRequired = false;
         break;
 
-      case 'W':
-        handled = WeatherProcessing::handleWeatherCommand(msg);
-        break;
+        case 'O': //Override Interval
+          handled = handleOverrideCommand(msg);
+          break;
 
-      case 'P':
-        handled = RemoteProgramming::handleProgrammingCommand(msg, uniqueID, demandRelay, &ackRequired);
-        break;
+        case 'M':
+          handled = HandleMessageCommand(msg);
+          break;
 
-      #if DEBUG_Speed
-      case 'S':
-        handled = true;
-        speedDebugging = !speedDebugging;
-        acknowledgeMessage(message);
-        break;
-      case 'W':
-        handled = true;
-        countWind();
-        acknowledgeMessage(message);
-        break;
-      #endif
-      #if DEBUG_Direction
-      case 'E':
-        handled = true;
-        directionDebugging = !directionDebugging;
-        acknowledgeMessage(message);
-      #endif
+        case 'W':
+          handled = WeatherProcessing::handleWeatherCommand(msg);
+          break;
 
-      default:
-      //do nothing. handled = false, so we send "IGNORED"
-      break;
+        case 'P':
+          handled = RemoteProgramming::handleProgrammingCommand(msg, uniqueID, demandRelay, &ackRequired);
+          break;
+
+        #if DEBUG_Speed
+        case 'S':
+          handled = true;
+          speedDebugging = !speedDebugging;
+          acknowledgeMessage(message);
+          break;
+        case 'W':
+          handled = true;
+          countWind();
+          acknowledgeMessage(message);
+          break;
+        #endif
+        #if DEBUG_Direction
+        case 'E':
+          handled = true;
+          directionDebugging = !directionDebugging;
+          acknowledgeMessage(message);
+        #endif
+
+        default:
+        //do nothing. handled = false, so we send "IGNORED"
+        break;
+      }
     }
     if (handled && ackRequired)
       acknowledgeMessage(uniqueID, isSpecific, demandRelay);
@@ -119,7 +119,6 @@ namespace Commands
         response.appendByte('K');
       response.appendByte(stationID);
       response.appendByte(uniqueID);
-      response.appendByte(7);
       response.append(F("IGNORED"), 7);
     }
   }

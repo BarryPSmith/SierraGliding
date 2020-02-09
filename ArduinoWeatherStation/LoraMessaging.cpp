@@ -301,11 +301,9 @@ bool HandleMessageCommand(MessageSource& src)
 
 void appendMessageStatistics(MessageDestination& msg)
 {
-#ifndef MOTEINO_96
   msg.appendT(csma._crcErrorRate);
   msg.appendT(csma._droppedPacketRate);
   msg.appendT(csma._averageDelayTime);
-#endif
 }
 
 LoraMessageSource::LoraMessageSource() : MessageSource()

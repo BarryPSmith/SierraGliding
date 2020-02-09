@@ -11,7 +11,7 @@ using System.IO.Ports;
 using System.Diagnostics;
 using System.Collections.Concurrent;
 
-namespace dotNet_Receiver
+namespace core_Receiver
 {
     class KissCommunication
     {
@@ -22,14 +22,15 @@ namespace dotNet_Receiver
 
         volatile bool _disconnectRequested = false;
 
-        public Action<IList<Byte>> PacketReceived { get; set; }
+        public event EventHandler<IList<Byte>> PacketReceived;
         public Action<string> StreamError { get; set; }
         public int MaxPacketSize { get; set; } = 30000; //Arbitrary maximum packet size to avoid consuming too much memory
-        public bool IsConnected { get; private set; } = false;
 
         public Stream NonPacketStream { get; set; }
 
-        public Stream SerialStream { get; private set; }
+        //public Stream SerialStream { get; private set; }
+        ConcurrentDictionary<Stream, ConcurrentQueue<(byte[] data, byte writeType)>> _writeQueue =
+            new ConcurrentDictionary<Stream, ConcurrentQueue<(byte[] data, byte writeType)>>();
 
         public TextWriter OutputWriter => Program.OutputWriter;
 
@@ -67,8 +68,8 @@ namespace dotNet_Receiver
             using TcpClient client = new TcpClient(ep.Address.ToString(), ep.Port);
             //client.Connect(ep);
             using var netStream = client.GetStream();
-            ReadStream(netStream);
-            IsConnected = false;
+            netStream.ReadTimeout = 100;
+            Connect(netStream);
         }
 
         public void ConnectSerial(string portName)
@@ -105,9 +106,7 @@ namespace dotNet_Receiver
                 port.Handshake = Handshake.None;
                 port.Open();
                 port.BaseStream.ReadTimeout = 100;
-                SerialStream = port.BaseStream;
-                ReadStream(port.BaseStream);
-                SerialStream = null;
+                Connect(port.BaseStream);
                 port.Close();
             }
         }
@@ -118,28 +117,29 @@ namespace dotNet_Receiver
             {
                 try
                 {
-                    //Console.WriteLine("Reading a byte...");
                     return stream.ReadByte();
                 }
-                catch (TimeoutException)
+                catch (Exception ex) when (ex is TimeoutException || ex is IOException)
                 {
                     if (_disconnectRequested)
                         return -1;
-                    if (_writeQueue.TryDequeue(out var toWrite))
+                    if (_writeQueue[stream].TryDequeue(out var toWrite))
                     {
-                        WriteSerialInternal(toWrite.stream, toWrite.writeType);
+                        WriteStreamInternal(stream, toWrite.data, toWrite.writeType);
                     }
                 }
             }
         }
 
-        public void ReadStream(Stream netStream)
+        public void Connect(Stream stream)
         {
             bool escaped = false;
             bool inPacket = false;
             bool awaitingNull = false;
             List<byte> curPacket = new List<byte>();
-            for (var curByte = ReadOrWriteStream(netStream); curByte != -1; curByte = ReadOrWriteStream(netStream))
+            if (!_writeQueue.TryAdd(stream, new ConcurrentQueue<(byte[] data, byte writeType)>()))
+                throw new InvalidOperationException($"Already connected to stream '{stream}.");
+            for (var curByte = ReadOrWriteStream(stream); curByte != -1; curByte = ReadOrWriteStream(stream))
             {
                 if (_disconnectRequested)
                     break;
@@ -156,7 +156,7 @@ namespace dotNet_Receiver
                         }
                         else if (inPacket && curPacket.Count > 0)
                         {
-                            PacketReceived?.Invoke(curPacket);
+                            PacketReceived?.Invoke(this, curPacket);
                             curPacket.Clear();
                             inPacket = false;
                         }
@@ -209,26 +209,27 @@ namespace dotNet_Receiver
                 }
                 curPacket.Add((byte)curByte);
             }
+            if (!_writeQueue.TryRemove(stream, out var notUsed))
+                Console.Error.WriteLine("Unable to remove stream from write queue");
         }
 
-        ConcurrentQueue<(Stream stream, byte writeType)> _writeQueue = new ConcurrentQueue<(Stream stream, byte writeType)>();
-
-        public void WriteSerial(Stream dataStream, byte writeType = 0x00)
+        public void WriteSerial(byte[] data, byte writeType = 0x00)
         {
-            if (SerialStream == null)
+            if (!_writeQueue.Any())
                 throw new InvalidOperationException("Serial Stream is not present.");
 
-            _writeQueue.Enqueue((dataStream, writeType));
+            foreach (var kvp in _writeQueue)
+                kvp.Value.Enqueue((data, writeType));
         }
 
-        private void WriteSerialInternal(Stream dataStream, byte writeType)
+        private void WriteStreamInternal(Stream stream, byte[] data, byte writeType)
         {
-            lock (SerialStream)
+            lock (stream)
             {
-                using BinaryWriter writer = new BinaryWriter(SerialStream, Encoding.ASCII, true);
+                using BinaryWriter writer = new BinaryWriter(stream, Encoding.ASCII, true);
                 writer.Write(FEND);
                 writer.Write(writeType);
-                for (var cur = dataStream.ReadByte(); cur != -1; cur = dataStream.ReadByte())
+                foreach (byte cur in data)
                 {
                     var curByte = (byte)cur;
                     if (curByte == FESC)

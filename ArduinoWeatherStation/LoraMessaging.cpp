@@ -110,25 +110,6 @@ void InitMessaging()
 #endif
     
 
-#ifdef MOTEINO_96
-    float frequency = frequency_i / 1.0E6;
-    float bandwidth = bandwidth_i / 10.0;
-
-    state = LORA_CHECK(lora.begin(
-      frequency, 
-      bandwidth, 
-      spreadingFactor,
-      LORA_CR, 
-      SX127X_SYNC_WORD,
-      txPower,
-      100, //currentLimit
-      8, //preambleLength
-      0 //gain
-      ));
-    lora.setDio0Action(rxDone);
-    LORA_CHECK(lora.startReceive());
-  }
-#else //!MOTEINO_96
 #ifdef USE_FP
     float frequency = frequency_i / 1000000.0;
     float bandwidth = bandwidth_i / 10.0;
@@ -171,8 +152,6 @@ void InitMessaging()
   csma.setPByte(csmaP);
   csma.setTimeSlot(csmaTimeslot);
   updateIdleState();
-  //LORA_CHECK(lora.setIdleState(IdleStates::ContinuousReceive));
-#endif //!MOTEINO_96
 }
 
 bool HandleMessageCommand(MessageSource& src)

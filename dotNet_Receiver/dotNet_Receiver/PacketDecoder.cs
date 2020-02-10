@@ -157,14 +157,14 @@ namespace core_Receiver
             if (data.Length < 3)
             {
                 packetLen = 0;
-                return null;
+                throw new InvalidDataException("No weather packets");
             }
 
             int cur = 3;
             var len = data[2];
             packetLen = len + 3; // +3: Station ID, message ID, length
             if (packetLen > data.Length)
-                return null;
+                throw new InvalidDataException("invalid packet length.");
 
             SingleWeatherData ret = new SingleWeatherData()
             {
@@ -192,11 +192,19 @@ namespace core_Receiver
             var ret = new List<SingleWeatherData>();
             while (cur < bytes.Length)
             {
-                var packet = DecodeWeatherPacket(bytes.Slice(cur), out var len);
-                if (packet == null)
-                    throw new NullReferenceException("Decode Weather Packet returned null");
-                ret.Add(packet);
-                cur += len;
+                try
+                {
+                    var packet = DecodeWeatherPacket(bytes.Slice(cur), out var len);
+                    if (packet == null)
+                        throw new NullReferenceException("Decode Weather Packet returned null");
+                    ret.Add(packet);
+                    cur += len;
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Exception decoding weather packet: {ex}");
+                    break;
+                }
             }
             return ret;
         }

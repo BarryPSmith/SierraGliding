@@ -339,6 +339,7 @@ namespace Commands
     response.appendByte('M');
     unsigned long curMillis = millis();
     response.appendT(curMillis);
+    response.appendT(lastPingMillis);
     response.appendT(overrideDuration);
     if (overrideDuration)
     {

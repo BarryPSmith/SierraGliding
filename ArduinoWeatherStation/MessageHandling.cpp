@@ -209,6 +209,8 @@ namespace MessageHandling
     //Note: We must be careful when setting up the network that there are not multiple paths for weather messages to get relayed
     //it won't necessarily cause problems, but it will use unnecessary bandwidth
   
+    //Incomming message might be XW (SID) (UID) (Sz) (WD) (WS) - length = 7
+    //In that case we need to append (SID) (UID) (Sz) (WD) (WS) - length = 5, 3 more to read (because we've already read SID and UID)
     byte dataSize = msg.getMessageLength() - 2; //2 for the 'XW'
 
     //If we can't fit it in the relay buffer,
@@ -219,10 +221,12 @@ namespace MessageHandling
     MESSAGE_DESTINATION_SOLID* msgDump = overflow ? new (buffer) MESSAGE_DESTINATION_SOLID(false) : 0;
     size_t offset = overflow ? 0 : weatherRelayLength;
     bool sourceFaulted = false;
+      
     if (overflow)
     {
       msgDump->appendByte('R');
       msgDump->appendByte(stationID);
+      msgDump->appendByte(getUniqueID());
       msgDump->appendByte(weatherRelayBuffer[0]);
       msgDump->appendByte(weatherRelayBuffer[1]);
     }
@@ -242,8 +246,10 @@ namespace MessageHandling
       msgDump->~MESSAGE_DESTINATION_SOLID();
       msgDump = 0; //We're done with it. Ensure we don't accidentally re-use it.
     }
-    weatherRelayLength = sourceFaulted ? 0 : dataSize + 2;
-    
+    if (sourceFaulted)
+      weatherRelayLength = 0;
+    else
+      weatherRelayLength += dataSize;
   }
 
   void recordHeardStation(byte msgStatID)

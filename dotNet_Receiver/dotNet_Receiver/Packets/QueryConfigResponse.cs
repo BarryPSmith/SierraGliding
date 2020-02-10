@@ -10,6 +10,7 @@ namespace core_Receiver.Packets
     /// </summary>
     class QueryConfigResponse : QueryResponse
     {
+        const int ArraySize = 20;
         public QueryConfigResponse(Span<byte> inputData)
             : base(inputData, out var consumed)
         {
@@ -25,11 +26,22 @@ namespace core_Receiver.Packets
             BatteryUpperThres_mV = br.ReadUInt16();
             DemandRelay = br.ReadBoolean();
             StationsToRelayCommands = new List<byte>();
-            for (byte b = br.ReadByte(); b != 0; b++)
-                StationsToRelayCommands.Add(b);
+            for (int i = 0; i < ArraySize; i++)
+                StationsToRelayCommands.Add(br.ReadByte());
             StationsToRelayWeather = new List<byte>();
-            for (byte b = br.ReadByte(); b != 0; b = br.ReadByte())
-                StationsToRelayWeather.Add(b);
+            for (int i = 0; i < ArraySize; i++)
+                StationsToRelayWeather.Add(br.ReadByte());
+            Frequency_Hz = br.ReadUInt32();
+            Bandwidth_Hz = br.ReadUInt16() * 100;
+            TxPower = br.ReadInt16();
+            SpreadingFactor = br.ReadByte();
+            CSMA_P = br.ReadByte();
+            CSMA_Timeslot = br.ReadUInt32();
+            OutboundPreambleLength = br.ReadUInt16();
+            TsOffset = br.ReadSByte();
+            TsGain = br.ReadByte();
+            WdCalibMin = br.ReadInt16();
+            WdCalibMax = br.ReadInt16();
         }
 
         public bool Initialised { get; set; }
@@ -38,15 +50,29 @@ namespace core_Receiver.Packets
         public UInt16 BatteryThreshold_mV { get; set; }
         public UInt16 BatteryUpperThres_mV { get; set; }
         public bool DemandRelay { get; set; }
-        IList<byte> StationsToRelayCommands { get; set; }
-        IList<byte> StationsToRelayWeather { get; set; }
+        public IList<byte> StationsToRelayCommands { get; set; }
+        public IList<byte> StationsToRelayWeather { get; set; }
+        public UInt32 Frequency_Hz { get; set; }
+        public int Bandwidth_Hz { get; set; }
+        public Int16 TxPower { get; set; }
+        public byte SpreadingFactor { get; set; }
+        public byte CSMA_P { get; set; }
+        public UInt32 CSMA_Timeslot { get; set; }
+        public UInt16 OutboundPreambleLength { get; set; }
+        public sbyte TsOffset { get; set; }
+        public byte TsGain { get; set; }
+        public Int16 WdCalibMin { get; set; }
+        public Int16 WdCalibMax { get; set; }
+
 
         public override string ToString()
         {
             return $"CONFIG Version:{Version}, S Interval:{ShortInterval}, L Interval:{LongInterval}, Batt Thresh:{BatteryThreshold_mV} " +
-                $"Batt U Thresh:{BatteryUpperThres_mV}, Demand Relay:{DemandRelay}, " +
+                $"Batt U Thresh:{BatteryUpperThres_mV}, Demand Relay:{DemandRelay}" + Environment.NewLine +
                 $"Relay Commands:({StationsToRelayCommands.ToCsv(b => Packet.GetChar(b).ToString())}) " +
-                $"Relay Weather:({StationsToRelayWeather.ToCsv(b => Packet.GetChar(b).ToString())})";
+                $"Relay Weather:({StationsToRelayWeather.ToCsv(b => Packet.GetChar(b).ToString())})" + Environment.NewLine +
+                $"Freq:{Frequency_Hz / 1.0E6:F3}, BW:{Bandwidth_Hz/1.0E3:F3}, TxPower:{TxPower}, SF:{SpreadingFactor}, CSMA_P:{CSMA_P}, CSMA_Slot:{CSMA_Timeslot}, OB_Preamble:{OutboundPreambleLength}" + Environment.NewLine +
+                $"TsOffset:{TsOffset}, TSGain:{TsGain}, WdCalibMin:{WdCalibMin}, WdCalibMax:{WdCalibMax}";
         }
     }
 }

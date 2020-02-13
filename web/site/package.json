@@ -4,8 +4,8 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "build": "NODE_ENV=prodution parcel build index.html",
-    "dev": "NODE_ENV=development parcel index.html"
+    "build": "webpack --mode=production",
+    "dev": "webpack --mode=development --watch"
   },
   "dependencies": {
     "@mapbox/assembly": "^0.23.0",

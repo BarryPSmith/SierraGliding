@@ -1,6 +1,8 @@
 <script>
 import chartBase from './chartBase.vue';
 import bs from '../../node_modules/binary-search/index.js';
+import zoomPlugin from 'chartjs-plugin-zoom';
+import filterPlugin from '../chart-filter.js';
 
 export default {
     extends: chartBase,
@@ -127,9 +129,6 @@ export default {
 
             let wsElem = this.$refs.chart;
 
-            var Chart = require('chart.js');
-            var zoomPlugin = require('chartjs-plugin-zoom');
-            var filterPlugin = require('../chart-filter.js');
             Chart.plugins.register(zoomPlugin);
             Chart.plugins.register(filterPlugin);
 

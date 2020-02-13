@@ -445,80 +445,29 @@ function main(db, cb) {
 
         db.all(`
             SELECT
-                Station_ID AS id,
-                Timestamp AS timestamp,
-                Windspeed AS windspeed,
-                Wind_Direction AS wind_direction,
-                Battery_Level AS battery_level,
-                Internal_Temp as internal_temp,
-                External_Temp as external_temp
+                $id AS ID,
+                AVG(Timestamp) AS timestamp,
+                AVG(Windspeed) AS windspeed,
+                AVG(Wind_Direction) AS wind_direction,
+                AVG(Battery_Level) AS battery_level,
+                AVG(Internal_Temp) as internal_temp,
+                AVG(External_Temp) as external_temp
             FROM
                 station_data
             WHERE
-                ID = $id
+                Station_ID = $id
                 AND timestamp > $start
                 AND timestamp < $end
-            ORDER BY timestamp ASC
+            GROUP BY ROUND(Timestamp / $sample)
+            ORDER BY Timestamp ASC
         `, {
             $id: req.params.id,
             $start: parseInt(req.query.start),
-            $end: parseInt(req.query.end)
+            $end: parseInt(req.query.end),
+            $sample: parseFloat(req.query.sample)
         }, (err, data_points) => {
             if (err) return error(err, res);
-
-            if (!req.query.sample || !data_points.length) {
-                return res.json(data_points);
-            }
-
-            const sampled = [];
-
-            const bins = [];
-
-            const min = data_points[0];
-            const max = data_points[data_points.length - 1];
-
-            for (
-                let bin_lwr = max.timestamp - req.query.sample;
-                bin_lwr >= min.timestamp;
-                bin_lwr -= req.query.sample
-            ) {
-                const bin = [];
-
-                if (!data_points.length) break;
-
-                let pt = data_points.length - 1;
-
-                while (
-                    data_points[pt]
-                    && data_points[pt].timestamp > bin_lwr
-                    && data_points[pt].timestamp <= bin_lwr + req.query.sample
-                ) {
-                    bin.push(data_points.pop());
-
-                    if (!data_points.length) break;
-
-                    pt = data_points.length - 1;
-                }
-
-                if (!bin.length) continue;
-
-                const withBatt = bin.filter(b => {
-                    return typeof(b.battery_level) == 'number';
-                });
-                const withIT = bin.filter(b => typeof(b.internal_temp) == 'number');
-                const withET = bin.filter(b => typeof(b.external_temp) == 'number');
-
-                sampled.push({
-                    timestamp: bin_lwr,
-                    windspeed: stats.median(bin.map(b => b.windspeed)),
-                    wind_direction: stats.median(bin.map(b => b.wind_direction)),
-                    battery_level: withBatt.length ? stats.median(withBatt.map(b => b.battery_level)) : null,
-                    internal_temp: withIT.length ? stats.median(withIT.map(b => b.internal_temp)) : null,
-                    external_temp: withET.length ? stats.median(withET.map(b => b.external_temp)) : null
-                });
-            }
-
-            res.json(sampled.reverse());
+            return res.json(data_points);
         });
     });
 

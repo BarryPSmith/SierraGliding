@@ -92,10 +92,10 @@ export default {
                 this.annotationSets.push([
                     {
                         x: 0,
-                        y: entry.top
+                        y: entry.top / factor
                     }, {
                         x: 0,
-                        y: entry.top
+                        y: entry.top / factor
                     }
                 ]);
                 isFirst = false;
@@ -111,10 +111,10 @@ export default {
                 this.annotationSets.push([
                     {
                         x: 0,
-                        y: last.top
+                        y: last.top / factor
                     }, {
                         x: 0,
-                        y: last.top
+                        y: last.top / factor
                     }
                 ]);
             }

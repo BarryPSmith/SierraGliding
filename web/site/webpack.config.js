@@ -1,7 +1,7 @@
 const HTMLWebpackPlugin = require('html-webpack-plugin');
 const { VueLoaderPlugin } = require('vue-loader');
 const path = require('path');
-const webPack = require('webPack');
+const webPack = require('webpack');
 
 var config = {
   entry: './src/main.js',

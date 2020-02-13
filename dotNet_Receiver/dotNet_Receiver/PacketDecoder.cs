@@ -149,7 +149,7 @@ namespace core_Receiver
 
         private static double GetWindDirection(byte wdByte)
         {
-            return wdByte * 360 / 255.0;
+            return wdByte * 360 / 256.0;
         }
 
         private static SingleWeatherData DecodeWeatherPacket(Span<byte> data, out int packetLen)

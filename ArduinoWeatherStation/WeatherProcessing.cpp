@@ -87,7 +87,7 @@ namespace WeatherProcessing
     AWS_DEBUG_PRINT(F("wdVoltage: "));
     AWS_DEBUG_PRINTLN(wdVoltage);
 
-    int scaled = ((long)(wdVoltage - minVoltage) * 255) / voltageDiff;
+    int scaled = ((long)(wdVoltage - minVoltage + 2) * 255) / voltageDiff; //(The +2 is to make it do nearest rounding. Approximate voltageDiff ~1023)
     if (scaled < 0)
       scaled = 0;
     if (scaled > 255)
@@ -242,7 +242,7 @@ namespace WeatherProcessing
       return (byte)(windSpeed_x8 / 8 + 50); //windspeed = byte - 50
     else if (windSpeed_x8 < 285 * 8) // 2 km/h resolution to 285km/h. Max 255
       return (byte)(windSpeed_x8 / 16 + 113); //windspeed = (byte - 113) * 2
-    else //We're just going to report 285km/h. It'll be a long search for the station. And the mountain.
+    else //We're just going to report 285km/h. It'll be a long search for the station.
       return 255;
   }
 

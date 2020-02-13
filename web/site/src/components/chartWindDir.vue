@@ -31,8 +31,13 @@ export default {
                 return;
             }
 
-            this.chart.options.annotation.annotations = [];
+            //Clear the existing annotation sets:
+            //this.chart.options.annotation.annotations = [];
+            this.chart.data.allData.splice(1, this.annotationSets.length);
+            this.chart.data.datasets.splice(1, this.annotationSets.length);
+            this.annotationSets = [];
 
+            var descriptors = [];
             for (const entry of this.legend) {
                 if (entry.start === undefined
                     || entry.end === undefined
@@ -52,19 +57,41 @@ export default {
                     }];
                 }
                 for (const subEntry of subEntries) {
-                    this.chart.options.annotation.annotations.push({
-                        type: 'box',
-                        xScaleID: 'x-axis-0',
-                        yScaleID: 'y-axis-0',
-                        yMin: subEntry.start,
-                        yMax: subEntry.end,
-                        //xMin: minX,
-                        //xMax: maxX,
-                        backgroundColor: subEntry.color,
-                        borderColor: 'rgba(0,0,0,0)',
+                    descriptors.push({
+                        borderWidth: 0,
+                        pointRadius: 0,
+                        fill: false
                     });
+                    descriptors.push({
+                        borderWidth: 0,
+                        pointRadius: 0,
+                        fill: '-1',
+                        backgroundColor: subEntry.color
+                    });
+                    this.annotationSets.push(
+                        [
+                            {
+                                x: 0,
+                                y: subEntry.start
+                            }, {
+                                x: 0,
+                                y: subEntry.start
+                            }
+                        ], [
+                            {
+                                x: 0,
+                                y: subEntry.end
+                            }, {
+                                x: 0,
+                                y: subEntry.end
+                            }
+                        ]
+                    );
                 }
             }
+
+            this.chart.data.allData.splice(1, 0, ...this.annotationSets);
+            this.chart.data.datasets.splice(1, 0, ...descriptors);
         },
 
         ensure_chart: function () {
@@ -73,10 +100,8 @@ export default {
 
             let wdElem = this.$refs.chart;
 
-            var annotationPlugin = require('chartjs-plugin-annotation');
             var zoomPlugin = require('chartjs-plugin-zoom');
             var filterPlugin = require('../chart-filter.js');
-            Chart.plugins.register(annotationPlugin);
             Chart.plugins.register(zoomPlugin);
             Chart.plugins.register(filterPlugin);
 

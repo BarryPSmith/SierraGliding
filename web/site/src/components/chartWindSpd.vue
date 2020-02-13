@@ -69,29 +69,56 @@ export default {
 
             let lastVal = 0;
             const factor = this.dataManager.unit == 'mph' ? 1.6 : 1.0;
-            let last = {};
-            this.chart.options.annotation.annotations = [];
+            let last = null;
+
+            this.chart.data.allData.splice(1, this.annotationSets.length);
+            this.chart.data.datasets.splice(1, this.annotationSets.length);
+            this.annotationSets = [];
+
+            var descriptors = [];
+
+            var isFirst = true;
             for (const entry of this.legend) {
-                last = {
-                    type: 'box',
-                    xScaleID: 'x-axis-0',
-                    yScaleID: 'y-axis-0',
-                    yMin: lastVal / factor,
-                    yMax: entry.top / factor,
-                    //xMax: maxX,
-                    //xMin: minX,
+                last = entry;
+                descriptors.push({
+                    borderWidth: 0,
+                    pointRadius: 0,
+                    fill: isFirst ? 'origin' : '-1',
                     backgroundColor: entry.color,
                     borderColor: 'rgba(0,0,0,0)',
-                };
-                this.chart.options.annotation.annotations.push(last);
-                lastVal = entry.top;
+                });
+                this.annotationSets.push([
+                    {
+                        x: 0,
+                        y: entry.top
+                    }, {
+                        x: 0,
+                        y: entry.top
+                    }
+                ]);
+                isFirst = false;
             }
-            //duplicate last and have it go to the moon:
-            //The code below causes our Y-axis to go to 100 as soon as this is shown. We need to take manual control of the Y-axis if we want this to work.
-            last = JSON.parse(JSON.stringify(last));
-            last.yMin = last.yMax;
-            last.yMax = null;
-            this.chart.options.annotation.annotations.push(last);
+            if (last != null) {
+                descriptors.push({
+                    borderWidth: 0,
+                    pointRadius: 0,
+                    fill: 'end',
+                    backgroundColor: last.color,
+                    borderColor: 'rgba(0,0,0,0)'
+                });
+                this.annotationSets.push([
+                    {
+                        x: 0,
+                        y: last.top
+                    }, {
+                        x: 0,
+                        y: last.top
+                    }
+                ]);
+            }
+
+            this.chart.data.allData.splice(1, 0, ...this.annotationSets);
+            this.chart.data.datasets.splice(1, 0, ...descriptors);
         },
 
         ensure_chart: function () {
@@ -100,10 +127,9 @@ export default {
 
             let wsElem = this.$refs.chart;
 
-            var annotationPlugin = require('chartjs-plugin-annotation');
+            var Chart = require('chart.js');
             var zoomPlugin = require('chartjs-plugin-zoom');
             var filterPlugin = require('../chart-filter.js');
-            Chart.plugins.register(annotationPlugin);
             Chart.plugins.register(zoomPlugin);
             Chart.plugins.register(filterPlugin);
 
@@ -119,7 +145,6 @@ export default {
                 const wsData = {
                     allData: [],
                     datasets: [{
-                        //label: 'Wind Speed',
                         pointBackgroundColor: 'black',
                         pointBorderColor: 'black',
                         pointRadius: 0,
@@ -128,7 +153,6 @@ export default {
                         borderWidth: 0.2,
                         fill: 'end',
                         backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                        //data: this.dataManager.windspeedData,
                         lineTension: 0
                     }]
                 };

@@ -39,10 +39,8 @@ export default {
 
             let battElem = this.$refs.chart;
 
-            var annotationPlugin = require('chartjs-plugin-annotation');
             var zoomPlugin = require('chartjs-plugin-zoom');
             var filterPlugin = require('../chart-filter.js');
-            Chart.plugins.register(annotationPlugin);
             Chart.plugins.register(zoomPlugin);
             Chart.plugins.register(filterPlugin);
 

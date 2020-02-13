@@ -79,7 +79,7 @@ export default {
     },
 
     watch: {
-        'dataManager': function() { this.on_dataManager_changed(); }
+        'dataManager': function() { this.on_dataManager_changed(); },
     },
 
     computed: {

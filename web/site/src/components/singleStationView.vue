@@ -123,14 +123,19 @@ export default {
 
         'chartEnd': function() {
             this.$emit('update:chartEnd', this.chartEnd);
-            if (this.dataManager)
+            if (this.dataManager && !this.collapsed)
                 this.dataManager.ensure_data(this.cur_start(), this.chartEnd);
         },
 
         'duration': function() {
-            if (this.dataManager)
+            if (this.dataManager && !this.collapsed)
                 this.dataManager.ensure_data(this.cur_start(), this.chartEnd);
-        }
+        },
+
+        'collapsed': function() {
+            if (this.dataManager && !this.collapsed)
+                this.dataManager.ensure_data(this.cur_start(), this.chartEnd);
+        },
     },
 
     components: {

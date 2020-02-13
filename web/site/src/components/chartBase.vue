@@ -43,10 +43,6 @@ export default {
                         }
                     }]
                 },
-                annotation: {
-                        annotations: [],
-                        drawTime: 'beforeDatasetsDraw'
-                },
                 legend: {
                     display: false
                 },
@@ -68,6 +64,7 @@ export default {
             },
             isPanning: false,
             timer: null,
+            annotationSets: [],
         };
     },
 
@@ -156,15 +153,6 @@ export default {
                 this.set_chartEnd(null);
             else
                 this.set_chartEnd(chartMax);
-            /*this.dataManager.ensure_data(this.cur_start(), this.cur_end())
-                .then(obj => {
-                    if (obj.anyChange) {
-                        this.set_windspeed_range();
-                        this.update_annotation_ranges();
-                        this.station_data_update(obj.reloadedData);
-                    }
-            });
-            this.chart_range(chart);*/
         },
         
         chart_panComplete: function ({ chart }) {
@@ -180,9 +168,9 @@ export default {
             const minX = this.dataManager.stationData[0].timestamp * 1000;
             const maxX = this.dataManager.stationData[this.dataManager.stationData.length - 1].timestamp * 1000;
 
-            for (const idx in this.chart.options.annotation.annotations) {
-                this.chart.options.annotation.annotations[idx].xMin = minX;
-                this.chart.options.annotation.annotations[idx].xMax = maxX;
+            for (const idx in this.annotationSets) {
+                this.annotationSets[idx][0].x = minX;
+                this.annotationSets[idx][1].x = maxX;
             }
         },
 

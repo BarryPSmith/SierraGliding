@@ -19,6 +19,9 @@ npm install             # Install Frontend Dependencies
 npm install -g parcel   # Install the frontend build scripts
 ```
 
+The server uses SQLite3 extensions which must be compiled. These can be done by running the script `build_ext` in the `web/sqlite3_ext/` folder.
+If running on windows without things already set up, use the `x64 Native Tools Visual Studio Command Prompt` to run the `build_ext.cmd`.
+
 This will install all the dependencies for both the server and the frontend.
 
 Before starting the server, start `parcel`, the frontend build system, to

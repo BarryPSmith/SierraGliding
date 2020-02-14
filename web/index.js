@@ -15,6 +15,8 @@ const args = require('minimist')(process.argv, {
     boolean: ['help']
 });
 
+let extensionLoaded = true;
+
 const app = express();
 const router = new express.Router();
 
@@ -71,9 +73,16 @@ function database(dbpath, drop, cb) {
     const db = new sqlite3.Database(dbpath);
 
     db.serialize(() => {
-        db.run("PRAGMA foreign_keys = ON")
-        db.run("PRAGMA journal_mode = WAL")
+        db.run("PRAGMA foreign_keys = ON");
+        db.run("PRAGMA journal_mode = WAL");
         db.run("PRAGMA busy_timeout = 1000");
+
+        db.loadExtension(`sqlite3_ext/extension-functions`, (err, res) => {
+            if (err) {
+                console.error(err);
+                var extensionLoaded = false;
+            }
+        });
 
         if (drop) {
             db.run(`
@@ -443,12 +452,17 @@ function main(db, cb) {
             }
         }
 
+        let avg_wd_String = extensionLoaded ? 
+            '(DEGREES(ATAN2(AVG(SIN(RADIANS(Wind_Direction))), AVG(COS(RADIANS(Wind_Direction))))) + 360) % 360'
+            :
+            'AVG(Wind_Direction)'
+
         db.all(`
             SELECT
                 $id AS ID,
                 AVG(Timestamp) AS timestamp,
                 AVG(Windspeed) AS windspeed,
-                AVG(Wind_Direction) AS wind_direction,
+                ` + avg_wd_String + ` AS wind_direction,
                 AVG(Battery_Level) AS battery_level,
                 AVG(Internal_Temp) as internal_temp,
                 AVG(External_Temp) as external_temp

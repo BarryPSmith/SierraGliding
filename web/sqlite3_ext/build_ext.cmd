@@ -1,0 +1,1 @@
+cl extension-functions.c /LD /oextension-functions.dll /link /EXPORT:sqlite3_extension_init

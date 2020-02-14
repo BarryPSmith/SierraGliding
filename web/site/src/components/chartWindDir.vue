@@ -7,7 +7,12 @@ export default {
     extends: chartBase,
     name: 'chartWindDir',
 
-    props: [ 'legend' ],
+    props: { 
+        legend: {},
+        centre: {
+            default: 180
+        }
+    },
 
     mounted: function() { 
         this.base_mounted();
@@ -24,6 +29,11 @@ export default {
     watch: {
         'legend': function() { 
             this.set_direction_annotations(); 
+        },
+        'centre': function() {
+            this.chart.options.scales.yAxes[0].ticks.max = this.centre + 180;
+            this.chart.options.scales.yAxes[0].ticks.max = this.centre + 180;
+            this.update_chart();
         }
     },
 
@@ -96,6 +106,19 @@ export default {
             this.chart.data.datasets.splice(1, 0, ...descriptors);
         },
 
+        set_direction_range: function() {
+            if (!this.chart)
+                return;
+        },
+
+        map_data_point: function(pt) {
+            if (pt.y < this.chart.options.scales.yAxes[0].ticks.min)
+                pt.y += 360;
+            if (pt.y > this.chart.options.scales.yAxes[0].ticks.max)
+                pt.y -= 360;
+            return pt;
+        },
+
         ensure_chart: function () {
             if (this.chart)
                 return;
@@ -109,7 +132,8 @@ export default {
                 let wdOpts = this.commonOptions;
                 wdOpts.plugins.zoom.pan.onPan = this.chart_panning;
                 wdOpts.plugins.zoom.pan.onPanComplete = this.chart_panComplete;
-                wdOpts.scales.yAxes[0].ticks.max = 360;
+                wdOpts.scales.yAxes[0].ticks.max = this.centre + 180;
+                wdOpts.scales.yAxes[0].ticks.min = this.centre - 180;
                 wdOpts.scales.yAxes[0].ticks.stepSize = 45;
                 const windNames = {
                     0: 'N',
@@ -122,12 +146,22 @@ export default {
                     315: 'NW',
                     360: 'N'
                 }
+                wdOpts.scales.yAxes[0].afterBuildTicks = scale => {
+                    let ticks = [];
+                    for (let deg = Math.ceil(scale.min / 45) * 45;
+                        deg <= Math.floor(scale.max / 45) * 45;
+                        deg += 45) {
+                        ticks.push(deg);
+                    }
+                    scale.ticks = ticks;
+                };
                 wdOpts.scales.yAxes[0].ticks.callback = value => {
-                    if (windNames[value] !== undefined)
-                        return windNames[value];
+                    const ret = windNames[(value + 360) % 360];
+                    if (ret !== undefined)
+                        return ret;
                     else
                         return value;
-                }
+                };
                 wdOpts.title.text = 'Wind Direction';
                 this.chart = new Chart(wdElem, {
                     type: 'line',

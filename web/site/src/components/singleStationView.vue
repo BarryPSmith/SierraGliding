@@ -38,18 +38,14 @@
                 <chartWindDir v-bind:dataManager="dataManager"
                               v-bind:duration="duration"
                               v-bind:chartEnd.sync="chartEnd"
-                              v-bind:legend="station.Wind_Dir_Legend" />
+                              v-bind:legend="windDirLegend"
+                              v-bind:centre="windDirCentre"/>
             </div>
             <div style="grid-row:2; grid-column:2; display:flex;
                     justify-content:center; align-items:center">
                 <curWindDirIndicator style="width:150px" v-bind:dataManager="dataManager"
-                                     :legend="station.Wind_Dir_Legend"/>
+                                     :legend="windDirLegend"/>
             </div>
-            <!--
-    <chartBattery v-bind:dataManager="dataManager"
-                  v-bind:duration="duration"
-                  v-bind:chartEnd="chartEnd"/>
-        -->
         </div>
         <div v-if="!collapsed">
             <p v-if="!detailed" v-on:click="detailed_click"
@@ -144,6 +140,30 @@ export default {
         chartBattery,
         curWindSpdIndicator,
         curWindDirIndicator,
+    },
+
+    computed: {
+        windDirLegend: function() {
+            if (this.station) {
+                const ret = this.station.Wind_Dir_Legend;
+                if (ret && ret.legend)
+                    return ret.legend;
+                else
+                    return ret;
+            } else {
+                return null;
+            }
+        },
+
+        windDirCentre: function() {
+            if (this.station && 
+                this.station.Wind_Dir_Legend &&
+                typeof(this.station.Wind_Dir_Legend.centre) == "number") {
+                return this.station.Wind_Dir_Legend.centre;
+            }
+            else
+                return 180;
+        },
     },
 
     methods: {

@@ -180,7 +180,10 @@ export default {
             {
                 if (this.update_chart_derived)
                     this.update_chart_derived();
-                this.chart.data.allData[0] = this.dataManager[this.dataSource];
+                if (this.map_data_point)
+                    this.chart.data.allData[0] = this.dataManager[this.dataSource].map(this.map_data_point);
+                else
+                    this.chart.data.allData[0] = this.dataManager[this.dataSource];
                 this.update_annotation_range();
                 this.chart.update();
             }

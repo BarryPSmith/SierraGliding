@@ -123,7 +123,7 @@ namespace core_Receiver
                 {
                     if (_disconnectRequested)
                         return -1;
-                    if (_writeQueue[stream].TryDequeue(out var toWrite))
+                    while (_writeQueue[stream].TryDequeue(out var toWrite))
                     {
                         WriteStreamInternal(stream, toWrite.data, toWrite.writeType);
                     }

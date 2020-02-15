@@ -145,6 +145,11 @@ function database(dbpath, drop, cb) {
             );
         `);
 
+        db.get(`SELECT sqlite_version() AS ver`, (err, res) => {
+            if (err) console.error(err);
+            else (console.error('Sqlite3 Version: ' + res.ver));
+        });
+
         return cb(null, db);
     });
 }
@@ -174,6 +179,8 @@ function main(db, cb) {
         console.error(`[${req.method}] /api${req.url}`);
         return next();
     });
+
+    const defaultStatSize = 600;
 
     /**
      * Returns basic metadata about all stations
@@ -452,36 +459,55 @@ function main(db, cb) {
             }
         }
 
-        let avg_wd_String = extensionLoaded ? 
+        const avg_wd_String = extensionLoaded ? 
             '(DEGREES(ATAN2(AVG(SIN(RADIANS(Wind_Direction))), AVG(COS(RADIANS(Wind_Direction))))) + 360) % 360'
             :
             'AVG(Wind_Direction)'
 
+        let stat_len = parseFloat(req.query.stat_len);
+        stat_len = Number.isNaN(stat_len) ? defaultStatSize : stat_len;
+        const start = parseInt(req.query.start)
         db.all(`
             SELECT
                 $id AS ID,
-                AVG(Timestamp) AS timestamp,
-                AVG(Windspeed) AS windspeed,
-                ` + avg_wd_String + ` AS wind_direction,
-                AVG(Battery_Level) AS battery_level,
-                AVG(Internal_Temp) as internal_temp,
-                AVG(External_Temp) as external_temp
-            FROM
-                station_data
-            WHERE
-                Station_ID = $id
-                AND timestamp > $start
-                AND timestamp < $end
-            GROUP BY ROUND(Timestamp / $sample)
-            ORDER BY Timestamp ASC
+                timestamp,
+                windspeed,
+                AVG(windspeed) OVER stat_wind AS windspeed_avg,
+                MAX(windspeed_sample_max) OVER stat_wind AS windspeed_max,
+                MIN(windspeed_sample_min) OVER stat_wind AS windspeed_min,
+                wind_direction,
+                battery_level,
+                internal_temp,
+                external_temp
+                FROM (
+                    SELECT
+                        timestamp,
+                        AVG(Windspeed) as windspeed,
+                        MIN(Windspeed) as windspeed_sample_min,
+                        MAX(Windspeed) as windspeed_sample_max,
+                        ` + avg_wd_String + ` AS wind_direction,
+                        AVG(Battery_Level) AS battery_level,
+                        AVG(Internal_Temp) as internal_temp,
+                        AVG(External_Temp) as external_temp
+                    FROM
+                        station_data
+                    WHERE
+                        Station_ID = $id
+                        AND timestamp > $start - $stat_len
+                        AND timestamp < $end
+                    GROUP BY ROUND(Timestamp / $sample)
+                )
+                WINDOW stat_wind AS (ORDER BY Timestamp ASC RANGE $stat_len PRECEDING)
+                ORDER BY Timestamp ASC
         `, {
             $id: req.params.id,
-            $start: parseInt(req.query.start),
+            $start: start,
             $end: parseInt(req.query.end),
-            $sample: parseFloat(req.query.sample)
+            $sample: parseFloat(req.query.sample),
+            $stat_len: stat_len
         }, (err, data_points) => {
             if (err) return error(err, res);
-            return res.json(data_points);
+            return res.json(data_points.filter(p => p.timestamp > start));
         });
     });
 
@@ -551,19 +577,43 @@ function main(db, cb) {
                 if (err) return error(err, res);
 
                 res.json("success");
-                        
+                    
                 //Notify websockets that a particular station has updated:
-                wss.clients.forEach((client) => {
-                    client.send(JSON.stringify({
-                        id: req.params.id,
-                        timestamp: moment.unix(req.body.timestamp).unix(),
-                        windspeed: req.body.wind_speed,
-                        wind_direction: req.body.wind_direction,
-                        battery_level: req.body.battery,
-                        internal_temp: req.body.internal_temp,
-                        external_temp: req.body.external_temp
-                    }));
-                });
+                //(We need to put statistics in the packet, from the DB)
+                db.get(`
+                    SELECT 
+                        MIN(windspeed) as windspeed_min, 
+                        MAX(windspeed) as windspeed_max, 
+                        AVG(windspeed) as windspeed_avg
+                    FROM station_data
+                    WHERE
+                        ID = $id 
+                        AND $statStart <= Timestamp
+                        AND Timestamp <= $statEnd`, 
+                {
+                    $id: req.params.id,
+                    $statStart: req.body.timestamp - defaultStatSize,
+                    $statEnd: req.body.timestamp
+                }, (err, res) => {
+                    if (err) {
+                        console.error(err);
+                    }
+
+                    wss.clients.forEach((client) => {
+                        client.send(JSON.stringify({
+                            id: req.params.id,
+                            timestamp: moment.unix(req.body.timestamp).unix(),
+                            windspeed: req.body.wind_speed,
+                            windspeed_avg: res.windspeed_avg,
+                            windspeed_max: res.windspeed_max,
+                            windspeed_min: res.windspeed_min,
+                            wind_direction: req.body.wind_direction,
+                            battery_level: req.body.battery,
+                            internal_temp: req.body.internal_temp,
+                            external_temp: req.body.external_temp
+                        }));
+                    }); // wss clients foearch
+                }); //get statistics
             }); //exec insert
         }); //get wind_direction_offset
     }); //declare post /station/:id/data

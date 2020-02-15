@@ -6,6 +6,9 @@ export default class DataManager {
 
         // Sets that contain the data:
         this.windspeedData= [];
+        this.windspeedMaxData = [];
+        this.windspeedMinData = [];
+        this.windspeedAvgData = [];
         this.windDirectionData= [];
         this.batteryData= [];
         this.internalTempData = [];
@@ -22,6 +25,8 @@ export default class DataManager {
         // Sample properties=
         this.currentSampleInterval= null;
         this.stationDataRate= 4;
+        this.statLength = 600;
+        this.avgDecimation = this.statLength / 20;
         
         // Keep track of what data we currently have.
         // A value of null for currentEnd indicates the ever evolving present.
@@ -164,33 +169,36 @@ export default class DataManager {
         
         const promise = this.fetch_station_data(start, actualEnd, this.currentSampleInterval)
             .then(newStationData => {
-            if (this.curPromiseToken != promiseToken) {
-                return false;
-            }
-            
-            if (newStationData.length == 0) {
-                return false;
-            }
-            
-            //Get our insertion index. We're going to do a proper check in case promises run out of order.
-            let i = 0;
-            for (; i < this.stationData.length; i++) {
-                if (this.stationData[i].timestamp > newStationData[0].timestamp) {
-                    break;
+                if (this.curPromiseToken != promiseToken) {
+                    return false;
                 }
-            }
             
-            this.stationData.splice(i, 0, ...newStationData);
-            this.windDirectionData.splice(i, 0, ...newStationData.map(this.get_wind_dir_entry));
-            this.windspeedData.splice(i, 0, ...newStationData.map(this.get_wind_spd_entry, this));
-            this.batteryData.splice(i, 0, ...this.get_batt_entries(...newStationData));
-            this.internalTempData.splice(i, 0, ...this.get_internalTemp_entries(...newStationData));
-            this.externalTempData.splice(i, 0, ...this.get_externalTemp_entries(...newStationData));
+                if (newStationData.length == 0) {
+                    return false;
+                }
+            
+                //Get our insertion index. We're going to do a proper check in case promises run out of order.
+                let i = 0;
+                for (; i < this.stationData.length; i++) {
+                    if (this.stationData[i].timestamp > newStationData[0].timestamp) {
+                        break;
+                    }
+                }
+            
+                this.stationData.splice(i, 0, ...newStationData);
+                this.windDirectionData.splice(i, 0, ...newStationData.map(this.get_wind_dir_entry));
+                this.windspeedData.splice(i, 0, ...newStationData.map(this.get_wind_spd_entry, this));
+                this.windspeedAvgData.splice(i, 0, ...this.get_decimated_wind_spd_avg_entries(newStationData));
+                this.windspeedMinData.splice(i, 0, ...this.get_distinct_ws_entries(newStationData, 'windspeed_min'));
+                this.windspeedMaxData.splice(i, 0, ...this.get_distinct_ws_entries(newStationData, 'windspeed_max'));
+                this.batteryData.splice(i, 0, ...this.get_batt_entries(...newStationData));
+                this.internalTempData.splice(i, 0, ...this.get_internalTemp_entries(...newStationData));
+                this.externalTempData.splice(i, 0, ...this.get_externalTemp_entries(...newStationData));
 
-            this.data_updated();
+                this.data_updated();
 
-            return true;
-        });;
+                return true;
+            });;
         
         return promise;
     }
@@ -206,9 +214,32 @@ export default class DataManager {
         this.batteryData.push(...this.get_batt_entries(newDataPoint));
         this.internalTempData.push(...this.get_internalTemp_entries(newDataPoint));
         this.externalTempData.push(...this.get_externalTemp_entries(newDataPoint));
+
+        const wsAvgEntry = this.get_entry(newDataPoint, 'windspeed_avg', this.wsFactor());
+        if (this.windspeedAvgData.length >= 2 
+            && this.windspeedAvgData[this.windspeedAvgData.length - 2].x + this.avgDecimation < wsAvgEntry.x) {
+            this.windspeedAvgData.pop();
+        }
+        this.windspeedAvgData.push(wsAvgEntry);
+
+        const wsMaxEntry = this.get_entry(newDataPoint, 'windspeed_max', this.wsFactor());
+        if (this.windspeedMaxData.length >= 2
+            && this.windspeedMaxData[this.windspeedMinData.length - 2].y == this.windspeedMaxData[this.windspeedMaxData.length - 1].y) {
+            this.windspeedMaxData.pop();
+        }
+        this.windspeedMaxData.push(wsMaxEntry);
+
+        const wsMinEntry = this.get_entry(newDataPoint, 'windspeed_min', this.wsFactor());
+        if (this.windspeedMinData.length >= 2
+            && this.windspeedMinData[this.windspeedMinData.length - 2].y == this.windspeedMinData[this.windspeedMinData.length - 1].y) {
+            this.windspeedMinData.pop();
+        }
+        this.windspeedMinData.push(wsMinEntry);
         
         //Trim if necessary.
-        for (const cur of [this.stationData, this.windDirectionData, this.windspeedData, this.batteryData,
+        for (const cur of [this.stationData, this.windDirectionData, this.windspeedData, 
+                            this.windspeedAvgData, this.windspeedMinData, this.windspeedMaxData,
+                            this.batteryData,
                            this.internalTempData, this.externalTempData]) {
             if (cur.length > this.maxDataPoints) {
                 cur.splice(0, 50);
@@ -224,15 +255,58 @@ export default class DataManager {
             y: entry.wind_direction
         };
     }
+
+    wsFactor() { 
+        return this.unit == 'mph' ? 1.6 : 1.0; 
+    } 
     
     get_wind_spd_entry(entry) {
-        const factor = this.unit == 'mph' ? 1.6 : 1.0;
         return {
             x: new Date(entry.timestamp * 1000),
-            y: entry.windspeed / factor
+            y: entry.windspeed / this.wsFactor()
         };
     }
 
+    get_decimated_wind_spd_avg_entries(entries) {
+        if (!entries.length) {
+            return [];
+        }
+        let last = entries[0];
+        let ret = [this.get_entry(entries[0], 'windspeed_avg', this.wsFactor())];
+        for (let i = 1; i < entries.length; i++) {
+            const curEntry = entries[i];
+            if (i == entries.length - 1 ||
+                curEntry.timestamp > last.timestamp + this.avgDecimation) {
+                ret.push(this.get_entry(curEntry, 'windspeed_avg', this.wsFactor()));
+                last = curEntry;
+            }
+        }
+        return ret;
+    }
+
+    get_distinct_ws_entries(entries, identifier) {
+        if (!entries.length) {
+            return [];
+        }
+        let last = entries[0];
+        let ret = [this.get_entry(entries[0], identifier, this.wsFactor())];
+        for (let i = 1; i < entries.length; i++) {
+            if (i == entries.length - 1 ||
+                entries[i][identifier] != last[identifier]) {
+                ret.push(this.get_entry(entries[i], identifier, this.wsFactor()));
+                last = entries[i];
+            }
+        }
+        return ret;
+    }
+
+    get_entry(entry, identifier, factor = 1) {
+        return {
+            x: new Date(entry.timestamp * 1000),
+            y: entry[identifier] / factor
+        };
+    }
+    
     get_batt_entries() {
         return Array.from(arguments)
             .filter(entry => typeof(entry.battery_level) == 'number')
@@ -279,6 +353,9 @@ export default class DataManager {
                     this.stationData = newStationData;
                     this.windDirectionData = newStationData.map(this.get_wind_dir_entry);
                     this.windspeedData = newStationData.map(this.get_wind_spd_entry, this);
+                    this.windspeedMaxData = this.get_distinct_ws_entries(newStationData, 'windspeed_max');
+                    this.windspeedMinData = this.get_distinct_ws_entries(newStationData, 'windspeed_min');
+                    this.windspeedAvgData = this.get_decimated_wind_spd_avg_entries(newStationData);
                     this.batteryData = this.get_batt_entries(...newStationData);
                     this.internalTempData = this.get_internalTemp_entries(...newStationData);
                     this.externalTempData = this.get_externalTemp_entries(...newStationData);

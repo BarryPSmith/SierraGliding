@@ -70,6 +70,16 @@ export default {
 
     props: [ 'duration', 'chartEnd', 'dataManager' ],
 
+    computed: {
+        dataSetCount: function() {
+            return (this.dataSource && this.dataSource.length)
+                ? 
+                this.dataSource.length
+                :
+                1;
+        }
+    },
+
     watch: {
         duration: function() { this.chart_range(); },
         chartEnd: function() {
@@ -174,19 +184,31 @@ export default {
             }
         },
 
-        update_chart()
+        update_chart: function()
         {
             if (this.dataManager && this.chart)
             {
                 if (this.update_chart_derived)
                     this.update_chart_derived();
-                if (this.map_data_point)
-                    this.chart.data.allData[0] = this.dataManager[this.dataSource].map(this.map_data_point);
-                else
-                    this.chart.data.allData[0] = this.dataManager[this.dataSource];
+                
+                if (Array.isArray(this.dataSource)) {
+                    for (const idx in this.dataSource) {
+                        this.set_data(idx, this.dataSource[idx]);
+                    }
+                } else {
+                    this.set_data(0, this.dataSource);
+                }
                 this.update_annotation_range();
                 this.chart.update();
             }
+        },
+
+        set_data: function(idx, ds)
+        {
+            if (this.map_data_point)
+                this.chart.data.allData[idx] = this.dataManager[ds].map(this.map_data_point);
+            else
+                this.chart.data.allData[idx] = this.dataManager[ds];
         },
 
         on_socket_message: function(msg) {

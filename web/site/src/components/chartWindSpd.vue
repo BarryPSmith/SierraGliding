@@ -17,7 +17,12 @@ export default {
 
     data: function() {
         return {
-            dataSource: 'windspeedData'
+            dataSource: [
+                'windspeedData', 
+                'windspeedAvgData', 
+                'windspeedMinData', 
+                'windspeedMaxData'
+            ]
         };
     },
 
@@ -30,7 +35,7 @@ export default {
         'dataManager': function() {
             if (this.chart)
             {
-                this.chart.data.datasets[0].label = 'Wind Speed (' + this.dataManager.unit + ')';
+                this.chart.title.text = 'Wind Speed (' + this.dataManager.unit + ')';
                 this.set_speed_annotations();
             }
         }
@@ -73,8 +78,8 @@ export default {
             const factor = this.dataManager.unit == 'mph' ? 1.6 : 1.0;
             let last = null;
 
-            this.chart.data.allData.splice(1, this.annotationSets.length);
-            this.chart.data.datasets.splice(1, this.annotationSets.length);
+            this.chart.data.allData.splice(this.dataSetCount, this.annotationSets.length);
+            this.chart.data.datasets.splice(this.dataSetCount, this.annotationSets.length);
             this.annotationSets = [];
 
             var descriptors = [];
@@ -119,8 +124,8 @@ export default {
                 ]);
             }
 
-            this.chart.data.allData.splice(1, 0, ...this.annotationSets);
-            this.chart.data.datasets.splice(1, 0, ...descriptors);
+            this.chart.data.allData.splice(this.dataSetCount, 0, ...this.annotationSets);
+            this.chart.data.datasets.splice(this.dataSetCount, 0, ...descriptors);
         },
 
         ensure_chart: function () {
@@ -140,20 +145,49 @@ export default {
                 wsOpts.plugins.zoom.pan.onPan = this.chart_panning;
                 wsOpts.plugins.zoom.pan.onPanComplete = this.chart_panComplete;
                 wsOpts.scales.yAxes[0].ticks.stepSize = 5;
-                wsOpts.title.text = 'Wind Speed';
+                if (this.dataManager)
+                    wsOpts.title.text = 'Wind Speed (' + this.dataManager.unit + ')';
+                else
+                    wsOpts.title.text = 'Wind Speed';
                 const wsData = {
                     allData: [],
-                    datasets: [{
-                        pointBackgroundColor: 'black',
-                        pointBorderColor: 'black',
-                        pointRadius: 0,
-                        borderColor: 'black',
-                        borderJoinStyle: 'round',
-                        borderWidth: 0.2,
-                        fill: 'end',
-                        backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                        lineTension: 0
-                    }]
+                    datasets: [
+                        {
+                            label: 'Current Speed',
+                            pointRadius: 0,
+                            borderColor: 'black',
+                            borderJoinStyle: 'round',
+                            borderWidth: 0.2,
+                            fill: 'end',
+                            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                            lineTension: 0
+                        }, {
+                            label: 'Average Speed',
+                            pointRadius: 0,
+                            borderColor: 'brown',
+                            borderJoinStyle: 'round',
+                            borderWidth: 1,
+                            lineTension: 0,
+                            fill: false
+                        }, {
+                            label: 'Minimum Speed',
+                            pointRadius: 0,
+                            borderColor: 'blue',
+                            borderJoinStyle: 'round',
+                            borderWidth: 1,
+                            steppedLine: true,
+                            fill: false
+                        }, {
+                            label: 'Maximum Speed',
+                            pointRadius: 0,
+                            borderColor: '#FF64B4', //Hot pink
+                            borderJoinStyle: 'round',
+                            borderWidth: 2,
+                            lineTension: 0,
+                            steppedLine: true,
+                            fill: false
+                        }
+                    ]
                 };
                 
                 this.chart = new Chart(wsElem, {

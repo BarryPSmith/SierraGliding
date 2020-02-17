@@ -69,12 +69,19 @@ namespace core_Receiver
                 return;
             var cmdType = (char)data[3];
             string commandIdentifier = cmdType.ToString();
-            if (cmdType == 'Q')
+            switch (cmdType)
             {
-                char queryType = 'C';
-                if (data.Length >= 5)
-                    queryType = (char)data[4];
-                commandIdentifier += queryType;
+                case 'Q':
+                    char queryType = 'C';
+                    if (data.Length >= 5)
+                        queryType = (char)data[4];
+                    commandIdentifier += queryType;
+                    break;
+                case 'P':
+                    if (data.Length >= 5)
+                        if (data[4] == 'Q')
+                            commandIdentifier += data[4];
+                    break;
             }
             PacketDecoder.RecentCommands[data[2]] = commandIdentifier;
         }

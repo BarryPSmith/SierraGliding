@@ -93,6 +93,8 @@ namespace core_Receiver
                                 ret.packetData = new QueryVolatileResponse(bytes.AsSpan(dataStart));
                                 break;
                             case "PQ":
+                                ret.packetData = new ProgrammingResponse(bytes.AsSpan(dataStart));
+                                break;
                             case "PFR":
                             default:
                                 knownCommand = false;

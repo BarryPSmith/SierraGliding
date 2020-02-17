@@ -127,11 +127,13 @@ namespace MessageHandling
   bool shouldRelay(byte msgType, byte msgStatID, byte msgUniqueID)
   {
     //Check if the source or destination is in our relay list:
-    bool ret = false;
     if (msgType == 'C' || msgType == 'K' || msgType == 'R')
     {
       byte stationsToRelayCommands[permanentArraySize];
       GET_PERMANENT(stationsToRelayCommands);
+      //If we have a zero-station command (addressed to all stations) and we are set to relay commands for any station, then relay it:
+      if (msgStatID == 0 && stationsToRelayCommands[0])
+        return true;
 
       for (int i = 0; i < recentArraySize; i++)
       {
@@ -139,7 +141,7 @@ namespace MessageHandling
           break;
         if (stationsToRelayCommands[i] == msgStatID)
         {
-          ret = true;
+          return true;
           break;
         }
       }
@@ -154,12 +156,12 @@ namespace MessageHandling
           break;
         if (stationsToRelayWeather[i] == msgStatID)
         {
-          ret = true;
+          return true;
           break;
         }
       }
     }
-    return ret;
+    return false;
   }
 
   bool haveRelayed(byte msgType, byte msgStatID, byte msgUniqueID)

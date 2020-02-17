@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.IO.Ports;
 using System.Diagnostics;
 using System.Collections.Concurrent;
+using System.Threading;
 
 namespace core_Receiver
 {
@@ -21,6 +22,12 @@ namespace core_Receiver
         const byte TFESC = 0xDD;
 
         volatile bool _disconnectRequested = false;
+
+        private int _cmdUniqueID = new Random().Next();
+        public byte GetNextUniqueID()
+        {
+            return (byte)(Interlocked.Increment(ref _cmdUniqueID) & 0xFF);
+        }
 
         public event EventHandler<IList<Byte>> PacketReceived;
         public Action<string> StreamError { get; set; }

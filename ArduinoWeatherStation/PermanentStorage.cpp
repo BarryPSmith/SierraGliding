@@ -53,6 +53,7 @@ void PermanentStorage::initialise()
     const unsigned long csmaTimeslot = 4000; // 4ms
     const unsigned short outboundPreambleLength = 128; // allow end nodes to spend most of their time asleep.
 
+    SET_PERMANENT_S(stationID);
     SET_PERMANENT_S(shortInterval);
     SET_PERMANENT_S(longInterval);
     SET_PERMANENT_S(batteryThreshold_mV);
@@ -74,9 +75,10 @@ void PermanentStorage::initialise()
     SET_PERMANENT_S(wdCalibMax);
     setCRC();
   }
-#if DEBUG
   else
   {
+    GET_PERMANENT_S(stationID);
+#if DEBUG
     long shortInterval;
     long longInterval;
     unsigned short batteryThreshold_mV,
@@ -98,6 +100,7 @@ void PermanentStorage::initialise()
     GET_PERMANENT_S(initialised);
 
     AWS_DEBUG_PRINTLN(F("Using saved parameters"));
+    PRINT_VARIABLE(stationID);
     PRINT_VARIABLE(initialised);
     PRINT_VARIABLE(shortInterval);
     PRINT_VARIABLE(longInterval);
@@ -150,7 +153,7 @@ void PermanentStorage::initialise()
     GET_PERMANENT_S(wdCalibMax);
     PRINT_VARIABLE(wdCalibMin);
     PRINT_VARIABLE(wdCalibMax);
-  }
 #endif
+  }
   _initialised = true;
 }

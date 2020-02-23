@@ -14,6 +14,7 @@ namespace Commands
   bool handleRelayCommand(MessageSource& msg);
   bool handleIntervalCommand(MessageSource& msg);
   bool handleThresholdCommand(MessageSource& msg);
+  bool handleIDCommand(MessageSource& msg, bool demandRelay, byte uniqueID);
   bool handleQueryCommand(MessageSource& msg, bool demandRelay, byte uniqueID);
   void handleQueryConfigCommand(MessageDestination& response);
   void handleQueryVolatileCommand(MessageDestination& response);
@@ -72,7 +73,7 @@ namespace Commands
           break;
 
         case 'M':
-          handled = HandleMessageCommand(msg);
+          handled = handleMessageCommand(msg);
           break;
 
         case 'W':
@@ -81,6 +82,10 @@ namespace Commands
 
         case 'P':
           handled = RemoteProgramming::handleProgrammingCommand(msg, uniqueID, demandRelay, &ackRequired);
+          break;
+
+        case 'U': // Change ID
+          handled = handleIDCommand(msg, demandRelay, uniqueID);
           break;
 
         #if DEBUG_Speed
@@ -383,6 +388,59 @@ namespace Commands
     //message statistics:
     response.appendByte('M');
     appendMessageStatistics(response);
+  }
+
+  void notifyNewID(bool demandRelay, byte uniqueID, byte newID)
+  {
+    MESSAGE_DESTINATION_SOLID reply(false);
+      reply.appendByte('K' | (demandRelay ? 0x80 : 0));
+      reply.appendByte(stationID);
+      reply.appendByte(uniqueID);
+      reply.append(F("NewID"), 5);
+      reply.appendByte(newID);
+      reply.finishAndSend();
+  }
+
+  bool handleIDCommand(MessageSource& msg, bool demandRelay, byte uniqueID)
+  {
+    byte subCommand;
+    if (msg.readByte(subCommand))
+      return false;
+    byte newID;
+    switch (subCommand)
+    {
+    case 'R':
+      bool duplicate;
+      do
+      {
+        duplicate = false;
+        newID = random(1, 255);
+        for (int i = 0; i < MessageHandling::recentArraySize; i++)
+        {
+          if (!MessageHandling::recentlySeenStations[i].id)
+            break;
+          if (MessageHandling::recentlySeenStations[i].id == newID)
+          {
+            duplicate = true;
+            break;
+          }
+        }
+      } while (duplicate);
+      break;
+    case 'S':
+      if (msg.readByte(newID) || newID == 0)
+        return false;
+      break;
+    default:
+      return false;
+    }
+    // Reply with the new ID before we change our station ID
+    // that should automatically get routed back to the base station
+    // (which the new ID might not)
+    notifyNewID(demandRelay, uniqueID, newID);
+    stationID = newID;
+    SET_PERMANENT_S(stationID);
+    return true;
   }
 
   void acknowledgeMessage(byte uniqueID, bool isSpecific, bool demandRelay)

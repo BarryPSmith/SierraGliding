@@ -159,7 +159,7 @@ int main()
       }
       else if (kissSrc.getMessageType() == 0x06)
       {
-        if (HandleMessageCommand(kissSrc))
+        if (handleMessageCommand(kissSrc))
           Serial.println(F("Command SUCCESS"));
         else
           Serial.println(F("Command FAILURE"));

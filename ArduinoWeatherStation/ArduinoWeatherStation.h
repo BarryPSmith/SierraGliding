@@ -33,9 +33,11 @@ void AwsRecordState(int i);
 #ifdef STATION_ID
 #define STR(A) #A
 #define XSTR(A) STR(A)
-inline constexpr char stationID = STATION_ID;
-//#pragma message ("StationID: " XSTR(STATION_ID))
+inline constexpr char defaultStationID = STATION_ID;
+#else
+inline constexpr char defaultStationID = 'Z';
 #endif
+extern char stationID;
 
 //Global Constants
 inline constexpr unsigned long tncBaud = 38400;

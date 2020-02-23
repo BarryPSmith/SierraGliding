@@ -21,6 +21,7 @@ unsigned long overrideStartMillis;
 unsigned long overrideDuration;
 bool overrideShort;
 bool sleepEnabled = true;
+char stationID = defaultStationID;
 
 #ifdef DEBUG
 extern volatile bool windTicked;
@@ -72,6 +73,9 @@ void savePower()
     = pinsInUse[SX_SELECT]
 #ifdef SX_RESET
     = pinsInUse[SX_RESET]
+#endif
+#ifdef FLASH_SELECT
+    = pinsInUse[FLASH_SELECT]
 #endif
     = true;
     
@@ -166,13 +170,14 @@ void setup() {
 #endif
   
   InitMessaging();
+
   if (oldSP > 0x100)
   {
     MESSAGE_DESTINATION_SOLID msg(false);
     msg.appendByte('S');
     msg.appendByte(stationID);
     msg.appendByte(0x00);
-	msg.appendT(oldSP);
+	  msg.appendT(oldSP);
     msg.append((byte*)oldStack, STACK_DUMP_SIZE);
   }
 

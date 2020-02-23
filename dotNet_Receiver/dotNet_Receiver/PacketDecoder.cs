@@ -95,6 +95,9 @@ namespace core_Receiver
                             case "PQ":
                                 ret.packetData = new ProgrammingResponse(bytes.AsSpan(dataStart));
                                 break;
+                            case "U":
+                                ret.packetData = ChangeIdResponse.ParseChangeIdResponse(bytes.AsSpan(dataStart), out knownCommand);
+                                break;
                             case "PFR":
                             default:
                                 knownCommand = false;

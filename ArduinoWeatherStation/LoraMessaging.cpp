@@ -154,7 +154,7 @@ void InitMessaging()
   updateIdleState();
 }
 
-bool HandleMessageCommand(MessageSource& src)
+bool handleMessageCommand(MessageSource& src)
 {
 #ifndef NO_COMMANDS
   byte descByte;

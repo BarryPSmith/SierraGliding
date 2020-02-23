@@ -41,6 +41,7 @@ const int permanentArraySize = 20;
 typedef struct PermanentVariables
 {
   bool initialised; //1
+  char stationID;
   unsigned long shortInterval, //4
                 longInterval;  //4
   unsigned short batteryThreshold_mV; //2

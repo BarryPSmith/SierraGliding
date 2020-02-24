@@ -192,6 +192,10 @@ Arguments:
                                 File.AppendAllLines(log, new[] { packet.GetDataString(packet.packetData) });
                                 break;
 #endif
+                    case 'K':
+                    case 'C':
+                    case 'P':
+                        break;
                     default:
                         //nps is often stdOut in debugging, don't write to it from multiple threads:
                         var localBytes = data.ToArray();
@@ -249,6 +253,7 @@ Arguments:
                     ErrorWriter = sw;
                     if (npsIsStandardOut)
                         _dataReceiver.NonPacketStream = safeStream;
+                    interpreter.ProgrammerOutput = sw;
                     var line2 = Console.ReadLine();
                     var line = key.KeyChar + line2;
                     if (!interpreter.HandleLine(line))
@@ -272,6 +277,7 @@ Arguments:
                     OutputWriter = Console.Out;
                     ErrorWriter = Console.Error;
                     _dataReceiver.NonPacketStream = nps;
+                    interpreter.ProgrammerOutput = Console.Out;
                     sw.Flush();
                     Console.Write(sw.Encoding.GetString(ms.ToArray()));
                 }
@@ -290,8 +296,8 @@ Arguments:
             {
                 try
                 {
-                    byte[] ping = Encoding.ASCII.GetBytes("P##" + CallSign);
-                    ping[1] = 0x80; //No destination / Demand relay
+                    byte[] ping = Encoding.ASCII.GetBytes("P0#" + CallSign);
+                    ping[0] |= 0x80; // Demand relay
                     ping[2] = i; //This isn't used, but is around for debugging.
                     _dataReceiver.WriteSerial(ping);
                     OutputWriter.WriteLine($"Ping sent: {i}");

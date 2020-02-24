@@ -70,10 +70,10 @@ class CSMAWrapper
       auto txMicros = micros() - entryMicros;
       enterIdleState();
       auto idleMicros = micros() - entryMicros;
-      PRINT_VARIABLE(delayMicros);
-      PRINT_VARIABLE(preambleMicros);
-      PRINT_VARIABLE(txMicros);
-      PRINT_VARIABLE(idleMicros);
+      TX_PRINTVAR(delayMicros);
+      TX_PRINTVAR(preambleMicros);
+      TX_PRINTVAR(txMicros);
+      TX_PRINTVAR(idleMicros);
       
 
       return ret;

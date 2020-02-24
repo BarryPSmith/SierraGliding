@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -24,8 +25,10 @@ namespace core_Receiver
         const int MaxPacketCount = 192; //This is hardcoded in the stations.
         const int MaxImageSize = 32768 - 1024; //32768: Atmega328P flash size, 1024: bootload size.
 
-        private IList<byte> _image;
-        private KissCommunication _communicator;
+        private List<byte> _image;
+        private readonly KissCommunication _communicator;
+        private readonly string _fn;
+        public string Fn => _fn;
 
         public UInt16 CRC { get; private set; }
 
@@ -34,16 +37,23 @@ namespace core_Receiver
 
         public TimeSpan PacketInterval { get; set; } = TimeSpan.FromSeconds(1);
 
-        public TimeSpan ResponseTimeout { get; set; } = TimeSpan.FromSeconds(2);
+        public TimeSpan ResponseTimeout { get; set; } = TimeSpan.FromSeconds(4);
 
         public TextWriter OutWriter { get; set; } = Console.Out;
         
         public RemoteProgrammer(string hexSourceFile, KissCommunication commuicator)
         {
+            _fn = hexSourceFile;
             _image = ReadHex(hexSourceFile);
+            PacketSize = GetPacketSize(_image.Count);
+            if (PacketSize < 192)
+            {
+                _image.AddRange(Enumerable.Repeat((byte)0xFF, 192 - _image.Count % 192));
+                PacketSize = 192;
+                Debug.Assert(_image.Count % 192 == 0);
+            }
             if (_image.Count > MaxImageSize)
                 throw new ProgrammerException($"Cannot fit image. Size: {_image.Count}. Max: {MaxImageSize}");
-            PacketSize = GetPacketSize(_image.Count);
             PacketCount = _image.Count / PacketSize;
             if (PacketCount > MaxPacketCount)
                 throw new ProgrammerException($"Cannot fit image. Required packet count: {PacketCount}");
@@ -51,6 +61,7 @@ namespace core_Receiver
             _communicator = commuicator;
         }
 
+        #region Methods
         /// <summary>
         /// Performs a complete upload for a set of stations.
         /// </summary>
@@ -149,7 +160,7 @@ namespace core_Receiver
         {
             using MemoryStream ms = new MemoryStream();
             using BinaryWriter writer = new BinaryWriter(ms, Encoding.ASCII);
-            byte cmdByte = demandrelay ? (byte)'C' : (byte)('C' | 0x80);
+            byte cmdByte = demandrelay ? (byte)('C' | 0x80) : (byte)'C';
             var unID = _communicator.GetNextUniqueID();
             writer.Write(cmdByte);
             writer.Write(destinationStationID);
@@ -176,7 +187,7 @@ namespace core_Receiver
         {
             return Task.Run(() =>
             {
-                byte cmdByte = demandrelay ? (byte)'C' : (byte)('C' | 0x80);
+                byte cmdByte = demandrelay ? (byte)('C' | 0x80) : (byte)'C';
                 for (int i = 0; i < PacketCount; i++)
                 {
                     token.ThrowIfCancellationRequested();
@@ -190,14 +201,17 @@ namespace core_Receiver
         {
             var ms = new MemoryStream();
             var writer = new BinaryWriter(ms, Encoding.ASCII);
+            var uniqueID = _communicator.GetNextUniqueID();
             writer.Write(cmdByte);
             writer.Write(destinationStationID);
-            writer.Write(_communicator.GetNextUniqueID());
+            writer.Write(uniqueID);
             writer.Write('P');
+            writer.Write('I');
             writer.Write((byte)i);
             writer.Write((UInt16)CRC);
             writer.Write(_image.Skip(i * PacketSize).Take(PacketSize).ToArray());
             writer.Flush();
+            PacketDecoder.RecentCommands[uniqueID] = "P";
             _communicator.WriteSerial(ms.ToArray());
         }
 
@@ -223,7 +237,7 @@ namespace core_Receiver
                     try
                     {
                         var packet = PacketDecoder.DecodeBytes(data.ToArray());
-                        if (packet.type == 'K' && packet.uniqueID == lastUniqueID && packet.sendingStation == destinationStationID)
+                        if (packet?.type == 'K' && packet.uniqueID == lastUniqueID && packet.sendingStation == destinationStationID)
                         {
                             lastResponse = packet.packetData as ProgrammingResponse;
                             replyReceived.Set();
@@ -240,7 +254,7 @@ namespace core_Receiver
                     {
                         token.ThrowIfCancellationRequested();
                         // Get the station status:
-                        QueryStationProgramming(destinationStationID);
+                        lastUniqueID = QueryStationProgramming(destinationStationID);
                         if (WaitHandle.WaitAny(new WaitHandle[] { replyReceived, token.WaitHandle }, ResponseTimeout) == WaitHandle.WaitTimeout ||
                             lastResponse == null)
                             continue;
@@ -277,7 +291,7 @@ namespace core_Receiver
             }, token);
         }
 
-        public void QueryStationProgramming(byte destinationStationID)
+        public byte QueryStationProgramming(byte destinationStationID)
         {
             var ms = new MemoryStream();
             var writer = new BinaryWriter(ms, Encoding.ASCII);
@@ -290,6 +304,26 @@ namespace core_Receiver
             writer.Flush();
             PacketDecoder.RecentCommands[uniqueID] = "PQ";
             _communicator.WriteSerial(ms.ToArray());
+            return uniqueID;
+        }
+
+        public byte QueryStationFlash(byte destinationStationID, ushort address, byte payloadSize)
+        {
+            var ms = new MemoryStream();
+            var writer = new BinaryWriter(ms, Encoding.ASCII);
+            byte uniqueID = _communicator.GetNextUniqueID();
+            writer.Write('C');
+            writer.Write(destinationStationID);
+            writer.Write(uniqueID);
+            writer.Write('P');
+            writer.Write('F');
+            writer.Write('R');
+            writer.Write(address);
+            writer.Write(payloadSize);
+            writer.Flush();
+            PacketDecoder.RecentCommands[uniqueID] = "PFR";
+            _communicator.WriteSerial(ms.ToArray());
+            return uniqueID;
         }
 
         /// <summary>
@@ -310,7 +344,7 @@ namespace core_Receiver
             _communicator.WriteSerial(ms.ToArray());
         }
 
-        public static List<byte> ReadHex(string hexSourceFile)
+        private static List<byte> ReadHex(string hexSourceFile)
         {
             var lines = File.ReadAllLines(hexSourceFile);
             int curAddress = 0;
@@ -335,9 +369,14 @@ namespace core_Receiver
                     throw new InvalidDataException($"Line {lineIdx}: Cannot read checksum.");
 
                 byte[] newData = new byte[byteCount];
-                for (int i = 0; i < byteCount; i += 2)
-                    newData[i / 2] = byte.Parse(newDataStr.Substring(i, 2), NumberStyles.HexNumber);
-                byte calculatedChecksum = (byte)~(newData.Sum(b => (int)b) & 0xFF);
+                for (int i = 0; i < byteCount; i++)
+                    newData[i] = byte.Parse(newDataStr.Substring(i * 2, 2), NumberStyles.HexNumber);
+
+                byte calculatedChecksum = 0;
+                for (int i = 1; i <= 7 + byteCount * 2; i += 2)
+                    calculatedChecksum += byte.Parse(line.AsSpan(i, 2), NumberStyles.HexNumber);
+                calculatedChecksum = (byte)(~calculatedChecksum + 1);
+                //byte calculatedChecksum = (byte)~(newData.Sum(b => (int)b) & 0xFF);
                 if (calculatedChecksum != checksum)
                     throw new InvalidDataException($"Line {lineIdx}: Checksum Mismatch. Calculated: {calculatedChecksum:X}, expected: {checksum:X}");
 
@@ -365,7 +404,7 @@ namespace core_Receiver
             return ret;
         }
 
-        public static int GetPacketSize(int imageSize)
+        private static int GetPacketSize(int imageSize)
         {
             for (int i = MaxPacketSize; i > 0; i--)
                 if (imageSize % i == 0)
@@ -390,13 +429,103 @@ namespace core_Receiver
         /// <param name="crc">The current CRC</param>
         /// <param name="data">The next byte in the data</param>
         /// <returns>The updated CRC</returns>
-        private static UInt16 crc_ccitt_update(UInt16 crc, byte data)
+        /// <remarks>
+        /// Turns out that the AVR libc documentation is incorrect. So we just transcoded the assembly from the header file.
+        /// </remarks>
+        public static UInt16 crc_ccitt_update(UInt16 crc, byte data)
         {
+            return crc_ccitt_update2(crc, data);
+
             data ^= (byte)(crc & 0xFF);
             data ^= (byte)(data << 4);
 
             return (UInt16)((((UInt16)data << 8) | (crc & 0xFF00)) ^ (byte)(data >> 4)
                     ^ ((UInt16)data << 3));
+        }
+
+        public static UInt16 crc_ccitt_update2(UInt16 crc, byte data)
+        {
+            //You know you've fucked up when you're writing assembly in C#.
+            byte crcLo = (byte)(crc & 0xFF);
+            byte crcHi = (byte)(crc >> 8);
+
+            crcLo ^= data;
+            byte tmpReg = crcLo;
+            swapNibbles(ref crcLo);
+            crcLo &= 0xF0;
+            crcLo ^= tmpReg;
+
+            tmpReg = crcHi;
+
+            crcHi = crcLo;
+
+            swapNibbles(ref crcLo);
+            crcLo &= 0x0F;
+            tmpReg ^= crcLo;
+
+            crcLo >>= 1;
+            crcHi ^= crcLo;
+
+            crcLo ^= crcHi;
+            crcLo <<= 3;
+            crcLo ^= tmpReg;
+            return (ushort)((crcHi << 8) | crcLo);
+        }
+        static byte swapNibbles(ref byte b) => b = (byte)((b << 4) | (b >> 4));
+        #endregion Methods
+
+        public override string ToString()
+        {
+            return $"Packet Size: {PacketSize}, Packet Count: {PacketCount}, CRC: {CRC:X}, Size: {_image.Count}, " +
+                $"Interval: {PacketInterval.TotalSeconds}, Timeout: {ResponseTimeout.TotalSeconds}, Source: {_fn}";
+        }
+
+        public string DataAsSingleLineHex => _image.ToCsv(i => i.ToString("X2"), Environment.NewLine);
+
+        public Task<List<byte>> ReadRemoteImageAsync(byte stationID, CancellationToken token)
+        {
+            int imageOffset = 10;
+            const int packetSize = 192;
+            StringBuilder s = new StringBuilder();
+            byte lastUniqueID = 0;
+            byte[] lastData = null;
+            var replyReceived = new AutoResetEvent(false);
+            return Task.Run(() =>
+            {
+                EventHandler<IList<byte>> packetReceived = (sender, bytes) =>
+                {
+                    var packet = PacketDecoder.DecodeBytes(bytes.ToArray());
+                    if (packet?.type == 'K' && packet.uniqueID == lastUniqueID && packet.sendingStation == stationID)
+                    {
+                        lastData = (byte[])packet.packetData;
+                        replyReceived.Set();
+                    }
+                };
+                _communicator.PacketReceived += packetReceived;
+                try
+                {
+                    var ret = new List<byte>(_image.Count);
+                    for (int i = 0; i < _image.Count; i += packetSize)
+                    {
+                        int payloadSize = Math.Min(_image.Count - i, packetSize);
+                        do
+                        {
+                            token.ThrowIfCancellationRequested();
+                            lastUniqueID = QueryStationFlash(stationID, (ushort)(i + imageOffset), (byte)payloadSize);
+                        }
+                        while (WaitHandle.WaitAny(new WaitHandle[] { replyReceived, token.WaitHandle }, ResponseTimeout) == WaitHandle.WaitTimeout ||
+                            lastData == null);
+                        Debug.Assert(lastData.Length == payloadSize);
+                        ret.AddRange(lastData);
+                    }
+                    Debug.Assert(ret.Count == _image.Count);
+                    return ret;
+                }
+                finally
+                {
+                    _communicator.PacketReceived -= packetReceived;
+                }
+            }, token);
         }
     }
 }

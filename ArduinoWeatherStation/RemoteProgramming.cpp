@@ -4,6 +4,17 @@
 #include "LoraMessaging.h"
 #include "MessageHandling.h"
 
+#define DEBUG_PROGRAMMING
+#ifdef DEBUG_PROGRAMMING
+#define PROGRAM_PRINT AWS_DEBUG_PRINT
+#define PROGRAM_PRINTLN AWS_DEBUG_PRINTLN
+#define PROGRAM_PRINTVAR PRINT_VARIABLE
+#else
+#define PROGRAM_PRINT 
+#define PROGRAM_PRINTLN 
+#define PROGRAM_PRINTVAR 
+#endif
+
 // Remote programming over our home-grown protocols.
 // See dual optiboot for actual programmer
 
@@ -52,7 +63,7 @@ namespace RemoteProgramming
     if (!flashOK)
       return false;
 
-    AWS_DEBUG_PRINTLN(F("Processing program command..."));
+    PROGRAM_PRINTLN(F("Processing program command..."));
 
     byte type;
     if (msg.readByte(type))
@@ -73,7 +84,7 @@ namespace RemoteProgramming
   bool handleFlashCommand(MessageSource& msg, const byte uniqueID, const bool demandRelay,
     bool* ackRequired)
   {
-    AWS_DEBUG_PRINTLN(F("Processing flash command..."));
+    PROGRAM_PRINTLN(F("Processing flash command..."));
     byte rwe;
     uint16_t add;
     byte count;
@@ -99,18 +110,25 @@ namespace RemoteProgramming
       break;
     case 'R':
       {
-      byte count;
-      if (msg.read(count))
-      {
-        flash.sleep();
-        return false;
-      }
-      LoraMessageDestination dest(false);
-      dest.appendByte('K');
-      dest.appendByte(stationID);
-      dest.appendByte(uniqueID);
-      for (int i = 0; i < count; i++)
-        dest.appendByte(flash.readByte(add++));
+        byte count;
+        if (msg.read(count))
+        {
+          flash.sleep();
+          return false;
+        }
+        LoraMessageDestination dest(false);
+        dest.appendByte('K');
+        dest.appendByte(stationID);
+        dest.appendByte(uniqueID);
+        PROGRAM_PRINTVAR(add);
+        for (int i = 0; i < count; i++)
+        {
+          byte b = flash.readByte(add++);
+          PROGRAM_PRINT(b, HEX);
+          PROGRAM_PRINT(' ');
+          dest.appendByte(b);
+        }
+        PROGRAM_PRINTLN();
       }
       *ackRequired = false;
     }
@@ -160,17 +178,36 @@ namespace RemoteProgramming
       return false;
     //If out of bounds:
     if (packetIndex >= totalExpectedPackets)
+    {
+      PROGRAM_PRINTLN(F("RP: Out Of Range"));
       return false;
+    }
     //If already received:
-    if (receivedPackets[packetIndex / 8] & 1 << packetIndex % 8 != 0)
+    byte* packetIdentifier = &receivedPackets[packetIndex / 8];
+    byte testBit = 1 << (packetIndex % 8);
+    if (((*packetIdentifier) & testBit) != 0)
+    {
+      PROGRAM_PRINTLN(F("RP: Duplicate"));
       return false;
+    }
     //If packet doesn't belong to the image we're receiving:
     uint16_t imageCRC;
     if (msg.read(imageCRC) || imageCRC != expectedCRC)
+    {
+      PROGRAM_PRINTLN(F("RP: CRC mismatch"));
       return false;
+    }
     //If incorrect length:
-    if (msg.getMessageLength() - msg.getCurrentLocation() != bytesPerPacket)
+    auto msgLen = msg.getMessageLength();
+    auto msgLoc = msg.getCurrentLocation();
+    if (msgLen - msgLoc != bytesPerPacket)
+    {
+      PROGRAM_PRINTLN(F("RP: Length mismatch"));
+      PROGRAM_PRINTVAR(msgLen);
+      PROGRAM_PRINTVAR(msgLoc);
+      PROGRAM_PRINTVAR(bytesPerPacket);
       return false;
+    }
     unsigned int packetStart = packetIndex * bytesPerPacket + imageOffset;
     unsigned int packetEnd = packetStart + bytesPerPacket;
     flash.wakeup();
@@ -182,11 +219,14 @@ namespace RemoteProgramming
         resetDownload();
         sendAbortMessage();
         flash.sleep();
+        PROGRAM_PRINTLN(F("RP: read failed"));
         return false;
       }
       flash.writeByte(i, b);
     }
     flash.sleep();
+    *packetIdentifier |= testBit;
+
     return true;
   }
 

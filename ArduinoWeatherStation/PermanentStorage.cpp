@@ -2,6 +2,8 @@
 #include "ArduinoWeatherStation.h"
 #include <util/crc16.h>
 
+char stationID = defaultStationID;
+
 bool PermanentStorage::_initialised = false;
 
 //Just copied this out of the example documentation 
@@ -48,7 +50,7 @@ void PermanentStorage::initialise()
     const uint32_t frequency_i = 425000000;
     const uint16_t bandwidth_i = 625;
     const short txPower = -9;
-    const byte spreadingFactor = 5; //Maybe we can communicate with the RF96?
+    const byte spreadingFactor = 5;
     const byte csmaP = 100; //40% chance to transmit
     const unsigned long csmaTimeslot = 4000; // 4ms
     const unsigned short outboundPreambleLength = 128; // allow end nodes to spend most of their time asleep.

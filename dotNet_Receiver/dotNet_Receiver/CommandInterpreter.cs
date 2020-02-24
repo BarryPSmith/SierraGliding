@@ -3,18 +3,41 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace core_Receiver
 {
-    class CommandInterpreter
+    class CommandException : Exception
+    {
+        public CommandException(string message) : base(message)
+        {
+        }
+    }
+
+    partial class CommandInterpreter
     {
         readonly KissCommunication _modem;
+        readonly ProgrammerInterpreter _programmerInterpreter;
 
-        public TextWriter Output { get; set; } = Console.Out;
+        private TextWriter _output = Console.Out;
+        public TextWriter Output 
+        {
+            get => _output;
+            set
+            {
+                _output = value;
+            }
+        } 
+
+        public TextWriter ProgrammerOutput
+        {
+            set => _programmerInterpreter.OutWriter = value;
+        }
 
         public CommandInterpreter(KissCommunication modem)
         {
             _modem = modem;
+            _programmerInterpreter = new ProgrammerInterpreter(_modem);
         }
 
         public bool HandleLine(string line)
@@ -31,13 +54,18 @@ namespace core_Receiver
                 case '/': //Simple
                     HandleSimpleLine(line, 0x00);
                     break;
-                case '6':
+                case '6': //Modem instruction
                     HandleSimpleLine(line, 0x06);
+                    break;
+                case 'P': //Programming...
+                    _programmerInterpreter.HandleProgrammingCommand(line);
                     break;
             }
 
             return true;
         }
+        
+        Dictionary<int, Task> _currentTasks = new Dictionary<int, Task>();
 
         void HandleSimpleLine(string line, byte packetType)
         {

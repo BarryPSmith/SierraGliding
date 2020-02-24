@@ -331,7 +331,7 @@ MESSAGE_RESULT LoraMessageDestination::finishAndSend()
 
   auto beforeTxMicros = micros();
   auto state = LORA_CHECK(csma.transmit(_outgoingBuffer, _currentLocation, preambleLength));
-  PRINT_VARIABLE(micros() - beforeTxMicros);
+  TX_PRINTVAR(micros() - beforeTxMicros);
 
 #ifndef DEBUG
   if (state == ERR_NONE)

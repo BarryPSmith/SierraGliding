@@ -21,7 +21,6 @@ unsigned long overrideStartMillis;
 unsigned long overrideDuration;
 bool overrideShort;
 bool sleepEnabled = true;
-char stationID = defaultStationID;
 
 #ifdef DEBUG
 extern volatile bool windTicked;
@@ -119,7 +118,12 @@ void TestBoard()
 }
 
 void setup() {
-  randomSeed(analogRead(A0));
+  unsigned long seed = (unsigned long)analogRead(BATT_PIN) << 10 | 
+                       analogRead(WIND_DIR_PIN);
+#ifdef TEMP_SENSE
+  seed |= (unsigned long)analogRead(TEMP_SENSE) << 20;
+#endif
+  randomSeed(seed);
   
   //Enable the watchdog early to catch initialisation hangs (Side note: This limits initialisation to 8 seconds)
   wdt_enable(WDTO_8S);
@@ -156,7 +160,10 @@ void setup() {
 
   PermanentStorage::initialise();
   if (!RemoteProgramming::remoteProgrammingInit())
+  {
     AWS_DEBUG_PRINTLN(F("!! Remote programming failed to initialise !!"));
+    SIGNALERROR();
+  }
   
 #if 0 //Useful to be able to output a state with pins. However, it looks like we might use them.
   pinMode(5, OUTPUT);
@@ -189,6 +196,8 @@ void setup() {
 }
 
 void loop() {
+  // Generate and discard a random number. Just used to ensure that all of the RNGs out there will give different numbers.
+  random();
   MessageHandling::readMessages();
   
   noInterrupts();

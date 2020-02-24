@@ -5,6 +5,16 @@
 #include "PermanentStorage.h"
 #include <avr/boot.h>
 
+#ifdef DEBUG_WEATHER
+#define WEATHER_PRINT AWS_DEBUG_PRINT
+#define WEATHER_PRINTLN AWS_DEBUG_PRINTLN
+#define WEATHER_PRINTVAR PRINT_VARIABLE
+#else
+#define WEATHER_PRINT
+#define WEATHER_PRINTLN
+#define WEATHER_PRINTVAR
+#endif
+
 #if defined(DAVIS_WIND) && defined(ARGENTDATA_WIND)
 #error Multiple wind systems defined
 #endif
@@ -77,15 +87,15 @@ namespace WeatherProcessing
     GET_PERMANENT_S(wdCalibMax);
   #ifdef WIND_PWR_PIN
     pwrVoltage = analogRead(WIND_PWR_PIN);
-    PRINT_VARIABLE(pwrVoltage);
+    WEATHER_PRINTVAR(pwrVoltage);
   #endif
     maxVoltage = ((long)wdCalibMax * pwrVoltage) / 1023;
     minVoltage = ((long)wdCalibMin * pwrVoltage) / 1023;
     int voltageDiff = maxVoltage - minVoltage;
 
     int wdVoltage = analogRead(windDirPin);
-    AWS_DEBUG_PRINT(F("wdVoltage: "));
-    AWS_DEBUG_PRINTLN(wdVoltage);
+    WEATHER_PRINT(F("wdVoltage: "));
+    WEATHER_PRINTLN(wdVoltage);
 
     int scaled = ((long)(wdVoltage - minVoltage + 2) * 255) / voltageDiff; //(The +2 is to make it do nearest rounding. Approximate voltageDiff ~1023)
     if (scaled < 0)
@@ -117,7 +127,7 @@ namespace WeatherProcessing
         pwrVoltage = analogRead(WIND_PWR_PIN);
         if (pwrVoltage == 0)
         {
-          AWS_DEBUG_PRINTLN(F("Power voltage is zero!"));
+          WEATHER_PRINTLN(F("Power voltage is zero!"));
           SIGNALERROR();
           continue;
         }
@@ -144,17 +154,17 @@ namespace WeatherProcessing
     else
     {
       SIGNALERROR();
-      AWS_DEBUG_PRINTLN(F("Calibration failed!"));
+      WEATHER_PRINTLN(F("Calibration failed!"));
     }
-    AWS_DEBUG_PRINTLN(F("Calibration Result: "));
-    PRINT_VARIABLE(minValue);
-    PRINT_VARIABLE(maxValue);
+    WEATHER_PRINTLN(F("Calibration Result: "));
+    WEATHER_PRINTVAR(minValue);
+    WEATHER_PRINTVAR(maxValue);
   }
 
   void signalWindCalibration(unsigned long durationRemaining)
   {
-    AWS_DEBUG_PRINT(F("Calibration Time Remaining: "));
-    AWS_DEBUG_PRINTLN(durationRemaining);
+    WEATHER_PRINT(F("Calibration Time Remaining: "));
+    WEATHER_PRINTLN(durationRemaining);
     if (durationRemaining < 0)
       return;
   #ifndef DEBUG
@@ -186,7 +196,7 @@ namespace WeatherProcessing
     //NW 224
     //NNW 240
     int wdVoltage = analogRead(windDirPin);
-    PRINT_VARIABLE(wdVoltage);
+    WEATHER_PRINTVAR(wdVoltage);
     if (wdVoltage < 168)
       return 80;  // 5 (ESE)
     if (wdVoltage < 195)
@@ -309,27 +319,27 @@ namespace WeatherProcessing
     #endif
   #ifdef DEBUG
     unsigned long weatherPrepMicros = micros() - entryMicros;
-    PRINT_VARIABLE(weatherPrepMicros);
+    WEATHER_PRINTVAR(weatherPrepMicros);
   #endif
   #if 1
-    AWS_DEBUG_PRINTLN(F("  ======================"));
-    AWS_DEBUG_PRINT(F("batteryVoltageReading: "));
-    AWS_DEBUG_PRINTLN(batteryVoltageReading);
-    AWS_DEBUG_PRINT(F("batt_mV: "));
-    AWS_DEBUG_PRINTLN(batt_mV);
-    AWS_DEBUG_PRINT(F("Wind Counts: "));
-    AWS_DEBUG_PRINTLN(localCounts);
-    AWS_DEBUG_PRINT(F("windDirection byte: "));
-    AWS_DEBUG_PRINTLN(windDirection);
-    AWS_DEBUG_PRINT(F("windSpeed byte: "));
-    AWS_DEBUG_PRINTLN(wsByte);
+    WEATHER_PRINTLN(F("  ======================"));
+    WEATHER_PRINT(F("batteryVoltageReading: "));
+    WEATHER_PRINTLN(batteryVoltageReading);
+    WEATHER_PRINT(F("batt_mV: "));
+    WEATHER_PRINTLN(batt_mV);
+    WEATHER_PRINT(F("Wind Counts: "));
+    WEATHER_PRINTLN(localCounts);
+    WEATHER_PRINT(F("windDirection byte: "));
+    WEATHER_PRINTLN(windDirection);
+    WEATHER_PRINT(F("windSpeed byte: "));
+    WEATHER_PRINTLN(wsByte);
     if (isComplex)
     {
-      PRINT_VARIABLE(batteryByte);
-      PRINT_VARIABLE(externalTempByte);
-      PRINT_VARIABLE(internalTempByte);
+      WEATHER_PRINTVAR(batteryByte);
+      WEATHER_PRINTVAR(externalTempByte);
+      WEATHER_PRINTVAR(internalTempByte);
     }
-    AWS_DEBUG_PRINTLN(F("  ======================"));
+    WEATHER_PRINTLN(F("  ======================"));
   #endif
   }
 
@@ -371,16 +381,16 @@ namespace WeatherProcessing
 
   void setTimerInterval()
   {
-    AWS_DEBUG_PRINT(F("weather interval: "));
-    AWS_DEBUG_PRINTLN(weatherInterval);
+    WEATHER_PRINT(F("weather interval: "));
+    WEATHER_PRINTLN(weatherInterval);
     requiredTicks = weatherInterval / TimerTwo::MillisPerTick;
     if (requiredTicks < 1)
     {
-      AWS_DEBUG_PRINTLN(F("Required ticks is zero!"));
+      WEATHER_PRINTLN(F("Required ticks is zero!"));
       requiredTicks = 1;
     }
-    AWS_DEBUG_PRINT(F("requiredTicks: "));
-    AWS_DEBUG_PRINTLN(requiredTicks);
+    WEATHER_PRINT(F("requiredTicks: "));
+    WEATHER_PRINTLN(requiredTicks);
     weatherInterval = requiredTicks * TimerTwo::MillisPerTick;
   }
 
@@ -535,10 +545,10 @@ namespace WeatherProcessing
     ADMUX = oldMux;
     delay(1);
 
-    AWS_DEBUG_PRINT("Weather reading: ");
-    AWS_DEBUG_PRINTLN(ADC);
-    PRINT_VARIABLE(tsOffset);
-    PRINT_VARIABLE(tsGain);
+    WEATHER_PRINT("Weather reading: ");
+    WEATHER_PRINTLN(ADC);
+    WEATHER_PRINTVAR(tsOffset);
+    WEATHER_PRINTVAR(tsGain);
 
     int temp_x2_offset = (((long)ADC + tsOffset - (273 + 100)) * 256) / tsGain + 100 * 2;
     temp_x2_offset += 64;
@@ -567,10 +577,10 @@ namespace WeatherProcessing
     constexpr float T0 = 273.15 + 25;
     float T = 1/(1/T0 - invB * log(r2_r1));
 
-    PRINT_VARIABLE(tempReading);
-    PRINT_VARIABLE(r2_r1);
-    PRINT_VARIABLE(log(r2_r1));
-    PRINT_VARIABLE(T);
+    WEATHER_PRINTVAR(tempReading);
+    WEATHER_PRINTVAR(r2_r1);
+    WEATHER_PRINTVAR(log(r2_r1));
+    WEATHER_PRINTVAR(T);
 
     T -= 273.15;
     //We send temperature as a byte, ranging from -32 to 95 C (1 LSB = half a degree)

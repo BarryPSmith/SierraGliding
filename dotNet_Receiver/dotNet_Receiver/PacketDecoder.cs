@@ -99,6 +99,9 @@ namespace core_Receiver
                                 ret.packetData = ChangeIdResponse.ParseChangeIdResponse(bytes.AsSpan(dataStart), out knownCommand);
                                 break;
                             case "PFR":
+                                ret.packetData = bytes.AsSpan(dataStart).ToArray();
+                                ret.GetDataString = Data => ((byte[])Data).ToCsv(b => b.ToString("X2"), " ");
+                                break;
                             default:
                                 knownCommand = false;
                                 break;
@@ -113,7 +116,7 @@ namespace core_Receiver
                             Encoding.ASCII.GetString(bytes, dataStart, "IGNORED".Length) == "IGNORED")
                             ret.packetData = BasicResponse.Ignored;
                         else
-                            ret.packetData = bytes.Skip(dataStart).ToCsv(b => $"{Packet.GetChar(b)}:{b}");
+                            ret.packetData = bytes.Skip(dataStart).ToCsv(b => $"{Packet.GetChar(b)}:{b:X}");
                     }
                     break;
                     /*
@@ -133,11 +136,11 @@ namespace core_Receiver
             return ret;
         }
 
-        public static string ToCsv<T>(this IEnumerable<T> source, Func<T, string> transformer = null)
+        public static string ToCsv<T>(this IEnumerable<T> source, Func<T, string> transformer = null, string separator = ", ")
         {
             if (transformer == null)
                 transformer = A => A.ToString();
-            return source?.Aggregate("", (run, cur) => run + (string.IsNullOrEmpty(run) ? "" : ", ") + transformer(cur));
+            return source?.Aggregate("", (run, cur) => run + (string.IsNullOrEmpty(run) ? "" : separator) + transformer(cur));
         }
 
         private static double GetWindSpeed(byte wsByte)

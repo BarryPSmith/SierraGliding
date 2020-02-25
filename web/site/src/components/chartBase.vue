@@ -151,8 +151,8 @@ export default {
                 return;
             if (this.chart_range_derived)
                 this.chart_range_derived();
-            this.chart.options.scales.xAxes[0].time.min = this.cur_start();
-            this.chart.options.scales.xAxes[0].time.max = this.cur_end();
+            this.chart.options.scales.xAxes[0].ticks.min = this.cur_start();
+            this.chart.options.scales.xAxes[0].ticks.max = this.cur_end();
             this.chart.update();
         },
 

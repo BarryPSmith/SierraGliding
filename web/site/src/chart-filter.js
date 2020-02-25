@@ -9,8 +9,8 @@ function filterData(chartInstance) {
     var originalDatasets = chartInstance.data.allData;
     var chartOptions = chartInstance.options.scales.xAxes[0];
 
-    var startX = chartOptions.time.min
-    var endX = chartOptions.time.max
+    var startX = chartOptions.ticks.min
+    var endX = chartOptions.ticks.max
 
     for(var i = 0; i < originalDatasets.length; i++) {
         var dataset = datasets[i];

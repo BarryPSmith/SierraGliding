@@ -224,7 +224,7 @@ export default class DataManager {
 
         const wsMaxEntry = this.get_entry(newDataPoint, 'windspeed_max', this.wsFactor());
         if (this.windspeedMaxData.length >= 2
-            && this.windspeedMaxData[this.windspeedMinData.length - 2].y == this.windspeedMaxData[this.windspeedMaxData.length - 1].y) {
+            && this.windspeedMaxData[this.windspeedMaxData.length - 2].y == this.windspeedMaxData[this.windspeedMaxData.length - 1].y) {
             this.windspeedMaxData.pop();
         }
         this.windspeedMaxData.push(wsMaxEntry);

@@ -587,7 +587,7 @@ function main(db, cb) {
                         AVG(windspeed) as windspeed_avg
                     FROM station_data
                     WHERE
-                        ID = $id 
+                        Station_ID = $id 
                         AND $statStart <= Timestamp
                         AND Timestamp <= $statEnd`, 
                 {

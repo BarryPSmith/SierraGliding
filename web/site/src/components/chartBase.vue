@@ -34,12 +34,12 @@ export default {
                         type: 'time',
                         offset: false,
                         ticks: {
-                            maxRotation: 0
-                        },
-                        time: {
-                            minUnit: 'minute',
+                            maxRotation: 0,
                             min: this.cur_start(),
                             max: this.cur_end()
+                        },
+                        time: {
+                            minUnit: 'minute'
                         }
                     }]
                 },

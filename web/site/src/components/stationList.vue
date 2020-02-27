@@ -2,6 +2,7 @@
     <div>
         <select class="fr px24" v-model="duration">
             <option value="300">5 Minutes</option>
+            <option value="900">15 Minutes</option>
             <option value="3600">1 Hour</option>
             <option value="14400">4 Hours</option>
             <option value="43200">12 Hours</option>
@@ -30,7 +31,7 @@ export default {
     data: function() { 
         return {
             chartEnd: null,
-            duration: 300
+            duration: 900
         };
     },
     mounted: function () {

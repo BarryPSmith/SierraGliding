@@ -205,6 +205,53 @@ export default class DataManager {
     
     push_if_appropriate(newDataPoint)
     {
+        if (newDataPoint.op === undefined || newDataPoint.op == 'Add')
+            this.add_point(newDataPoint);
+        else if (newDataPoint.op == 'Remove')
+            this.remove_point(newDataPoint);
+    }
+
+    remove_point(dataPoint)
+    {
+        //Technically we should check if the point falls in our timerange. But this is easier.
+        if (!this.end_is_now())
+            return;
+
+        for (let i = this.stationData.length - 1; i >= 0; i--) {
+            if (this.stationData[i].timestamp < dataPoint.timestamp)
+                break;
+            if (this.stationData[i].timestamp == dataPoint.timestamp)
+                this.stationData.splice(i, 1);
+        }
+        const jsTimestamp = dataPoint.timestamp * 1000;
+        for (const arr of this.allDatasets()) {
+            for (let i = arr.length - 1; i >= 0; i--) {
+                console.log("I'm a loop!");
+                console.log(i);
+                console.log(arr[i].x);
+                console.log(jsTimestamp);
+                console.log(arr[i].x == jsTimestamp);
+                console.log(+arr[i].x);
+                console.log(+jsTimestamp);
+                console.log(+arr[i].x == +jsTimestamp);
+                if (+arr[i].x < jsTimestamp)
+                    break;
+                if (+arr[i].x == jsTimestamp) {
+                    console.log("!!! Removing point !!!");
+                    arr.splice(i, 1);
+                }
+            }
+        }
+    }
+
+    allDatasets() {
+        return [this.windDirectionData, this.windspeedData, 
+                            this.windspeedAvgData, this.windspeedMinData, this.windspeedMaxData,
+                            this.batteryData,
+                           this.internalTempData, this.externalTempData];
+    }
+
+    add_point(newDataPoint) {
         if (!this.end_is_now())
             return;
         
@@ -237,16 +284,12 @@ export default class DataManager {
         this.windspeedMinData.push(wsMinEntry);
         
         //Trim if necessary.
-        for (const cur of [this.stationData, this.windDirectionData, this.windspeedData, 
-                            this.windspeedAvgData, this.windspeedMinData, this.windspeedMaxData,
-                            this.batteryData,
-                           this.internalTempData, this.externalTempData]) {
+        for (const cur of [this.stationData, ...this.allDatasets()]) {
             if (cur.length > this.maxDataPoints) {
                 cur.splice(0, 50);
             }
-        }       
+        }
         this.data_updated();
-
     }
         
     get_wind_dir_entry(entry) {

@@ -10,6 +10,7 @@ const express = require('express');
 const sqlite3 = require('sqlite3');
 const path = require('path');
 const url = require('url');
+const util = require('util');
 const args = require('minimist')(process.argv, {
     string: ['db', 'port'],
     boolean: ['help']
@@ -145,6 +146,11 @@ function database(dbpath, drop, cb) {
             );
         `);
 
+        db.run(`
+            CREATE TABLE IF NOT EXISTS discarded_data
+            AS SELECT * FROM station_data LIMIT 0;
+        `);
+
         db.get(`SELECT sqlite_version() AS ver`, (err, res) => {
             if (err) console.error(err);
             else (console.error('Sqlite3 Version: ' + res.ver));
@@ -168,6 +174,7 @@ function error(err, res) {
     });
 }
 
+
 /**
  * Start the main Sierra Gliding webserver
  *
@@ -175,6 +182,10 @@ function error(err, res) {
  * @param {Function} cb Callback
  */
 function main(db, cb) {
+    const dbGet = util.promisify(sqlite3.Database.prototype.get).bind(db);
+    const dbRun = util.promisify(sqlite3.Database.prototype.run).bind(db);
+
+
     router.use((req, res, next) => {
         console.error(`[${req.method}] /api${req.url}`);
         return next();
@@ -514,7 +525,7 @@ function main(db, cb) {
     /**
      * Save a new data point to a a given station
      */
-    router.post('/station/:id/data', (req, res) => {
+    router.post('/station/:id/data', async (req, res) => {
         if (!req.body) {
             return res.status(400).json({
                 status: 400,
@@ -540,14 +551,12 @@ function main(db, cb) {
             }
         }
 
-        db.get('SELECT Wind_Direction_Offset FROM stations WHERE id = $id'
-            , { $id: req.params.id }
-            , (err, data) =>
-        {
-            if (err) return error(err, res);
-            if (!data)  return error(`Station ${req.params.id} not found.`, res);
-            req.body.wind_direction = ((req.body.wind_direction + data.Wind_Direction_Offset) % 360 + 360) % 360;
-            db.run(`
+        try {
+            const wsOffset = await (dbGet('SELECT Wind_Direction_Offset FROM stations WHERE id = $id'
+                , { $id: req.params.id }))
+            if (!wsOffset)  return error(`Station ${req.params.id} not found.`, res);
+            req.body.wind_direction = ((req.body.wind_direction + wsOffset.Wind_Direction_Offset) % 360 + 360) % 360;
+            await dbRun(`
                 INSERT INTO Station_Data (
                     Station_ID,
                     Timestamp,
@@ -573,49 +582,50 @@ function main(db, cb) {
                 $battery: typeof(req.body.battery) == 'number' ? req.body.battery : null,
                 $internal_temp: typeof(req.body.internal_temp) == 'number' ? req.body.internal_temp : null,
                 $external_temp: typeof(req.body.external_temp) == 'number' ? req.body.external_temp : null
-            }, (err) => {
-                if (err) return error(err, res);
+            });
 
-                res.json("success");
-                    
-                //Notify websockets that a particular station has updated:
-                //(We need to put statistics in the packet, from the DB)
-                db.get(`
-                    SELECT 
-                        MIN(windspeed) as windspeed_min, 
-                        MAX(windspeed) as windspeed_max, 
-                        AVG(windspeed) as windspeed_avg
-                    FROM station_data
-                    WHERE
-                        Station_ID = $id 
-                        AND $statStart <= Timestamp
-                        AND Timestamp <= $statEnd`, 
-                {
-                    $id: req.params.id,
-                    $statStart: req.body.timestamp - defaultStatSize,
-                    $statEnd: req.body.timestamp
-                }, (err, res) => {
-                    if (err) {
-                        console.error(err);
-                    }
+            res.json("success");
+        } catch (err) {
+            return error(err, res);
+        }
 
-                    wss.clients.forEach((client) => {
-                        client.send(JSON.stringify({
-                            id: req.params.id,
-                            timestamp: moment.unix(req.body.timestamp).unix(),
-                            windspeed: req.body.wind_speed,
-                            windspeed_avg: res.windspeed_avg,
-                            windspeed_max: res.windspeed_max,
-                            windspeed_min: res.windspeed_min,
-                            wind_direction: req.body.wind_direction,
-                            battery_level: req.body.battery,
-                            internal_temp: req.body.internal_temp,
-                            external_temp: req.body.external_temp
-                        }));
-                    }); // wss clients foearch
-                }); //get statistics
-            }); //exec insert
-        }); //get wind_direction_offset
+        try {
+            const stats = await dbGet(`
+                SELECT 
+                    MIN(windspeed) as windspeed_min, 
+                    MAX(windspeed) as windspeed_max, 
+                    AVG(windspeed) as windspeed_avg
+                FROM station_data
+                WHERE
+                    Station_ID = $id 
+                    AND $statStart <= Timestamp
+                    AND Timestamp <= $statEnd`, 
+            {
+                $id: req.params.id,
+                $statStart: req.body.timestamp - defaultStatSize,
+                $statEnd: req.body.timestamp
+            });
+
+            await checkCullInvalidWindspeed(db, req.params.id, req.body.wind_speed, req.body.timestamp, stats, wss);
+
+            wss.clients.forEach((client) => {
+                client.send(JSON.stringify({
+                    op: 'Add',
+                    id: req.params.id,
+                    timestamp: moment.unix(req.body.timestamp).unix(),
+                    windspeed: req.body.wind_speed,
+                    windspeed_avg: stats.windspeed_avg,
+                    windspeed_max: stats.windspeed_max,
+                    windspeed_min: stats.windspeed_min,
+                    wind_direction: req.body.wind_direction,
+                    battery_level: req.body.battery,
+                    internal_temp: req.body.internal_temp,
+                    external_temp: req.body.external_temp
+                }));
+            });
+        } catch (err) {
+            console.error(err);
+        }
     }); //declare post /station/:id/data
 
     /**
@@ -658,5 +668,49 @@ function main(db, cb) {
 
     const wss = new WebSocketServer({
         server: server
+    });
+}
+
+async function checkCullInvalidWindspeed(db, id, windspeed, timestamp, stats, wss) {
+    const dbAll = util.promisify(sqlite3.Database.prototype.all).bind(db);
+    const dbRun = util.promisify(sqlite3.Database.prototype.run).bind(db);
+    const lastRecords = await dbAll(`
+        SELECT timestamp timestamp, windspeed windspeed
+        FROM station_data 
+        WHERE station_id = $id 
+        AND timestamp < $timestamp
+        AND timestamp > $timestamp - 15
+        ORDER BY timestamp DESC
+        LIMIT 2`,
+        {
+            $id: id,
+            $timestamp: timestamp
+        });
+    if (lastRecords.length < 2) {
+        return;
+    }
+    const threshold1 = Math.max(lastRecords[1].windspeed, windspeed, 3) * 4;
+    const threshold2 = stats.windspeed_avg * 4;
+    const threshold3 = stats.windspeed_max;
+    if (lastRecords[0].windspeed < threshold1 || lastRecords[0].windspeed < threshold2 || lastRecords[0] < threshold3) {
+        return;
+    }
+    const tsToDelete = lastRecords[0].timestamp;
+    await dbRun(`INSERT INTO discarded_data SELECT * FROM station_data WHERE station_id = $id AND timestamp = $tsToDelete;`,
+    {
+        $id: id,
+        $tsToDelete: tsToDelete
+    });
+    await dbRun(`DELETE FROM station_data WHERE station_id = $id AND timestamp = $tsToDelete;`,
+    {
+        $id: id,
+        $tsToDelete: tsToDelete
+    });
+    wss.clients.forEach(client => {
+        client.send(JSON.stringify({
+            id: id,
+            timestamp: tsToDelete,
+            op: 'Remove'
+        }));
     });
 }

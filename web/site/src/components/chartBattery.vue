@@ -23,7 +23,7 @@ export default {
         'range': function() {
             if (this.chart && this.range) {
                 this.chart.options.scales.yAxes[0].ticks.min = this.range.min;
-                this.chart.options.scales.xAxes[0].ticks.max = this.range.max;
+                this.chart.options.scales.yAxes[0].ticks.max = this.range.max;
             }
         },
 

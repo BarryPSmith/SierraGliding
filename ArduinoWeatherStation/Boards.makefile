@@ -90,7 +90,6 @@ else ifeq ($(BOARD), 6)
 $(info Running Makefile for PCB Rev1 (6))
 BOARD_DEFINES = \
     -DF_CPU=8000000L \
-    -DSTATION_ID=\'4\' \
     -DREF_MV=3300 \
     -DBATT_PIN=A0 \
     -DBATTV_NUM=101 \
@@ -106,6 +105,7 @@ BOARD_DEFINES = \
     -DSX_TCXOV_X10=18 \
     -DSX_RESET=9 \
     -DFLASH_SELECT=8
+#   -DSTATION_ID=\'4\' \
 
 PROG_BAUD=57600
 

@@ -492,7 +492,7 @@ namespace core_Receiver
             var replyReceived = new AutoResetEvent(false);
             return Task.Run(() =>
             {
-                EventHandler<IList<byte>> packetReceived = (sender, bytes) =>
+                void packetReceived(object sender, IList<byte> bytes)
                 {
                     var packet = PacketDecoder.DecodeBytes(bytes.ToArray());
                     if (packet?.type == 'K' && packet.uniqueID == lastUniqueID && packet.sendingStation == stationID)
@@ -500,7 +500,7 @@ namespace core_Receiver
                         lastData = (byte[])packet.packetData;
                         replyReceived.Set();
                     }
-                };
+                }
                 _communicator.PacketReceived += packetReceived;
                 try
                 {

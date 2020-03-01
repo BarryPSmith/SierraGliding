@@ -40,7 +40,6 @@ namespace MessageHandling
     MESSAGE_SOURCE_SOLID msg;
     while (msg.beginMessage())
     {
-      AWS_DEBUG_PRINTLN(F("Got one!"));
       if (!MessageSource::s_discardCallsign)
       {
         byte zerothByte;

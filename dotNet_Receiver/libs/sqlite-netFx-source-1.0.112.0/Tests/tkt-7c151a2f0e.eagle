@@ -1,0 +1,72 @@
+###############################################################################
+#
+# tkt-7c151a2f0e.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+set character \UDDFDD83D; # NOTE: This is little-endian.
+
+###############################################################################
+
+runTest {test tkt-7c151a2f0e-1.1 {Open with UseUTF16Encoding=False} -setup {
+  set fileName tkt-7c151a2f0e-1.1.db
+  setupDb $fileName "" "" "" "" UseUTF16Encoding=False
+} -body {
+  sql execute $db "CREATE TABLE t1(x TEXT);"
+
+  sql execute $db [appendArgs "INSERT INTO t1 (x) VALUES(?);"] \
+      [list param1 String $character]
+
+  list [sql execute -execute scalar $db "PRAGMA encoding;"] \
+      [sql execute -execute scalar $db "SELECT x FROM t1;"]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result [appendArgs "UTF-8 " $character]}
+
+###############################################################################
+
+runTest {test tkt-7c151a2f0e-1.2 {Open with UseUTF16Encoding=True} -setup {
+  set fileName tkt-7c151a2f0e-1.2.db
+  setupDb $fileName "" "" "" "" UseUTF16Encoding=True
+} -body {
+  sql execute $db "CREATE TABLE t1(x TEXT);"
+
+  sql execute $db [appendArgs "INSERT INTO t1 (x) VALUES(?);"] \
+      [list param1 String $character]
+
+  list [sql execute -execute scalar $db "PRAGMA encoding;"] \
+      [sql execute -execute scalar $db "SELECT x FROM t1;"]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result [appendArgs "UTF-16le " $character]}
+
+###############################################################################
+
+unset -nocomplain character
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

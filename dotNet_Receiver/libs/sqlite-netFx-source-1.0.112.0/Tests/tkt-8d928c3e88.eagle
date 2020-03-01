@@ -1,0 +1,238 @@
+###############################################################################
+#
+# tkt-8d928c3e88.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+runSQLiteTestFilesPrologue
+
+###############################################################################
+
+runTest {test tkt-8d928c3e88-1.1 {LINQ w/BinaryGUID=false} -body {
+  copySampleDatabaseFiles
+
+  set result [list]
+  set output ""
+
+  set code [catch {
+    testClrExec $testLinqExeFile [list -eventflags Wait -directory \
+        [file dirname $testLinqExeFile] -nocarriagereturns -stdout output \
+        -success Success] -binaryguid false
+  } error]
+
+  tlog "---- BEGIN STDOUT OUTPUT\n"
+  tlog $output
+  tlog "\n---- END STDOUT OUTPUT\n"
+
+  lappend result $code
+
+  if {$code == 0} then {
+    lappend result [string trim $output]
+  } else {
+    lappend result [string trim $error]
+  }
+
+  set result
+} -cleanup {
+  catch {info previouspid true}
+
+  unset -nocomplain code output error result
+} -constraints {eagle monoToDo SQLite file_System.Data.SQLite.dll testExec\
+file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \
+-result {0 2d3d2d3d-2d3d-2d3d-2d3d-2d3d2d3d2d3d}}
+
+###############################################################################
+
+runTest {test tkt-8d928c3e88-1.2 {LINQ w/BinaryGUID=true} -body {
+  copySampleDatabaseFiles
+
+  set result [list]
+  set output ""
+
+  set code [catch {
+    testClrExec $testLinqExeFile [list -eventflags Wait -directory \
+        [file dirname $testLinqExeFile] -nocarriagereturns -stdout output \
+        -success Success] -binaryguid true
+  } error]
+
+  tlog "---- BEGIN STDOUT OUTPUT\n"
+  tlog $output
+  tlog "\n---- END STDOUT OUTPUT\n"
+
+  lappend result $code
+
+  if {$code == 0} then {
+    lappend result [string trim $output]
+  } else {
+    lappend result [string trim $error]
+  }
+
+  set result
+} -cleanup {
+  catch {info previouspid true}
+
+  unset -nocomplain code output error result
+} -constraints {eagle monoToDo SQLite file_System.Data.SQLite.dll testExec\
+file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \
+-result {0 =-=-=-=--=-=-=-=}}
+
+###############################################################################
+
+runTest {test tkt-8d928c3e88-2.1 {LINQ w/DateTimeFormat=Ticks} -body {
+  copySampleDatabaseFiles
+
+  set result [list]
+  set output ""
+
+  set code [catch {
+    testClrExec $testLinqExeFile [list -eventflags Wait -directory \
+        [file dirname $testLinqExeFile] -nocarriagereturns -stdout output \
+        -success Success] -datetime2 Ticks
+  } error]
+
+  tlog "---- BEGIN STDOUT OUTPUT\n"
+  tlog $output
+  tlog "\n---- END STDOUT OUTPUT\n"
+
+  lappend result $code
+
+  if {$code == 0} then {
+    lappend result [string trim $output]
+  } else {
+    lappend result [string trim $error]
+  }
+
+  set result
+} -cleanup {
+  catch {info previouspid true}
+
+  unset -nocomplain code output error result
+} -constraints {eagle monoToDo SQLite file_System.Data.SQLite.dll testExec\
+file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \
+-match regexp -result \
+{\sWHERE \[Extent1\]\.\[OrderDate\] < 629876736000000000\s}}
+
+###############################################################################
+
+runTest {test tkt-8d928c3e88-2.2 {LINQ w/DateTimeFormat=JulianDay} -body {
+  copySampleDatabaseFiles
+
+  set result [list]
+  set output ""
+
+  set code [catch {
+    testClrExec $testLinqExeFile [list -eventflags Wait -directory \
+        [file dirname $testLinqExeFile] -nocarriagereturns -stdout output \
+        -success Success] -datetime2 JulianDay
+  } error]
+
+  tlog "---- BEGIN STDOUT OUTPUT\n"
+  tlog $output
+  tlog "\n---- END STDOUT OUTPUT\n"
+
+  lappend result $code
+
+  if {$code == 0} then {
+    lappend result [string trim $output]
+  } else {
+    lappend result [string trim $error]
+  }
+
+  set result
+} -cleanup {
+  catch {info previouspid true}
+
+  unset -nocomplain code output error result
+} -constraints {eagle monoToDo SQLite file_System.Data.SQLite.dll testExec\
+file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \
+-match regexp -result {\sWHERE \[Extent1\]\.\[OrderDate\] < 2450449\.5\s}}
+
+###############################################################################
+
+runTest {test tkt-8d928c3e88-2.3 {LINQ w/DateTimeFormat=UnixEpoch} -body {
+  copySampleDatabaseFiles
+
+  set result [list]
+  set output ""
+
+  set code [catch {
+    testClrExec $testLinqExeFile [list -eventflags Wait -directory \
+        [file dirname $testLinqExeFile] -nocarriagereturns -stdout output \
+        -success Success] -datetime2 UnixEpoch
+  } error]
+
+  tlog "---- BEGIN STDOUT OUTPUT\n"
+  tlog $output
+  tlog "\n---- END STDOUT OUTPUT\n"
+
+  lappend result $code
+
+  if {$code == 0} then {
+    lappend result [string trim $output]
+  } else {
+    lappend result [string trim $error]
+  }
+
+  set result
+} -cleanup {
+  catch {info previouspid true}
+
+  unset -nocomplain code output error result
+} -constraints {eagle monoToDo SQLite file_System.Data.SQLite.dll testExec\
+file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \
+-match regexp -result {\sWHERE \[Extent1\]\.\[OrderDate\] < 852076800\s}}
+
+###############################################################################
+
+runTest {test tkt-8d928c3e88-2.4 {LINQ w/DateTimeFormat=ISO8601} -body {
+  copySampleDatabaseFiles
+
+  set result [list]
+  set output ""
+
+  set code [catch {
+    testClrExec $testLinqExeFile [list -eventflags Wait -directory \
+        [file dirname $testLinqExeFile] -nocarriagereturns -stdout output \
+        -success Success] -datetime2 ISO8601
+  } error]
+
+  tlog "---- BEGIN STDOUT OUTPUT\n"
+  tlog $output
+  tlog "\n---- END STDOUT OUTPUT\n"
+
+  lappend result $code
+
+  if {$code == 0} then {
+    lappend result [string trim $output]
+  } else {
+    lappend result [string trim $error]
+  }
+
+  set result
+} -cleanup {
+  catch {info previouspid true}
+
+  unset -nocomplain code output error result
+} -constraints {eagle monoToDo SQLite file_System.Data.SQLite.dll testExec\
+file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \
+-match regexp -result \
+{\sWHERE \[Extent1\]\.\[OrderDate\] < '1997-01-01 00:00:00'\s}}
+
+###############################################################################
+
+runSQLiteTestFilesEpilogue
+runSQLiteTestEpilogue
+runTestEpilogue

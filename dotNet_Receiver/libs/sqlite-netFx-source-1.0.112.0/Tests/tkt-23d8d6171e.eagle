@@ -1,0 +1,128 @@
+###############################################################################
+#
+# tkt-23d8d6171e.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+runTest {test tkt-23d8d6171e-1.1 {HidePassword flag w/Password} -setup {
+  setupDb [set fileName tkt-23d8d6171e-1.1.db] "" "" "" HidePassword \
+      "Password=1234;"
+} -body {
+  sql execute $db "CREATE TABLE t1(x);"
+  sql execute $db "INSERT INTO t1 (x) VALUES(1);"
+
+  set result [list]
+
+  lappend result [catch {sql execute -execute scalar $db \
+      "SELECT COUNT(*) FROM t1;"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  lappend result [catch {sql execute $db \
+      "INSERT INTO t1 (x) VALUES(1);"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  lappend result [catch {sql execute -execute scalar $db \
+      "SELECT COUNT(*) FROM t1;"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  set connection [getDbConnection]
+
+  lappend result [$connection -flags +NonPublic _password]
+
+  lappend result [expr {
+    [string first 1234 [$connection ConnectionString]] != -1
+  }]
+
+  lappend result [expr {
+    [string first ";Password=;" [$connection ConnectionString]] != -1
+  }]
+
+  lappend result [expr {
+    [string first ";HexPassword=;" [$connection ConnectionString]] != -1
+  }]
+
+  set result
+} -cleanup {
+  freeDbConnection
+
+  unset -nocomplain connection
+
+  cleanupDb $fileName
+
+  unset -nocomplain error result db fileName
+} -constraints {eagle System.Data.SQLite.Encryption monoBug28 command.sql\
+compile.DATA SQLite System.Data.SQLite} -result \
+{0 1 0 1 0 2 {} False True False}}
+
+###############################################################################
+
+runTest {test tkt-23d8d6171e-1.2 {HidePassword flag w/HexPassword} -setup {
+  setupDb [set fileName tkt-23d8d6171e-1.2.db] "" "" "" HidePassword \
+      "HexPassword=1234;"
+} -body {
+  sql execute $db "CREATE TABLE t1(x);"
+  sql execute $db "INSERT INTO t1 (x) VALUES(1);"
+
+  set result [list]
+
+  lappend result [catch {sql execute -execute scalar $db \
+      "SELECT COUNT(*) FROM t1;"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  lappend result [catch {sql execute $db \
+      "INSERT INTO t1 (x) VALUES(1);"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  lappend result [catch {sql execute -execute scalar $db \
+      "SELECT COUNT(*) FROM t1;"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  set connection [getDbConnection]
+
+  lappend result [$connection -flags +NonPublic _password]
+
+  lappend result [expr {
+    [string first 1234 [$connection ConnectionString]] != -1
+  }]
+
+  lappend result [expr {
+    [string first ";Password=;" [$connection ConnectionString]] != -1
+  }]
+
+  lappend result [expr {
+    [string first ";HexPassword=;" [$connection ConnectionString]] != -1
+  }]
+
+  set result
+} -cleanup {
+  freeDbConnection
+
+  unset -nocomplain connection
+
+  cleanupDb $fileName
+
+  unset -nocomplain error result db fileName
+} -constraints {eagle System.Data.SQLite.Encryption monoBug28 command.sql\
+compile.DATA SQLite System.Data.SQLite} -result \
+{0 1 0 1 0 2 {} False False True}}
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

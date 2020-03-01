@@ -1,0 +1,43 @@
+###############################################################################
+#
+# tkt-647d282d11.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+runTest {test tkt-647d282d11-1.1 {Open with PrepareRetries} -setup {
+  setupDb [set fileName tkt-647d282d11-1.1.db] "" "" "" "" PrepareRetries=10
+} -body {
+  set connection [getDbConnection]
+
+  list [object invoke $connection PrepareRetries] \
+      [object invoke $connection PrepareRetries 20] \
+      [object invoke $connection PrepareRetries]
+} -cleanup {
+  cleanupDb $fileName
+
+  freeDbConnection
+
+  unset -nocomplain connection db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result {10 {} 20}}
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

@@ -1,0 +1,223 @@
+###############################################################################
+#
+# sync.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+set fileNames [list \
+    [file join lang.html] \
+    [file join lang_aggfunc.html] \
+    [file join lang_altertable.html] \
+    [file join lang_analyze.html] \
+    [file join lang_attach.html] \
+    [file join lang_comment.html] \
+    [file join lang_conflict.html] \
+    [file join lang_corefunc.html] \
+    [file join lang_createindex.html] \
+    [file join lang_createtable.html] \
+    [file join lang_createtrigger.html] \
+    [file join lang_createview.html] \
+    [file join lang_createvtab.html] \
+    [file join lang_datefunc.html] \
+    [file join lang_delete.html] \
+    [file join lang_detach.html] \
+    [file join lang_dropindex.html] \
+    [file join lang_droptable.html] \
+    [file join lang_droptrigger.html] \
+    [file join lang_dropview.html] \
+    [file join lang_explain.html] \
+    [file join lang_expr.html] \
+    [file join lang_indexedby.html] \
+    [file join lang_insert.html] \
+    [file join lang_keywords.html] \
+    [file join lang_naming.html] \
+    [file join lang_reindex.html] \
+    [file join lang_replace.html] \
+    [file join lang_savepoint.html] \
+    [file join lang_select.html] \
+    [file join lang_transaction.html] \
+    [file join lang_update.html] \
+    [file join lang_UPSERT.html] \
+    [file join lang_vacuum.html] \
+    [file join lang_with.html] \
+    [file join pragma.html] \
+    [file join sqlite.css] \
+    [file join syntax.html] \
+    [file join syntaxdiagrams.html] \
+    [file join vtab.html] \
+    [file join images sqlite370_banner.gif] \
+    [file join images syntax alter-table-stmt.gif] \
+    [file join images syntax analyze-stmt.gif] \
+    [file join images syntax attach-stmt.gif] \
+    [file join images syntax begin-stmt.gif] \
+    [file join images syntax column-constraint.gif] \
+    [file join images syntax column-def.gif] \
+    [file join images syntax column-name-list.gif] \
+    [file join images syntax comment-syntax.gif] \
+    [file join images syntax commit-stmt.gif] \
+    [file join images syntax common-table-expression.gif] \
+    [file join images syntax compound-operator.gif] \
+    [file join images syntax compound-select-stmt.gif] \
+    [file join images syntax conflict-clause.gif] \
+    [file join images syntax create-index-stmt.gif] \
+    [file join images syntax create-table-stmt.gif] \
+    [file join images syntax create-trigger-stmt.gif] \
+    [file join images syntax create-view-stmt.gif] \
+    [file join images syntax create-virtual-table-stmt.gif] \
+    [file join images syntax cte-table-name.gif] \
+    [file join images syntax delete-stmt-limited.gif] \
+    [file join images syntax delete-stmt.gif] \
+    [file join images syntax detach-stmt.gif] \
+    [file join images syntax drop-index-stmt.gif] \
+    [file join images syntax drop-table-stmt.gif] \
+    [file join images syntax drop-trigger-stmt.gif] \
+    [file join images syntax drop-view-stmt.gif] \
+    [file join images syntax expr.gif] \
+    [file join images syntax factored-select-stmt.gif] \
+    [file join images syntax foreign-key-clause.gif] \
+    [file join images syntax indexed-column.gif] \
+    [file join images syntax insert-stmt.gif] \
+    [file join images syntax join-clause.gif] \
+    [file join images syntax join-constraint.gif] \
+    [file join images syntax join-operator.gif] \
+    [file join images syntax literal-value.gif] \
+    [file join images syntax numeric-literal.gif] \
+    [file join images syntax ordering-term.gif] \
+    [file join images syntax pragma-stmt.gif] \
+    [file join images syntax pragma-value.gif] \
+    [file join images syntax qualified-table-name.gif] \
+    [file join images syntax raise-function.gif] \
+    [file join images syntax recursive-cte.gif] \
+    [file join images syntax reindex-stmt.gif] \
+    [file join images syntax release-stmt.gif] \
+    [file join images syntax result-column.gif] \
+    [file join images syntax rollback-stmt.gif] \
+    [file join images syntax savepoint-stmt.gif] \
+    [file join images syntax select-core.gif] \
+    [file join images syntax select-stmt.gif] \
+    [file join images syntax signed-number.gif] \
+    [file join images syntax simple-select-stmt.gif] \
+    [file join images syntax sql-stmt-list.gif] \
+    [file join images syntax sql-stmt.gif] \
+    [file join images syntax table-constraint.gif] \
+    [file join images syntax table-or-subquery.gif] \
+    [file join images syntax type-name.gif] \
+    [file join images syntax update-stmt-limited.gif] \
+    [file join images syntax update-stmt.gif] \
+    [file join images syntax vacuum-stmt.gif] \
+    [file join images syntax with-clause.gif] \
+    [file join syntax alter-table-stmt.html] \
+    [file join syntax analyze-stmt.html] \
+    [file join syntax attach-stmt.html] \
+    [file join syntax begin-stmt.html] \
+    [file join syntax column-constraint.html] \
+    [file join syntax column-def.html] \
+    [file join syntax column-name-list.html] \
+    [file join syntax comment-syntax.html] \
+    [file join syntax commit-stmt.html] \
+    [file join syntax common-table-expression.html] \
+    [file join syntax compound-operator.html] \
+    [file join syntax compound-select-stmt.html] \
+    [file join syntax conflict-clause.html] \
+    [file join syntax create-index-stmt.html] \
+    [file join syntax create-table-stmt.html] \
+    [file join syntax create-trigger-stmt.html] \
+    [file join syntax create-view-stmt.html] \
+    [file join syntax create-virtual-table-stmt.html] \
+    [file join syntax cte-table-name.html] \
+    [file join syntax delete-stmt-limited.html] \
+    [file join syntax delete-stmt.html] \
+    [file join syntax detach-stmt.html] \
+    [file join syntax drop-index-stmt.html] \
+    [file join syntax drop-table-stmt.html] \
+    [file join syntax drop-trigger-stmt.html] \
+    [file join syntax drop-view-stmt.html] \
+    [file join syntax expr.html] \
+    [file join syntax factored-select-stmt.html] \
+    [file join syntax foreign-key-clause.html] \
+    [file join syntax indexed-column.html] \
+    [file join syntax insert-stmt.html] \
+    [file join syntax join-clause.html] \
+    [file join syntax join-constraint.html] \
+    [file join syntax join-operator.html] \
+    [file join syntax literal-value.html] \
+    [file join syntax numeric-literal.html] \
+    [file join syntax ordering-term.html] \
+    [file join syntax pragma-stmt.html] \
+    [file join syntax pragma-value.html] \
+    [file join syntax qualified-table-name.html] \
+    [file join syntax raise-function.html] \
+    [file join syntax recursive-cte.html] \
+    [file join syntax reindex-stmt.html] \
+    [file join syntax release-stmt.html] \
+    [file join syntax result-column.html] \
+    [file join syntax rollback-stmt.html] \
+    [file join syntax savepoint-stmt.html] \
+    [file join syntax select-core.html] \
+    [file join syntax select-stmt.html] \
+    [file join syntax signed-number.html] \
+    [file join syntax simple-select-stmt.html] \
+    [file join syntax sql-stmt-list.html] \
+    [file join syntax sql-stmt.html] \
+    [file join syntax table-constraint.html] \
+    [file join syntax table-or-subquery.html] \
+    [file join syntax type-name.html] \
+    [file join syntax update-stmt-limited.html] \
+    [file join syntax update-stmt.html] \
+    [file join syntax vacuum-stmt.html] \
+    [file join syntax with-clause.html]]
+
+###############################################################################
+
+set specialFileNames [list \
+    [file join vtab.html]]
+
+###############################################################################
+
+set path [file dirname [info script]]
+set rootUri https://www.sqlite.org
+set rootDirectory [file join $path]
+
+if {[info exists argv] && \
+    [lsearch -exact -- $argv --verbose] != -1} then {
+  set verbose true
+} else {
+  set verbose false
+}
+
+if {[info exists ::eagle_platform(frameworkVersion)] && \
+    [package vcompare $::eagle_platform(frameworkVersion) \
+        4.0.30319.42000] >= 0} then {
+  object invoke System.Net.ServicePointManager SecurityProtocol \
+      {Ssl3 Tls Tls12 Tls11}
+}
+
+foreach fileName $fileNames {
+  set uri [file join $rootUri $fileName]
+
+  if {[lsearch -exact -- $specialFileNames $fileName] != -1} then {
+    set directory [file join \
+        $rootDirectory Special Core [file dirname $fileName]]
+  } else {
+    set directory [file join \
+        $rootDirectory Extra Core [file dirname $fileName]]
+  }
+
+  set fileName [file normalize \
+      [file join $directory [file tail $fileName]]]
+
+  if {$verbose} then {
+    puts -nonewline stdout [appendArgs \
+        "Downloading \"" $uri "\" to \"" $fileName "\"... "]
+  }
+
+  catch {file delete $fileName}
+  uri download $uri $fileName
+
+  if {$verbose} then {
+    puts stdout <Ok>
+  }
+}

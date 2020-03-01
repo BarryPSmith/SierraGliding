@@ -1,0 +1,148 @@
+###############################################################################
+#
+# memory.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+#
+# NOTE: Report before test, before shutdown.
+#
+checkForSQLiteDirectories $test_channel
+getSQLiteHandleCounts $test_channel
+reportSQLiteResources $test_channel
+
+###############################################################################
+
+#
+# NOTE: Make sure that SQLite core library is completely shutdown prior to
+#       starting any of the tests in this file.
+#
+shutdownSQLite $test_channel
+
+###############################################################################
+
+#
+# NOTE: Report before test, after shutdown.
+#
+checkForSQLiteDirectories $test_channel
+getSQLiteHandleCounts $test_channel
+reportSQLiteResources $test_channel
+
+###############################################################################
+
+#
+# NOTE: This test is disabled for .NET Core due to its lack of support for
+#       performance counters.
+#
+runTest {test memory-1.1 {SQLiteDataReader memory testing} -setup {
+  setupMemoryCounters counter
+  reportMemoryCounters $test_channel counter initial
+
+  setupDb [set fileName $test_repository_file] \
+      "" "" "" "" "Read Only=True" false false
+} -body {
+  set connection [getDbConnection]
+
+  set sql "SELECT rid, rcvid, size, uuid, content FROM blob ORDER BY rid;"
+
+  set working(rowCount) 0
+  set working(contentLength) 0
+
+  set working(time) [time {
+    set dataReader [sql execute -execute reader -format datareader \
+        -alias $db $sql]
+
+    while {[$dataReader Read]} {
+      incr working(rowCount)
+
+      set working(rid) [$dataReader GetValue \
+          [$dataReader GetOrdinal rid]]
+
+      set working(rcvid) [$dataReader GetValue \
+          [$dataReader GetOrdinal rcvid]]
+
+      set working(size) [$dataReader GetValue \
+          [$dataReader GetOrdinal size]]
+
+      set working(uuid) [$dataReader GetValue \
+          [$dataReader GetOrdinal uuid]]
+
+      set working(content) [$dataReader -create -alias GetValue \
+          [$dataReader GetOrdinal content]]
+
+      incr working(contentLength) [$working(content) Length]
+
+      set working(counter1Cur) [$counter(1) RawValue]
+      set working(counter2Cur) [$counter(2) RawValue]
+      set working(counter3Cur) [$counter(3) RawValue]
+
+      if {![info exists working(counter1Max)] || \
+          $working(counter1Cur) > $working(counter1Max)} then {
+        set working(counter1Max) $working(counter1Cur)
+        reportMemoryCounters $test_channel counter current
+        cleanupMemory connection
+      }
+
+      if {![info exists working(counter2Max)] || \
+          $working(counter2Cur) > $working(counter2Max)} then {
+        set working(counter2Max) $working(counter2Cur)
+        reportMemoryCounters $test_channel counter current
+        cleanupMemory connection
+      }
+
+      if {![info exists working(counter3Max)] || \
+          $working(counter3Cur) > $working(counter3Max)} then {
+        set working(counter3Max) $working(counter3Cur)
+        reportMemoryCounters $test_channel counter current
+        cleanupMemory connection
+      }
+    }
+  }]
+
+  reportMemoryCounters $test_channel counter final
+
+  tputs $test_channel [appendArgs \
+      "---- found " $working(rowCount) " rows with " \
+      $working(contentLength) " bytes of content in " \
+      $working(time) \n]
+} -cleanup {
+  freeDbConnection
+
+  unset -nocomplain dataReader connection
+
+  cleanupDb $fileName db true false false
+
+  unset -nocomplain working sql counter db fileName
+} -constraints [fixConstraints {eagle command.object !dotNetCore windows\
+monoBug28 command.sql compile.DATA SQLite System.Data.SQLite\
+fossil_repository_file variable_test_repository_file}] -result {}}
+
+###############################################################################
+
+#
+# NOTE: Report after test.
+#
+checkForSQLiteDirectories $test_channel
+getSQLiteHandleCounts $test_channel
+reportSQLiteResources $test_channel
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

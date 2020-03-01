@@ -1,0 +1,143 @@
+###############################################################################
+#
+# tkt-aba4549801.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+runTest {test tkt-aba4549801-1.1 {SQLiteConnection.Changed event} -setup {
+  proc onChanged { sender e } {
+    set list [list]
+
+    if {[isObjectHandle $sender] && \
+        [regexp -- $::patterns(connection) $sender]} then {
+      set connectionString [$sender ConnectionString]
+
+      if {![string match "*\[/\\\]tkt-aba4549801-1.1.db\;*" \
+          $connectionString]} then {
+        #
+        # NOTE: This is a "stray" connection (i.e. it is not
+        #       part of this test); therefore, ignore events
+        #       for it.
+        #
+        return
+      }
+
+      lappend list 1
+    } else {
+      lappend list $sender
+    }
+
+    if {[string length $e] > 0} then {
+      lappend list [$e EventType]
+
+      set o1 [$e -objectflags NoDispose Transaction]
+
+      if {[isObjectHandle $o1] && \
+          [regexp -- $::patterns(transaction) $o1]} then {
+        lappend list 1
+      } else {
+        lappend list $o1
+      }
+
+      set o2 [$e -objectflags NoDispose Command]
+
+      if {[isObjectHandle $o2] && \
+          [regexp -- $::patterns(command) $o2]} then {
+        lappend list 1
+      } else {
+        lappend list $o2
+      }
+
+      set o3 [$e -objectflags NoDispose DataReader]
+
+      if {[isObjectHandle $o3] && \
+          [regexp -- $::patterns(dataReader) $o3]} then {
+        lappend list 1
+      } else {
+        lappend list $o3
+      }
+
+      set o4 [$e -objectflags NoDispose CriticalHandle]
+
+      if {[isObjectHandle $o4] && \
+          ([regexp -- $::patterns(handle1) $o4] || \
+           [regexp -- $::patterns(handle2) $o4])} then {
+        lappend list 1
+      } else {
+        lappend list $o4
+      }
+    }
+
+    lappend ::result $list
+  }
+
+  set patterns(connection) {^System#Data#SQLite#SQLiteConnection#\d+$}
+  set patterns(transaction) {^System#Data#SQLite#SQLiteTransaction#\d+$}
+  set patterns(command) {^System#Data#SQLite#SQLiteCommand#\d+$}
+  set patterns(dataReader) {^System#Data#SQLite#SQLiteDataReader#\d+$}
+  set patterns(handle1) {^System#Data#SQLite#SQLiteConnectionHandle#\d+$}
+  set patterns(handle2) {^System#Data#SQLite#SQLiteStatementHandle#\d+$}
+
+  set callback onChanged
+  object invoke System.Data.SQLite.SQLiteConnection add_Changed $callback
+} -body {
+  setupDb [set fileName tkt-aba4549801-1.1.db]
+
+  sql execute $db "CREATE TABLE t1(x);"
+
+  set transaction [sql transaction begin $db]
+
+  sql execute -execute reader $db \
+      "INSERT INTO t1(x) VALUES(1); SELECT x FROM t1;"
+
+  sql transaction commit $transaction
+
+  cleanupDb $fileName
+
+  set result
+} -cleanup {
+  object invoke System.Data.SQLite.SQLiteConnection remove_Changed $callback
+  catch {object removecallback $callback}
+
+  unset -nocomplain rows transaction result callback patterns db fileName
+
+  rename onChanged ""
+} -constraints {eagle command.object monoBug28 monoBug211 command.sql\
+compile.DATA SQLite System.Data.SQLite} -result {{1 Opening {} {} {} {}} {1\
+Closing {} {} {} {}} {1 Closed {} {} {} {}} {1 ConnectionString {} {} {} {}}\
+{{} NewCriticalHandle {} {} {} 1} {1 NewCommand {} 1 {} {}} {1 DisposingCommand\
+{} 1 {} {}} {1 Opened {} {} {} {}} {1 NewCommand {} 1 {} {}} {1 NewDataReader\
+{} 1 1 {}} {{} NewCriticalHandle {} {} {} 1} {1 DisposingDataReader {} 1 1 {}}\
+{1 ClosingDataReader {} 1 1 {}} {1 DisposingCommand {} 1 {} {}} {1 NewCommand\
+{} 1 {} {}} {1 NewDataReader {} 1 1 {}} {{} NewCriticalHandle {} {} {} 1} {1\
+DisposingDataReader {} 1 1 {}} {1 ClosingDataReader {} 1 1 {}} {1\
+DisposingCommand {} 1 {} {}} {1 NewCommand {} 1 {} {}} {1 NewDataReader {} 1 1\
+{}} {{} NewCriticalHandle {} {} {} 1} {1 DisposingDataReader {} 1 1 {}} {1\
+ClosingDataReader {} 1 1 {}} {1 DisposingCommand {} 1 {} {}} {1 NewTransaction\
+1 {} {} {}} {1 NewCommand {} 1 {} {}} {1 NewDataReader {} 1 1 {}} {{}\
+NewCriticalHandle {} {} {} 1} {{} NewCriticalHandle {} {} {} 1} {1\
+ClosingDataReader {} 1 1 {}} {1 DisposingCommand {} 1 {} {}} {1 NewCommand {} 1\
+{} {}} {1 NewDataReader {} 1 1 {}} {{} NewCriticalHandle {} {} {} 1} {1\
+DisposingDataReader {} 1 1 {}} {1 ClosingDataReader {} 1 1 {}} {1\
+DisposingCommand {} 1 {} {}} {1 Closing {} {} {} {}} {1 Closed {} {} {} {}}}}
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

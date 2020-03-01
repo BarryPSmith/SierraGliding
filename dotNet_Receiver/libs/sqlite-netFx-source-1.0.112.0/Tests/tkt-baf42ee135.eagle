@@ -1,0 +1,225 @@
+###############################################################################
+#
+# tkt-baf42ee135.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+runTest {test tkt-baf42ee135-1.1 {GetSchemaTable, empty table name} -setup {
+  setupDb [set fileName tkt-baf42ee135-1.1.db]
+} -body {
+  sql execute $db {
+    CREATE TABLE ""(x);
+  }
+
+  set dataReader [sql execute -execute reader -format datareader \
+      -alias $db "SELECT x FROM \"\";"]
+
+  set dataTable [$dataReader -alias GetSchemaTable]
+
+  getRowsFromDataTable $dataTable
+} -cleanup {
+  unset -nocomplain dataTable dataReader
+
+  cleanupDb $fileName
+
+  unset -nocomplain db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result {{{ColumnName x} {ColumnOrdinal 0} {ColumnSize\
+2147483647} NumericPrecision NumericScale {IsUnique False} {IsKey False}\
+BaseServerName {BaseCatalogName main} {BaseColumnName x} {BaseSchemaName\
+sqlite_default_schema} BaseTableName {DataType System.Object} {AllowDBNull\
+True} {ProviderType 13} {IsAliased False} {IsExpression False} {IsAutoIncrement\
+False} {IsRowVersion False} {IsHidden False} {IsLong False} {IsReadOnly False}\
+ProviderSpecificDataType DefaultValue DataTypeName {CollationType BINARY}}}}
+
+###############################################################################
+
+runTest {test tkt-baf42ee135-1.2 {GetSchemaTable, via VIEW} -setup {
+  setupDb [set fileName tkt-baf42ee135-1.2.db]
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(x);
+    CREATE VIEW v1 AS SELECT * FROM t1;
+  }
+
+  set dataReader [sql execute -execute reader -format datareader \
+      -alias $db "SELECT * FROM v1;"]
+
+  set dataTable [$dataReader -alias GetSchemaTable]
+
+  getRowsFromDataTable $dataTable
+} -cleanup {
+  unset -nocomplain dataTable dataReader
+
+  cleanupDb $fileName
+
+  unset -nocomplain db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result {{{ColumnName x} {ColumnOrdinal 0} {ColumnSize\
+2147483647} NumericPrecision NumericScale {IsUnique False} {IsKey False}\
+BaseServerName {BaseCatalogName main} {BaseColumnName x} {BaseSchemaName\
+sqlite_default_schema} {BaseTableName t1} {DataType System.Object} {AllowDBNull\
+True} {ProviderType 13} {IsAliased False} {IsExpression False} {IsAutoIncrement\
+False} {IsRowVersion False} {IsHidden False} {IsLong False} {IsReadOnly False}\
+ProviderSpecificDataType DefaultValue DataTypeName {CollationType BINARY}}}}
+
+###############################################################################
+
+runTest {test tkt-baf42ee135-1.3 {GetSchemaTable, via VIEW} -setup {
+  setupDb [set fileName tkt-baf42ee135-1.3.db]
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(x);
+    CREATE VIEW v1 AS SELECT * FROM t1;
+  }
+
+  set connection [getDbConnection]
+
+  set dataTable(1) [$connection -alias GetSchema COLUMNS]
+  set dataTable(2) [$connection -alias GetSchema VIEWCOLUMNS]
+
+  list [getRowsFromDataTable $dataTable(1)] \
+     [getRowsFromDataTable $dataTable(2)]
+} -cleanup {
+  unset -nocomplain dataTable
+
+  cleanupDb $fileName
+
+  freeDbConnection
+
+  unset -nocomplain connection db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result {{{{TABLE_CATALOG main} {TABLE_SCHEMA\
+sqlite_default_schema} {TABLE_NAME t1} {COLUMN_NAME x} COLUMN_GUID\
+COLUMN_PROPID {ORDINAL_POSITION 0} {COLUMN_HASDEFAULT False} COLUMN_DEFAULT\
+COLUMN_FLAGS {IS_NULLABLE True} {DATA_TYPE {}} TYPE_GUID\
+{CHARACTER_MAXIMUM_LENGTH 2147483647} CHARACTER_OCTET_LENGTH NUMERIC_PRECISION\
+NUMERIC_SCALE DATETIME_PRECISION CHARACTER_SET_CATALOG CHARACTER_SET_SCHEMA\
+CHARACTER_SET_NAME COLLATION_CATALOG COLLATION_SCHEMA {COLLATION_NAME BINARY}\
+DOMAIN_CATALOG DOMAIN_NAME DESCRIPTION {PRIMARY_KEY False} {EDM_TYPE {}}\
+{AUTOINCREMENT False} {UNIQUE False}} {{TABLE_CATALOG main} {TABLE_SCHEMA\
+sqlite_default_schema} {TABLE_NAME v1} {COLUMN_NAME x} COLUMN_GUID\
+COLUMN_PROPID {ORDINAL_POSITION 0} {COLUMN_HASDEFAULT False} COLUMN_DEFAULT\
+COLUMN_FLAGS {IS_NULLABLE True} {DATA_TYPE {}} TYPE_GUID\
+{CHARACTER_MAXIMUM_LENGTH 2147483647} CHARACTER_OCTET_LENGTH NUMERIC_PRECISION\
+NUMERIC_SCALE DATETIME_PRECISION CHARACTER_SET_CATALOG CHARACTER_SET_SCHEMA\
+CHARACTER_SET_NAME COLLATION_CATALOG COLLATION_SCHEMA {COLLATION_NAME BINARY}\
+DOMAIN_CATALOG DOMAIN_NAME DESCRIPTION {PRIMARY_KEY False} {EDM_TYPE {}}\
+{AUTOINCREMENT False} {UNIQUE False}}} {{{VIEW_CATALOG main} VIEW_SCHEMA\
+{VIEW_NAME v1} {VIEW_COLUMN_NAME x} {TABLE_CATALOG main} {TABLE_SCHEMA\
+sqlite_default_schema} {TABLE_NAME t1} {COLUMN_NAME x} {ORDINAL_POSITION 0}\
+{COLUMN_HASDEFAULT False} COLUMN_DEFAULT COLUMN_FLAGS {IS_NULLABLE True}\
+DATA_TYPE {CHARACTER_MAXIMUM_LENGTH 2147483647} NUMERIC_PRECISION NUMERIC_SCALE\
+DATETIME_PRECISION CHARACTER_SET_CATALOG CHARACTER_SET_SCHEMA\
+CHARACTER_SET_NAME COLLATION_CATALOG COLLATION_SCHEMA {COLLATION_NAME BINARY}\
+{PRIMARY_KEY False} {EDM_TYPE {}} {AUTOINCREMENT False} {UNIQUE False}}}}}
+
+###############################################################################
+
+runTest {test tkt-baf42ee135-1.4 {GetSchemaTable, recursive CTE} -setup {
+  setupDb [set fileName tkt-baf42ee135-1.4.db]
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(
+      c1 TEXT NOT NULL, c2 INTEGER NOT NULL, c3 INTEGER NOT NULL
+    );
+
+    CREATE VIEW v1 AS WITH RECURSIVE t2 AS(
+      SELECT c2, c3, c1 FROM t1 UNION ALL
+      SELECT c2 + 1, c3, c1 FROM t2 WHERE c2 < c3
+    ) SELECT DISTINCT c1 AS c1, c2 AS c4 FROM t2;
+  }
+
+  set connection [getDbConnection]
+
+  set dataTable(1) [$connection -alias GetSchema COLUMNS]
+  set dataTable(2) [$connection -alias GetSchema VIEWCOLUMNS]
+
+  list [getRowsFromDataTable $dataTable(1)] \
+      [getRowsFromDataTable $dataTable(2)]
+} -cleanup {
+  unset -nocomplain dataTable
+
+  cleanupDb $fileName
+
+  freeDbConnection
+
+  unset -nocomplain connection db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result {{{{TABLE_CATALOG main} {TABLE_SCHEMA\
+sqlite_default_schema} {TABLE_NAME t1} {COLUMN_NAME c1} COLUMN_GUID\
+COLUMN_PROPID {ORDINAL_POSITION 0} {COLUMN_HASDEFAULT False} COLUMN_DEFAULT\
+COLUMN_FLAGS {IS_NULLABLE False} {DATA_TYPE text} TYPE_GUID\
+{CHARACTER_MAXIMUM_LENGTH 2147483647} CHARACTER_OCTET_LENGTH NUMERIC_PRECISION\
+NUMERIC_SCALE DATETIME_PRECISION CHARACTER_SET_CATALOG CHARACTER_SET_SCHEMA\
+CHARACTER_SET_NAME COLLATION_CATALOG COLLATION_SCHEMA {COLLATION_NAME BINARY}\
+DOMAIN_CATALOG DOMAIN_NAME DESCRIPTION {PRIMARY_KEY False} {EDM_TYPE nvarchar}\
+{AUTOINCREMENT False} {UNIQUE False}} {{TABLE_CATALOG main} {TABLE_SCHEMA\
+sqlite_default_schema} {TABLE_NAME t1} {COLUMN_NAME c2} COLUMN_GUID\
+COLUMN_PROPID {ORDINAL_POSITION 1} {COLUMN_HASDEFAULT False} COLUMN_DEFAULT\
+COLUMN_FLAGS {IS_NULLABLE False} {DATA_TYPE integer} TYPE_GUID\
+{CHARACTER_MAXIMUM_LENGTH 8} CHARACTER_OCTET_LENGTH {NUMERIC_PRECISION 19}\
+{NUMERIC_SCALE 0} DATETIME_PRECISION CHARACTER_SET_CATALOG CHARACTER_SET_SCHEMA\
+CHARACTER_SET_NAME COLLATION_CATALOG COLLATION_SCHEMA {COLLATION_NAME BINARY}\
+DOMAIN_CATALOG DOMAIN_NAME DESCRIPTION {PRIMARY_KEY False} {EDM_TYPE integer}\
+{AUTOINCREMENT False} {UNIQUE False}} {{TABLE_CATALOG main} {TABLE_SCHEMA\
+sqlite_default_schema} {TABLE_NAME t1} {COLUMN_NAME c3} COLUMN_GUID\
+COLUMN_PROPID {ORDINAL_POSITION 2} {COLUMN_HASDEFAULT False} COLUMN_DEFAULT\
+COLUMN_FLAGS {IS_NULLABLE False} {DATA_TYPE integer} TYPE_GUID\
+{CHARACTER_MAXIMUM_LENGTH 8} CHARACTER_OCTET_LENGTH {NUMERIC_PRECISION 19}\
+{NUMERIC_SCALE 0} DATETIME_PRECISION CHARACTER_SET_CATALOG CHARACTER_SET_SCHEMA\
+CHARACTER_SET_NAME COLLATION_CATALOG COLLATION_SCHEMA {COLLATION_NAME BINARY}\
+DOMAIN_CATALOG DOMAIN_NAME DESCRIPTION {PRIMARY_KEY False} {EDM_TYPE integer}\
+{AUTOINCREMENT False} {UNIQUE False}} {{TABLE_CATALOG main} {TABLE_SCHEMA\
+sqlite_default_schema} {TABLE_NAME v1} {COLUMN_NAME c1} COLUMN_GUID\
+COLUMN_PROPID {ORDINAL_POSITION 0} {COLUMN_HASDEFAULT False} COLUMN_DEFAULT\
+COLUMN_FLAGS {IS_NULLABLE True} {DATA_TYPE text} TYPE_GUID\
+{CHARACTER_MAXIMUM_LENGTH 2147483647} CHARACTER_OCTET_LENGTH NUMERIC_PRECISION\
+NUMERIC_SCALE DATETIME_PRECISION CHARACTER_SET_CATALOG CHARACTER_SET_SCHEMA\
+CHARACTER_SET_NAME COLLATION_CATALOG COLLATION_SCHEMA COLLATION_NAME\
+DOMAIN_CATALOG DOMAIN_NAME DESCRIPTION {PRIMARY_KEY False} {EDM_TYPE nvarchar}\
+{AUTOINCREMENT False} {UNIQUE False}} {{TABLE_CATALOG main} {TABLE_SCHEMA\
+sqlite_default_schema} {TABLE_NAME v1} {COLUMN_NAME c4} COLUMN_GUID\
+COLUMN_PROPID {ORDINAL_POSITION 1} {COLUMN_HASDEFAULT False} COLUMN_DEFAULT\
+COLUMN_FLAGS {IS_NULLABLE True} {DATA_TYPE {}} TYPE_GUID\
+{CHARACTER_MAXIMUM_LENGTH 2147483647} CHARACTER_OCTET_LENGTH NUMERIC_PRECISION\
+NUMERIC_SCALE DATETIME_PRECISION CHARACTER_SET_CATALOG CHARACTER_SET_SCHEMA\
+CHARACTER_SET_NAME COLLATION_CATALOG COLLATION_SCHEMA COLLATION_NAME\
+DOMAIN_CATALOG DOMAIN_NAME DESCRIPTION {PRIMARY_KEY False} {EDM_TYPE {}}\
+{AUTOINCREMENT False} {UNIQUE False}}} {{{VIEW_CATALOG main} VIEW_SCHEMA\
+{VIEW_NAME v1} {VIEW_COLUMN_NAME c1} {TABLE_CATALOG main} {TABLE_SCHEMA\
+sqlite_default_schema} {TABLE_NAME t2} {COLUMN_NAME c1} {ORDINAL_POSITION 0}\
+{COLUMN_HASDEFAULT False} COLUMN_DEFAULT COLUMN_FLAGS {IS_NULLABLE True}\
+{DATA_TYPE TEXT} {CHARACTER_MAXIMUM_LENGTH 2147483647} NUMERIC_PRECISION\
+NUMERIC_SCALE DATETIME_PRECISION CHARACTER_SET_CATALOG CHARACTER_SET_SCHEMA\
+CHARACTER_SET_NAME COLLATION_CATALOG COLLATION_SCHEMA COLLATION_NAME\
+{PRIMARY_KEY False} {EDM_TYPE nvarchar} {AUTOINCREMENT False} {UNIQUE False}}\
+{{VIEW_CATALOG main} VIEW_SCHEMA {VIEW_NAME v1} {VIEW_COLUMN_NAME c4}\
+{TABLE_CATALOG main} {TABLE_SCHEMA sqlite_default_schema} TABLE_NAME\
+COLUMN_NAME {ORDINAL_POSITION 1} {COLUMN_HASDEFAULT False} COLUMN_DEFAULT\
+COLUMN_FLAGS {IS_NULLABLE True} DATA_TYPE {CHARACTER_MAXIMUM_LENGTH 2147483647}\
+NUMERIC_PRECISION NUMERIC_SCALE DATETIME_PRECISION CHARACTER_SET_CATALOG\
+CHARACTER_SET_SCHEMA CHARACTER_SET_NAME COLLATION_CATALOG COLLATION_SCHEMA\
+COLLATION_NAME {PRIMARY_KEY False} {EDM_TYPE {}} {AUTOINCREMENT False} {UNIQUE\
+False}}}}}
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

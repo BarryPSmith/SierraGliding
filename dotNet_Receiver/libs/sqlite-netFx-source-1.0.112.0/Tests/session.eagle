@@ -1,0 +1,1544 @@
+###############################################################################
+#
+# session.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+#
+# HACK: When running on Mono, always insert a "-parametertypes" option when
+#       calling method overloads that require a Stream, due to their broken
+#       (as of 5.0) implementation of the Type.IsAssignableFrom method.
+#       Without this option, the Eagle core marshaller will select the wrong
+#       method overload, which will cause all tests that use a stream-based
+#       method overload to fail.
+#
+proc useStreamMaybeWithMono { args } {
+  if {[isMono]} then {
+    set args [linsert $args 1 -parametertypes [list System.IO.Stream]]
+  }
+
+  return [uplevel 1 $args]
+}
+
+###############################################################################
+
+proc getSomeText { random count } {
+  set items [list \
+      Alpha Bravo Charlie Delta Echo Foxtrot Golf Hotel \
+      India Juliet Kilo Lima Mike November Oscar Papa \
+      Quebec Romeo Sierra Tango Uniform Victor Whiskey X-ray \
+      Yankee Zulu]
+
+  if {!$random} then {
+    variable some_text_index
+
+    if {![info exists some_text_index]} then {
+      set some_text_index 0
+    }
+  }
+
+  set length [llength $items]
+  set result [list]
+
+  for {set i 0} {$i < $count} {incr i} {
+    if {$random} then {
+      set item [lindex $items [expr {int(rand() * $length)}]]
+    } else {
+      set item [lindex $items $some_text_index]
+      incr some_text_index
+
+      if {$some_text_index >= $length} then {
+        set some_text_index 0
+      }
+    }
+
+    lappend result $item
+  }
+
+  return $result
+}
+
+###############################################################################
+
+proc cleanupSomeText {} {
+  variable some_text_index
+  unset -nocomplain some_text_index
+}
+
+###############################################################################
+
+proc forDisplay { object member } {
+  set isArray false
+
+  if {[isObjectHandle $object] && $object ne "null"} then {
+    set value [object invoke -create -- $object $member]
+
+    if {[isObjectHandle $value] && $value ne "null"} then {
+      set isArray [object invoke -- $value GetType.IsArray]
+    }
+  } else {
+    set value null
+  }
+
+  if {$isArray} then {
+    return [object invoke -flags +NonPublic \
+        -parametertypes Array System.Data.SQLite.HelperMethods \
+        ToDisplayString $value]
+  } else {
+    return [object invoke -flags +NonPublic \
+        System.Data.SQLite.HelperMethods ToDisplayString $value]
+  }
+}
+
+###############################################################################
+
+proc createMemoryChangeSetForConnection { connection rawData flags } {
+  if {[isObjectHandle $connection] && $connection ne "null"} then {
+    return [$connection -alias CreateChangeSet $rawData $flags]
+  }
+
+  return null
+}
+
+###############################################################################
+
+proc createMemoryChangeSetForObject { object {patch false} } {
+  if {[isObjectHandle $object] && $object ne "null"} then {
+    set byteArray null
+
+    if {$patch} then {
+      $object CreatePatchSet byteArray
+    } else {
+      $object CreateChangeSet byteArray
+    }
+
+    set rawData [createByteArray [arrayToList byteArray]]
+    object removeref $rawData
+
+    return $rawData
+  }
+
+  return null
+}
+
+###############################################################################
+
+proc writeRawDataToFile { fileName rawData } {
+  if {[isObjectHandle $rawData] && $rawData ne "null"} then {
+    set stream [object create -alias \
+        System.IO.FileStream $fileName Create Write]
+
+    $stream Write $rawData 0 [$rawData Length]
+    $stream Flush; $stream Close
+
+    return true
+  }
+
+  return false
+}
+
+###############################################################################
+
+proc openStreamChangeSetForConnection {
+        connection inputFileName outputFileName flags {varName ""} } {
+  if {[isObjectHandle $connection] && $connection ne "null"} then {
+    if {[string length $varName] > 0} then {
+      upvar 1 $varName state
+    }
+
+    if {[string length $inputFileName] > 0} then {
+      set state(inputStream) [object create -alias \
+          System.IO.FileStream $inputFileName Open Read]
+    } else {
+      set state(inputStream) null
+    }
+
+    if {[string length $outputFileName] > 0} then {
+      set state(outputStream) [object create -alias \
+          System.IO.FileStream $outputFileName Create Write]
+    } else {
+      set state(outputStream) null
+    }
+
+    set state(changeSet) [$connection -alias \
+        CreateChangeSet $state(inputStream) $state(outputStream) \
+        $flags]
+
+    return true
+  }
+
+  return false
+}
+
+###############################################################################
+
+proc addStreamChangeSetForObject { object fileName } {
+  if {[isObjectHandle $object] && $object ne "null"} then {
+    set stream [object create -alias \
+        System.IO.FileStream $fileName Open Read]
+
+    useStreamMaybeWithMono $object AddChangeSet $stream
+
+    return true
+  }
+
+  return false
+}
+
+###############################################################################
+
+proc writeStreamChangeSetForObject { object fileName {patch false} } {
+  if {[isObjectHandle $object] && $object ne "null"} then {
+    set stream [object create -alias \
+        System.IO.FileStream $fileName Create Write]
+
+    if {$patch} then {
+      useStreamMaybeWithMono $object CreatePatchSet $stream
+    } else {
+      useStreamMaybeWithMono $object CreateChangeSet $stream
+    }
+
+    $stream Flush; $stream Close
+
+    return true
+  }
+
+  return false
+}
+
+###############################################################################
+
+proc changeSetFileToString { connection fileName flags includeValues } {
+  set result [list]
+
+  if {[isObjectHandle $connection] && $connection ne "null"} then {
+    if {[openStreamChangeSetForConnection \
+        $connection $fileName "" $flags state]} then {
+      return [changeSetToString $state(changeSet) $includeValues]
+    }
+  }
+
+  return $result
+}
+
+###############################################################################
+
+proc metadataItemToString { item includeValues } {
+  set result [list]
+
+  if {[isObjectHandle $item] && $item ne "null"} then {
+    lappend result TableName [$item TableName]
+    lappend result NumberOfColumns [$item NumberOfColumns]
+    lappend result OperationCode [$item OperationCode]
+    lappend result Indirect [$item Indirect]
+
+    lappend result PrimaryKeyColumns \
+        [forDisplay $item PrimaryKeyColumns]
+
+    if {$includeValues} then {
+      set numberOfColumns [$item NumberOfColumns]
+
+      for {set index 0} {$index < $numberOfColumns} {incr index} {
+        set oldValue [$item GetOldValue $index]
+
+        lappend result OldValue $index \
+            [forDisplay $oldValue GetObject]
+
+        set newValue [$item GetNewValue $index]
+
+        lappend result NewValue $index \
+            [forDisplay $newValue GetObject]
+
+        set conflictValue [$item GetConflictValue $index]
+
+        lappend result ConflictValue $index \
+            [forDisplay $conflictValue GetObject]
+      }
+    }
+  }
+
+  return $result
+}
+
+###############################################################################
+
+proc changeSetToString { changeSet includeValues } {
+  set result [list]
+
+  if {[isObjectHandle $changeSet] && $changeSet ne "null"} then {
+    object foreach -alias item $changeSet {
+      lappend result [metadataItemToString $item $includeValues]
+    }
+  }
+
+  return $result
+}
+
+###############################################################################
+
+proc matchSession { connection session flags expr } {
+  if {[isObjectHandle $session] && $session ne "null"} then {
+    if {![$session IsEmpty]} then {
+      set rawData [createMemoryChangeSetForObject $session]
+      object removeref $rawData
+
+      if {[isObjectHandle $rawData] && $rawData ne "null"} then {
+        return [matchChangeSet [set changeSet \
+            [$connection -alias CreateChangeSet $rawData $flags]] $expr]
+      }
+    }
+  }
+
+  return false
+}
+
+###############################################################################
+
+proc matchChangeSet { changeSet expr } {
+  if {[isObjectHandle $changeSet] && $changeSet ne "null"} then {
+    object foreach -alias item $changeSet {
+      if {[expr $expr]} then {return true}
+    }
+  }
+
+  return false
+}
+
+###############################################################################
+
+proc createTheSchema { db databaseName } {
+  sql execute $db [subst {
+    CREATE TABLE ${databaseName}.t1(x INTEGER PRIMARY KEY, y TEXT);
+    CREATE TABLE ${databaseName}.t2(x INTEGER PRIMARY KEY, y TEXT);
+  }]
+}
+
+###############################################################################
+
+proc makeSomeChanges { db table types {rowId ""} {count 5} } {
+  foreach type $types {
+    switch -nocase -- $type {
+      insert {
+        set text [appendArgs "inserted: " [getSomeText false $count]]
+
+        if {[string is integer -strict $rowId]} then {
+          sql execute $db [subst {
+            INSERT INTO ${table}(x, y) VALUES(?, ?);
+          }] [list param1 Int32 $rowId] [list param2 String $text]
+        } else {
+          sql execute $db [subst {
+            INSERT INTO ${table}(y) VALUES(?);
+          }] [list param1 String $text]
+        }
+      }
+      update {
+        set text [appendArgs "updated: " [getSomeText false $count]]
+
+        if {[string is integer -strict $rowId]} then {
+          sql execute $db [subst {
+            UPDATE ${table} SET y = ? WHERE x = ?;
+          }] [list param1 String $text] [list param2 Int32 $rowId]
+        } else {
+          sql execute $db [subst {
+            UPDATE ${table} SET y = ? WHERE x NOT IN (
+              (SELECT MIN(x) FROM ${table}), (SELECT MAX(x) FROM ${table})
+            );
+          }] [list param1 String $text]
+        }
+      }
+      delete {
+        if {[string is integer -strict $rowId]} then {
+          sql execute $db [subst {
+            DELETE FROM ${table} WHERE x = ?;
+          }] [list param1 Int32 $rowId]
+        } else {
+          sql execute $db [subst {
+            DELETE FROM ${table} WHERE x = (SELECT MIN(x) FROM ${table});
+          }]
+        }
+      }
+    }
+  }
+}
+
+###############################################################################
+
+proc captureChangeSetRawData {
+        connection databaseName tableName script {patch false} } {
+  if {![isObjectHandle $connection] || $connection eq "null"} then {
+    error "connection is invalid"
+  }
+
+  set session [$connection -alias CreateSession $databaseName]
+  $session AttachTable $tableName
+
+  if {![isObjectHandle $session] || $session eq "null"} then {
+    error "cannot create session"
+  }
+
+  catch {uplevel 1 $script}
+  set rawData [createMemoryChangeSetForObject $session $patch]
+  object removeref $rawData
+
+  return $rawData
+}
+
+###############################################################################
+
+proc captureChangeSetFile {
+        connection databaseName tableName script fileName {patch false} } {
+  if {![isObjectHandle $connection] || $connection eq "null"} then {
+    error "connection is invalid"
+  }
+
+  set session [$connection -alias CreateSession $databaseName]
+  $session AttachTable $tableName
+
+  if {![isObjectHandle $session] || $session eq "null"} then {
+    error "cannot create session"
+  }
+
+  catch {uplevel 1 $script}
+  writeStreamChangeSetForObject $session $fileName $patch
+}
+
+###############################################################################
+
+proc getChangeSetFileName { {suffix ""} } {
+  return [file join \
+      [getTemporaryDirectory] [appendArgs changes $suffix .bin]]
+}
+
+###############################################################################
+
+proc arrayToList { varName } {
+  set result [list]
+
+  upvar 1 $varName array
+
+  if {[array exists array]} then {
+    foreach name [lsort -integer [array names array]] {
+      lappend result $array($name)
+    }
+  }
+
+  return $result
+}
+
+###############################################################################
+
+proc createByteArray { list } {
+  set length [llength $list]
+  set result [object create -alias System.Byte\[\] $length]
+
+  for {set index 0} {$index < $length} {incr index} {
+    set element [lindex $list $index]
+    set value [object invoke -create Byte Parse $element]
+    $result SetValue $value $index
+  }
+
+  return $result
+}
+
+###############################################################################
+
+proc tableFilterCallbackT1 { clientData name } {
+  lappend ::callbackResults [object invoke -create \
+      System.Boolean Parse [expr {[$name ToString] in [list t1]}]]
+
+  return [lindex $::callbackResults end]
+}
+
+###############################################################################
+
+proc conflictCallback { clientData type item } {
+  set result Abort
+
+  if {[isObjectHandle $item] && $item ne "null"} then {
+    set result Omit
+
+    if {[$item OperationCode] ne "Delete"} then {
+      if {[isObjectHandle $type] && $type ne "null" && \
+          [$type ToString] in [list Data Conflict]} then {
+        set result Replace
+      }
+    }
+  }
+
+  lappend ::callbackResults [object invoke -create Enum Parse \
+      System.Data.SQLite.SQLiteChangeSetConflictResult $result false]
+
+  return [lindex $::callbackResults end]
+}
+
+###############################################################################
+
+runTest {test session-1.1 {basic extension usage} -setup {
+  setupDb [set fileName(0) session-1.1.db]
+
+  set fileName(1) [getChangeSetFileName 1]
+  set fileName(2) [getChangeSetFileName 2]
+
+  cleanupSomeText
+} -body {
+  createTheSchema $db main
+  makeSomeChanges $db t1 [list insert insert]
+
+  set connection [getDbConnection]
+
+  set session [$connection -alias CreateSession main]
+  $session AttachTable null
+
+  makeSomeChanges $db t1 [list insert update delete]
+
+  set rawData [createMemoryChangeSetForObject $session]
+  object removeref $rawData
+
+  writeRawDataToFile $fileName(1) $rawData
+  writeStreamChangeSetForObject $session $fileName(2)
+  openStreamChangeSetForConnection $connection $fileName(2) "" None state
+
+  list [expr {[file size $fileName(1)] > 0}] \
+      [string equal [readFile $fileName(1)] [readFile $fileName(2)]] \
+      [changeSetToString $state(changeSet) true]
+} -cleanup {
+  cleanupSomeText
+
+  unset -nocomplain state rawData byteArray session
+
+  freeDbConnection
+
+  unset -nocomplain connection
+
+  cleanupFile $fileName(2)
+  cleanupFile $fileName(1)
+
+  cleanupDb $fileName(0)
+
+  unset -nocomplain db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_SESSION_EXTENSION} -result {True True\
+{{TableName t1 NumberOfColumns 2 OperationCode Delete Indirect False\
+PrimaryKeyColumns {[True, False]} OldValue 0 1 NewValue 0 <nullObject>\
+ConflictValue 0 <nullObject> OldValue 1 {"inserted: Alpha Bravo Charlie Delta\
+Echo"} NewValue 1 <nullObject> ConflictValue 1 <nullObject>} {TableName t1\
+NumberOfColumns 2 OperationCode Update Indirect False PrimaryKeyColumns {[True,\
+False]} OldValue 0 2 NewValue 0 <nullObject> ConflictValue 0 <nullObject>\
+OldValue 1 {"inserted: Foxtrot Golf Hotel India Juliet"} NewValue 1 {"updated:\
+Papa Quebec Romeo Sierra Tango"} ConflictValue 1 <nullObject>} {TableName t1\
+NumberOfColumns 2 OperationCode Insert Indirect False PrimaryKeyColumns {[True,\
+False]} OldValue 0 <nullObject> NewValue 0 3 ConflictValue 0 <nullObject>\
+OldValue 1 <nullObject> NewValue 1 {"inserted: Kilo Lima Mike November Oscar"}\
+ConflictValue 1 <nullObject>}}}}
+
+###############################################################################
+
+runTest {test session-1.2.1 {change set read/write/invert (memory)} -setup {
+  setupDb [set fileName session-1.2.1.db]
+
+  cleanupSomeText
+} -body {
+  createTheSchema $db main
+  makeSomeChanges $db t1 [list insert insert insert]
+
+  set connection [getDbConnection]
+
+  set session [$connection -alias CreateSession main]
+  $session AttachTable null
+
+  makeSomeChanges $db t1 [list insert update delete]
+
+  set rawData [createMemoryChangeSetForObject $session]
+  object removeref $rawData
+
+  set changeSet(1) \
+      [createMemoryChangeSetForConnection $connection $rawData None]
+
+  object removeref $changeSet(1)
+
+  set changeSet(2) [$changeSet(1) -alias Invert]
+
+  list [changeSetToString $changeSet(2) true]
+} -cleanup {
+  cleanupSomeText
+
+  unset -nocomplain changeSet rawData byteArray session
+
+  freeDbConnection
+
+  unset -nocomplain connection
+
+  cleanupDb $fileName
+
+  unset -nocomplain db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_SESSION_EXTENSION} -result \
+{{{TableName t1 NumberOfColumns 2 OperationCode Insert Indirect False\
+PrimaryKeyColumns {[True, False]} OldValue 0 <nullObject> NewValue 0 1\
+ConflictValue 0 <nullObject> OldValue 1 <nullObject> NewValue 1 {"inserted:\
+Alpha Bravo Charlie Delta Echo"} ConflictValue 1 <nullObject>} {TableName t1\
+NumberOfColumns 2 OperationCode Update Indirect False PrimaryKeyColumns {[True,\
+False]} OldValue 0 2 NewValue 0 <nullObject> ConflictValue 0 <nullObject>\
+OldValue 1 {"updated: Uniform Victor Whiskey X-ray Yankee"} NewValue 1\
+{"inserted: Foxtrot Golf Hotel India Juliet"} ConflictValue 1 <nullObject>}\
+{TableName t1 NumberOfColumns 2 OperationCode Update Indirect False\
+PrimaryKeyColumns {[True, False]} OldValue 0 3 NewValue 0 <nullObject>\
+ConflictValue 0 <nullObject> OldValue 1 {"updated: Uniform Victor Whiskey X-ray\
+Yankee"} NewValue 1 {"inserted: Kilo Lima Mike November Oscar"} ConflictValue 1\
+<nullObject>} {TableName t1 NumberOfColumns 2 OperationCode Delete Indirect\
+False PrimaryKeyColumns {[True, False]} OldValue 0 4 NewValue 0 <nullObject>\
+ConflictValue 0 <nullObject> OldValue 1 {"inserted: Papa Quebec Romeo Sierra\
+Tango"} NewValue 1 <nullObject> ConflictValue 1 <nullObject>}}}}
+
+###############################################################################
+
+runTest {test session-1.2.2 {change set read/write/invert (stream)} -setup {
+  setupDb [set fileName(0) session-1.2.2.db]
+
+  set fileName(1) [getChangeSetFileName 1]
+  set fileName(2) [getChangeSetFileName 2]
+
+  cleanupSomeText
+} -body {
+  createTheSchema $db main
+  makeSomeChanges $db t1 [list insert insert insert]
+
+  set connection [getDbConnection]
+
+  set session [$connection -alias CreateSession main]
+  $session AttachTable null
+
+  makeSomeChanges $db t1 [list insert update delete]
+
+  writeStreamChangeSetForObject $session $fileName(1)
+
+  openStreamChangeSetForConnection \
+      $connection $fileName(1) $fileName(2) None state
+
+  $state(changeSet) -alias Invert; unset state
+  list [changeSetFileToString $connection $fileName(2) None true]
+} -cleanup {
+  cleanupSomeText
+
+  unset -nocomplain state byteArray session
+
+  freeDbConnection
+
+  unset -nocomplain connection
+
+  cleanupFile $fileName(2)
+  cleanupFile $fileName(1)
+
+  cleanupDb $fileName(0)
+
+  unset -nocomplain db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_SESSION_EXTENSION} -result \
+{{{TableName t1 NumberOfColumns 2 OperationCode Insert Indirect False\
+PrimaryKeyColumns {[True, False]} OldValue 0 <nullObject> NewValue 0 1\
+ConflictValue 0 <nullObject> OldValue 1 <nullObject> NewValue 1 {"inserted:\
+Alpha Bravo Charlie Delta Echo"} ConflictValue 1 <nullObject>} {TableName t1\
+NumberOfColumns 2 OperationCode Update Indirect False PrimaryKeyColumns {[True,\
+False]} OldValue 0 2 NewValue 0 <nullObject> ConflictValue 0 <nullObject>\
+OldValue 1 {"updated: Uniform Victor Whiskey X-ray Yankee"} NewValue 1\
+{"inserted: Foxtrot Golf Hotel India Juliet"} ConflictValue 1 <nullObject>}\
+{TableName t1 NumberOfColumns 2 OperationCode Update Indirect False\
+PrimaryKeyColumns {[True, False]} OldValue 0 3 NewValue 0 <nullObject>\
+ConflictValue 0 <nullObject> OldValue 1 {"updated: Uniform Victor Whiskey X-ray\
+Yankee"} NewValue 1 {"inserted: Kilo Lima Mike November Oscar"} ConflictValue 1\
+<nullObject>} {TableName t1 NumberOfColumns 2 OperationCode Delete Indirect\
+False PrimaryKeyColumns {[True, False]} OldValue 0 4 NewValue 0 <nullObject>\
+ConflictValue 0 <nullObject> OldValue 1 {"inserted: Papa Quebec Romeo Sierra\
+Tango"} NewValue 1 <nullObject> ConflictValue 1 <nullObject>}}}}
+
+###############################################################################
+
+runTest {test session-1.2.3 {change set read/write/invert (memory)} -setup {
+  setupDb [set fileName session-1.2.3.db]
+
+  cleanupSomeText
+} -body {
+  createTheSchema $db main
+  makeSomeChanges $db t1 [list insert insert insert]
+
+  set connection [getDbConnection]
+
+  set session [$connection -alias CreateSession main]
+  $session AttachTable null
+
+  makeSomeChanges $db t1 [list insert update delete]
+
+  set rawData [createMemoryChangeSetForObject $session]
+  object removeref $rawData
+
+  set changeSet(1) \
+      [createMemoryChangeSetForConnection $connection $rawData Invert]
+
+  object removeref $changeSet(1)
+
+  list [changeSetToString $changeSet(1) true]
+} -cleanup {
+  cleanupSomeText
+
+  unset -nocomplain changeSet rawData byteArray session
+
+  freeDbConnection
+
+  unset -nocomplain connection
+
+  cleanupDb $fileName
+
+  unset -nocomplain db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_SESSION_EXTENSION} -result \
+{{{TableName t1 NumberOfColumns 2 OperationCode Insert Indirect False\
+PrimaryKeyColumns {[True, False]} OldValue 0 <nullObject> NewValue 0 1\
+ConflictValue 0 <nullObject> OldValue 1 <nullObject> NewValue 1 {"inserted:\
+Alpha Bravo Charlie Delta Echo"} ConflictValue 1 <nullObject>} {TableName t1\
+NumberOfColumns 2 OperationCode Update Indirect False PrimaryKeyColumns {[True,\
+False]} OldValue 0 2 NewValue 0 <nullObject> ConflictValue 0 <nullObject>\
+OldValue 1 {"updated: Uniform Victor Whiskey X-ray Yankee"} NewValue 1\
+{"inserted: Foxtrot Golf Hotel India Juliet"} ConflictValue 1 <nullObject>}\
+{TableName t1 NumberOfColumns 2 OperationCode Update Indirect False\
+PrimaryKeyColumns {[True, False]} OldValue 0 3 NewValue 0 <nullObject>\
+ConflictValue 0 <nullObject> OldValue 1 {"updated: Uniform Victor Whiskey X-ray\
+Yankee"} NewValue 1 {"inserted: Kilo Lima Mike November Oscar"} ConflictValue 1\
+<nullObject>} {TableName t1 NumberOfColumns 2 OperationCode Delete Indirect\
+False PrimaryKeyColumns {[True, False]} OldValue 0 4 NewValue 0 <nullObject>\
+ConflictValue 0 <nullObject> OldValue 1 {"inserted: Papa Quebec Romeo Sierra\
+Tango"} NewValue 1 <nullObject> ConflictValue 1 <nullObject>}}}}
+
+###############################################################################
+
+runTest {test session-1.2.4 {change set read/write/invert (stream)} -setup {
+  setupDb [set fileName(0) session-1.2.4.db]
+
+  set fileName(1) [getChangeSetFileName 1]
+
+  cleanupSomeText
+} -body {
+  createTheSchema $db main
+  makeSomeChanges $db t1 [list insert insert insert]
+
+  set connection [getDbConnection]
+
+  set session [$connection -alias CreateSession main]
+  $session AttachTable null
+
+  makeSomeChanges $db t1 [list insert update delete]
+
+  writeStreamChangeSetForObject $session $fileName(1)
+
+  list [changeSetFileToString $connection $fileName(1) Invert true]
+} -cleanup {
+  cleanupSomeText
+
+  unset -nocomplain state byteArray session
+
+  freeDbConnection
+
+  unset -nocomplain connection
+
+  cleanupFile $fileName(1)
+
+  cleanupDb $fileName(0)
+
+  unset -nocomplain db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_SESSION_EXTENSION} -result \
+{{{TableName t1 NumberOfColumns 2 OperationCode Insert Indirect False\
+PrimaryKeyColumns {[True, False]} OldValue 0 <nullObject> NewValue 0 1\
+ConflictValue 0 <nullObject> OldValue 1 <nullObject> NewValue 1 {"inserted:\
+Alpha Bravo Charlie Delta Echo"} ConflictValue 1 <nullObject>} {TableName t1\
+NumberOfColumns 2 OperationCode Update Indirect False PrimaryKeyColumns {[True,\
+False]} OldValue 0 2 NewValue 0 <nullObject> ConflictValue 0 <nullObject>\
+OldValue 1 {"updated: Uniform Victor Whiskey X-ray Yankee"} NewValue 1\
+{"inserted: Foxtrot Golf Hotel India Juliet"} ConflictValue 1 <nullObject>}\
+{TableName t1 NumberOfColumns 2 OperationCode Update Indirect False\
+PrimaryKeyColumns {[True, False]} OldValue 0 3 NewValue 0 <nullObject>\
+ConflictValue 0 <nullObject> OldValue 1 {"updated: Uniform Victor Whiskey X-ray\
+Yankee"} NewValue 1 {"inserted: Kilo Lima Mike November Oscar"} ConflictValue 1\
+<nullObject>} {TableName t1 NumberOfColumns 2 OperationCode Delete Indirect\
+False PrimaryKeyColumns {[True, False]} OldValue 0 4 NewValue 0 <nullObject>\
+ConflictValue 0 <nullObject> OldValue 1 {"inserted: Papa Quebec Romeo Sierra\
+Tango"} NewValue 1 <nullObject> ConflictValue 1 <nullObject>}}}}
+
+###############################################################################
+
+runTest {test session-1.3 {enabled/disabled state} -setup {
+  setupDb [set fileName session-1.3.db]
+
+  cleanupSomeText
+} -body {
+  createTheSchema $db main
+  makeSomeChanges $db t1 [list insert]
+
+  set connection [getDbConnection]
+
+  set session [$connection -alias CreateSession main]
+  lappend result IsEnabled [$session IsEnabled]
+
+  $session AttachTable null
+  lappend result IsEnabled [$session IsEnabled]
+
+  $session SetToDisabled
+  lappend result IsEnabled [$session IsEnabled]
+
+  makeSomeChanges $db t1 [list insert]
+  lappend result IsEmpty [$session IsEmpty]
+
+  set rawData [createMemoryChangeSetForObject $session]
+  object removeref $rawData
+
+  lappend result Length [$rawData Length]
+
+  $session SetToEnabled
+  lappend result IsEnabled [$session IsEnabled]
+
+  makeSomeChanges $db t1 [list insert]
+  lappend result IsEmpty [$session IsEmpty]
+
+  set rawData [createMemoryChangeSetForObject $session]
+  object removeref $rawData
+
+  set changeSet(1) \
+      [createMemoryChangeSetForConnection $connection $rawData None]
+
+  object removeref $changeSet(1)
+
+  lappend result [changeSetToString $changeSet(1) false]
+} -cleanup {
+  cleanupSomeText
+
+  unset -nocomplain result changeSet rawData byteArray session
+
+  freeDbConnection
+
+  unset -nocomplain connection
+
+  cleanupDb $fileName
+
+  unset -nocomplain db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_SESSION_EXTENSION} -result {IsEnabled\
+True IsEnabled True IsEnabled False IsEmpty True Length 0 IsEnabled True\
+IsEmpty False {{TableName t1 NumberOfColumns 2 OperationCode Insert Indirect\
+False PrimaryKeyColumns {[True, False]}}}}}
+
+###############################################################################
+
+runTest {test session-1.4 {direct/indirect state} -setup {
+  setupDb [set fileName session-1.4.db]
+
+  cleanupSomeText
+} -body {
+  createTheSchema $db main
+  makeSomeChanges $db t1 [list insert]
+
+  set connection [getDbConnection]
+
+  set session [$connection -alias CreateSession main]
+  lappend result IsIndirect [$session IsIndirect]
+
+  $session AttachTable null
+  lappend result IsIndirect [$session IsIndirect]
+
+  $session SetToIndirect
+  lappend result IsIndirect [$session IsIndirect]
+
+  makeSomeChanges $db t1 [list insert]
+  lappend result IsEmpty [$session IsEmpty]
+
+  set rawData [createMemoryChangeSetForObject $session]
+  object removeref $rawData
+
+  $session SetToDirect
+  lappend result IsIndirect [$session IsIndirect]
+
+  makeSomeChanges $db t1 [list insert]
+  lappend result IsEmpty [$session IsEmpty]
+
+  set rawData [createMemoryChangeSetForObject $session]
+  object removeref $rawData
+
+  set changeSet(1) \
+      [createMemoryChangeSetForConnection $connection $rawData None]
+
+  object removeref $changeSet(1)
+
+  lappend result [changeSetToString $changeSet(1) false]
+} -cleanup {
+  cleanupSomeText
+
+  unset -nocomplain result changeSet rawData byteArray session
+
+  freeDbConnection
+
+  unset -nocomplain connection
+
+  cleanupDb $fileName
+
+  unset -nocomplain db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_SESSION_EXTENSION} -result \
+{IsIndirect False IsIndirect False IsIndirect True IsEmpty False IsIndirect\
+False IsEmpty False {{TableName t1 NumberOfColumns 2 OperationCode Insert\
+Indirect True PrimaryKeyColumns {[True, False]}} {TableName t1 NumberOfColumns\
+2 OperationCode Insert Indirect False PrimaryKeyColumns {[True, False]}}}}}
+
+###############################################################################
+
+runTest {test session-1.5 {table filter} -setup {
+  setupDb [set fileName session-1.5.db]
+
+  cleanupSomeText
+} -body {
+  createTheSchema $db main
+  makeSomeChanges $db t1 [list insert]
+
+  set connection [getDbConnection]
+
+  set session [$connection -alias CreateSession main]
+
+  $session -marshalflags +DynamicCallback \
+      SetTableFilter tableFilterCallbackT1 null
+
+  makeSomeChanges $db t2 [list insert]
+  lappend result IsEmpty [$session IsEmpty]
+
+  lappend result MatchT2 [matchSession $connection $session None {
+    [$item TableName] eq "t2"
+  }]
+
+  makeSomeChanges $db t1 [list insert]
+  lappend result IsEmpty [$session IsEmpty]
+
+  lappend result MatchT1 [matchSession $connection $session None {
+    [$item TableName] eq "t1"
+  }]
+
+  $session SetTableFilter null null
+
+  makeSomeChanges $db t2 [list insert]
+  lappend result IsEmpty [$session IsEmpty]
+
+  lappend result MatchT2 [matchSession $connection $session None {
+    [$item TableName] eq "t2"
+  }]
+
+  makeSomeChanges $db t1 [list insert]
+  lappend result IsEmpty [$session IsEmpty]
+
+  lappend result MatchT1 [matchSession $connection $session None {
+    [$item TableName] eq "t1"
+  }]
+
+  set result
+} -cleanup {
+  cleanupSomeText
+
+  unset -nocomplain result session
+
+  freeDbConnection
+
+  unset -nocomplain connection
+
+  cleanupDb $fileName
+
+  catch {object removecallback tableFilterCallbackT1}
+
+  catch {
+    foreach callbackResult $callbackResults {
+      catch {object dispose $callbackResult}
+    }
+  }
+
+  unset -nocomplain callbackResult callbackResults db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA\
+compile.EMIT SQLite System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_SESSION_EXTENSION} -result {IsEmpty\
+True MatchT2 false IsEmpty False MatchT1 true IsEmpty False MatchT2 true\
+IsEmpty False MatchT1 true}}
+
+###############################################################################
+
+runTest {test session-1.6.1 {combine/apply change sets (memory)} -setup {
+  setupDb [set fileName session-1.6.1.db]
+
+  cleanupSomeText
+} -body {
+  createTheSchema $db main
+  makeSomeChanges $db t1 [list insert insert]
+
+  set connection [getDbConnection]
+
+  set rawData(1) [captureChangeSetRawData $connection main null {
+    makeSomeChanges $db t1 [list delete] 1
+  }]; object removeref $rawData(1)
+
+  makeSomeChanges $db t1 [list insert] 1
+
+  set rawData(2) [captureChangeSetRawData $connection main null {
+    makeSomeChanges $db t1 [list insert]
+  }]; object removeref $rawData(2)
+
+  set changeSet(1) \
+      [createMemoryChangeSetForConnection $connection $rawData(1) None]
+
+  object removeref $changeSet(1)
+
+  set changeSet(2) \
+      [createMemoryChangeSetForConnection $connection $rawData(2) None]
+
+  object removeref $changeSet(2)
+
+  set changeSet(3) [$changeSet(1) -alias CombineWith $changeSet(2)]
+
+  $changeSet(3) -marshalflags +DynamicCallback \
+      Apply conflictCallback null
+
+  list [changeSetToString $changeSet(3) true] Data \
+      [sql execute -execute reader -format list $db \
+      {SELECT x, y FROM t1 ORDER BY x;}]
+} -cleanup {
+  cleanupSomeText
+
+  unset -nocomplain changeSet rawData
+
+  freeDbConnection
+
+  unset -nocomplain connection
+
+  cleanupDb $fileName
+
+  catch {object removecallback conflictCallback}
+
+  catch {
+    foreach callbackResult $callbackResults {
+      catch {object dispose $callbackResult}
+    }
+  }
+
+  unset -nocomplain callbackResult callbackResults db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA\
+compile.EMIT SQLite System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_SESSION_EXTENSION} -result \
+{{{TableName t1 NumberOfColumns 2 OperationCode Delete Indirect False\
+PrimaryKeyColumns {[True, False]} OldValue 0 1 NewValue 0 <nullObject>\
+ConflictValue 0 <nullObject> OldValue 1 {"inserted: Alpha Bravo Charlie Delta\
+Echo"} NewValue 1 <nullObject> ConflictValue 1 <nullObject>} {TableName t1\
+NumberOfColumns 2 OperationCode Insert Indirect False PrimaryKeyColumns {[True,\
+False]} OldValue 0 <nullObject> NewValue 0 3 ConflictValue 0 <nullObject>\
+OldValue 1 <nullObject> NewValue 1 {"inserted: Papa Quebec Romeo Sierra Tango"}\
+ConflictValue 1 <nullObject>}} Data {1 {inserted: Kilo Lima Mike November\
+Oscar} 2 {inserted: Foxtrot Golf Hotel India Juliet} 3 {inserted: Papa Quebec\
+Romeo Sierra Tango}}}}
+
+###############################################################################
+
+runTest {test session-1.6.2 {combine/apply change sets (stream)} -setup {
+  setupDb [set fileName(0) session-1.6.2.db]
+
+  set fileName(1) [getChangeSetFileName 1]
+  set fileName(2) [getChangeSetFileName 2]
+  set fileName(3) [getChangeSetFileName 3]
+
+  cleanupSomeText
+} -body {
+  createTheSchema $db main
+  makeSomeChanges $db t1 [list insert insert]
+
+  set connection [getDbConnection]
+
+  captureChangeSetFile $connection main null {
+    makeSomeChanges $db t1 [list delete] 1
+  } $fileName(1)
+
+  makeSomeChanges $db t1 [list insert] 1
+
+  captureChangeSetFile $connection main null {
+    makeSomeChanges $db t1 [list insert]
+  } $fileName(2)
+
+  openStreamChangeSetForConnection \
+      $connection $fileName(1) $fileName(3) None state1
+
+  openStreamChangeSetForConnection \
+      $connection $fileName(2) "" None state2
+
+  $state1(changeSet) CombineWith $state2(changeSet); unset state2 state1
+
+  openStreamChangeSetForConnection \
+      $connection $fileName(3) "" None state3
+
+  $state3(changeSet) -marshalflags +DynamicCallback \
+      Apply conflictCallback null; unset state3
+
+  openStreamChangeSetForConnection \
+      $connection $fileName(3) "" None state4
+
+  list [changeSetToString $state4(changeSet) true] Data \
+      [sql execute -execute reader -format list $db \
+      {SELECT x, y FROM t1 ORDER BY x;}]
+} -cleanup {
+  cleanupSomeText
+
+  unset -nocomplain state4 state3 state2 state1
+
+  freeDbConnection
+
+  unset -nocomplain connection
+
+  cleanupFile $fileName(2)
+  cleanupFile $fileName(1)
+
+  cleanupDb $fileName(0)
+
+  catch {object removecallback conflictCallback}
+
+  catch {
+    foreach callbackResult $callbackResults {
+      catch {object dispose $callbackResult}
+    }
+  }
+
+  unset -nocomplain callbackResult callbackResults db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA\
+compile.EMIT SQLite System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_SESSION_EXTENSION} -result \
+{{{TableName t1 NumberOfColumns 2 OperationCode Delete Indirect False\
+PrimaryKeyColumns {[True, False]} OldValue 0 1 NewValue 0 <nullObject>\
+ConflictValue 0 <nullObject> OldValue 1 {"inserted: Alpha Bravo Charlie Delta\
+Echo"} NewValue 1 <nullObject> ConflictValue 1 <nullObject>} {TableName t1\
+NumberOfColumns 2 OperationCode Insert Indirect False PrimaryKeyColumns {[True,\
+False]} OldValue 0 <nullObject> NewValue 0 3 ConflictValue 0 <nullObject>\
+OldValue 1 <nullObject> NewValue 1 {"inserted: Papa Quebec Romeo Sierra Tango"}\
+ConflictValue 1 <nullObject>}} Data {1 {inserted: Kilo Lima Mike November\
+Oscar} 2 {inserted: Foxtrot Golf Hotel India Juliet} 3 {inserted: Papa Quebec\
+Romeo Sierra Tango}}}}
+
+###############################################################################
+
+runTest {test session-1.7.1 {combine/apply patch sets (memory)} -setup {
+  setupDb [set fileName session-1.7.1.db]
+
+  cleanupSomeText
+} -body {
+  createTheSchema $db main
+  makeSomeChanges $db t1 [list insert insert]
+
+  set connection [getDbConnection]
+
+  set rawData(1) [captureChangeSetRawData $connection main null {
+    makeSomeChanges $db t1 [list delete] 1
+  } true]; object removeref $rawData(1)
+
+  makeSomeChanges $db t1 [list insert] 1
+
+  set rawData(2) [captureChangeSetRawData $connection main null {
+    makeSomeChanges $db t1 [list insert]
+  } true]; object removeref $rawData(2)
+
+  set changeSet(1) \
+      [createMemoryChangeSetForConnection $connection $rawData(1) None]
+
+  object removeref $changeSet(1)
+
+  set changeSet(2) \
+      [createMemoryChangeSetForConnection $connection $rawData(2) None]
+
+  object removeref $changeSet(2)
+
+  set changeSet(3) [$changeSet(1) -alias CombineWith $changeSet(2)]
+
+  $changeSet(3) -marshalflags +DynamicCallback \
+      Apply conflictCallback null
+
+  list [changeSetToString $changeSet(3) true] Data \
+      [sql execute -execute reader -format list $db \
+      {SELECT x, y FROM t1 ORDER BY x;}]
+} -cleanup {
+  cleanupSomeText
+
+  unset -nocomplain changeSet rawData
+
+  freeDbConnection
+
+  unset -nocomplain connection
+
+  cleanupDb $fileName
+
+  catch {object removecallback conflictCallback}
+
+  catch {
+    foreach callbackResult $callbackResults {
+      catch {object dispose $callbackResult}
+    }
+  }
+
+  unset -nocomplain callbackResult callbackResults db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA\
+compile.EMIT SQLite System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_SESSION_EXTENSION} -result \
+{{{TableName t1 NumberOfColumns 2 OperationCode Delete Indirect False\
+PrimaryKeyColumns {[True, False]} OldValue 0 1 NewValue 0 <nullObject>\
+ConflictValue 0 <nullObject> OldValue 1 <nullObject> NewValue 1 <nullObject>\
+ConflictValue 1 <nullObject>} {TableName t1 NumberOfColumns 2 OperationCode\
+Insert Indirect False PrimaryKeyColumns {[True, False]} OldValue 0 <nullObject>\
+NewValue 0 3 ConflictValue 0 <nullObject> OldValue 1 <nullObject> NewValue 1\
+{"inserted: Papa Quebec Romeo Sierra Tango"} ConflictValue 1 <nullObject>}}\
+Data {2 {inserted: Foxtrot Golf Hotel India Juliet} 3 {inserted: Papa Quebec\
+Romeo Sierra Tango}}}}
+
+###############################################################################
+
+runTest {test session-1.7.2 {combine/apply patch sets (stream)} -setup {
+  setupDb [set fileName(0) session-1.7.2.db]
+
+  set fileName(1) [getChangeSetFileName 1]
+  set fileName(2) [getChangeSetFileName 2]
+  set fileName(3) [getChangeSetFileName 3]
+
+  cleanupSomeText
+} -body {
+  createTheSchema $db main
+  makeSomeChanges $db t1 [list insert insert]
+
+  set connection [getDbConnection]
+
+  captureChangeSetFile $connection main null {
+    makeSomeChanges $db t1 [list delete] 1
+  } $fileName(1) true
+
+  makeSomeChanges $db t1 [list insert] 1
+
+  captureChangeSetFile $connection main null {
+    makeSomeChanges $db t1 [list insert]
+  } $fileName(2) true
+
+  openStreamChangeSetForConnection \
+      $connection $fileName(1) $fileName(3) None state1
+
+  openStreamChangeSetForConnection \
+      $connection $fileName(2) "" None state2
+
+  $state1(changeSet) CombineWith $state2(changeSet); unset state1
+
+  openStreamChangeSetForConnection \
+      $connection $fileName(3) "" None state3
+
+  $state3(changeSet) -marshalflags +DynamicCallback \
+      Apply conflictCallback null; unset state3
+
+  openStreamChangeSetForConnection \
+      $connection $fileName(3) "" None state4
+
+  list [changeSetToString $state4(changeSet) true] Data \
+      [sql execute -execute reader -format list $db \
+      {SELECT x, y FROM t1 ORDER BY x;}]
+} -cleanup {
+  cleanupSomeText
+
+  unset -nocomplain state4 state3 state2 state1
+
+  freeDbConnection
+
+  unset -nocomplain connection
+
+  cleanupFile $fileName(3)
+  cleanupFile $fileName(2)
+  cleanupFile $fileName(1)
+
+  cleanupDb $fileName(0)
+
+  catch {object removecallback conflictCallback}
+
+  catch {
+    foreach callbackResult $callbackResults {
+      catch {object dispose $callbackResult}
+    }
+  }
+
+  unset -nocomplain callbackResult callbackResults db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA\
+compile.EMIT SQLite System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_SESSION_EXTENSION} -result \
+{{{TableName t1 NumberOfColumns 2 OperationCode Delete Indirect False\
+PrimaryKeyColumns {[True, False]} OldValue 0 1 NewValue 0 <nullObject>\
+ConflictValue 0 <nullObject> OldValue 1 <nullObject> NewValue 1 <nullObject>\
+ConflictValue 1 <nullObject>} {TableName t1 NumberOfColumns 2 OperationCode\
+Insert Indirect False PrimaryKeyColumns {[True, False]} OldValue 0 <nullObject>\
+NewValue 0 3 ConflictValue 0 <nullObject> OldValue 1 <nullObject> NewValue 1\
+{"inserted: Papa Quebec Romeo Sierra Tango"} ConflictValue 1 <nullObject>}}\
+Data {2 {inserted: Foxtrot Golf Hotel India Juliet} 3 {inserted: Papa Quebec\
+Romeo Sierra Tango}}}}
+
+###############################################################################
+
+runTest {test session-1.8 {differences between tables} -setup {
+  setupDb [set fileName session-1.8.db]
+
+  cleanupSomeText
+} -body {
+  createTheSchema $db main
+  makeSomeChanges $db t1 [list insert insert]
+
+  set result [list]
+
+  lappend result [sql execute -execute reader -format list $db \
+      {SELECT x, y FROM t1 ORDER BY x;}]
+
+  createTheSchema $db temp
+  sql execute $db {INSERT INTO temp.t1 SELECT * FROM main.t1;}
+  makeSomeChanges $db temp.t1 [list insert insert]
+
+  set connection [getDbConnection]
+
+  set session [$connection -alias CreateSession main]
+  $session AttachTable null
+  $session LoadDifferencesFromTable temp t1
+
+  lappend result [sql execute -execute reader -format list $db \
+      {SELECT x, y FROM t1 ORDER BY x;}]
+} -cleanup {
+  cleanupSomeText
+
+  unset -nocomplain result session
+
+  freeDbConnection
+
+  unset -nocomplain connection
+
+  cleanupDb $fileName
+
+  unset -nocomplain db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_SESSION_EXTENSION} -result {{1\
+{inserted: Alpha Bravo Charlie Delta Echo} 2 {inserted: Foxtrot Golf Hotel\
+India Juliet}} {1 {inserted: Alpha Bravo Charlie Delta Echo} 2 {inserted:\
+Foxtrot Golf Hotel India Juliet} 3 {inserted: Kilo Lima Mike November Oscar} 4\
+{inserted: Papa Quebec Romeo Sierra Tango}}}}
+
+###############################################################################
+
+runTest {test session-1.9 {apply change set (remote stream)} -setup {
+  setupDb [set fileName session-1.9.db]
+
+  cleanupSomeText
+} -body {
+  createTheSchema $db main
+
+  set connection [getDbConnection]
+
+  set webClient [object create -alias System.Net.WebClient]
+
+  set stream [$webClient -alias OpenRead \
+      https://system.data.sqlite.org/tests/session-1.9.bin]
+
+  set changeSet [$connection -alias CreateChangeSet $stream null]
+
+  $changeSet -marshalflags +DynamicCallback \
+      Apply conflictCallback null; unset changeSet
+
+  string tolower [hash normal sha1 [sql execute -execute reader \
+      -format list $db {SELECT x, y FROM t1 ORDER BY x;}]]
+} -cleanup {
+  cleanupSomeText
+
+  unset -nocomplain changeSet stream webClient
+
+  freeDbConnection
+
+  unset -nocomplain connection
+
+  cleanupDb $fileName
+
+  catch {object removecallback conflictCallback}
+
+  catch {
+    foreach callbackResult $callbackResults {
+      catch {object dispose $callbackResult}
+    }
+  }
+
+  unset -nocomplain callbackResult callbackResults db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA\
+compile.EMIT SQLite System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_SESSION_EXTENSION} -result \
+{06631bf3545dba83b25db5142afc4d229544ed55}}
+
+###############################################################################
+
+runTest {test session-1.10.1 {change group (memory)} -setup {
+  setupDb [set fileName session-1.10.1.db]
+
+  cleanupSomeText
+} -body {
+  createTheSchema $db main
+  makeSomeChanges $db t1 [list insert insert]
+
+  set connection [getDbConnection]
+
+  set rawData(1) [captureChangeSetRawData $connection main null {
+    makeSomeChanges $db t1 [list delete] 1
+  }]; object removeref $rawData(1)
+
+  set rawData(2) [captureChangeSetRawData $connection main null {
+    makeSomeChanges $db t1 [list insert]
+  }]; object removeref $rawData(2)
+
+  set changeGroup [$connection -alias CreateChangeGroup]
+
+  $changeGroup AddChangeSet $rawData(1)
+  $changeGroup AddChangeSet $rawData(2)
+
+  set rawData(3) [createMemoryChangeSetForObject $changeGroup]
+  object removeref $rawData(3)
+
+  set changeSet \
+      [createMemoryChangeSetForConnection $connection $rawData(3) None]
+
+  object removeref $changeSet
+
+  changeSetToString $changeSet true
+} -cleanup {
+  cleanupSomeText
+
+  unset -nocomplain changeSet changeGroup rawData
+
+  freeDbConnection
+
+  unset -nocomplain connection
+
+  cleanupDb $fileName
+
+  unset -nocomplain db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_SESSION_EXTENSION} -result \
+{{TableName t1 NumberOfColumns 2 OperationCode Delete Indirect False\
+PrimaryKeyColumns {[True, False]} OldValue 0 1 NewValue 0 <nullObject>\
+ConflictValue 0 <nullObject> OldValue 1 {"inserted: Alpha Bravo Charlie Delta\
+Echo"} NewValue 1 <nullObject> ConflictValue 1 <nullObject>} {TableName t1\
+NumberOfColumns 2 OperationCode Insert Indirect False PrimaryKeyColumns {[True,\
+False]} OldValue 0 <nullObject> NewValue 0 3 ConflictValue 0 <nullObject>\
+OldValue 1 <nullObject> NewValue 1 {"inserted: Kilo Lima Mike November Oscar"}\
+ConflictValue 1 <nullObject>}}}
+
+###############################################################################
+
+runTest {test session-1.10.2 {change group (stream)} -setup {
+  setupDb [set fileName(0) session-1.10.2.db]
+
+  set fileName(1) [getChangeSetFileName 1]
+  set fileName(2) [getChangeSetFileName 2]
+  set fileName(3) [getChangeSetFileName 3]
+
+  cleanupSomeText
+} -body {
+  createTheSchema $db main
+  makeSomeChanges $db t1 [list insert insert]
+
+  set connection [getDbConnection]
+
+  captureChangeSetFile $connection main null {
+    makeSomeChanges $db t1 [list delete] 1
+  } $fileName(1)
+
+  captureChangeSetFile $connection main null {
+    makeSomeChanges $db t1 [list insert]
+  } $fileName(2)
+
+  set changeGroup [$connection -alias CreateChangeGroup]
+
+  addStreamChangeSetForObject $changeGroup $fileName(1)
+  addStreamChangeSetForObject $changeGroup $fileName(2)
+  writeStreamChangeSetForObject $changeGroup $fileName(3)
+
+  openStreamChangeSetForConnection \
+      $connection $fileName(3) "" None state
+
+  changeSetToString $state(changeSet) true
+} -cleanup {
+  cleanupSomeText
+
+  unset -nocomplain state changeGroup
+
+  freeDbConnection
+
+  unset -nocomplain connection
+
+  cleanupFile $fileName(3)
+  cleanupFile $fileName(2)
+  cleanupFile $fileName(1)
+
+  cleanupDb $fileName(0)
+
+  unset -nocomplain db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_SESSION_EXTENSION} -result \
+{{TableName t1 NumberOfColumns 2 OperationCode Delete Indirect False\
+PrimaryKeyColumns {[True, False]} OldValue 0 1 NewValue 0 <nullObject>\
+ConflictValue 0 <nullObject> OldValue 1 {"inserted: Alpha Bravo Charlie Delta\
+Echo"} NewValue 1 <nullObject> ConflictValue 1 <nullObject>} {TableName t1\
+NumberOfColumns 2 OperationCode Insert Indirect False PrimaryKeyColumns {[True,\
+False]} OldValue 0 <nullObject> NewValue 0 3 ConflictValue 0 <nullObject>\
+OldValue 1 <nullObject> NewValue 1 {"inserted: Kilo Lima Mike November Oscar"}\
+ConflictValue 1 <nullObject>}}}
+
+###############################################################################
+
+rename conflictCallback ""
+rename tableFilterCallbackT1 ""
+rename createByteArray ""
+rename arrayToList ""
+rename getChangeSetFileName ""
+rename captureChangeSetFile ""
+rename captureChangeSetRawData ""
+rename makeSomeChanges ""
+rename createTheSchema ""
+rename matchChangeSet ""
+rename matchSession ""
+rename changeSetToString ""
+rename metadataItemToString ""
+rename changeSetFileToString ""
+rename writeStreamChangeSetForObject ""
+rename addStreamChangeSetForObject ""
+rename openStreamChangeSetForConnection ""
+rename writeRawDataToFile ""
+rename createMemoryChangeSetForObject ""
+rename createMemoryChangeSetForConnection ""
+rename forDisplay ""
+rename cleanupSomeText ""
+rename getSomeText ""
+rename useStreamMaybeWithMono ""
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

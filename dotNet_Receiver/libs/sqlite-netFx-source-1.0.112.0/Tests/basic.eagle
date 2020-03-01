@@ -1,0 +1,5569 @@
+###############################################################################
+#
+# basic.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+runSQLiteTestFilesPrologue
+
+###############################################################################
+
+runTest {test data-1.1 {unit tests from the 'test' project} -setup {
+  cleanupFile [file join [file dirname $testExeFile] Test.db3]
+  set fileName [file join [getDatabaseDirectory] data-1.1.db]
+} -body {
+  set output ""
+
+  set code [catch {
+    #
+    # NOTE: For the sake of backward compatibility, the "-autoRun" argument
+    #       must be first.
+    #
+    testClrExec $testExeFile [list -eventflags Wait -directory \
+        [file dirname $testExeFile] -stdout output -success Success] \
+        -autoRun -fileName [appendArgs \" [file nativename $fileName] \"]
+  } error]
+
+  set successCount [regexp -all -- {\tSucceeded\t} $output]
+  set failureCount [regexp -all -- {\tFailed\t} $output]
+  set totalCount [expr {$successCount + $failureCount}]
+
+  tputs $test_channel [appendArgs \
+      "---- found and executed " $totalCount " unit tests from \"" \
+      $testExeFile "\", " $successCount " passed, " $failureCount \
+      " failed\n"]
+
+  tlog "---- BEGIN STDOUT OUTPUT\n"
+  tlog $output
+  tlog "\n---- END STDOUT OUTPUT\n"
+
+  list $code [expr {$code == 0 ? "" : $error}]
+} -cleanup {
+  cleanupFile $fileName
+  catch {info previouspid true}
+
+  unset -nocomplain totalCount failureCount successCount code output \
+      error fileName
+} -constraints {eagle SQLite file_System.Data.SQLite.dll file_test.exe\
+testExec winForms} -result {0 {}}}
+
+###############################################################################
+
+runTest {test data-1.2 {unit tests from the 'testlinq' project} -setup {
+  copySampleDatabaseFiles
+
+  #
+  # NOTE: We need to make 100% sure that the console output encoding is the
+  #       same as when the 'testlinq.out' file was created.
+  #
+  set savedEncoding [object invoke Console OutputEncoding]
+
+  set encoding [object invoke System.Text.Encoding GetEncoding \
+      [getOutputEncodingName]]
+
+  object invoke Console OutputEncoding $encoding
+} -body {
+  set output ""
+
+  set code [catch {
+    testClrExec $testLinqExeFile [list -eventflags Wait -directory \
+        [file dirname $testLinqExeFile] -stdout output -success Success]
+  } error]
+
+  tlog "---- BEGIN STDOUT OUTPUT\n"
+  tlog $output
+  tlog "\n---- END STDOUT OUTPUT\n"
+
+  list $code [string equal [string map [list \r\n \n] $output] \
+      [string map [list \r\n \n] [readFile $testLinqOutFile]]] \
+      [expr {$code == 0 ? "" : $error}]
+} -cleanup {
+  catch {object invoke Console OutputEncoding $savedEncoding}
+  catch {info previouspid true}
+
+  unset -nocomplain code output error savedEncoding encoding
+} -constraints \
+{eagle command.object monoToDo SQLite file_System.Data.SQLite.dll\
+file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db\
+file_testlinq.out testExec} -result {0 True {}}}
+
+###############################################################################
+
+runTest {test data-1.3 {unit tests from the 'testef6' project} -setup {
+  copySampleDatabaseFiles
+
+  #
+  # NOTE: We need to make 100% sure that the console output encoding is the
+  #       same as when the 'testlinq.out' file was created.
+  #
+  set savedEncoding [object invoke Console OutputEncoding]
+
+  set encoding [object invoke System.Text.Encoding GetEncoding \
+      [getOutputEncodingName]]
+
+  object invoke Console OutputEncoding $encoding
+} -body {
+  set output ""
+
+  set code [catch {
+    testClrExec $testEf6ExeFile [list -eventflags Wait -directory \
+        [file dirname $testEf6ExeFile] -stdout output -success Success]
+  } error]
+
+  tlog "---- BEGIN STDOUT OUTPUT\n"
+  tlog $output
+  tlog "\n---- END STDOUT OUTPUT\n"
+
+  list $code [string equal [string map [list \r\n \n] $output] \
+      [string map [list \r\n \n] [readFile $testLinqOutFile]]] \
+      [expr {$code == 0 ? "" : $error}]
+} -cleanup {
+  catch {object invoke Console OutputEncoding $savedEncoding}
+  catch {info previouspid true}
+
+  unset -nocomplain code output error savedEncoding encoding
+} -constraints \
+{eagle command.object monoToDo SQLite file_EntityFramework.dll\
+file_System.Data.SQLite.dll file_System.Data.SQLite.EF6.dll file_testef6.exe\
+file_northwindEF.db file_testlinq.out testExec} -result {0 True {}}}
+
+###############################################################################
+
+runTest {test data-1.4 {SELECT scalar/reader, CREATE, INSERT} -setup {
+  setupDb [set fileName data-1.4.db]
+} -body {
+  set result [list]
+
+  lappend result [sql execute -execute scalar $db \
+      "SELECT sqlite_source_id();"]
+
+  sql execute $db "CREATE TABLE t1(x INTEGER PRIMARY KEY ASC, y, z);"
+  sql execute $db "INSERT INTO t1 (x, y, z) VALUES(1, 'foo', 1234);"
+
+  sql execute -execute reader $db "SELECT x, y, z FROM t1;"
+
+  foreach name [lsort [array names rows]] {
+    lappend result [list $name $rows($name)]
+  }
+
+  set result
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain name rows result db fileName
+} -constraints \
+{eagle monoBug28 command.sql compile.DATA SQLite System.Data.SQLite} \
+-match regexp -result {^\{\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [0-9a-f]{40,64}\}\
+\{1 \{\{x 1\} \{y foo\} \{z 1234\}\}\} \{count 1\} \{names \{x y z\}\}$}}
+
+###############################################################################
+
+runTest {test data-1.5 {GetSchema with ReservedWords} -setup {
+  setupDb [set fileName data-1.5.db]
+} -body {
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System.Data;
+    using System.Data.SQLite;
+
+    namespace _Dynamic${id}
+    {
+      public static class Test${id}
+      {
+        public static DataTable GetReservedWords()
+        {
+          using (SQLiteConnection connection = new SQLiteConnection(
+              "Data Source=${dataSource};[getTestProperties]"))
+          {
+            connection.Open();
+
+            return connection.GetSchema("ReservedWords");
+          }
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Main()
+        {
+          // do nothing.
+        }
+      }
+    }
+  }] true false true results errors System.Data.SQLite.dll]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke -alias _Dynamic${id}.Test${id} GetReservedWords
+      } result] : [set result ""]}] $result [string map [list \
+      \{\{ "" \}\} ""] [string map [list "ReservedWord " "" \
+      " MaximumVersion MinimumVersion" ""] [getRowsFromDataTable $result]]]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result results errors code dataSource id db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite compileCSharp} -match regexp -result {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0 System#Data#DataTable#\d+\
+\{ABORT ACTION ADD AFTER ALL ALTER ANALYZE AND AS ASC ATTACH AUTOINCREMENT\
+BEFORE BEGIN BETWEEN BY CASCADE CASE CAST CHECK COLLATE COLUMN COMMIT CONFLICT\
+CONSTRAINT CREATE CROSS CURRENT_DATE CURRENT_TIME CURRENT_TIMESTAMP DATABASE\
+DEFAULT DEFERRABLE DEFERRED DELETE DESC DETACH DISTINCT DO DROP EACH ELSE END\
+ESCAPE EXCEPT EXCLUSIVE EXISTS EXPLAIN FAIL FOR FOREIGN FROM FULL GLOB GROUP\
+HAVING IF IGNORE IMMEDIATE IN INDEX INDEXED INITIALLY INNER INSERT INSTEAD\
+INTERSECT INTO IS ISNULL JOIN KEY LEFT LIKE LIMIT MATCH NATURAL NO NOT NOTHING\
+NOTNULL NULL OF OFFSET ON OR ORDER OUTER PLAN PRAGMA PRIMARY QUERY RAISE\
+RECURSIVE REFERENCES REGEXP REINDEX RELEASE RENAME REPLACE RESTRICT RIGHT\
+ROLLBACK ROW SAVEPOINT SELECT SET TABLE TEMP TEMPORARY THEN TO TRANSACTION\
+TRIGGER UNION UNIQUE UPDATE USING VACUUM VALUES VIEW VIRTUAL WHEN WHERE WITH\
+WITHOUT\}$}}
+
+###############################################################################
+
+runTest {test data-1.6 {GetSchema with ForeignKeys} -setup {
+  setupDb [set fileName data-1.6.db]
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(
+      x INTEGER REFERENCES t2 MATCH FULL
+      ON UPDATE SET DEFAULT ON DELETE CASCADE
+      DEFAULT 1
+    );
+  }
+
+  sql execute $db "CREATE TABLE t2(x INTEGER REFERENCES t3);"
+
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System.Data;
+    using System.Data.SQLite;
+
+    namespace _Dynamic${id}
+    {
+      public static class Test${id}
+      {
+        public static DataRowCollection GetForeignKeys()
+        {
+          using (SQLiteConnection connection = new SQLiteConnection(
+              "Data Source=${dataSource};[getTestProperties]"))
+          {
+            connection.Open();
+
+            return connection.GetSchema("ForeignKeys").Rows;
+          }
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Main()
+        {
+          // do nothing.
+        }
+      }
+    }
+  }] true false true results errors System.Data.SQLite.dll]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        set rows [list]
+        set foreignKeys [object invoke _Dynamic${id}.Test${id} GetForeignKeys]
+
+        object foreach -alias foreignKey $foreignKeys {
+          lappend rows [list \
+              [$foreignKey Item CONSTRAINT_CATALOG] \
+              [$foreignKey Item CONSTRAINT_NAME] \
+              [$foreignKey Item TABLE_CATALOG] \
+              [$foreignKey Item TABLE_NAME] \
+              [$foreignKey Item CONSTRAINT_TYPE] \
+              [$foreignKey Item IS_DEFERRABLE] \
+              [$foreignKey Item INITIALLY_DEFERRED] \
+              [$foreignKey Item FKEY_ID] \
+              [$foreignKey Item FKEY_FROM_COLUMN] \
+              [$foreignKey Item FKEY_TO_CATALOG] \
+              [$foreignKey Item FKEY_TO_TABLE] \
+              [$foreignKey Item FKEY_TO_COLUMN] \
+              [$foreignKey Item FKEY_FROM_ORDINAL_POSITION] \
+              [$foreignKey Item FKEY_ON_UPDATE] \
+              [$foreignKey Item FKEY_ON_DELETE] \
+              [$foreignKey Item FKEY_MATCH]]
+        }
+
+        set rows
+      } result] : [set result ""]}] $result
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result rows foreignKey foreignKeys results errors code \
+      dataSource id db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite compileCSharp} -match regexp -result {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0 \{\{main FK_t1_0_0 main t1\
+\{FOREIGN KEY\} False False 0 x main t2 \{\} 0 \{SET DEFAULT\} CASCADE NONE\}\
+\{main FK_t2_0_0 main t2 \{FOREIGN KEY\} False False 0 x main t3 \{\} 0 \{NO\
+ACTION\} \{NO ACTION\} NONE\}\}$}}
+
+###############################################################################
+
+runTest {test data-1.7 {SQLITE_FCNTL_WIN32_AV_RETRY} -setup {
+  setupDb [set fileName data-1.7.db]
+} -body {
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System.Data.SQLite;
+
+    namespace _Dynamic${id}
+    {
+      public static class Test${id}
+      {
+        public static bool TestSetAvRetry(
+          ref int count,
+          ref int interval
+          )
+        {
+          using (SQLiteConnection connection = new SQLiteConnection(
+              "Data Source=${dataSource};[getTestProperties]"))
+          {
+            connection.Open();
+
+            //
+            // NOTE: Set the requested retry parameter values.
+            //
+            if (connection.SetAvRetry(ref count, ref interval) != 0)
+              return false;
+
+            //
+            // NOTE: Query the retry parameter values.
+            //
+            int newCount = -1; int newInterval = -1;
+
+            if (connection.SetAvRetry(ref newCount, ref newInterval) != 0)
+              return false;
+
+            //
+            // NOTE: Make sure the retry parameter values were set.
+            //
+            return (newCount == count && newInterval == interval);
+          }
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Main()
+        {
+          // do nothing.
+        }
+      }
+    }
+  }] true false true results errors System.Data.SQLite.dll]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        set savedCount -1; set savedInterval -1
+
+        object invoke _Dynamic${id}.Test${id} TestSetAvRetry \
+            savedCount savedInterval
+
+        set count 5; set interval 50
+
+        object invoke _Dynamic${id}.Test${id} TestSetAvRetry \
+            count interval
+      } result] : [set result ""]}] $result
+} -cleanup {
+  if {[info exists savedCount]} then {
+    #
+    # NOTE: Restore the saved retry count, if possible.
+    #
+    catch {
+      set interval -1
+      object invoke _Dynamic${id}.Test${id} TestSetAvRetry savedCount interval
+    }
+  }
+
+  if {[info exists savedInterval]} then {
+    #
+    # NOTE: Restore the saved retry interval, if possible.
+    #
+    catch {
+      set count -1
+      object invoke _Dynamic${id}.Test${id} TestSetAvRetry count savedInterval
+    }
+  }
+
+  cleanupDb $fileName
+
+  unset -nocomplain result count interval savedCount savedInterval results \
+      errors code dataSource id db fileName
+} -constraints {eagle command.object windows monoBug28 command.sql compile.DATA\
+SQLite System.Data.SQLite compileCSharp} -match regexp -result {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0 True$}}
+
+###############################################################################
+
+runTest {test data-1.8 {properly closed database file (non-query)} -setup {
+  set fileName data-1.8.db
+} -body {
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  set sql { \
+    BEGIN EXCLUSIVE TRANSACTION; \
+    CREATE TABLE t1(x INTEGER); \
+    INSERT INTO t1 (x) VALUES(1); \
+    SELECT x FROM t1; \
+  }
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System.Data.SQLite;
+
+    namespace _Dynamic${id}
+    {
+      public static class Test${id}
+      {
+        public static void Main()
+        {
+          using (SQLiteConnection connection = new SQLiteConnection(
+              "Data Source=${dataSource};[getTestProperties]"))
+          {
+            connection.Open();
+
+            using (SQLiteCommand command = new SQLiteCommand("${sql}",
+                connection))
+            {
+              command.ExecuteNonQuery();
+            }
+          }
+        }
+      }
+    }
+  }] true false true results errors System.Data.SQLite.dll]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} Main
+      } result] : [set result ""]}] $result \
+      [close [open $dataSource RDONLY 0 "" -share None]]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result results errors code sql dataSource id fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite compileCSharp} -match regexp -result {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0 \{\} \{\}$}}
+
+###############################################################################
+
+runTest {test data-1.9 {properly closed database file (reader #1)} -setup {
+  set fileName data-1.9.db
+} -body {
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  set sql { \
+    BEGIN EXCLUSIVE TRANSACTION; \
+    CREATE TABLE t1(x INTEGER); \
+    INSERT INTO t1 (x) VALUES(1); \
+    SELECT x FROM t1; \
+  }
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System.Data.SQLite;
+
+    namespace _Dynamic${id}
+    {
+      public static class Test${id}
+      {
+        public static void Main()
+        {
+          using (SQLiteConnection connection = new SQLiteConnection(
+              "Data Source=${dataSource};[getTestProperties]"))
+          {
+            connection.Open();
+
+            using (SQLiteCommand command = new SQLiteCommand("${sql}",
+                connection))
+            {
+              using (SQLiteDataReader dataReader = command.ExecuteReader())
+              {
+                // do nothing.
+              }
+            }
+          }
+        }
+      }
+    }
+  }] true false true results errors System.Data.SQLite.dll]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} Main
+      } result] : [set result ""]}] $result \
+      [close [open $dataSource RDONLY 0 "" -share None]]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result results errors code sql dataSource id fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite compileCSharp} -match regexp -result {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0 \{\} \{\}$}}
+
+###############################################################################
+
+runTest {test data-1.10 {properly closed database file (reader #2)} -setup {
+  set fileName data-1.10.db
+} -body {
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  set sql { \
+    BEGIN EXCLUSIVE TRANSACTION; \
+    CREATE TABLE t1(x INTEGER); \
+    INSERT INTO t1 (x) VALUES(1); \
+    SELECT x FROM t1; \
+  }
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System.Data;
+    using System.Data.SQLite;
+
+    namespace _Dynamic${id}
+    {
+      public static class Test${id}
+      {
+        public static void Main()
+        {
+          using (SQLiteConnection connection = new SQLiteConnection(
+              "Data Source=${dataSource};[getTestProperties]"))
+          {
+            connection.Open();
+
+            using (SQLiteCommand command = new SQLiteCommand("${sql}",
+                connection))
+            {
+              using (SQLiteDataReader dataReader = command.ExecuteReader(
+                  CommandBehavior.CloseConnection))
+              {
+                // do nothing.
+              }
+            }
+          }
+        }
+      }
+    }
+  }] true false true results errors System.Data.SQLite.dll]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} Main
+      } result] : [set result ""]}] $result \
+      [close [open $dataSource RDONLY 0 "" -share None]]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result results errors code sql dataSource id fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite compileCSharp} -match regexp -result {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0 \{\} \{\}$}}
+
+###############################################################################
+
+runTest {test data-1.11 {Changes property} -setup {
+  setupDb [set fileName data-1.11.db]
+} -body {
+  set connection [getDbConnection]
+
+  set result [list]
+
+  sql execute $db "CREATE TABLE t1(x INTEGER PRIMARY KEY ASC, y, z);"
+
+  sql execute $db "INSERT INTO t1 (x, y, z) VALUES(1, 'foo', 1234);"
+  sql execute $db "INSERT INTO t1 (x, y, z) VALUES(2, 'bar', 5678);"
+  lappend result [object invoke $connection Changes]
+
+  sql execute $db "UPDATE t1 SET y = 'foobar';"
+  lappend result [object invoke $connection Changes]
+
+  sql execute -execute reader $db "SELECT x, y, z FROM t1;"
+  lappend result [object invoke $connection Changes]
+
+  foreach name [lsort -integer [array names rows -regexp {^\d+$}]] {
+    lappend result [list $name $rows($name)]
+  }
+
+  set result
+} -cleanup {
+  cleanupDb $fileName
+
+  freeDbConnection
+
+  unset -nocomplain name rows result connection db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} \
+-result {1 2 2 {1 {{x 1} {y foobar} {z 1234}}} {2 {{x 2} {y foobar} {z 5678}}}}}
+
+###############################################################################
+
+runTest {test data-1.12 {LastInsertRowId property} -setup {
+  setupDb [set fileName data-1.12.db]
+} -body {
+  set connection [getDbConnection]
+
+  set result [list]
+
+  sql execute $db "CREATE TABLE t1(x INTEGER PRIMARY KEY ASC, y, z);"
+
+  sql execute $db "CREATE TABLE t2(x INTEGER PRIMARY KEY AUTOINCREMENT, y, z);"
+  lappend result [object invoke $connection LastInsertRowId]
+
+  sql execute $db "INSERT INTO t1 (x, y, z) VALUES(1, 'foo', 1234);"
+  lappend result [object invoke $connection LastInsertRowId]
+
+  sql execute $db "INSERT INTO t1 (x, y, z) VALUES(2, 'bar', 5678);"
+  lappend result [object invoke $connection LastInsertRowId]
+
+  sql execute $db "UPDATE t1 SET y = 'foobar';"
+  lappend result [object invoke $connection LastInsertRowId]
+
+  sql execute $db "INSERT INTO t2 (y, z) VALUES('foo', 1234);"
+  lappend result [object invoke $connection LastInsertRowId]
+
+  sql execute $db "INSERT INTO t2 (y, z) VALUES('bar', 5678);"
+  lappend result [object invoke $connection LastInsertRowId]
+
+  sql execute $db "UPDATE t2 SET y = 'foobar';"
+  lappend result [object invoke $connection LastInsertRowId]
+
+  sql execute -execute reader $db "SELECT x, y, z FROM t1;"
+  lappend result [object invoke $connection LastInsertRowId]
+
+  foreach name [lsort -integer [array names rows -regexp {^\d+$}]] {
+    lappend result [list $name $rows($name)]
+  }
+
+  sql execute -execute reader $db "SELECT x, y, z FROM t2;"
+  lappend result [object invoke $connection LastInsertRowId]
+
+  foreach name [lsort -integer [array names rows -regexp {^\d+$}]] {
+    lappend result [list $name $rows($name)]
+  }
+
+  set result
+} -cleanup {
+  cleanupDb $fileName
+
+  freeDbConnection
+
+  unset -nocomplain name rows result connection db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} \
+-result {0 1 2 2 1 2 2 2 {1 {{x 1} {y foobar} {z 1234}}} {2 {{x 2} {y foobar}\
+{z 5678}}} 2 {1 {{x 1} {y foobar} {z 1234}}} {2 {{x 2} {y foobar} {z 5678}}}}}
+
+###############################################################################
+
+runTest {test data-1.13 {DateTime using Unix epoch} -setup {
+  setupDb [set fileName data-1.13.db] "" UnixEpoch Utc
+} -body {
+  set result [list]
+
+  sql execute $db "CREATE TABLE t1(x INTEGER PRIMARY KEY ASC, y DATETIME);"
+  sql execute $db "INSERT INTO t1 (x, y) VALUES(1, 1302825600);"
+  sql execute $db "INSERT INTO t1 (x, y) VALUES(2, 1334448000);"
+  sql execute $db "INSERT INTO t1 (x, y) VALUES(3, 1365984000);"
+
+  sql execute $db "INSERT INTO t1 (x, y) VALUES(4, ?);" \
+      [list param1 Int32 1302825600]
+
+  sql execute $db "INSERT INTO t1 (x, y) VALUES(5, ?);" \
+      [list param1 Int32 1334448000]
+
+  sql execute $db "INSERT INTO t1 (x, y) VALUES(6, ?);" \
+      [list param1 Int32 1365984000]
+
+  sql execute -verbatim $db "INSERT INTO t1 (x, y) VALUES(7, ?);" \
+      [list param1 DateTime 1302825600]
+
+  sql execute -verbatim $db "INSERT INTO t1 (x, y) VALUES(8, ?);" \
+      [list param1 DateTime 1334448000]
+
+  sql execute -verbatim $db "INSERT INTO t1 (x, y) VALUES(9, ?);" \
+      [list param1 DateTime 1365984000]
+
+  sql execute -execute reader -datetimeformat [getDateTimeFormat] $db \
+      "SELECT x, y FROM t1 ORDER BY x;"
+
+  foreach name [lsort -integer [array names rows -regexp {^\d+$}]] {
+    lappend result [list $name $rows($name)]
+  }
+
+  set result
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain name rows result db fileName
+} -constraints \
+{eagle monoBug28 command.sql compile.DATA SQLite System.Data.SQLite} \
+-result {{1 {{x 1} {y {2011-04-15 00:00:00Z}}}} {2 {{x 2} {y {2012-04-15\
+00:00:00Z}}}} {3 {{x 3} {y {2013-04-15 00:00:00Z}}}} {4 {{x 4} {y {2011-04-15\
+00:00:00Z}}}} {5 {{x 5} {y {2012-04-15 00:00:00Z}}}} {6 {{x 6} {y {2013-04-15\
+00:00:00Z}}}} {7 {{x 7} {y {2011-04-15 00:00:00Z}}}} {8 {{x 8} {y {2012-04-15\
+00:00:00Z}}}} {9 {{x 9} {y {2013-04-15 00:00:00Z}}}}}}
+
+###############################################################################
+
+set date [clock format [clock seconds] -format yyyy-MM-dd]
+
+###############################################################################
+
+runTest {test data-1.14 {DateTime using invariant culture} -setup {
+  setupDb [set fileName data-1.14.db] "" InvariantCulture Utc
+} -body {
+  set result [list]
+
+  sql execute $db "CREATE TABLE t1(x INTEGER PRIMARY KEY ASC, y DATETIME);"
+
+  sql execute $db \
+      "INSERT INTO t1 (x, y) VALUES(1, 'Wednesday, 16 December 2009');"
+
+  sql execute $db "INSERT INTO t1 (x, y) VALUES(2, '12:00:00');"
+
+  sql execute $db \
+      "INSERT INTO t1 (x, y) VALUES(3, 'Wednesday, 16 December 2009 12:00:00');"
+
+  sql execute $db "INSERT INTO t1 (x, y) VALUES(4, '12/16/2009');"
+  sql execute $db "INSERT INTO t1 (x, y) VALUES(5, '12:00');"
+  sql execute $db "INSERT INTO t1 (x, y) VALUES(6, '12/16/2009 12:00');"
+
+  sql execute -datetimekind Utc $db "INSERT INTO t1 (x, y) VALUES(7, ?);" \
+      [list param1 DateTime "Wednesday, 16 December 2009"]
+
+  sql execute -datetimekind Utc $db "INSERT INTO t1 (x, y) VALUES(8, ?);" \
+      [list param1 DateTime 12:00:00]
+
+  sql execute -datetimekind Utc $db "INSERT INTO t1 (x, y) VALUES(9, ?);" \
+      [list param1 DateTime "Wednesday, 16 December 2009 12:00:00"]
+
+  sql execute -datetimekind Utc $db "INSERT INTO t1 (x, y) VALUES(10, ?);" \
+      [list param1 DateTime 12/16/2009]
+
+  sql execute -datetimekind Utc $db "INSERT INTO t1 (x, y) VALUES(11, ?);" \
+      [list param1 DateTime 12:00]
+
+  sql execute -datetimekind Utc $db "INSERT INTO t1 (x, y) VALUES(12, ?);" \
+      [list param1 DateTime "12/16/2009 12:00"]
+
+  sql execute -execute reader -datetimeformat [getDateTimeFormat] $db \
+      "SELECT x, CAST(y AS TEXT) AS y2 FROM t1 ORDER BY x;"
+
+  foreach name [lsort -integer [array names rows -regexp {^\d+$}]] {
+    lappend result [list $name $rows($name)]
+  }
+
+  set result
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain name rows result db fileName
+} -constraints \
+{eagle monoBug28 command.sql compile.DATA SQLite System.Data.SQLite} \
+-result [subst {{1 {{x 1} {y2 {Wednesday, 16 December 2009}}}} {2 {{x 2} {y2\
+12:00:00}}} {3 {{x 3} {y2 {Wednesday, 16 December 2009 12:00:00}}}} {4 {{x 4}\
+{y2 12/16/2009}}} {5 {{x 5} {y2 12:00}}} {6 {{x 6} {y2 {12/16/2009 12:00}}}} {7\
+{{x 7} {y2 2009-12-16T00:00:00.0000000Z}}} {8 {{x 8} {y2\
+${date}T12:00:00.0000000Z}}} {9 {{x 9} {y2 2009-12-16T12:00:00.0000000Z}}}\
+{10 {{x 10} {y2 2009-12-16T00:00:00.0000000Z}}} {11 {{x 11} {y2\
+${date}T12:00:00.0000000Z}}} {12 {{x 12} {y2 2009-12-16T12:00:00.0000000Z}}}}]}
+
+###############################################################################
+
+runTest {test data-1.15 {DateTime using current culture} -setup {
+  setupDb [set fileName data-1.15.db] "" CurrentCulture Utc
+} -body {
+  set result [list]
+
+  sql execute $db "CREATE TABLE t1(x INTEGER PRIMARY KEY ASC, y DATETIME);"
+
+  sql execute $db \
+      "INSERT INTO t1 (x, y) VALUES(1, 'Wednesday, 16 December 2009');"
+
+  sql execute $db "INSERT INTO t1 (x, y) VALUES(2, '12:00:00');"
+
+  sql execute $db \
+      "INSERT INTO t1 (x, y) VALUES(3, 'Wednesday, 16 December 2009 12:00:00');"
+
+  sql execute $db "INSERT INTO t1 (x, y) VALUES(4, '12/16/2009');"
+  sql execute $db "INSERT INTO t1 (x, y) VALUES(5, '12:00');"
+  sql execute $db "INSERT INTO t1 (x, y) VALUES(6, '12/16/2009 12:00');"
+
+  sql execute -datetimekind Utc $db "INSERT INTO t1 (x, y) VALUES(7, ?);" \
+      [list param1 DateTime "Wednesday, 16 December 2009"]
+
+  sql execute -datetimekind Utc $db "INSERT INTO t1 (x, y) VALUES(8, ?);" \
+      [list param1 DateTime 12:00:00]
+
+  sql execute -datetimekind Utc $db "INSERT INTO t1 (x, y) VALUES(9, ?);" \
+      [list param1 DateTime "Wednesday, 16 December 2009 12:00:00"]
+
+  sql execute -datetimekind Utc $db "INSERT INTO t1 (x, y) VALUES(10, ?);" \
+      [list param1 DateTime 12/16/2009]
+
+  sql execute -datetimekind Utc $db "INSERT INTO t1 (x, y) VALUES(11, ?);" \
+      [list param1 DateTime 12:00]
+
+  sql execute -datetimekind Utc $db "INSERT INTO t1 (x, y) VALUES(12, ?);" \
+      [list param1 DateTime "12/16/2009 12:00"]
+
+  sql execute -execute reader -datetimeformat [getDateTimeFormat] $db \
+      "SELECT x, CAST(y AS TEXT) AS y2 FROM t1 ORDER BY x;"
+
+  foreach name [lsort -integer [array names rows -regexp {^\d+$}]] {
+    lappend result [list $name $rows($name)]
+  }
+
+  set result
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain name rows result db fileName
+} -constraints \
+{eagle culture.invariant monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result [subst {{1 {{x 1} {y2 {Wednesday, 16 December\
+2009}}}} {2 {{x 2} {y2 12:00:00}}} {3 {{x 3} {y2 {Wednesday, 16 December 2009\
+12:00:00}}}} {4 {{x 4} {y2 12/16/2009}}} {5 {{x 5} {y2 12:00}}} {6 {{x 6} {y2\
+{12/16/2009 12:00}}}} {7 {{x 7} {y2 2009-12-16T00:00:00.0000000Z}}} {8 {{x 8}\
+{y2 ${date}T12:00:00.0000000Z}}} {9 {{x 9} {y2 2009-12-16T12:00:00.0000000Z}}}\
+{10 {{x 10} {y2 2009-12-16T00:00:00.0000000Z}}} {11 {{x 11} {y2\
+${date}T12:00:00.0000000Z}}} {12 {{x 12} {y2 2009-12-16T12:00:00.0000000Z}}}}]}
+
+###############################################################################
+
+unset -nocomplain date
+
+###############################################################################
+
+runTest {test data-1.16 {SQLiteConnectionStringBuilder DateTime} -body {
+  set id [object invoke Interpreter.GetActive NextId]
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System.Data.SQLite;
+
+    namespace _Dynamic${id}
+    {
+      public static class Test${id}
+      {
+        public static string GetConnectionString(
+          string format,
+          string kind,
+          string formatString
+          )
+        {
+          SQLiteConnectionStringBuilder builder =
+              new SQLiteConnectionStringBuilder();
+
+          builder.Add("Data Source", "test.db");
+          builder.Add("DateTimeFormat", format);
+          builder.Add("DateTimeKind", kind);
+          builder.Add("DateTimeFormatString", formatString);
+
+          return builder.ToString();
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Main()
+        {
+          // do nothing.
+        }
+      }
+    }
+  }] true false true results errors System.Data.SQLite.dll]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} GetConnectionString \
+            null null null
+      } result] : [set result ""]}] $result \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} GetConnectionString \
+            Default null null
+      } result] : [set result ""]}] $result \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} GetConnectionString \
+            null Unspecified null
+      } result] : [set result ""]}] $result \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} GetConnectionString \
+            ISO8601 Utc null
+      } result] : [set result ""]}] $result \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} GetConnectionString \
+            Ticks Local yyyy-MM-dd
+      } result] : [set result ""]}] $result
+} -cleanup {
+  unset -nocomplain result results errors code id
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite compileCSharp} -match regexp -result {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0 \{Data Source=test\.db\} 0\
+\{Data Source=test\.db;DateTimeFormat=(?:Default|ISO8601)\} 0 \{Data\
+Source=test\.db;DateTimeKind=Unspecified\} 0 \{Data\
+Source=test\.db;DateTimeFormat=(?:Default|ISO8601);DateTimeKind=Utc\} 0 \{Data\
+Source=test\.db;DateTimeFormat=Ticks;DateTimeKind=Local;DateTimeFormatString=yyyy-MM-dd\}$}}
+
+###############################################################################
+
+runTest {test data-1.17 {SQLiteConnectionStringBuilder properties} -body {
+  set id [object invoke Interpreter.GetActive NextId]
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System;
+    using System.Data.SQLite;
+    using System.Reflection;
+    using System.Text;
+
+    namespace _Dynamic${id}
+    {
+      public static class Test${id}
+      {
+        private static string ToHexString(
+          byte\[\] array
+          )
+        {
+          if (array == null)
+            return null;
+
+          StringBuilder result = new StringBuilder();
+
+          int length = array.Length;
+
+          for (int index = 0; index < length; index++)
+            result.AppendFormat("{0:x2}", array\[index\]);
+
+          return result.ToString();
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static string GetConnectionString(
+          string key,
+          string value,
+          string propertyName
+          )
+        {
+          SQLiteConnectionStringBuilder builder =
+              new SQLiteConnectionStringBuilder();
+
+          if (key != null)
+            builder.Add(key, value);
+
+          object propertyValue = null;
+
+          if (propertyName != null)
+          {
+            propertyValue = typeof(SQLiteConnectionStringBuilder).InvokeMember(
+                propertyName, BindingFlags.Instance | BindingFlags.Public |
+                BindingFlags.GetProperty, null, builder, null);
+          }
+
+          return String.Format("{0}, {1}", (propertyValue is byte\[\]) ?
+              ToHexString((byte\[\])propertyValue) : propertyValue, builder);
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Main()
+        {
+          // do nothing.
+        }
+      }
+    }
+  }] true false true results errors System.Data.SQLite.dll]
+
+  lappend results $code [expr {[info exists errors] ? $errors : ""}]
+
+  if {$code eq "Ok"} then {
+    set keys [list null Version Synchronous UseUTF16Encoding Pooling \
+                   BinaryGUID "Data Source" Uri FullUri "Default Timeout" \
+                   Enlist FailIfMissing "Legacy Format" "Read Only" \
+                   Password "Page Size" "Max Page Count" "Cache Size" \
+                   DateTimeFormat DateTimeKind DateTimeFormatString \
+                   BaseSchemaName "Journal Mode" "Default IsolationLevel" \
+                   "Foreign Keys" Flags SetDefaults ToFullPath HexPassword \
+                   DefaultDbType DefaultTypeName NoSharedFlags PrepareRetries \
+                   ZipVfsVersion VfsName BusyTimeout ProgressOps \
+                   NoDefaultFlags "Recursive Triggers" WaitTimeout]
+
+    set values [list null 3 Normal True False \
+                     True test.db test.db file:test.db 60 \
+                     False True False True \
+                     secret 4096 1024 8192 \
+                     UnixEpoch Utc yyyy-MM-dd sqlite_schema \
+                     Memory Serializable False \
+                     Default False False 736563726574 String \
+                     TEXT True 20 v2 test 1000 2000 True True 30000]
+
+    set propertyNames [list null Version SyncMode UseUTF16Encoding Pooling \
+                            BinaryGUID DataSource Uri FullUri DefaultTimeout \
+                            Enlist FailIfMissing LegacyFormat ReadOnly \
+                            Password PageSize MaxPageCount CacheSize \
+                            DateTimeFormat DateTimeKind DateTimeFormatString \
+                            BaseSchemaName JournalMode DefaultIsolationLevel \
+                            ForeignKeys Flags SetDefaults ToFullPath \
+                            HexPassword DefaultDbType DefaultTypeName \
+                            NoSharedFlags PrepareRetries ZipVfsVersion \
+                            VfsName BusyTimeout ProgressOps NoDefaultFlags \
+                            RecursiveTriggers WaitTimeout]
+
+    foreach key $keys value $values propertyName $propertyNames {
+      set code [catch {
+        object invoke _Dynamic${id}.Test${id} GetConnectionString \
+            $key $value $propertyName
+      } result]
+
+      lappend results $code $result
+    }
+  }
+
+  set results
+} -cleanup {
+  unset -nocomplain propertyName propertyNames value key values keys result \
+      results errors code id
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite compileCSharp} -match regexp -result \
+{^System#CodeDom#Compiler#CompilerResults#\d+ Ok \{\} 0 \{, \} 0 \{3,\
+Version=3\} 0 \{Normal, Synchronous=Normal\} 0 \{True, UseUTF16Encoding=True\}\
+0 \{False, Pooling=False\} 0 \{True, BinaryGUID=True\} 0 \{test\.db, Data\
+Source=test\.db\} 0 \{test\.db, Uri=test\.db\} 0 \{file:test.db,\
+FullUri=file:test\.db\} 0 \{60, Default Timeout=60\} 0 \{False, Enlist=False\}\
+0 \{True, FailIfMissing=True\} 0 \{False, Legacy Format=False\} 0 \{True, Read\
+Only=True\} 0 \{secret, Password=secret\} 0 \{4096, Page Size=4096\} 0 \{1024,\
+Max Page Count=1024\} 0 \{8192, Cache Size=8192\} 0 \{UnixEpoch,\
+DateTimeFormat=UnixEpoch\} 0 \{Utc, DateTimeKind=Utc\} 0 \{yyyy-MM-dd,\
+DateTimeFormatString=yyyy-MM-dd\} 0 \{sqlite_schema,\
+BaseSchemaName=sqlite_schema\} 0 \{Memory, Journal Mode=Memory\} 0\
+\{Serializable, Default IsolationLevel=Serializable\} 0 \{False, Foreign\
+Keys=False\} 0 \{(?:Default|LogCallbackException),\
+Flags=(?:Default|LogCallbackException)\} 0 \{False, SetDefaults=False\} 0\
+\{False, ToFullPath=False\} 0 {736563726574, HexPassword=736563726574} 0\
+\{String, DefaultDbType=String\} 0 \{TEXT, DefaultTypeName=TEXT\} 0 \{True,\
+NoSharedFlags=True\} 0 \{20, PrepareRetries=20\} 0 \{v2, ZipVfsVersion=v2\} 0\
+\{test, VfsName=test\} 0 \{1000, BusyTimeout=1000\} 0 \{2000,\
+ProgressOps=2000\} 0 \{True, NoDefaultFlags=True\} 0 \{True, Recursive\
+Triggers=True\} 0 \{30000, WaitTimeout=30000\}$}}
+
+###############################################################################
+
+runTest {test data-1.18 {SQLiteConvert ToDateTime (Julian Day)} -body {
+  set dateTime [object invoke -create System.Data.SQLite.SQLiteConvert \
+      ToDateTime 2455928.0 Utc]
+
+  object invoke $dateTime ToString [getDateTimeFormat]
+} -cleanup {
+  unset -nocomplain dateTime
+} -constraints {eagle command.object System.Data.SQLite} -result \
+{2012-01-01 12:00:00Z}}
+
+###############################################################################
+
+runTest {test data-1.19 {SQLiteConvert ToJulianDay} -body {
+  expr {round([object invoke System.Data.SQLite.SQLiteConvert ToJulianDay \
+      "2012-01-01 12:00:00Z"])}
+} -constraints {eagle command.object System.Data.SQLite} -result {2455928}}
+
+###############################################################################
+
+runTest {test data-1.20 {SQLiteConvert ToUnixEpoch (Utc)} -body {
+  #
+  # NOTE: At first, the test result here may not seem correct; however, the
+  #       same result can be seen by compiling and running the following C#
+  #       code fragment together with the ToUnixEpoch method:
+  #
+  #           DateTime dateTime;
+  #           Console.WriteLine("dateTime = {0}, unixTime = {1}",
+  #               dateTime = DateTime.Parse("2012-01-01 12:00:00Z"),
+  #               ToUnixEpoch(dateTime));
+  #
+  #       The basic problem here is that the Parse [and TryParse] methods of
+  #       the DateTime structure seem to always return local time, even when
+  #       string value clearly indicates otherwise (i.e. the trailing "Z",
+  #       indicating UTC).
+  #
+  expr {round([object invoke System.Data.SQLite.SQLiteConvert ToUnixEpoch \
+      [set dateTime [object invoke -create -alias DateTime ParseExact \
+      "2012-01-01 12:00:00Z" [getDateTimeFormat] null AdjustToUniversal]]])}
+} -cleanup {
+  unset -nocomplain dateTime
+} -constraints {eagle command.object monoBug42 System.Data.SQLite} -result \
+{1325419200}}
+
+###############################################################################
+
+runTest {test data-1.21 {SQLiteConvert ToUnixEpoch (Local)} -body {
+  #
+  # NOTE: At first, the test result here may not seem correct; however, the
+  #       same result can be seen by compiling and running the following C#
+  #       code fragment together with the ToUnixEpoch method:
+  #
+  #           DateTime dateTime;
+  #           Console.WriteLine("dateTime = {0}, unixTime = {1}",
+  #               dateTime = DateTime.Parse("2012-01-01 12:00:00"),
+  #               ToUnixEpoch(dateTime));
+  #
+  #       The basic problem here is that the Parse [and TryParse] methods of
+  #       the DateTime structure seem to always return local time, even when
+  #       string value clearly indicates otherwise (i.e. the trailing "Z",
+  #       indicating UTC).
+  #
+  expr {round([object invoke System.Data.SQLite.SQLiteConvert ToUnixEpoch \
+      "2012-01-01 12:00:00"])}
+} -constraints {eagle command.object System.Data.SQLite} -result {1325419200}}
+
+###############################################################################
+
+runTest {test data-1.22 {SQLiteTransaction disposal behavior} -setup {
+  setupDb [set fileName data-1.22.db]
+} -body {
+  sql execute $db "CREATE TABLE t1(x TEXT);"
+
+  sql execute $db {
+    INSERT INTO t1 (x) VALUES('test1');
+    INSERT INTO t1 (x) VALUES('test2');
+    INSERT INTO t1 (x) VALUES('test3');
+  }
+
+  set sql "SELECT x FROM t1 ORDER BY x COLLATE DOTHROW;"
+
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System;
+    using System.Data.SQLite;
+
+    namespace _Dynamic${id}
+    {
+      \[SQLiteFunction(Name = "DOTHROW", FuncType = FunctionType.Collation)\]
+      public class Test${id} : SQLiteFunction
+      {
+        public override int Compare(
+          string param1,
+          string param2
+          )
+        {
+          throw new Exception("not implemented");
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Main()
+        {
+          SQLiteFunction.RegisterFunction(typeof(Test${id}));
+
+          using (SQLiteConnection connection = new SQLiteConnection(
+              "Data Source=${dataSource};[getTestProperties]"))
+          {
+            connection.Open();
+
+            using (SQLiteTransaction transaction =
+                connection.BeginTransaction())
+            {
+              try
+              {
+                SQLiteCommand command = connection.CreateCommand();
+
+                command.CommandText = "${sql}";
+                command.ExecuteNonQuery();
+              }
+              catch
+              {
+                // do nothing.
+              }
+            }
+          }
+        }
+      }
+    }
+  }] true false true results errors System.Data.SQLite.dll]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} Main
+      } result] : [set result ""]}] $result
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result results errors code sql dataSource id db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite compileCSharp} -match regexp -result {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0 \{\}$}}
+
+###############################################################################
+
+runTest {test data-1.23 {SQLiteFunction collation exception} -setup {
+  setupDb [set fileName data-1.23.db]
+} -body {
+  sql execute $db "CREATE TABLE t1(x TEXT);"
+
+  sql execute $db {
+    INSERT INTO t1 (x) VALUES('test1');
+    INSERT INTO t1 (x) VALUES('test2');
+    INSERT INTO t1 (x) VALUES('test3');
+  }
+
+  set sql "SELECT x FROM t1 ORDER BY x COLLATE DOTHROW2;"
+
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System;
+    using System.Data.SQLite;
+
+    namespace _Dynamic${id}
+    {
+      \[SQLiteFunction(Name = "DOTHROW2", FuncType = FunctionType.Collation)\]
+      public class Test${id} : SQLiteFunction
+      {
+        public override int Compare(
+          string param1,
+          string param2
+          )
+        {
+          throw new Exception("not implemented");
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static int Main()
+        {
+          SQLiteFunction.RegisterFunction(typeof(Test${id}));
+
+          using (SQLiteConnection connection = new SQLiteConnection(
+              "Data Source=${dataSource};[getTestProperties]"))
+          {
+            connection.Open();
+
+            using (SQLiteTransaction transaction =
+                connection.BeginTransaction())
+            {
+              SQLiteCommand command = connection.CreateCommand();
+
+              command.CommandText = "${sql}";
+
+              using (SQLiteDataReader dataReader = command.ExecuteReader())
+              {
+                int count = 0;
+
+                while (dataReader.Read())
+                  count++;
+
+                return count;
+              }
+            }
+          }
+        }
+      }
+    }
+  }] true false true results errors System.Data.SQLite.dll]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} Main
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result results errors code sql dataSource id db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite compileCSharp} -match regexp -result {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 1 interrupted$}}
+
+###############################################################################
+
+runTest {test data-1.24 {LINQ SQL_CONSTRAINTCOLUMNS resource} -body {
+  object invoke -flags +NonPublic \
+      System.Data.SQLite.Linq.Properties.Resources SQL_CONSTRAINTCOLUMNS
+} -constraints {eagle command.object System.Data.SQLite\
+System.Data.SQLite.Linq} -result {
+      CREATE TEMP VIEW SCHEMACONSTRAINTCOLUMNS AS
+        SELECT CONSTRAINT_CATALOG,
+               NULL AS CONSTRAINT_SCHEMA,
+               CONSTRAINT_NAME,
+               TABLE_CATALOG,
+               NULL AS TABLE_SCHEMA,
+               TABLE_NAME,
+               COLUMN_NAME
+        FROM TEMP.SCHEMAINDEXCOLUMNS
+        UNION
+        SELECT CONSTRAINT_CATALOG,
+               NULL,
+               CONSTRAINT_NAME,
+               TABLE_CATALOG,
+               NULL,
+               TABLE_NAME,
+               FKEY_FROM_COLUMN
+        FROM TEMP.SCHEMAFOREIGNKEYS;
+    }}
+
+###############################################################################
+
+runTest {test data-1.25 {EF6 SQL_CONSTRAINTCOLUMNS resource} -body {
+  object invoke -flags +NonPublic \
+      System.Data.SQLite.EF6.Properties.Resources SQL_CONSTRAINTCOLUMNS
+} -constraints {eagle command.object System.Data.SQLite\
+System.Data.SQLite.EF6} -result {
+      CREATE TEMP VIEW SCHEMACONSTRAINTCOLUMNS AS
+        SELECT CONSTRAINT_CATALOG,
+               NULL AS CONSTRAINT_SCHEMA,
+               CONSTRAINT_NAME,
+               TABLE_CATALOG,
+               NULL AS TABLE_SCHEMA,
+               TABLE_NAME,
+               COLUMN_NAME
+        FROM TEMP.SCHEMAINDEXCOLUMNS
+        UNION
+        SELECT CONSTRAINT_CATALOG,
+               NULL,
+               CONSTRAINT_NAME,
+               TABLE_CATALOG,
+               NULL,
+               TABLE_NAME,
+               FKEY_FROM_COLUMN
+        FROM TEMP.SCHEMAFOREIGNKEYS;
+    }}
+
+###############################################################################
+
+runTest {test data-1.26 {LINQ SQL_CONSTRAINTS resource} -body {
+  object invoke -flags +NonPublic \
+      System.Data.SQLite.Linq.Properties.Resources SQL_CONSTRAINTS
+} -constraints {eagle command.object System.Data.SQLite\
+System.Data.SQLite.Linq} -result {
+      CREATE TEMP VIEW SCHEMACONSTRAINTS AS
+        SELECT INDEX_CATALOG AS CONSTRAINT_CATALOG,
+               NULL AS CONSTRAINT_SCHEMA,
+               INDEX_NAME AS CONSTRAINT_NAME,
+               TABLE_CATALOG,
+               NULL AS TABLE_SCHEMA,
+               TABLE_NAME,
+               'PRIMARY KEY' AS CONSTRAINT_TYPE,
+               0 AS IS_DEFERRABLE,
+               0 AS INITIALLY_DEFERRED,
+               NULL AS CHECK_CLAUSE
+        FROM TEMP.SCHEMAINDEXES
+        WHERE PRIMARY_KEY = 1
+        UNION
+        SELECT INDEX_CATALOG,
+               NULL,
+               INDEX_NAME,
+               TABLE_CATALOG,
+               NULL,
+               TABLE_NAME,
+               'UNIQUE',
+               0,
+               0,
+               NULL
+        FROM TEMP.SCHEMAINDEXES
+        WHERE PRIMARY_KEY = 0 AND [UNIQUE] = 1
+        UNION
+        SELECT CONSTRAINT_CATALOG,
+               NULL,
+               CONSTRAINT_NAME,
+               TABLE_CATALOG,
+               NULL,
+               TABLE_NAME,
+               CONSTRAINT_TYPE,
+               IS_DEFERRABLE,
+               INITIALLY_DEFERRED,
+               NULL
+        FROM TEMP.SCHEMAFOREIGNKEYS;
+    }}
+
+###############################################################################
+
+runTest {test data-1.27 {EF6 SQL_CONSTRAINTS resource} -body {
+  object invoke -flags +NonPublic \
+      System.Data.SQLite.EF6.Properties.Resources SQL_CONSTRAINTS
+} -constraints {eagle command.object System.Data.SQLite\
+System.Data.SQLite.EF6} -result {
+      CREATE TEMP VIEW SCHEMACONSTRAINTS AS
+        SELECT INDEX_CATALOG AS CONSTRAINT_CATALOG,
+               NULL AS CONSTRAINT_SCHEMA,
+               INDEX_NAME AS CONSTRAINT_NAME,
+               TABLE_CATALOG,
+               NULL AS TABLE_SCHEMA,
+               TABLE_NAME,
+               'PRIMARY KEY' AS CONSTRAINT_TYPE,
+               0 AS IS_DEFERRABLE,
+               0 AS INITIALLY_DEFERRED,
+               NULL AS CHECK_CLAUSE
+        FROM TEMP.SCHEMAINDEXES
+        WHERE PRIMARY_KEY = 1
+        UNION
+        SELECT INDEX_CATALOG,
+               NULL,
+               INDEX_NAME,
+               TABLE_CATALOG,
+               NULL,
+               TABLE_NAME,
+               'UNIQUE',
+               0,
+               0,
+               NULL
+        FROM TEMP.SCHEMAINDEXES
+        WHERE PRIMARY_KEY = 0 AND [UNIQUE] = 1
+        UNION
+        SELECT CONSTRAINT_CATALOG,
+               NULL,
+               CONSTRAINT_NAME,
+               TABLE_CATALOG,
+               NULL,
+               TABLE_NAME,
+               CONSTRAINT_TYPE,
+               IS_DEFERRABLE,
+               INITIALLY_DEFERRED,
+               NULL
+        FROM TEMP.SCHEMAFOREIGNKEYS;
+    }}
+
+###############################################################################
+
+runTest {test data-1.28 {SQLiteDataReader GetValues w/collection} -setup {
+  setupDb [set fileName data-1.28.db]
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(x INTEGER PRIMARY KEY ASC, y TEXT);
+    INSERT INTO t1 (x, y) VALUES(1, 'aardvark');
+    INSERT INTO t1 (x, y) VALUES(2, 'bear');
+    INSERT INTO t1 (x, y) VALUES(3, 'chicken');
+    INSERT INTO t1 (x, y) VALUES(4, 'duck');
+    INSERT INTO t1 (x, y) VALUES(5, 'elephant');
+    INSERT INTO t1 (x, y) VALUES(6, 'frog');
+    INSERT INTO t1 (x, y) VALUES(7, 'goose');
+    INSERT INTO t1 (x, y) VALUES(8, 'horse');
+    INSERT INTO t1 (x, y) VALUES(9, 'iguana');
+    INSERT INTO t1 (x, y) VALUES(10, 'jellyfish');
+    INSERT INTO t1 (x, y) VALUES(11, 'kangaroo');
+    INSERT INTO t1 (x, y) VALUES(12, 'llama');
+    INSERT INTO t1 (x, y) VALUES(13, 'moose');
+    INSERT INTO t1 (x, y) VALUES(14, 'newt');
+    INSERT INTO t1 (x, y) VALUES(15, 'ostrich');
+    INSERT INTO t1 (x, y) VALUES(16, 'pig');
+    INSERT INTO t1 (x, y) VALUES(17, 'quail');
+    INSERT INTO t1 (x, y) VALUES(18, 'rhinoceros');
+    INSERT INTO t1 (x, y) VALUES(19, 'shark');
+    INSERT INTO t1 (x, y) VALUES(20, 'tiger');
+    INSERT INTO t1 (x, y) VALUES(21, 'unicorn');
+    INSERT INTO t1 (x, y) VALUES(22, 'viper');
+    INSERT INTO t1 (x, y) VALUES(23, 'weasel');
+    INSERT INTO t1 (x, y) VALUES(24, 'xerus');
+    INSERT INTO t1 (x, y) VALUES(25, 'yak');
+    INSERT INTO t1 (x, y) VALUES(26, 'zebra');
+  }
+
+  set connection [getDbConnection]
+
+  set command [object create -alias System.Data.SQLite.SQLiteCommand \
+      "SELECT x, y, x, y FROM t1 ORDER BY y DESC;" $connection]
+
+  set reader [$command -alias ExecuteReader]
+  set collection [$reader -alias GetValues]
+  set result [list]
+
+  object foreach -alias item $collection {
+    lappend result [$collection GetValues $item]
+  }
+
+  set result
+} -cleanup {
+  freeDbConnection
+
+  unset -nocomplain result item collection reader command connection
+
+  cleanupDb $fileName; # NOTE: After object disposal.
+
+  unset -nocomplain db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result {{26 26} {zebra zebra}}}
+
+###############################################################################
+
+runTest {test data-1.29 {LINQ ISQLiteSchemaExtensions.BuildTempSchema} -setup {
+  setupDb [set fileName data-1.29.db]
+} -body {
+  set connection [getDbConnection]
+
+  set providerServices [object invoke -flags +NonPublic \
+      System.Data.SQLite.Linq.SQLiteProviderServices Instance]
+
+  object invoke -flags +NonPublic -type \
+      System.Data.SQLite.ISQLiteSchemaExtensions $providerServices \
+      BuildTempSchema $connection
+} -cleanup {
+  cleanupDb $fileName
+
+  freeDbConnection
+
+  unset -nocomplain providerServices connection db fileName
+} -constraints {eagle command.object monoToDo SQLite System.Data.SQLite\
+System.Data.SQLite.Linq} -result {}}
+
+###############################################################################
+
+runTest {test data-1.30 {EF6 ISQLiteSchemaExtensions.BuildTempSchema} -setup {
+  setupDb [set fileName data-1.30.db]
+} -body {
+  set connection [getDbConnection]
+
+  set providerServices [object invoke -flags +NonPublic \
+      System.Data.SQLite.EF6.SQLiteProviderServices Instance]
+
+  object invoke -flags +NonPublic -type \
+      System.Data.SQLite.ISQLiteSchemaExtensions $providerServices \
+      BuildTempSchema $connection
+} -cleanup {
+  cleanupDb $fileName
+
+  freeDbConnection
+
+  unset -nocomplain providerServices connection db fileName
+} -constraints {eagle command.object monoToDo SQLite System.Data.SQLite\
+System.Data.SQLite.EF6} -result {}}
+
+###############################################################################
+
+runTest {test data-1.31 {VARCHAR / NVARCHAR types with spaces} -body {
+  list [object invoke -flags +NonPublic System.Data.SQLite.SQLiteConvert \
+      TypeNameToDbType null VARCHAR None] \
+      [object invoke -flags +NonPublic System.Data.SQLite.SQLiteConvert \
+      TypeNameToDbType null NVARCHAR None] \
+      [object invoke -flags +NonPublic System.Data.SQLite.SQLiteConvert \
+      TypeNameToDbType null VARCHAR(1) None] \
+      [object invoke -flags +NonPublic System.Data.SQLite.SQLiteConvert \
+      TypeNameToDbType null NVARCHAR(1) None] \
+      [object invoke -flags +NonPublic System.Data.SQLite.SQLiteConvert \
+      TypeNameToDbType null "VARCHAR (1)" None] \
+      [object invoke -flags +NonPublic System.Data.SQLite.SQLiteConvert \
+      TypeNameToDbType null "NVARCHAR (1)" None] \
+} -constraints {eagle command.object System.Data.SQLite} -result \
+{AnsiString String AnsiString String AnsiString String}}
+
+###############################################################################
+
+runTest {test data-1.32 {SetMemoryStatus method} -setup {
+  #
+  # NOTE: Make sure that SQLite core library is completely shutdown prior to
+  #       starting this test.
+  #
+  shutdownSQLite $test_channel
+
+  #
+  # NOTE: Create an IntPtr instance with a value of zero.
+  #
+  set zero [object invoke -create IntPtr Zero]
+
+  #
+  # NOTE: Create an instance of the core SQLite library interop wrapper class.
+  #
+  set sqlite3 [object create -flags +NonPublic System.Data.SQLite.SQLite3 \
+      Default Unspecified null $zero null true]
+} -body {
+  set result(rc1) [object invoke -flags +NonPublic $sqlite3 SetMemoryStatus \
+      false]
+
+  set result(before) [object invoke -flags +NonPublic $sqlite3 MemoryUsed]
+
+  set result(ptr1) [object invoke -create -flags +NonPublic \
+      System.Data.SQLite.UnsafeNativeMethods sqlite3_malloc 100]
+
+  set result(after1) [object invoke -flags +NonPublic $sqlite3 MemoryUsed]
+
+  object invoke -flags +NonPublic System.Data.SQLite.UnsafeNativeMethods \
+      sqlite3_free $result(ptr1)
+
+  set result(after2) [object invoke -flags +NonPublic $sqlite3 MemoryUsed]
+
+  set result(rc2) [object invoke -flags +NonPublic $sqlite3 SetMemoryStatus \
+      true]
+
+  set result(rc3) [object invoke -flags +NonPublic \
+      System.Data.SQLite.UnsafeNativeMethods sqlite3_shutdown]
+
+  set result(rc4) [object invoke -flags +NonPublic $sqlite3 SetMemoryStatus \
+      true]
+
+  set result(ptr2) [object invoke -create -flags +NonPublic \
+      System.Data.SQLite.UnsafeNativeMethods sqlite3_malloc 100]
+
+  set result(after3) [object invoke -flags +NonPublic $sqlite3 MemoryUsed]
+
+  object invoke -flags +NonPublic System.Data.SQLite.UnsafeNativeMethods \
+      sqlite3_free $result(ptr2)
+
+  set result(after4) [object invoke -flags +NonPublic $sqlite3 MemoryUsed]
+
+  list $result(rc1) $result(rc2) $result(rc3) $result(rc4) $result(ptr1) \
+      $result(ptr2) $result(before) $result(after1) $result(after2) \
+      $result(after3) $result(after4) \
+      [expr {$result(before) == $result(after1)}] \
+      [expr {$result(before) == $result(after2)}] \
+      [expr {$result(after3) > 0}] \
+      [expr {$result(before) < $result(after3)}] \
+      [expr {$result(after1) < $result(after3)}] \
+      [expr {$result(after4) < $result(after3)}]
+} -cleanup {
+  catch {
+    #
+    # NOTE: Make sure that SQLite core library is completely shutdown prior
+    #       to attempting to reconfigure the memory status setting.
+    #
+    shutdownSQLite $test_channel
+
+    #
+    # NOTE: Attempt to make sure the default value for the process-wide
+    #       memory usage tracking setting is restored.  This is not 100%
+    #       reliable because we have no idea what the original value was
+    #       upon entry into this test (i.e. because the underlying core
+    #       library property is currently write-only).
+    #
+    object invoke -flags +NonPublic System.Data.SQLite.UnsafeNativeMethods \
+        sqlite3_config_int SQLITE_CONFIG_MEMSTATUS 1
+  }
+
+  unset -nocomplain result sqlite3 zero
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -match regexp -result {^Ok Misuse Ok Ok System#IntPtr#\d+\
+System#IntPtr#\d+ \d+ \d+ \d+ \d+ \d+ True True True True True True$}}
+
+###############################################################################
+
+runTest {test data-1.33 {SQLiteConnection.Open with SetDefaults=False} -setup {
+  setupDb [set fileName data-1.33.db] "" "" "" "" SetDefaults=False
+} -body {
+  set result [list]
+
+  lappend result [sql execute -execute scalar $db "PRAGMA page_size;"]
+  lappend result [sql execute -execute scalar $db "PRAGMA max_page_count;"]
+  lappend result [sql execute -execute scalar $db "PRAGMA legacy_file_format;"]
+  lappend result [sql execute -execute scalar $db "PRAGMA synchronous;"]
+  lappend result [sql execute -execute scalar $db "PRAGMA cache_size;"]
+  lappend result [sql execute -execute scalar $db "PRAGMA journal_mode;"]
+  lappend result [sql execute -execute scalar $db "PRAGMA foreign_keys;"]
+
+  set result
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result db fileName
+} -constraints \
+{eagle monoBug28 command.sql compile.DATA SQLite System.Data.SQLite} -result \
+[list [getDbDefaultPageSize] 1073741823 0 2 [getDbDefaultCacheSize] delete 0]}
+
+###############################################################################
+
+runTest {test data-1.34 {SQLiteConnection.Open with SetDefaults=True} -setup {
+  setupDb [set fileName data-1.34.db] "" "" "" "" SetDefaults=True
+} -body {
+  set result [list]
+
+  lappend result [sql execute -execute scalar $db "PRAGMA page_size;"]
+  lappend result [sql execute -execute scalar $db "PRAGMA max_page_count;"]
+  lappend result [sql execute -execute scalar $db "PRAGMA legacy_file_format;"]
+  lappend result [sql execute -execute scalar $db "PRAGMA synchronous;"]
+  lappend result [sql execute -execute scalar $db "PRAGMA cache_size;"]
+  lappend result [sql execute -execute scalar $db "PRAGMA journal_mode;"]
+  lappend result [sql execute -execute scalar $db "PRAGMA foreign_keys;"]
+
+  set result
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result db fileName
+} -constraints \
+{eagle monoBug28 command.sql compile.DATA SQLite System.Data.SQLite} -result \
+[list [getDbDefaultPageSize] 1073741823 0 2 [getDbDefaultCacheSize] delete 0]}
+
+###############################################################################
+
+runTest {test data-1.35 {SQLiteConnection.Open without SetDefaults} -setup {
+  setupDb [set fileName data-1.35.db]
+} -body {
+  set result [list]
+
+  lappend result [sql execute -execute scalar $db "PRAGMA page_size;"]
+  lappend result [sql execute -execute scalar $db "PRAGMA max_page_count;"]
+  lappend result [sql execute -execute scalar $db "PRAGMA legacy_file_format;"]
+  lappend result [sql execute -execute scalar $db "PRAGMA synchronous;"]
+  lappend result [sql execute -execute scalar $db "PRAGMA cache_size;"]
+  lappend result [sql execute -execute scalar $db "PRAGMA journal_mode;"]
+  lappend result [sql execute -execute scalar $db "PRAGMA foreign_keys;"]
+
+  set result
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result db fileName
+} -constraints \
+{eagle monoBug28 command.sql compile.DATA SQLite System.Data.SQLite} -result \
+[list [getDbDefaultPageSize] 1073741823 0 2 [getDbDefaultCacheSize] delete 0]}
+
+###############################################################################
+
+runTest {test data-1.36 {SQLiteConnection.Open with PRAGMA overrides} -setup {
+  #
+  # NOTE: Attempt to open a connection with all available PRAGMA settings
+  #       set to non-default values in the connection string.
+  #
+  setupDb [set fileName data-1.36.db] "" "" "" "" [join [list \
+      "Page Size=4096" "Max Page Count=2048" "Legacy Format=True" \
+      Synchronous=Normal "Cache Size=4096" "Journal Mode=Wal" \
+      "Foreign Keys=True"] \;]
+} -body {
+  set result [list]
+
+  lappend result [sql execute -execute scalar $db "PRAGMA page_size;"]
+  lappend result [sql execute -execute scalar $db "PRAGMA max_page_count;"]
+  lappend result [sql execute -execute scalar $db "PRAGMA legacy_file_format;"]
+  lappend result [sql execute -execute scalar $db "PRAGMA synchronous;"]
+  lappend result [sql execute -execute scalar $db "PRAGMA cache_size;"]
+  lappend result [sql execute -execute scalar $db "PRAGMA journal_mode;"]
+  lappend result [sql execute -execute scalar $db "PRAGMA foreign_keys;"]
+
+  set result
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result db fileName
+} -constraints \
+{eagle monoBug28 command.sql compile.DATA SQLite System.Data.SQLite} -result \
+{4096 2048 1 1 4096 wal 1}}
+
+###############################################################################
+
+runTest {test data-1.37 {sqlite3_win32_set_directory function} -setup {
+  set directory(base) [getDatabaseDirectory]
+
+  if {[string length $directory(base)] == 0 || \
+      ![file exists $directory(base)] || \
+      ![file isdirectory $directory(base)]} then {
+    error [appendArgs "base directory \"" $directory(base) "\" is invalid"]
+  }
+
+  set directory(data) [file join $directory(base) \
+      [appendArgs sqlite .data. [pid]]]
+
+  file mkdir $directory(data)
+
+  tputs $test_channel [appendArgs "---- created data directory \"" \
+      $directory(data) \"\n]
+
+  set directory(temp) [file join $directory(base) \
+      [appendArgs sqlite .temp. [pid]]]
+
+  file mkdir $directory(temp)
+
+  tputs $test_channel [appendArgs "---- created temporary directory \"" \
+      $directory(temp) \"\n]
+
+  proc threadStart {} {
+    while {$::i < 1000} {
+      set ::found(temp) [expr \
+          {[llength [file list $::directory(temp) etilqs_*]] > 0}]
+
+      if {$::found(temp)} then {
+        return
+      }
+    }
+  }
+} -body {
+  set result [list]
+
+  #
+  # NOTE: Attempt to modify the process-wide data and temporary directory
+  #       settings for the SQLite core library.
+  #
+  lappend result [object invoke -flags +NonPublic \
+      System.Data.SQLite.UnsafeNativeMethods sqlite3_win32_set_directory 1 \
+      $directory(data)]
+
+  lappend result [object invoke -flags +NonPublic \
+      System.Data.SQLite.UnsafeNativeMethods sqlite3_win32_set_directory 2 \
+      $directory(temp)]
+
+  setupDb [set fileName data-1.37.db] "" "" "" "" "" false false false false
+
+  sql execute $db "CREATE TABLE t1(x NOT NULL);"
+
+  for {set i 1} {$i < 100} {incr i} {
+    sql execute $db "INSERT INTO t1 (x) VALUES(?);" \
+        [list param1 String [expr {randstr(1024)}]]
+  }
+
+  set found(data) [expr \
+      {[llength [file list $directory(data) $fileName]] == 1}]
+
+  set t [createThread threadStart]
+  sql execute $db "BEGIN TRANSACTION;"; startThread $t
+
+  for {set i 1} {$i < 1000} {incr i} {
+    #
+    # NOTE: Execute a query that should force the creation of a temporary file
+    #       for its statement journal.
+    #
+    sql execute $db "UPDATE t1 SET x = ?;" \
+        [list param1 String [expr {randstr(1024)}]]
+
+    #
+    # NOTE: Give the other thread some time to notice the temporary file.
+    #
+    after [expr {int(rand() * 1000)}]
+
+    #
+    # NOTE: Stop when the other thread confirms that the temporary file was
+    #       created in the correct directory.
+    #
+    if {[info exists found(temp)] && $found(temp)} then {
+      break
+    }
+  }
+
+  $t Join; sql execute $db "COMMIT TRANSACTION;"
+
+  lappend result $found(data) [expr {[info exists found(temp)] ? \
+      $found(temp) : False}]; set result
+} -cleanup {
+  #
+  # NOTE: Close the database; however, do not attempt to delete the file as
+  #       it is not located in the database directory known to the cleanupDb
+  #       procedure (i.e. the one returned by getDatabaseDirectory).
+  #
+  cleanupDb $fileName db true false false
+
+  #
+  # NOTE: Attempt to restore the process-wide data and temporary directory
+  #       settings for the SQLite core library.
+  #
+  catch {
+    object invoke -flags +NonPublic System.Data.SQLite.UnsafeNativeMethods \
+        sqlite3_win32_set_directory 1 null
+  }
+
+  catch {
+    object invoke -flags +NonPublic System.Data.SQLite.UnsafeNativeMethods \
+        sqlite3_win32_set_directory 2 null
+  }
+
+  if {[info exists directory(data)] && \
+      [file exists $directory(data)] && \
+      [file isdirectory $directory(data)]} then {
+    file delete -recursive -force $directory(data)
+  }
+
+  if {[info exists directory(temp)] && \
+      [file exists $directory(temp)] && \
+      [file isdirectory $directory(temp)]} then {
+    file delete -recursive -force $directory(temp)
+  }
+
+  if {[info exists t] && [cleanupThread $t]} then {
+    unset t
+  }
+
+  catch {object removecallback threadStart}
+
+  unset -nocomplain t found i db fileName result directory
+
+  rename threadStart ""
+} -constraints {eagle command.object windows monoBug28 command.sql compile.DATA\
+compile.THREADING SQLite System.Data.SQLite sqlite3_win32_set_directory} \
+-result {Ok Ok True True}}
+
+###############################################################################
+
+runTest {test data-1.38 {serialization of SQLiteException} -body {
+  set serializer [object create -alias \
+      System.Runtime.Serialization.Formatters.Binary.BinaryFormatter]
+
+  set stream [object create -alias System.IO.MemoryStream]
+
+  set exception(1) [object create -alias \
+      System.Data.SQLite.SQLiteException 14 "this is a test"]; # CantOpen
+
+  $serializer Serialize $stream $exception(1)
+
+  $stream Seek 0 Begin
+
+  set exception(2) [$serializer -alias Deserialize $stream]
+
+  list [$exception(1) ResultCode] \
+      [string map [list \r\n \n] [$exception(1) Message]] \
+      [$exception(2) ResultCode] \
+      [string map [list \r\n \n] [$exception(2) Message]] \
+      [expr {[$exception(1) ResultCode] eq [$exception(2) ResultCode]}] \
+      [expr {[$exception(1) Message] eq [$exception(2) Message]}]
+} -cleanup {
+  unset -nocomplain exception stream serializer
+} -constraints {eagle command.object monoBug58 SQLite System.Data.SQLite} \
+-result {CantOpen {unable to open database file
+this is a test} CantOpen {unable to open database file
+this is a test} True True}}
+
+###############################################################################
+
+runTest {test data-1.39 {unencrypted database, with password} -setup {
+  setupDb [set fileName data-1.39.db]
+} -body {
+  sql execute $db "CREATE TABLE t1(x);"
+  sql execute $db "INSERT INTO t1 (x) VALUES(1);"
+
+  cleanupDb $fileName db true false false
+  setupDb $fileName "" "" "" "" "Password=12345;" true false
+
+  set result [list]
+
+  lappend result [catch {sql execute -execute scalar $db \
+      "SELECT COUNT(*) FROM t1;"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  lappend result [catch {sql execute $db \
+      "INSERT INTO t1 (x) VALUES(1);"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  cleanupDb $fileName db true false false
+  setupDb $fileName "" "" "" "" "" true false
+
+  lappend result [catch {sql execute $db \
+      "INSERT INTO t1 (x) VALUES(1);"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  lappend result [catch {sql execute -execute scalar $db \
+      "SELECT COUNT(*) FROM t1;"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  set result
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain error result db fileName
+} -constraints {eagle System.Data.SQLite.Encryption monoBug28 command.sql\
+compile.DATA SQLite System.Data.SQLite} -result {1 {file is not a database} 1\
+{file is not a database} 0 1 0 2}}
+
+###############################################################################
+
+runTest {test data-1.40 {encrypted database, wrong password} -setup {
+  setupDb [set fileName data-1.40.db] "" "" "" "" "Password=12345;"
+} -body {
+  sql execute $db "CREATE TABLE t1(x);"
+  sql execute $db "INSERT INTO t1 (x) VALUES(1);"
+
+  cleanupDb $fileName db true false false
+  setupDb $fileName "" "" "" "" "Password=12346;" true false
+
+  set result [list]
+
+  lappend result [catch {sql execute -execute scalar $db \
+      "SELECT COUNT(*) FROM t1;"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  lappend result [catch {sql execute $db \
+      "INSERT INTO t1 (x) VALUES(1);"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  cleanupDb $fileName db true false false
+  setupDb $fileName "" "" "" "" "Password=12345;" true false
+
+  lappend result [catch {sql execute $db \
+      "INSERT INTO t1 (x) VALUES(1);"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  lappend result [catch {sql execute -execute scalar $db \
+      "SELECT COUNT(*) FROM t1;"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  set result
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain error result db fileName
+} -constraints {eagle System.Data.SQLite.Encryption monoBug28 command.sql\
+compile.DATA SQLite System.Data.SQLite} -result {1 {file is not a database} 1\
+{file is not a database} 0 1 0 2}}
+
+###############################################################################
+
+runTest {test data-1.41 {encrypted database, password w/start-space} -setup {
+  setupDb [set fileName data-1.41.db] "" "" "" "" "Password= 1234;"
+} -body {
+  sql execute $db "CREATE TABLE t1(x);"
+  sql execute $db "INSERT INTO t1 (x) VALUES(1);"
+
+  cleanupDb $fileName db true false false
+  setupDb $fileName "" "" "" "" "Password=1234;" true false
+
+  set result [list]
+
+  lappend result [catch {sql execute -execute scalar $db \
+      "SELECT COUNT(*) FROM t1;"} error] $error
+
+  lappend result [catch {sql execute $db \
+      "INSERT INTO t1 (x) VALUES(1);"} error] $error
+
+  cleanupDb $fileName db true false false
+  setupDb $fileName "" "" "" "" "Password= 1234;" true false
+
+  lappend result [catch {sql execute $db \
+      "INSERT INTO t1 (x) VALUES(1);"} error] $error
+
+  lappend result [catch {sql execute -execute scalar $db \
+      "SELECT COUNT(*) FROM t1;"} error] $error
+
+  set result
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain error result db fileName
+} -constraints {eagle System.Data.SQLite.Encryption monoBug28 command.sql\
+compile.DATA SQLite System.Data.SQLite} -result {0 1 0 1 0 1 0 3}}
+
+###############################################################################
+
+runTest {test data-1.42 {encrypted database, w/quoted-start-space} -setup {
+  setupDb [set fileName data-1.42.db] "" "" "" "" "Password=\" 1234\";"
+} -body {
+  sql execute $db "CREATE TABLE t1(x);"
+  sql execute $db "INSERT INTO t1 (x) VALUES(1);"
+
+  cleanupDb $fileName db true false false
+  setupDb $fileName "" "" "" "" "Password=1234;" true false
+
+  set result [list]
+
+  lappend result [catch {sql execute -execute scalar $db \
+      "SELECT COUNT(*) FROM t1;"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  lappend result [catch {sql execute $db \
+      "INSERT INTO t1 (x) VALUES(1);"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  cleanupDb $fileName db true false false
+  setupDb $fileName "" "" "" "" "Password=\" 1234\";" true false
+
+  lappend result [catch {sql execute $db \
+      "INSERT INTO t1 (x) VALUES(1);"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  lappend result [catch {sql execute -execute scalar $db \
+      "SELECT COUNT(*) FROM t1;"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  set result
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain error result db fileName
+} -constraints {eagle System.Data.SQLite.Encryption monoBug28 command.sql\
+compile.DATA SQLite System.Data.SQLite} -result {1 {file is not a database} 1\
+{file is not a database} 0 1 0 2}}
+
+###############################################################################
+
+runTest {test data-1.43 {encrypted database, password w/mid-space} -setup {
+  setupDb [set fileName data-1.43.db] "" "" "" "" "Password=12 45;"
+} -body {
+  sql execute $db "CREATE TABLE t1(x);"
+  sql execute $db "INSERT INTO t1 (x) VALUES(1);"
+
+  cleanupDb $fileName db true false false
+  setupDb $fileName "" "" "" "" "Password=1245;" true false
+
+  set result [list]
+
+  lappend result [catch {sql execute -execute scalar $db \
+      "SELECT COUNT(*) FROM t1;"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  lappend result [catch {sql execute $db \
+      "INSERT INTO t1 (x) VALUES(1);"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  cleanupDb $fileName db true false false
+  setupDb $fileName "" "" "" "" "Password=12 45;" true false
+
+  lappend result [catch {sql execute $db \
+      "INSERT INTO t1 (x) VALUES(1);"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  lappend result [catch {sql execute -execute scalar $db \
+      "SELECT COUNT(*) FROM t1;"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  set result
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain error result db fileName
+} -constraints {eagle System.Data.SQLite.Encryption monoBug28 command.sql\
+compile.DATA SQLite System.Data.SQLite} -result {1 {file is not a database} 1\
+{file is not a database} 0 1 0 2}}
+
+###############################################################################
+
+runTest {test data-1.44 {encrypted database, password w/end-space} -setup {
+  setupDb [set fileName data-1.44.db] "" "" "" "" "Password=1234 ;"
+} -body {
+  sql execute $db "CREATE TABLE t1(x);"
+  sql execute $db "INSERT INTO t1 (x) VALUES(1);"
+
+  cleanupDb $fileName db true false false
+  setupDb $fileName "" "" "" "" "Password=1234;" true false
+
+  set result [list]
+
+  lappend result [catch {sql execute -execute scalar $db \
+      "SELECT COUNT(*) FROM t1;"} error] $error
+
+  lappend result [catch {sql execute $db \
+      "INSERT INTO t1 (x) VALUES(1);"} error] $error
+
+  cleanupDb $fileName db true false false
+  setupDb $fileName "" "" "" "" "Password=1234 ;" true false
+
+  lappend result [catch {sql execute $db \
+      "INSERT INTO t1 (x) VALUES(1);"} error] $error
+
+  lappend result [catch {sql execute -execute scalar $db \
+      "SELECT COUNT(*) FROM t1;"} error] $error
+
+  set result
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain error result db fileName
+} -constraints {eagle System.Data.SQLite.Encryption monoBug28 command.sql\
+compile.DATA SQLite System.Data.SQLite} -result {0 1 0 1 0 1 0 3}}
+
+###############################################################################
+
+runTest {test data-1.45 {encrypted database, w/quoted-end-space} -setup {
+  setupDb [set fileName data-1.45.db] "" "" "" "" "Password=\"1234 \";"
+} -body {
+  sql execute $db "CREATE TABLE t1(x);"
+  sql execute $db "INSERT INTO t1 (x) VALUES(1);"
+
+  cleanupDb $fileName db true false false
+  setupDb $fileName "" "" "" "" "Password=1234;" true false
+
+  set result [list]
+
+  lappend result [catch {sql execute -execute scalar $db \
+      "SELECT COUNT(*) FROM t1;"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  lappend result [catch {sql execute $db \
+      "INSERT INTO t1 (x) VALUES(1);"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  cleanupDb $fileName db true false false
+  setupDb $fileName "" "" "" "" "Password=\"1234 \";" true false
+
+  lappend result [catch {sql execute $db \
+      "INSERT INTO t1 (x) VALUES(1);"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  lappend result [catch {sql execute -execute scalar $db \
+      "SELECT COUNT(*) FROM t1;"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  set result
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain error result db fileName
+} -constraints {eagle System.Data.SQLite.Encryption monoBug28 command.sql\
+compile.DATA SQLite System.Data.SQLite} -result {1 {file is not a database} 1\
+{file is not a database} 0 1 0 2}}
+
+###############################################################################
+
+runTest {test data-1.46 {encrypted database, password via builder} -setup {
+  setupDb [set fileName data-1.46.db] "" "" "" "" "Password=67 89;"
+} -body {
+  sql execute $db "CREATE TABLE t1(x);"
+  sql execute $db "INSERT INTO t1 (x) VALUES(1);"
+
+  cleanupDb $fileName db true false false
+
+  set connectionStringBuilder [object create -alias \
+      System.Data.SQLite.SQLiteConnectionStringBuilder]
+
+  $connectionStringBuilder DataSource \
+      [file join [getDatabaseDirectory] $fileName]
+
+  $connectionStringBuilder Password "67 89"
+
+  set connection [object create -alias \
+      System.Data.SQLite.SQLiteConnection \
+      [$connectionStringBuilder ToString] true]
+
+  $connection Open; addDbConnection $connection
+
+  set result [list]
+
+  lappend result [catch {sql execute -execute scalar $db \
+      "SELECT COUNT(*) FROM t1;"} error] $error
+
+  lappend result [catch {sql execute $db \
+      "INSERT INTO t1 (x) VALUES(1);"} error] $error
+
+  cleanupDb $fileName db true false false
+  setupDb $fileName "" "" "" "" "Password=\"67 89\";" true false
+
+  lappend result [catch {sql execute $db \
+      "INSERT INTO t1 (x) VALUES(1);"} error] $error
+
+  lappend result [catch {sql execute -execute scalar $db \
+      "SELECT COUNT(*) FROM t1;"} error] $error
+
+  set result
+} -cleanup {
+  unset -nocomplain connection
+
+  cleanupDb $fileName; # NOTE: After object disposal.
+
+  unset -nocomplain connectionStringBuilder error result db fileName
+} -constraints {eagle command.object System.Data.SQLite.Encryption monoBug28\
+command.sql compile.DATA SQLite System.Data.SQLite} -result {0 1 0 1 0 1 0 3}}
+
+###############################################################################
+
+runTest {test data-1.47 {quoted connection string properties} -setup {
+  unset -nocomplain result list pair strings string
+} -body {
+  set result [list]
+
+  set strings [list \
+      "OneTwo=ThreeFour" "\"OneTwo\"=\"ThreeFour\"" \
+      "One Two=Three Four" "\"One Two\"=\"Three Four\"" \
+      "OneTwo=ThreeFour;" "\"OneTwo\"=\"ThreeFour\";" \
+      "One Two=Three Four;" "\"One Two\"=\"Three Four\";"]
+
+  foreach string $strings {
+    set list [object invoke -flags +NonPublic \
+        System.Data.SQLite.SQLiteConnection ParseConnectionString \
+        $string false]
+
+    object foreach -alias pair $list {
+      lappend result [list [$pair Key] [$pair Value]]
+    }
+  }
+
+  set result
+} -cleanup {
+  unset -nocomplain result list pair strings string
+} -constraints {eagle command.object System.Data.SQLite} -result {{OneTwo\
+ThreeFour} {OneTwo ThreeFour} {{One Two} {Three Four}} {{One Two} {Three Four}}\
+{OneTwo ThreeFour} {OneTwo ThreeFour} {{One Two} {Three Four}} {{One Two}\
+{Three Four}}}}
+
+###############################################################################
+
+runTest {test data-1.48 {rollback to nested savepoint} -setup {
+  setupDb [set fileName data-1.48.db]
+} -body {
+  sql execute $db "BEGIN IMMEDIATE TRANSACTION;"
+  sql execute $db "SAVEPOINT one;"
+
+  sql execute $db "CREATE TABLE t1(x);"
+  sql execute $db "SAVEPOINT two;"
+
+  sql execute $db "INSERT INTO t1 (x) VALUES(1);"
+  lappend result [sql execute -execute scalar $db "SELECT COUNT(*) FROM t1;"]
+  sql execute $db "SAVEPOINT three;"
+
+  sql execute $db "INSERT INTO t1 (x) VALUES(2);"
+  lappend result [sql execute -execute scalar $db "SELECT COUNT(*) FROM t1;"]
+
+  sql execute $db "ROLLBACK TRANSACTION TO SAVEPOINT three;"
+  lappend result [sql execute -execute scalar $db "SELECT COUNT(*) FROM t1;"]
+
+  set result
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result db fileName
+} -constraints \
+{eagle monoBug28 command.sql compile.DATA SQLite System.Data.SQLite} -result \
+{1 2 1}}
+
+###############################################################################
+
+runTest {test data-1.49 {NoExtensionFunctions connection flag} -setup {
+  setupDb [set fileName data-1.49.db]
+} -body {
+  set result [list]
+
+  lappend result [catch {sql execute -execute scalar $db \
+      "SELECT replicate('1234', 2);"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  cleanupDb $fileName
+  setupDb $fileName "" "" "" NoExtensionFunctions
+
+  lappend result [catch {sql execute -execute scalar $db \
+      "SELECT replicate('1234', 3);"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  cleanupDb $fileName
+  setupDb $fileName
+
+  lappend result [catch {sql execute -execute scalar $db \
+      "SELECT replicate('1234', 4);"} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  set result
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain error result db fileName
+} -constraints {eagle monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_EXTENSION_FUNCTIONS} -match regexp \
+-result {^0 12341234 1 \{SQL logic error( or missing database)? -- no such\
+function: replicate\} 0 1234123412341234$}}
+
+###############################################################################
+
+runTest {test data-1.50 {column name and index lookup} -setup {
+  setupDb [set fileName data-1.50.db]
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(x, y, z);
+    INSERT INTO t1 (x, y, z) VALUES(1, 'foo', 1234);
+  }
+
+  set dataReader [sql execute -execute reader -format datareader \
+      -alias $db "SELECT x, y, z FROM t1;"]
+
+  set result [list]
+
+  while {[$dataReader Read]} {
+    lappend result \
+        [list [$dataReader GetName 0] [$dataReader GetOrdinal x] \
+            [$dataReader Item x]] \
+        [list [$dataReader GetName 1] [$dataReader GetOrdinal y] \
+            [$dataReader Item y]] \
+        [list [$dataReader GetName 2] [$dataReader GetOrdinal z] \
+            [$dataReader Item z]]
+  }
+
+  set result
+} -cleanup {
+  unset -nocomplain dataReader
+
+  cleanupDb $fileName
+
+  unset -nocomplain result db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result {{x 0 1} {y 1 foo} {z 2 1234}}}
+
+###############################################################################
+
+runTest {test data-1.51 {nullable value types} -setup {
+  setupDb [set fileName data-1.51.db]
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(x INTEGER);
+    INSERT INTO t1 (x) VALUES(NULL);
+    INSERT INTO t1 (x) VALUES(1);
+  }
+
+  set dataReader [sql execute -execute reader -format datareader \
+      -alias $db "SELECT x FROM t1 ORDER BY x;"]
+
+  set result [list]
+
+  while {[$dataReader Read]} {
+    foreach {a b c d e} [list "" "" "" "" ""] break
+
+    set x [$dataReader GetOrdinal x]
+
+    foreach {a b c e} [list \
+        [$dataReader GetName $x] [$dataReader GetValue $x] \
+        [catch {$dataReader GetInt64 $x} d] [$dataReader Item x]] break
+
+    lappend result [list \
+        $x $a $b $c [extractSystemDataSQLiteExceptionMessage $d] $e]
+  }
+
+  set result
+} -cleanup {
+  unset -nocomplain dataReader
+
+  cleanupDb $fileName
+
+  unset -nocomplain e d c b a x result db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -match regexp -result {^\{0 x System#DBNull#\d+ 1\
+\{System\.Reflection\.TargetInvocationException: Exception has been thrown by\
+the target of an invocation\.\s+---> System\.InvalidCastException:.*\}\
+System#DBNull#\d+\} \{0 x 1 0 1 1\}$}}
+
+###############################################################################
+
+runTest {test data-1.52 {static SQLiteCommand.Execute method} -setup {
+  unset -nocomplain result sql
+} -body {
+  set sql(1) { \
+    CREATE TABLE t1(x); \
+    INSERT INTO t1 (x) VALUES (NULL); \
+    SELECT x FROM t1 ORDER BY x; \
+  }
+
+  set sql(2) { \
+    CREATE TABLE t1(x); \
+    INSERT INTO t1 (x) VALUES (?); \
+    SELECT x FROM t1 ORDER BY x; \
+  }
+
+  set result(1) [object invoke System.Data.SQLite.SQLiteCommand Execute \
+      "this will not execute" None null]
+
+  set result(2) [object invoke System.Data.SQLite.SQLiteCommand Execute \
+      $sql(1) NonQuery null]
+
+  set result(3) [object invoke System.Data.SQLite.SQLiteCommand Execute \
+      $sql(1) Scalar null]
+
+  set result(4) [object invoke System.Data.SQLite.SQLiteCommand Execute \
+      $sql(1) Reader null]
+
+  set result(5) [object invoke System.Data.SQLite.SQLiteCommand Execute \
+      "this will not execute" None null 1]
+
+  set result(6) [object invoke System.Data.SQLite.SQLiteCommand Execute \
+      $sql(2) NonQuery null 1]
+
+  set result(7) [object invoke System.Data.SQLite.SQLiteCommand Execute \
+      $sql(2) Scalar null 1]
+
+  set result(8) [object invoke System.Data.SQLite.SQLiteCommand Execute \
+      $sql(2) Reader null 1]
+
+  list $result(1) $result(2) $result(3) $result(4) $result(5) $result(6) \
+      $result(7) $result(8)
+} -cleanup {
+  unset -nocomplain result sql
+} -constraints {eagle command.object monoBug28 SQLite System.Data.SQLite} \
+-match regexp -result {^\{\} 1 System#DBNull#\d+\
+System#Data#SQLite#SQLiteDataReader#\d+ \{\} 1 1\
+System#Data#SQLite#SQLiteDataReader#\d+$}}
+
+###############################################################################
+
+runTest {test data-1.53 {BindAllAsText w/DateTime} -setup {
+  setupDb [set fileName data-1.53.db] "" Ticks Utc BindAllAsText
+} -body {
+  sql execute $db "CREATE TABLE t1(x);"
+
+  list [sql execute $db "INSERT INTO t1 (x) VALUES(?);" \
+      [list param1 DateTime [set dateTime [object invoke -create \
+      DateTime ParseExact "2000-02-29 13:59:58.1234567Z" \
+      [getDateTimeFormat] null AdjustToUniversal]]]] [sql execute \
+      -execute reader -format list $db "SELECT x FROM t1;"]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain dateTime db fileName
+} -constraints {eagle command.object monoBug28 monoBug42 command.sql\
+compile.DATA SQLite System.Data.SQLite} -result {1 630874295981234567}}
+
+###############################################################################
+
+runTest {test data-1.54 {bind function to a connection} -setup {
+  set fileName data-1.54.db
+} -body {
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  set sql { \
+    SELECT MyRandom(); \
+  }
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System;
+    using System.Data.SQLite;
+
+    namespace _Dynamic${id}
+    {
+      public class Test${id} : SQLiteFunction
+      {
+        private Random random;
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public Test${id}()
+        {
+          random = new Random();
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public override object Invoke(
+          object\[\] args
+          )
+        {
+          return random.Next();
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static object DoTest(bool bindFunction)
+        {
+          using (SQLiteConnection connection = new SQLiteConnection(
+              "Data Source=${dataSource};[getTestProperties]"))
+          {
+            connection.Open();
+
+            if (bindFunction)
+            {
+              connection.BindFunction(new SQLiteFunctionAttribute(
+                "MyRandom", 0, FunctionType.Scalar), new Test${id}());
+            }
+
+            using (SQLiteCommand command = new SQLiteCommand("${sql}",
+                connection))
+            {
+              return command.ExecuteScalar();
+            }
+          }
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Main()
+        {
+          // do nothing.
+        }
+      }
+    }
+  }] true false true results errors System.Data.SQLite.dll]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} DoTest false
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} DoTest true
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} DoTest false
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result code results errors sql dataSource id fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite compileCSharp} -match regexp -result {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 1 \{SQL logic error( or\
+missing database)? -- no such function: MyRandom\} 0 (?:-)?\d+ 1 \{SQL logic\
+error( or missing database)? -- no such function: MyRandom\}$}}
+
+###############################################################################
+
+runTest {test data-1.55 {SQLiteConvert TypeNameToDbType} -setup {
+  unset -nocomplain result typeName
+} -body {
+  foreach typeName [list \
+      BIGINT BIGUINT BINARY BIT BLOB BOOL BOOLEAN CHAR CLOB COUNTER CURRENCY \
+      DATE DATETIME DECIMAL DOUBLE FLOAT GENERAL GUID IDENTITY IMAGE INT INT8 \
+      INT16 INT32 INT64 INTEGER INTEGER8 INTEGER16 INTEGER32 INTEGER64 \
+      LOGICAL LONG LONGCHAR LONGTEXT LONGVARCHAR MEMO MONEY NCHAR NOTE NTEXT \
+      NUMBER NUMERIC NVARCHAR OLEOBJECT RAW REAL SINGLE SMALLDATE SMALLINT \
+      SMALLUINT STRING TEXT TIME TIMESTAMP TINYINT TINYSINT UINT UINT8 UINT16 \
+      UINT32 UINT64 ULONG UNIQUEIDENTIFIER UNSIGNEDINTEGER UNSIGNEDINTEGER8 \
+      UNSIGNEDINTEGER16 UNSIGNEDINTEGER32 UNSIGNEDINTEGER64 VARBINARY VARCHAR \
+      VARCHAR2 YESNO] {
+    lappend result [list $typeName [object invoke -flags +NonPublic \
+        System.Data.SQLite.SQLiteConvert TypeNameToDbType null $typeName None]]
+  }
+  set result
+} -cleanup {
+  unset -nocomplain result typeName
+} -constraints {eagle command.object System.Data.SQLite} -result {{BIGINT\
+Int64} {BIGUINT UInt64} {BINARY Binary} {BIT Boolean} {BLOB Binary} {BOOL\
+Boolean} {BOOLEAN Boolean} {CHAR AnsiStringFixedLength} {CLOB String} {COUNTER\
+Int64} {CURRENCY Decimal} {DATE DateTime} {DATETIME DateTime} {DECIMAL Decimal}\
+{DOUBLE Double} {FLOAT Double} {GENERAL Binary} {GUID Guid} {IDENTITY Int64}\
+{IMAGE Binary} {INT Int32} {INT8 SByte} {INT16 Int16} {INT32 Int32} {INT64\
+Int64} {INTEGER Int64} {INTEGER8 SByte} {INTEGER16 Int16} {INTEGER32 Int32}\
+{INTEGER64 Int64} {LOGICAL Boolean} {LONG Int64} {LONGCHAR String} {LONGTEXT\
+String} {LONGVARCHAR String} {MEMO String} {MONEY Decimal} {NCHAR\
+StringFixedLength} {NOTE String} {NTEXT String} {NUMBER Decimal} {NUMERIC\
+Decimal} {NVARCHAR String} {OLEOBJECT Binary} {RAW Binary} {REAL Double}\
+{SINGLE Single} {SMALLDATE DateTime} {SMALLINT Int16} {SMALLUINT UInt16}\
+{STRING String} {TEXT String} {TIME DateTime} {TIMESTAMP DateTime} {TINYINT\
+Byte} {TINYSINT SByte} {UINT UInt32} {UINT8 Byte} {UINT16 UInt16} {UINT32\
+UInt32} {UINT64 UInt64} {ULONG UInt64} {UNIQUEIDENTIFIER Guid} {UNSIGNEDINTEGER\
+UInt64} {UNSIGNEDINTEGER8 Byte} {UNSIGNEDINTEGER16 UInt16} {UNSIGNEDINTEGER32\
+UInt32} {UNSIGNEDINTEGER64 UInt64} {VARBINARY Binary} {VARCHAR AnsiString}\
+{VARCHAR2 AnsiString} {YESNO Boolean}}}
+
+###############################################################################
+
+runTest {test data-1.56 {totype extension} -setup {
+  setupDb [set fileName data-1.56.db]
+} -body {
+  set connection [getDbConnection]
+  set result [list]
+
+  $connection EnableExtensions true
+
+  $connection LoadExtension \
+      [getCoreExtensionBinaryFileName null] sqlite3_totype_init
+
+  lappend result [sql execute -execute scalar $db "SELECT tointeger('1');"]
+  lappend result [sql execute -execute scalar $db "SELECT tointeger('1x');"]
+  lappend result [sql execute -execute scalar $db "SELECT toreal('1.01');"]
+  lappend result [sql execute -execute scalar $db "SELECT toreal('1.0x');"]
+
+  set result
+} -cleanup {
+  freeDbConnection
+
+  unset -nocomplain result connection
+
+  cleanupDb $fileName
+
+  unset -nocomplain db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+defineConstant.System.Data.SQLite.INTEROP_TOTYPE_EXTENSION\
+System.Data.SQLite SQLiteInterop} -result {1 {} 1.01 {}}}
+
+###############################################################################
+
+runTest {test data-1.57 {regexp extension} -setup {
+  setupDb [set fileName data-1.57.db]
+} -body {
+  unset -nocomplain pattern result
+
+  set connection [getDbConnection]
+  set result(1) [list]
+
+  $connection EnableExtensions true
+
+  $connection LoadExtension \
+      [getCoreExtensionBinaryFileName null] sqlite3_regexp_init
+
+  set pattern(1) {^\d+ [A-Z]{1,3}$}; # valid
+  set pattern(2) {^\d+ [C]($}; # invalid
+
+  lappend result(1) [catch {
+    sql execute -execute scalar $db "SELECT REGEXP('$pattern(1)', '1 AB');"
+  } result(2)] $result(2)
+
+  lappend result(1) [catch {
+    sql execute -execute scalar $db "SELECT REGEXP('$pattern(2)', '1 AB');"
+  } result(2)] [string trim [lindex [split $result(2) \n] 1]]
+
+  lappend result(1) [catch {
+    sql execute -execute scalar $db "SELECT '1 AB' REGEXP '$pattern(1)';"
+  } result(2)] $result(2)
+
+  lappend result(1) [catch {
+    sql execute -execute scalar $db "SELECT '1 AB' REGEXP '$pattern(2)';"
+  } result(2)] [string trim [lindex [split $result(2) \n] 1]]
+
+  lappend result(1) [catch {
+    sql execute -execute scalar $db "SELECT REGEXP('$pattern(1)', '2');"
+  } result(2)] $result(2)
+
+  lappend result(1) [catch {
+    sql execute -execute scalar $db "SELECT REGEXP('$pattern(2)', '2');"
+  } result(2)] [string trim [lindex [split $result(2) \n] 1]]
+
+  lappend result(1) [catch {
+    sql execute -execute scalar $db "SELECT '2' REGEXP '$pattern(1)';"
+  } result(2)] $result(2)
+
+  lappend result(1) [catch {
+    sql execute -execute scalar $db "SELECT '2' REGEXP '$pattern(2)';"
+  } result(2)] [string trim [lindex [split $result(2) \n] 1]]
+
+  set result(1)
+} -cleanup {
+  freeDbConnection
+
+  unset -nocomplain pattern result connection
+
+  cleanupDb $fileName
+
+  unset -nocomplain db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+defineConstant.System.Data.SQLite.INTEROP_REGEXP_EXTENSION\
+System.Data.SQLite SQLiteInterop} -result {0 1 1 {unmatched '('} 0 1 1\
+{unmatched '('} 0 0 1 {unmatched '('} 0 0 1 {unmatched '('}}}
+
+###############################################################################
+
+reportSQLiteResources $test_channel
+
+###############################################################################
+
+runTest {test data-1.58 {SQLiteConnection.ReleaseMemory method} -setup {
+  setupDb [set fileName data-1.58.db]
+} -body {
+  set result [list]
+
+  set nFree 0; set resetOk false; set nLargest 0
+  set code [object invoke \
+      System.Data.SQLite.SQLiteConnection ReleaseMemory \
+      -1 true true nFree resetOk nLargest]
+
+  lappend result [list $code $nFree $resetOk $nLargest]
+
+  sql execute $db "CREATE TABLE t1(x);"
+  sql execute $db "INSERT INTO t1 (x) VALUES(RANDOMBLOB(1048576));"
+
+  set nFree 0; set resetOk false; set nLargest 0
+  set code [object invoke \
+      System.Data.SQLite.SQLiteConnection ReleaseMemory \
+      -1 true true nFree resetOk nLargest]
+
+  tputs $test_channel [appendArgs \
+      "---- memory released by SQLite... " $nFree " bytes\n"]
+
+  lappend result [list $code $nFree $resetOk $nLargest]
+
+  cleanupDb $fileName
+  checkForSQLiteDirectories $test_channel true
+
+  set nFree 0; set resetOk false; set nLargest 0
+  set code [object invoke \
+      System.Data.SQLite.SQLiteConnection ReleaseMemory \
+      -1 true true nFree resetOk nLargest]
+
+  tputs $test_channel [appendArgs \
+      "---- largest free SQLite heap block... " $nLargest " bytes\n"]
+
+  lappend result [list $code $nFree $resetOk $nLargest]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain nLargest resetOk nFree code result db fileName
+} -constraints {eagle command.object windows monoBug28 command.sql compile.DATA\
+SQLite System.Data.SQLite buildConfiguration.Release} -match regexp -result \
+{^\{Busy 0 False 0\} \{Busy \d+ False 0\} \{Ok 0 True \d+\}$}}
+
+###############################################################################
+
+runTest {test data-1.59 {percentile extension} -setup {
+  setupDb [set fileName data-1.59.db]
+} -body {
+  set connection [getDbConnection]
+  set result [list]
+
+  $connection EnableExtensions true
+
+  $connection LoadExtension \
+      [getCoreExtensionBinaryFileName null] sqlite3_percentile_init
+
+  lappend result [sql execute $db "CREATE TABLE t1(x);"]
+  lappend result [sql execute $db "INSERT INTO t1 VALUES(1),(2),(3),(4);"]
+  lappend result [sql execute $db "SELECT percentile(x,25) FROM t1;"]
+
+  lappend result [sql execute -execute scalar $db \
+      "SELECT percentile(x,25) FROM t1;"]
+
+  set result
+} -cleanup {
+  freeDbConnection
+
+  unset -nocomplain result connection
+
+  cleanupDb $fileName
+
+  unset -nocomplain db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+defineConstant.System.Data.SQLite.INTEROP_PERCENTILE_EXTENSION\
+System.Data.SQLite SQLiteInterop} -result {0 4 -1 1.75}}
+
+###############################################################################
+
+runTest {test data-1.60 {per-connection type mappings} -setup {
+  setupDb [set fileName data-1.60.db] "" "" "" UseConnectionTypes
+} -body {
+  set connection [getDbConnection]
+  set result [list]
+
+  lappend result [sql execute $db \
+      "CREATE TABLE t1(x DATE, y MYDATE);"]
+
+  set dateTime [clock format [clock scan "2014-02-01 12:34:56Z"] \
+      -format yyyyMMddHHmmss -gmt true]
+
+  lappend result [sql execute $db [appendArgs \
+      "INSERT INTO t1 (x, y) VALUES('" $dateTime "', '" $dateTime "');"]]
+
+  lappend result [sql execute -verbatim -execute reader -format list \
+      -datetimeformat [getDateTimeFormat] $db "SELECT x, y FROM t1;"]
+
+  lappend result [$connection ClearTypeMappings]; # 0
+  lappend result [$connection AddTypeMapping MYDATE DateTime false]; # 0
+  lappend result [$connection AddTypeMapping MYDATE DateTime true]; # 1
+  lappend result [$connection AddTypeMapping MYDATE DateTime false]; # 1
+  lappend result [$connection AddTypeMapping MYDATE DateTime true]; # 2
+  lappend result [$connection ClearTypeMappings]; # 2
+  lappend result [$connection AddTypeMapping MYDATE DateTime true]; # 0
+
+  set typeMappings [$connection GetTypeMappings]
+
+  object foreach -alias pair $typeMappings {
+    set typeMapping [$pair Value]
+    lappend result [list [$pair Key] [enumerableToList $typeMapping]]
+  }
+
+  lappend result [sql execute -verbatim -execute reader -format list \
+      -datetimeformat [getDateTimeFormat] $db "SELECT x, y FROM t1;"]
+
+  set result
+} -cleanup {
+  freeDbConnection
+
+  unset -nocomplain typeMapping typeMappings pair result connection
+
+  cleanupDb $fileName
+
+  unset -nocomplain dateTime db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result {0 1 {{2014-02-01 12:34:56} 20140201123456} 0 0 1 1\
+2 2 0 {MYDATE {MYDATE DateTime True}} {{2014-02-01 12:34:56} {2014-02-01\
+12:34:56}}}}
+
+###############################################################################
+
+runTest {test data-1.61 {SELECT without TYPES} -setup {
+  setupDb [set fileName data-1.61.db]
+} -body {
+  set values [list NULL 1 'one' 1.0 X'01']
+  sql execute $db "CREATE TABLE t1(x, y);"
+
+  foreach x $values {
+    foreach y $values {
+      sql execute $db [appendArgs \
+          "INSERT INTO t1 (x, y) VALUES(" $x ", " $y ");"]
+    }
+  }
+
+  sql execute -execute reader -format list -allownull true $db \
+      "SELECT rowId, x, y FROM t1 ORDER BY rowId;"
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain y x values db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result {1 {} {} 2 {} 1 3 {} one 4 {} 1 5 {} 1 6 1 {} 7 1 1\
+8 1 one 9 1 1 10 1 1 11 one {} 12 one 1 13 one one 14 one 1 15 one 1 16 1 {} 17\
+1 1 18 1 one 19 1 1 20 1 1 21 1 {} 22 1 1 23 1 one 24 1 1 25 1 1}}
+
+###############################################################################
+
+runTest {test data-1.62 {SELECT with TYPES} -setup {
+  setupDb [set fileName data-1.62.db]
+} -body {
+  set values [list NULL 1 'one' 1.0 X'01']
+  sql execute $db "CREATE TABLE t1(x, y);"
+
+  foreach x $values {
+    foreach y $values {
+      sql execute $db [appendArgs \
+          "INSERT INTO t1 (x, y) VALUES(" $x ", " $y ");"]
+    }
+  }
+
+  sql execute -execute reader -format list -allownull true $db \
+      "TYPES INTEGER, INTEGER, REAL; SELECT rowId, x, y FROM t1 ORDER BY rowId;"
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain y x values db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result {1 {} {} 2 {} 1 3 {} 0 4 {} 1 5 {} 0 6 1 {} 7 1 1 8\
+1 0 9 1 1 10 1 0 11 0 {} 12 0 1 13 0 0 14 0 1 15 0 0 16 1 {} 17 1 1 18 1 0 19 1\
+1 20 1 0 21 0 {} 22 0 1 23 0 0 24 0 1 25 0 0}}
+
+###############################################################################
+
+runTest {test data-1.63 {SQLiteDataReader HasRows property} -setup {
+  setupDb [set fileName data-1.63.db]
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(x);
+    CREATE TABLE t2(x);
+    INSERT INTO t2 (x) VALUES(1);
+    CREATE TABLE t3(x);
+    INSERT INTO t3 (x) VALUES(1);
+    INSERT INTO t3 (x) VALUES(2);
+  }
+
+  set reader(1) [sql execute -execute reader -format datareader -alias \
+      $db "SELECT * FROM t1;"]
+
+  set reader(2) [sql execute -execute reader -format datareader -alias \
+      $db "SELECT * FROM t2;"]
+
+  set reader(3) [sql execute -execute reader -format datareader -alias \
+      $db "SELECT * FROM t3;"]
+
+  set noRow "*: No current row*"
+
+  list [$reader(1) HasRows] [$reader(2) HasRows] [$reader(3) HasRows] \
+      [$reader(1) Read] [$reader(2) Read] [$reader(3) Read] \
+      [$reader(1) HasRows] [$reader(2) HasRows] [$reader(3) HasRows] \
+      [catch {$reader(1) Item x} error] [string match $noRow $error] \
+      [catch {$reader(2) Item x} error] [string match $noRow $error] \
+      [catch {$reader(3) Item x} error] [string match $noRow $error] \
+      [$reader(1) HasRows] [$reader(2) HasRows] [$reader(3) HasRows] \
+      [$reader(1) Read] [$reader(2) Read] [$reader(3) Read] \
+      [$reader(1) HasRows] [$reader(2) HasRows] [$reader(3) HasRows] \
+      [catch {$reader(1) Item x} error] [string match $noRow $error] \
+      [catch {$reader(2) Item x} error] [string match $noRow $error] \
+      [catch {$reader(3) Item x} error] [string match $noRow $error] \
+      [$reader(1) HasRows] [$reader(2) HasRows] [$reader(3) HasRows] \
+      [$reader(1) Read] [$reader(2) Read] [$reader(3) Read] \
+      [$reader(1) HasRows] [$reader(2) HasRows] [$reader(3) HasRows] \
+      [catch {$reader(1) Item x} error] [string match $noRow $error] \
+      [catch {$reader(2) Item x} error] [string match $noRow $error] \
+      [catch {$reader(3) Item x} error] [string match $noRow $error]
+} -cleanup {
+  unset -nocomplain reader
+
+  cleanupDb $fileName
+
+  unset -nocomplain error noRow db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result {False True True False True True False True True 1\
+True 0 False 0 False False True True False False True False False True 1 True 1\
+True 0 False False False True False False False False False False 1 True 1 True\
+1 True}}
+
+###############################################################################
+
+runTest {test data-1.64 {SQLiteDataReader sticky HasRows property} -setup {
+  setupDb [set fileName data-1.64.db] "" "" "" StickyHasRows
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(x);
+    CREATE TABLE t2(x);
+    INSERT INTO t2 (x) VALUES(1);
+    CREATE TABLE t3(x);
+    INSERT INTO t3 (x) VALUES(1);
+    INSERT INTO t3 (x) VALUES(2);
+  }
+
+  set reader(1) [sql execute -execute reader -format datareader -alias \
+      $db "SELECT * FROM t1;"]
+
+  set reader(2) [sql execute -execute reader -format datareader -alias \
+      $db "SELECT * FROM t2;"]
+
+  set reader(3) [sql execute -execute reader -format datareader -alias \
+      $db "SELECT * FROM t3;"]
+
+  set noRow "*: No current row*"
+
+  list [$reader(1) HasRows] [$reader(2) HasRows] [$reader(3) HasRows] \
+      [$reader(1) Read] [$reader(2) Read] [$reader(3) Read] \
+      [$reader(1) HasRows] [$reader(2) HasRows] [$reader(3) HasRows] \
+      [catch {$reader(1) Item x} error] [string match $noRow $error] \
+      [catch {$reader(2) Item x} error] [string match $noRow $error] \
+      [catch {$reader(3) Item x} error] [string match $noRow $error] \
+      [$reader(1) HasRows] [$reader(2) HasRows] [$reader(3) HasRows] \
+      [$reader(1) Read] [$reader(2) Read] [$reader(3) Read] \
+      [$reader(1) HasRows] [$reader(2) HasRows] [$reader(3) HasRows] \
+      [catch {$reader(1) Item x} error] [string match $noRow $error] \
+      [catch {$reader(2) Item x} error] [string match $noRow $error] \
+      [catch {$reader(3) Item x} error] [string match $noRow $error] \
+      [$reader(1) HasRows] [$reader(2) HasRows] [$reader(3) HasRows] \
+      [$reader(1) Read] [$reader(2) Read] [$reader(3) Read] \
+      [$reader(1) HasRows] [$reader(2) HasRows] [$reader(3) HasRows] \
+      [catch {$reader(1) Item x} error] [string match $noRow $error] \
+      [catch {$reader(2) Item x} error] [string match $noRow $error] \
+      [catch {$reader(3) Item x} error] [string match $noRow $error]
+} -cleanup {
+  unset -nocomplain reader
+
+  cleanupDb $fileName
+
+  unset -nocomplain error noRow db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result {False True True False True True False True True 1\
+True 0 False 0 False False True True False False True False True True 1 True 1\
+True 0 False False True True False False False False True True 1 True 1 True 1\
+True}}
+
+###############################################################################
+
+runTest {test data-1.65 {SQLiteDataReader StepCount property} -setup {
+  setupDb [set fileName data-1.65.db]
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(x);
+    CREATE TABLE t2(x);
+    INSERT INTO t2 (x) VALUES(1);
+    CREATE TABLE t3(x);
+    INSERT INTO t3 (x) VALUES(1);
+    INSERT INTO t3 (x) VALUES(2);
+  }
+
+  set reader(1) [sql execute -execute reader -format datareader -alias \
+      $db "SELECT * FROM t1;"]
+
+  set reader(2) [sql execute -execute reader -format datareader -alias \
+      $db "SELECT * FROM t2;"]
+
+  set reader(3) [sql execute -execute reader -format datareader -alias \
+      $db "SELECT * FROM t3;"]
+
+  set noRow "*: No current row*"
+
+  list [$reader(1) StepCount] [$reader(2) StepCount] [$reader(3) StepCount] \
+      [$reader(1) Read] [$reader(2) Read] [$reader(3) Read] \
+      [$reader(1) StepCount] [$reader(2) StepCount] [$reader(3) StepCount] \
+      [catch {$reader(1) Item x} error] [string match $noRow $error] \
+      [catch {$reader(2) Item x} error] [string match $noRow $error] \
+      [catch {$reader(3) Item x} error] [string match $noRow $error] \
+      [$reader(1) StepCount] [$reader(2) StepCount] [$reader(3) StepCount] \
+      [$reader(1) Read] [$reader(2) Read] [$reader(3) Read] \
+      [$reader(1) StepCount] [$reader(2) StepCount] [$reader(3) StepCount] \
+      [catch {$reader(1) Item x} error] [string match $noRow $error] \
+      [catch {$reader(2) Item x} error] [string match $noRow $error] \
+      [catch {$reader(3) Item x} error] [string match $noRow $error] \
+      [$reader(1) StepCount] [$reader(2) StepCount] [$reader(3) StepCount] \
+      [$reader(1) Read] [$reader(2) Read] [$reader(3) Read] \
+      [$reader(1) StepCount] [$reader(2) StepCount] [$reader(3) StepCount] \
+      [catch {$reader(1) Item x} error] [string match $noRow $error] \
+      [catch {$reader(2) Item x} error] [string match $noRow $error] \
+      [catch {$reader(3) Item x} error] [string match $noRow $error]
+} -cleanup {
+  unset -nocomplain reader
+
+  cleanupDb $fileName
+
+  unset -nocomplain error noRow db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result {0 1 1 False True True 0 1 1 1 True 0 False 0 False\
+0 1 1 False False True 0 1 2 1 True 1 True 0 False 0 1 2 False False False 0 1\
+2 1 True 1 True 1 True}}
+
+###############################################################################
+
+runTest {test data-1.66 {SQLiteConnection.SetChunkSize default} -setup {
+  setupDb [set fileName data-1.66.db]
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(a, b);
+  }
+
+  file size [file join [getDatabaseDirectory] $fileName]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain db fileName
+} -constraints \
+{eagle monoBug28 command.sql compile.DATA SQLite System.Data.SQLite} -result \
+[expr {[getDbDefaultPageSize] * 2}]}
+
+###############################################################################
+
+runTest {test data-1.67 {SQLiteConnection.SetChunkSize method} -setup {
+  setupDb [set fileName data-1.67.db]
+} -body {
+  set connection [getDbConnection]
+
+  lappend result [$connection SetChunkSize [expr {32 * 1024}]]
+
+  sql execute $db {
+    CREATE TABLE t1(a, b);
+  }
+
+  lappend result [file size [file join [getDatabaseDirectory] $fileName]]
+} -cleanup {
+  cleanupDb $fileName
+
+  freeDbConnection
+
+  unset -nocomplain result connection db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result {Ok 32768}}
+
+###############################################################################
+
+runTest {test data-1.68 {unset env(DefaultFlags_SQLiteConnection)} -setup {
+  saveSQLiteConnectionEnvironment
+
+  unset -nocomplain env(DefaultFlags_SQLiteConnection)
+  unset -nocomplain ::connection_flags
+
+  setupDb [set fileName data-1.68.db]
+} -body {
+  set connection [getDbConnection]
+
+  list [object invoke System.Data.SQLite.SQLiteConnection DefaultFlags] \
+      [$connection Flags]
+} -cleanup {
+  cleanupDb $fileName
+  restoreSQLiteConnectionEnvironment
+
+  freeDbConnection
+
+  unset -nocomplain connection db fileName savedEnv
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -match regexp -result \
+{^Default Default|LogCallbackException LogCallbackException$}}
+
+###############################################################################
+
+runTest {test data-1.69 {set env(DefaultFlags_SQLiteConnection)} -setup {
+  saveSQLiteConnectionEnvironment
+
+  set env(DefaultFlags_SQLiteConnection) "DetectTextAffinity, DetectStringType"
+  unset -nocomplain ::connection_flags
+
+  setupDb [set fileName data-1.69.db]
+} -body {
+  set connection [getDbConnection]
+
+  list [object invoke System.Data.SQLite.SQLiteConnection DefaultFlags] \
+      [$connection Flags]
+} -cleanup {
+  cleanupDb $fileName
+  restoreSQLiteConnectionEnvironment
+
+  freeDbConnection
+
+  unset -nocomplain connection db fileName savedEnv
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result {{DetectTextAffinity, DetectStringType}\
+{DetectTextAffinity, DetectStringType}}}
+
+###############################################################################
+
+runTest {test data-1.70 {LINQ w/String.Substring Method} -body {
+  copySampleDatabaseFiles
+
+  set result [list]
+  set output ""
+
+  set code [catch {
+    testClrExec $testLinqExeFile [list -eventflags Wait -directory \
+        [file dirname $testLinqExeFile] -nocarriagereturns -stdout output \
+        -success Success] -substring
+  } error]
+
+  tlog "---- BEGIN STDOUT OUTPUT\n"
+  tlog $output
+  tlog "\n---- END STDOUT OUTPUT\n"
+
+  lappend result $code
+
+  if {$code == 0} then {
+    lappend result [string trim $output]
+  } else {
+    lappend result [string trim $error]
+  }
+
+  set result
+} -cleanup {
+  catch {info previouspid true}
+
+  unset -nocomplain code output error result
+} -constraints {eagle monoToDo SQLite file_System.Data.SQLite.dll testExec\
+file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \
+-result {0 {True True True True True True True True True True True True True\
+True True True True True True True True True True True True True True True True\
+True True True True True True True True True True True True True True True True\
+True True True True True True True True True True True True True True True True\
+True True True True True True True True True True True True True True True True\
+True True True True True True True True True True True True True True}}}
+
+###############################################################################
+
+runTest {test data-1.71 {fts5 extension} -setup {
+  setupDb [set fileName data-1.71.db]
+} -body {
+  set connection [getDbConnection]
+  set result [list]
+
+  $connection EnableExtensions true
+
+  $connection LoadExtension \
+      [getCoreExtensionBinaryFileName null] sqlite3_fts5_init
+
+  lappend result [sql execute -execute scalar $db "SELECT fts5_source_id();"]
+
+  lappend result [sql execute -execute scalar $db \
+      "CREATE VIRTUAL TABLE t1 USING fts5(x, prefix=\"1\");"]
+
+  foreach x [list cat dog horse house] {
+    lappend result [sql execute -execute scalar $db \
+        [appendArgs "INSERT INTO t1(x) VALUES('" $x "');"]]
+  }
+
+  lappend result [sql execute -execute reader -format dictionary $db \
+      "SELECT rowid, x FROM t1 WHERE t1 MATCH 'h*';"]
+
+  set result
+} -cleanup {
+  freeDbConnection
+
+  unset -nocomplain x result connection
+
+  cleanupDb $fileName
+
+  unset -nocomplain db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+defineConstant.System.Data.SQLite.INTEROP_FTS5_EXTENSION\
+System.Data.SQLite SQLiteInterop} -match regexp -result \
+{^\{fts5: \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [0-9a-f]{40,64}\} \{\} \{\} \{\}\
+\{\} \{\} \{rowid 3 x horse rowid 4 x house\}$}}
+
+###############################################################################
+
+runTest {test data-1.72 {unbind function from a connection} -setup {
+  set fileName data-1.72.db
+} -body {
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  set sql { \
+    SELECT MyRandom(); \
+  }
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System;
+    using System.Data.SQLite;
+
+    namespace _Dynamic${id}
+    {
+      public class Test${id} : SQLiteFunction
+      {
+        private Random random;
+        private static SQLiteFunctionAttribute functionAttribute;
+        private static SQLiteConnection connection;
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public Test${id}()
+        {
+          random = new Random();
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public override object Invoke(
+          object\[\] args
+          )
+        {
+          return random.Next();
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        private static void Initialize()
+        {
+          if (functionAttribute == null)
+          {
+            functionAttribute = new SQLiteFunctionAttribute(
+                "MyRandom", 0, FunctionType.Scalar);
+          }
+
+          if (connection == null)
+          {
+            connection = new SQLiteConnection(
+                "Data Source=${dataSource};[getTestProperties]");
+
+            connection.Open();
+          }
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void BindFunction()
+        {
+          Initialize();
+
+          connection.BindFunction(functionAttribute, new Test${id}());
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static object CallFunction()
+        {
+          Initialize();
+
+          using (SQLiteCommand command = new SQLiteCommand("${sql}",
+              connection))
+          {
+            return command.ExecuteScalar();
+          }
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static bool UnbindFunction()
+        {
+          Initialize();
+
+          return connection.UnbindFunction(functionAttribute);
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Uninitialize()
+        {
+          if (connection != null)
+          {
+            connection.Close();
+            connection = null;
+          }
+
+          if (functionAttribute != null)
+            functionAttribute = null;
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Main()
+        {
+          // do nothing.
+        }
+      }
+    }
+  }] true false true results errors System.Data.SQLite.dll]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} BindFunction
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} CallFunction
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} UnbindFunction
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} CallFunction
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} BindFunction
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} CallFunction
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} Uninitialize
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result code results errors sql dataSource id fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite compileCSharp} -match regexp -result {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0 \{\} 0 (?:-)?\d+ 0 True 1\
+\{SQL logic error( or missing database)? -- no such function: MyRandom\} 0 \{\}\
+0 (?:-)?\d+ 0 \{\}$}}
+
+###############################################################################
+
+runTest {test data-1.73 {unbind functions from a connection on close} -setup {
+  set fileName data-1.73.db
+} -body {
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  set sql { \
+    SELECT MyRandom(); \
+  }
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System;
+    using System.Data.SQLite;
+
+    namespace _Dynamic${id}
+    {
+      public class Test${id} : SQLiteFunction
+      {
+        private Random random;
+        private static SQLiteFunctionAttribute functionAttribute;
+        private static SQLiteConnection connection;
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public Test${id}()
+        {
+          random = new Random();
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public override object Invoke(
+          object\[\] args
+          )
+        {
+          return random.Next();
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        private static void Initialize()
+        {
+          if (functionAttribute == null)
+          {
+            functionAttribute = new SQLiteFunctionAttribute(
+                "MyRandom", 0, FunctionType.Scalar);
+          }
+
+          if (connection == null)
+          {
+            connection = new SQLiteConnection(
+                "Data Source=${dataSource};Pooling=True;" +
+                "[getTestProperties UnbindFunctionsOnClose]");
+
+            connection.Open();
+          }
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void BindFunction()
+        {
+          Initialize();
+
+          connection.BindFunction(functionAttribute, new Test${id}());
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static object CallFunction()
+        {
+          Initialize();
+
+          using (SQLiteCommand command = new SQLiteCommand("${sql}",
+              connection))
+          {
+            return command.ExecuteScalar();
+          }
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void CloseAndReopen()
+        {
+          Initialize();
+
+          connection.Close();
+          connection.Open();
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Uninitialize()
+        {
+          if (connection != null)
+          {
+            connection.Close();
+            connection = null;
+          }
+
+          if (functionAttribute != null)
+            functionAttribute = null;
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Main()
+        {
+          // do nothing.
+        }
+      }
+    }
+  }] true false true results errors System.Data.SQLite.dll]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} BindFunction
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} CallFunction
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} CloseAndReopen
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} CallFunction
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} BindFunction
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} CallFunction
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} Uninitialize
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result code results errors sql dataSource id fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite compileCSharp} -match regexp -result {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0 \{\} 0 (?:-)?\d+ 0 \{\} 1\
+\{SQL logic error( or missing database)? -- no such function: MyRandom\} 0 \{\}\
+0 (?:-)?\d+ 0 \{\}$}}
+
+###############################################################################
+
+runTest {test data-1.74 {bind functions using delegate} -setup {
+  proc getMyFuncArgs { argumentCount } {
+    set result [list]
+
+    for {set index 0} {$index < $argumentCount} {incr index} {
+      lappend result [appendArgs 'myFuncArg [expr {$index + 1}] ']
+    }
+
+    return $result
+  }
+
+  proc getHashCode { value } {
+    if {[isObjectHandle $value]} then {
+      if {$value eq "null"} then {
+        return 0
+      } else {
+        return [object invoke $value GetHashCode]
+      }
+    } else {
+      if {[string length $value] == 0} then {
+        return 0
+      } else {
+        set string [object create String $value]
+
+        return [object invoke $string GetHashCode]
+      }
+    }
+  }
+
+  proc hashManagedArray { array } {
+    set data ""
+
+    if {[isObjectHandle $array] && $array ne "null"} then {
+      if {[object invoke $array GetType.IsArray]} then {
+        for {set index 0} {$index < [$array Length]} {incr index} {
+          set element [$array -create -alias GetValue $index]
+
+          if {[string length $element] > 0} then {
+            append data [$element ToString]
+          } else {
+            append data null
+          }
+        }
+      }
+    }
+
+    return [getHashCode [hash normal sha1 $data]]
+  }
+
+  proc myFuncCallback { args } {
+    if {[llength $args] == 0} then {
+      error "no function arguments"
+    }
+
+    set name [lindex $args 0]
+
+    if {[isObjectHandle $name] && $name ne "null"} then {
+      set name [object invoke $name ToString]
+    }
+
+    switch -exact -- $name {
+      Invoke {
+        return [hashManagedArray [lindex $args end]]
+      }
+      Step {
+        set varName [lindex $args end]
+
+        if {[string length $varName] == 0} then {
+          error "invalid aggregate context variable name"
+        }
+
+        upvar 1 $varName ctx
+
+        if {![info exists ctx] || [string length $ctx] == 0} then {
+          set ctx [pid]
+        }
+
+        set hashCtx [getHashCode $ctx]
+        set hashArgs [hashManagedArray [lindex $args end-2]]
+
+        if {[info exists ::aggregateData($hashCtx)]} then {
+          incr ::aggregateData($hashCtx) $hashArgs
+        } else {
+          set ::aggregateData($hashCtx) $hashArgs
+        }
+      }
+      Final {
+        set ctx [lindex $args end]
+
+        if {[string length $ctx] == 0} then {
+          error "invalid aggregate context"
+        }
+
+        set hashCtx [getHashCode $ctx]
+
+        if {[info exists ::aggregateData($hashCtx)]} then {
+          return $::aggregateData($hashCtx)
+        } else {
+          error "missing aggregate context data"
+        }
+      }
+      Compare {
+        lappend ::compareResults [object invoke -create \
+            Int32 Parse [string compare [lindex $args 1] \
+            [lindex $args 2]]]
+
+        return [lindex $::compareResults end]
+      }
+      default {
+        error [appendArgs "unknown function callback \"" $name \"]
+      }
+    }
+  }
+
+  proc myFuncInvokeCallback { param0 objs } {
+    return [myFuncCallback $param0 $objs]
+  }
+
+  proc myFuncStepCallback { param0 objs stepNumber contextDataVarName } {
+    upvar 1 $contextDataVarName $contextDataVarName
+    return [myFuncCallback $param0 $objs $stepNumber $contextDataVarName]
+  }
+
+  proc myFuncFinalCallback { param0 contextData } {
+    return [myFuncCallback $param0 $contextData ]
+  }
+
+  proc myFuncCompareCallback { param0 param1 param2 } {
+    return [myFuncCallback $param0 $param1 $param2]
+  }
+
+  setupDb [set fileName data-1.74.db]
+} -body {
+  sql execute $db "CREATE TABLE t1(x);"
+  sql execute $db "INSERT INTO t1 (x) VALUES(1);"
+  sql execute $db "INSERT INTO t1 (x) VALUES(2);"
+  sql execute $db "INSERT INTO t1 (x) VALUES(3);"
+  sql execute $db "INSERT INTO t1 (x) VALUES('A');"
+  sql execute $db "INSERT INTO t1 (x) VALUES('a');"
+  sql execute $db "INSERT INTO t1 (x) VALUES('M');"
+  sql execute $db "INSERT INTO t1 (x) VALUES('m');"
+  sql execute $db "INSERT INTO t1 (x) VALUES('Z');"
+  sql execute $db "INSERT INTO t1 (x) VALUES('z');"
+
+  set connection [getDbConnection]
+
+  for {set argumentCount 0} {$argumentCount < 3} {incr argumentCount} {
+    set attribute(1,$argumentCount) [object create \
+        System.Data.SQLite.SQLiteFunctionAttribute [appendArgs \
+        myFunc1_74_1_ $argumentCount] $argumentCount Scalar]
+
+    $connection -marshalflags \
+        {-StrictMatchType +DynamicCallback ForceParameterType} \
+        -parametertypes [list System.Data.SQLite.SQLiteFunctionAttribute \
+            System.Data.SQLite.SQLiteInvokeDelegate Delegate] \
+        BindFunction $attribute(1,$argumentCount) \
+        myFuncInvokeCallback null
+
+    set attribute(2,$argumentCount) [object create \
+        System.Data.SQLite.SQLiteFunctionAttribute [appendArgs \
+        myFunc1_74_2_ $argumentCount] $argumentCount Aggregate]
+
+    $connection -marshalflags \
+        {-StrictMatchType +DynamicCallback ForceParameterType} \
+        -parametertypes [list System.Data.SQLite.SQLiteFunctionAttribute \
+            System.Data.SQLite.SQLiteStepDelegate \
+            System.Data.SQLite.SQLiteFinalDelegate] \
+        BindFunction $attribute(2,$argumentCount) \
+        myFuncStepCallback myFuncFinalCallback
+  }
+
+  set attribute(3,0) [object create \
+      System.Data.SQLite.SQLiteFunctionAttribute myFunc1_74_3 0 \
+      Collation]
+
+  $connection -marshalflags \
+      {-StrictMatchType +DynamicCallback ForceParameterType} \
+      -parametertypes [list System.Data.SQLite.SQLiteFunctionAttribute \
+          System.Data.SQLite.SQLiteCompareDelegate Delegate] \
+      BindFunction $attribute(3,0) \
+      myFuncCompareCallback null
+
+  for {set argumentCount 0} {$argumentCount < 3} {incr argumentCount} {
+    lappend result [catch {
+      sql execute $db [appendArgs \
+          "SELECT " myFunc1_74_1_ $argumentCount ( \
+          [join [getMyFuncArgs $argumentCount] ,] )\;]
+    } error] $error
+
+    lappend result [catch {
+      sql execute $db [appendArgs \
+          "SELECT " myFunc1_74_2_ $argumentCount ( \
+          [join [getMyFuncArgs $argumentCount] ,] )\;]
+    } error] $error
+  }
+
+  lappend result [catch {
+    sql execute -execute reader -format list $db \
+        "SELECT x FROM t1 ORDER BY x COLLATE myFunc1_74_3;"
+  } error] $error
+
+  lappend result [$connection UnbindAllFunctions false]
+
+  for {set argumentCount 0} {$argumentCount < 3} {incr argumentCount} {
+    lappend result [catch {
+      sql execute $db [appendArgs \
+          "SELECT " myFunc1_74_1_ $argumentCount ( \
+          [join [getMyFuncArgs $argumentCount] ,] )\;]
+    } error] [expr {[string first [appendArgs \
+        "no such function: myFunc1_74_1_" $argumentCount] $error] != -1}]
+
+    lappend result [catch {
+      sql execute $db [appendArgs \
+          "SELECT " myFunc1_74_2_ $argumentCount ( \
+          [join [getMyFuncArgs $argumentCount] ,] )\;]
+    } error] [expr {[string first [appendArgs \
+        "no such function: myFunc1_74_2_" $argumentCount] $error] != -1}]
+  }
+
+  lappend result [catch {
+    sql execute -execute reader -format list $db \
+        "SELECT x FROM t1 ORDER BY x COLLATE myFunc1_74_3;"
+  } error] [expr {[string first "no such collation sequence: myFunc1_74_3" \
+      $error] != -1}]
+
+  lappend result [array size aggregateData]
+  lappend result [testArrayGet aggregateData]
+
+  set result
+} -cleanup {
+  cleanupDb $fileName
+
+  freeDbConnection
+
+  catch {object removecallback myFuncCompareCallback}
+  catch {object removecallback myFuncFinalCallback}
+  catch {object removecallback myFuncStepCallback}
+  catch {object removecallback myFuncInvokeCallback}
+
+  catch {
+    foreach compareResult $compareResults {
+      catch {object dispose $compareResult}
+    }
+  }
+
+  unset -nocomplain result error compareResult compareResults \
+      aggregateData argumentCount attribute connection db fileName
+
+  rename myFuncCompareCallback ""
+  rename myFuncFinalCallback ""
+  rename myFuncStepCallback ""
+  rename myFuncInvokeCallback ""
+  rename myFuncCallback ""
+  rename hashManagedArray ""
+  rename getHashCode ""
+  rename getMyFuncArgs ""
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA\
+compile.EMIT SQLite System.Data.SQLite} -match regexp -result {^0 -1 0 -1 0 -1\
+0 -1 0 -1 0 -1 0 \{1 2 3 A a M m Z z\} True 1 True 1 True 1 True 1 True 1 True\
+1 True 1 True 1 \{(?:-)?\d+ (?:-)?\d+\}$}}
+
+###############################################################################
+
+runTest {test data-1.75 {SQLiteCommand.Reset method} -setup {
+  setupDb [set fileName data-1.75.db]
+} -body {
+  set connection [getDbConnection]
+
+  set result [list]
+
+  sql execute $db {
+    CREATE TABLE t1(x);
+    INSERT INTO t1 (x) VALUES(1);
+    INSERT INTO t1 (x) VALUES(2);
+    INSERT INTO t1 (x) VALUES(3);
+    INSERT INTO t1 (x) VALUES(4);
+  }
+
+  set command [$connection -alias CreateCommand]
+  set parameter [$command -alias CreateParameter]
+
+  $parameter ParameterName param1
+  $parameter DbType Int32
+  $parameter Value 4
+
+  $command CommandText "SELECT x FROM t1 WHERE x < ? ORDER BY x;"
+  $command Parameters.Add $parameter
+
+  set dataReader(1) [$command -alias ExecuteReader]
+
+  $dataReader(1) Read; lappend result [$dataReader(1) Item x]
+  $dataReader(1) Read; lappend result [$dataReader(1) Item x]
+  $dataReader(1) Dispose
+
+  $command Reset; set dataReader(2) [$command -alias ExecuteReader]
+  $dataReader(2) Read; lappend result [$dataReader(2) Item x]
+  $dataReader(2) Read; lappend result [$dataReader(2) Item x]
+  $dataReader(2) Dispose
+
+  $command Reset; set dataReader(3) [$command -alias ExecuteReader]
+  $dataReader(3) Read; lappend result [$dataReader(3) Item x]
+  $dataReader(3) Read; lappend result [$dataReader(3) Item x]
+  $dataReader(3) Dispose
+
+  set result
+} -cleanup {
+  unset -nocomplain dataReader parameter command
+
+  freeDbConnection
+
+  cleanupDb $fileName
+
+  unset -nocomplain result connection db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result {1 2 1 2 1 2}}
+
+###############################################################################
+
+set fileName(1) [file nativename \
+    [file join [getDatabaseDirectory] data-1.76.db]]
+
+###############################################################################
+
+runTest {test data-1.76 {SQLiteConnection.FileName property} -setup {
+  setupDb [set fileName(2) data-1.76.db]
+} -body {
+  set connection [getDbConnection]
+  $connection FileName
+} -cleanup {
+  freeDbConnection
+
+  unset -nocomplain connection
+
+  cleanupDb $fileName(2)
+
+  unset -nocomplain db
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result $fileName(1)}
+
+###############################################################################
+
+unset -nocomplain fileName
+
+###############################################################################
+
+runTest {test data-1.77 {json1 extension} -setup {
+  setupDb [set fileName data-1.77.db]
+} -body {
+  sql execute $db {
+    CREATE TABLE big(json JSON);
+    INSERT INTO big (json) VALUES(2);
+    INSERT INTO big (json) VALUES(3.5);
+    INSERT INTO big (json) VALUES('true');
+    INSERT INTO big (json) VALUES('false');
+    INSERT INTO big (json) VALUES('null');
+    INSERT INTO big (json) VALUES('"x"');
+    INSERT INTO big (json) VALUES('[4, 5.7, true, false, null, "x"]');
+    INSERT INTO big (json) VALUES('{"a" : [8, 9.1, true, false, null, "y"]}');
+  }
+
+  set connection [getDbConnection]
+  set result [list]
+
+  $connection EnableExtensions true
+
+  $connection LoadExtension \
+      [getCoreExtensionBinaryFileName null] sqlite3_json_init
+
+  lappend result [sql execute -execute scalar $db \
+      {SELECT json('{ "this" : "is", "a": [ "test" ] }');}]
+
+  lappend result [sql execute -execute reader -format list $db \
+      "SELECT rowid, json_type(json) FROM big;"]
+
+  lappend result [sql execute -execute reader -format list $db {
+    SELECT big.rowid, fullkey, value
+      FROM big, json_tree(big.json)
+     WHERE json_tree.type NOT IN ('object', 'array');
+  }]
+
+  set result
+} -cleanup {
+  freeDbConnection
+
+  unset -nocomplain result connection
+
+  cleanupDb $fileName
+
+  unset -nocomplain db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+defineConstant.System.Data.SQLite.INTEROP_JSON1_EXTENSION\
+System.Data.SQLite SQLiteInterop} -result {{{"this":"is","a":["test"]}} {1\
+integer 2 real 3 true 4 false 5 null 6 text 7 array 8 object} {1 {$} 2 2 {$}\
+3.5 3 {$} 1 4 {$} 0 5 {$} 6 {$} x 7 {$[0]} 4 7 {$[1]} 5.7 7 {$[2]} 1 7 {$[3]} 0\
+7 {$[4]} 7 {$[5]} x 8 {$.a[0]} 8 8 {$.a[1]} 9.1 8 {$.a[2]} 1 8 {$.a[3]} 0 8\
+{$.a[4]} 8 {$.a[5]} y}}}
+
+###############################################################################
+
+runTest {test data-1.78 {basic and extended column metadata} -setup {
+  setupDb [set fileName data-1.78.db]
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(x INTEGER, y TEXT, z MYTYPE);
+    INSERT INTO t1 (x, y, z) VALUES(1, 'foo', 1234);
+    INSERT INTO t1 (x, y, z) VALUES(1, 5678, 'bar');
+  }
+
+  set dataReader [sql execute -execute reader -format datareader \
+      -alias $db "SELECT x, y, z FROM t1;"]
+
+  set result [list]
+
+  while {[$dataReader Read]} {
+    lappend result \
+        [list [$dataReader GetOrdinal x] [$dataReader GetName 0] \
+        [$dataReader GetValue 0] [$dataReader GetDatabaseName 0] \
+        [$dataReader GetTableName 0] [$dataReader GetOriginalName 0] \
+        [$dataReader GetDataTypeName 0] \
+        [$dataReader -tostring GetFieldType 0]] \
+        [list [$dataReader GetOrdinal y] [$dataReader GetName 1] \
+        [$dataReader GetValue 1] [$dataReader GetDatabaseName 1] \
+        [$dataReader GetTableName 1] [$dataReader GetOriginalName 1] \
+        [$dataReader GetDataTypeName 1] \
+        [$dataReader -tostring GetFieldType 1]] \
+        [list [$dataReader GetOrdinal z] [$dataReader GetName 2] \
+        [$dataReader GetValue 2] [$dataReader GetDatabaseName 2] \
+        [$dataReader GetTableName 2] [$dataReader GetOriginalName 2] \
+        [$dataReader GetDataTypeName 2] \
+        [$dataReader -tostring GetFieldType 2]]
+  }
+
+  set result
+} -cleanup {
+  unset -nocomplain dataReader
+
+  cleanupDb $fileName
+
+  unset -nocomplain result db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result {{0 x 1 main t1 x INTEGER System.Int64} {1 y foo\
+main t1 y TEXT System.String} {2 z 1234 main t1 z MYTYPE System.Int64} {0 x 1\
+main t1 x INTEGER System.Int64} {1 y 5678 main t1 y TEXT System.String} {2 z\
+bar main t1 z MYTYPE System.String}}}
+
+###############################################################################
+
+runTest {test data-1.79 {DateTime using Int64} -setup {
+  setupDb [set fileName data-1.79.db] "" UnixEpoch
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(x INTEGER, y DATETIME);
+    INSERT INTO t1 (x, y) VALUES(1, strftime('%s', '2038-01-20'));
+  }
+
+  sql execute -execute reader -format list -datetimeformat \
+      [getDateTimeFormat] $db "SELECT x, y FROM t1;"
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain db fileName
+} -constraints \
+{eagle monoBug28 command.sql compile.DATA SQLite System.Data.SQLite} -result \
+{1 {2038-01-20 00:00:00}}}
+
+###############################################################################
+
+runTest {test data-1.80 {page size using PRAGMA} -setup {
+  setupDb [set fileName data-1.80.db]
+} -body {
+  set result [list]
+
+  sql execute $db {
+    CREATE TABLE t1(x);
+    INSERT INTO t1 (x) VALUES(RANDOMBLOB(1048576));
+  }
+
+  lappend result [sql execute -execute scalar $db {
+    PRAGMA page_size;
+  }]
+
+  lappend result [sql execute $db {
+    PRAGMA page_size=8192;
+  }]
+
+  lappend result [sql execute $db {
+    VACUUM;
+  }]
+
+  lappend result [sql execute -execute scalar $db {
+    PRAGMA page_size;
+  }]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result db fileName
+} -constraints \
+{eagle monoBug28 command.sql compile.DATA SQLite System.Data.SQLite} -result \
+[list [getDbDefaultPageSize] -1 1 8192]}
+
+###############################################################################
+
+runTest {test data-1.81 {SQLiteCommand.VerifyOnly method} -setup {
+  setupDb [set fileName data-1.81.db]
+} -body {
+  set connection [getDbConnection]
+
+  sql execute $db {
+    CREATE TABLE t1(x);
+    INSERT INTO t1 (x) VALUES(1);
+    INSERT INTO t1 (x) VALUES(2);
+    INSERT INTO t1 (x) VALUES(3);
+  }
+
+  set command [$connection -alias CreateCommand]
+
+  set code(1) [catch {
+    $command CommandText null
+    $command VerifyOnly
+  } result(1)]
+
+  set code(2) [catch {
+    $command CommandText ""
+    $command VerifyOnly
+  } result(2)]
+
+  set code(3) [catch {
+    $command CommandText "SELECT * FROM t1;"
+    $command VerifyOnly
+  } result(3)]
+
+  set code(4) [catch {
+    $command CommandText "SELECT * FROM t2;"
+    $command VerifyOnly; # throw
+  } result(4)]
+
+  set code(5) [catch {
+    $command CommandText "BAD COMMAND;"
+    $command VerifyOnly; # throw
+  } result(5)]
+
+  set code(6) [catch {
+    $command CommandText "INSERT INTO t1 (x) VALUES(4); SELECT * FROM t1;"
+    $command VerifyOnly
+  } result(6)]
+
+  set code(7) [catch {
+    $command CommandText "INSERT INTO t1 (x) VALUES(5); SELECT * FROM t2;"
+    $command VerifyOnly; # throw
+  } result(7)]
+
+  set code(8) [catch {
+    $command CommandText "BAD COMMAND; INSERT INTO t1 (x) VALUES(6);"
+    $command VerifyOnly; # throw
+  } result(8)]
+
+  set code(9) [catch {
+    $command CommandText "SELECT * FROM t2; INSERT INTO t1 (x) VALUES(7);"
+    $command VerifyOnly; # throw
+  } result(9)]
+
+  set result(10) [sql execute -execute reader -format list $db {
+    SELECT * FROM t1 ORDER BY x;
+  }]
+
+  list $code(1) [extractSystemDataSQLiteExceptionMessage $result(1)] \
+      $code(2) [extractSystemDataSQLiteExceptionMessage $result(2)] \
+      $code(3) [extractSystemDataSQLiteExceptionMessage $result(3)] \
+      $code(4) [extractSystemDataSQLiteExceptionMessage $result(4)] \
+      $code(5) [extractSystemDataSQLiteExceptionMessage $result(5)] \
+      $code(6) [extractSystemDataSQLiteExceptionMessage $result(6)] \
+      $code(7) [extractSystemDataSQLiteExceptionMessage $result(7)] \
+      $code(8) [extractSystemDataSQLiteExceptionMessage $result(8)] \
+      $code(9) [extractSystemDataSQLiteExceptionMessage $result(9)] \
+      $result(10)
+} -cleanup {
+  freeDbConnection
+
+  cleanupDb $fileName
+
+  unset -nocomplain result code command connection db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -match regexp -result {^0 \{\} 0 \{\} 0 \{\} 1 \{SQL logic\
+error( or missing database)? -- no such table: t2\} 1 \{SQL logic error( or\
+missing database)? -- near "BAD": syntax error\} 0 \{\} 1 \{SQL logic error( or\
+missing database)? -- no such table: t2\} 1 \{SQL logic error( or missing\
+database)? -- near "BAD": syntax error\} 1 \{SQL logic error( or missing\
+database)? -- no such table: t2\} \{1 2 3\}$}}
+
+###############################################################################
+
+runTest {test data-1.82 {IsReadOnly method} -setup {
+  set fileName data-1.82.db
+} -body {
+  set result [list]
+
+  setupDb $fileName
+  set connection [getDbConnection]
+
+  lappend result [catch {$connection IsReadOnly null} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  lappend result [catch {$connection IsReadOnly wrong} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  sql execute $db {
+    SELECT * FROM sqlite_master WHERE 1 = 0;
+  }; # NOTE: Force file creation.
+
+  freeDbConnection
+  cleanupDb $fileName db true false false
+
+  setupDb $fileName "" "" "" "" "Read Only=True;" true false
+  set connection [getDbConnection]
+
+  lappend result [catch {$connection IsReadOnly null} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  lappend result [catch {$connection IsReadOnly wrong} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  freeDbConnection
+  cleanupDb $fileName db true false false
+
+  setupDb $fileName "" "" "" "" "Read Only=False;" true false
+  set connection [getDbConnection]
+
+  lappend result [catch {$connection IsReadOnly null} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  lappend result [catch {$connection IsReadOnly wrong} error] \
+      [extractSystemDataSQLiteExceptionMessage $error]
+
+  freeDbConnection
+  cleanupDb $fileName db true false false
+
+  set result
+} -cleanup {
+  freeDbConnection
+
+  unset -nocomplain connection
+
+  cleanupDb $fileName
+
+  unset -nocomplain error result db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result {0 False 1 {unknown error -- database "wrong" not\
+found} 0 True 1 {unknown error -- database "wrong" not found} 0 False 1\
+{unknown error -- database "wrong" not found}}}
+
+###############################################################################
+
+runTest {test data-1.83 {bind and use REGEXP function} -setup {
+  set fileName data-1.83.db
+} -body {
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  set sql(1) { \
+    SELECT 'test' REGEXP '^t.?.?t$'; \
+  }
+
+  set sql(2) { \
+    SELECT 'no' REGEXP '^nope$'; \
+  }
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System;
+    using System.Data.SQLite;
+    using System.Text.RegularExpressions;
+
+    namespace _Dynamic${id}
+    {
+      public class Test${id} : SQLiteFunction
+      {
+        private static SQLiteFunctionAttribute functionAttribute;
+        private static SQLiteConnection connection;
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public override object Invoke(
+          object\[\] args
+          )
+        {
+          if (args == null)
+            return new ArgumentNullException("args");
+
+          if (args.Length != 2)
+            return new ArgumentException(String.Format(
+              "need exactly two arguments, got {0}", args.Length));
+
+          string pattern = (args\[0\] != null) ? args\[0\].ToString() : null;
+
+          if (pattern == null)
+            return new ArgumentNullException("pattern");
+
+          string input = (args\[1\] != null) ? args\[1\].ToString() : null;
+
+          if (input == null)
+            return new ArgumentNullException("input");
+
+          return Regex.IsMatch(input, pattern);
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        private static void Initialize()
+        {
+          if (functionAttribute == null)
+          {
+            functionAttribute = new SQLiteFunctionAttribute(
+                "regexp", 2, FunctionType.Scalar);
+          }
+
+          if (connection == null)
+          {
+            connection = new SQLiteConnection(
+                "Data Source=${dataSource};[getTestProperties]");
+
+            connection.Open();
+          }
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void BindFunction()
+        {
+          Initialize();
+
+          connection.BindFunction(functionAttribute, new Test${id}());
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static object CallFunction1()
+        {
+          Initialize();
+
+          using (SQLiteCommand command = new SQLiteCommand("${sql(1)}",
+              connection))
+          {
+            return command.ExecuteScalar();
+          }
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static object CallFunction2()
+        {
+          Initialize();
+
+          using (SQLiteCommand command = new SQLiteCommand("${sql(2)}",
+              connection))
+          {
+            return command.ExecuteScalar();
+          }
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static bool UnbindFunction()
+        {
+          Initialize();
+
+          return connection.UnbindFunction(functionAttribute);
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Uninitialize()
+        {
+          if (connection != null)
+          {
+            connection.Close();
+            connection = null;
+          }
+
+          if (functionAttribute != null)
+            functionAttribute = null;
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Main()
+        {
+          // do nothing.
+        }
+      }
+    }
+  }] true false true results errors System.Data.SQLite.dll]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} CallFunction1
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} CallFunction2
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} BindFunction
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} CallFunction1
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} CallFunction2
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} UnbindFunction
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} CallFunction1
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} CallFunction2
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} Uninitialize
+      } result] : [set result ""]}] \
+      [extractSystemDataSQLiteExceptionMessage $result]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result code results errors sql dataSource id fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite compileCSharp} -match regexp -result {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 1 \{SQL logic error( or\
+missing database)? -- no such function: REGEXP\} 1 \{SQL logic error( or\
+missing database)? -- no such function: REGEXP\} 0 \{\} 0 1 0 0 0 True 1 \{SQL\
+logic error( or missing database)? -- no such function: REGEXP\} 1 \{SQL logic\
+error( or missing database)? -- no such function: REGEXP\} 0 \{\}$}}
+
+###############################################################################
+
+runTest {test data-1.84 {GetBlob method and SQLiteBlob class} -setup {
+  proc getBytesAsList { bytes } {
+    #
+    # HACK: *MONO* Mono does not choose the right ByteList constructor
+    #       overload here.  Therefore, attempt to force the issue.
+    #
+    set byteList [object create -parametertypes [list \
+        System.Collections.Generic.IEnumerable`1\[System.Byte\]] \
+        -alias ByteList $bytes]
+
+    return [$byteList ToString]
+  }
+
+  setupDb [set fileName data-1.84.db] "" "" "" NoVerifyTypeAffinity
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(x INTEGER PRIMARY KEY, y);
+    INSERT INTO t1 (x, y) VALUES(1, 'nope');
+    INSERT INTO t1 (x, y) VALUES(2, '1984');
+  }
+
+  set dataReader [sql execute -execute reader -format datareader \
+      -behavior +KeyInfo -alias $db "SELECT x, y FROM t1;"]
+
+  set size 4
+  set bytes(1) [object create -alias Byte\[\] $size]
+  set bytes(2) [object create -alias Byte\[\] $size]
+  set result [list]
+
+  while {[$dataReader Read]} {
+    set blob [$dataReader -alias GetBlob 1 false]
+    lappend result [$blob GetCount]
+    $blob Read $bytes(1) $size 0
+    lappend result [getBytesAsList $bytes(1)]
+
+    for {set i 0} {$i < $size} {incr i} {
+      set byte [$bytes(1) GetValue $i]
+      incr byte; set byte [object invoke -create Byte Parse $byte]
+      $bytes(1) SetValue $byte $i
+    }
+
+    $blob Write $bytes(1) $size 0
+
+    if {[$dataReader GetInt64 0] == 1} then {
+      $blob Reopen 2
+      $blob Read $bytes(2) $size 0
+      lappend result [getBytesAsList $bytes(2)]
+    }
+
+    $blob Close
+  }
+
+  $dataReader Close; unset dataReader
+
+  set dataReader [sql execute -execute reader -format datareader \
+      -alias $db "SELECT x, y FROM t1;"]
+
+  while {[$dataReader Read]} {
+    lappend result [$dataReader GetInt64 0]
+    lappend result [$dataReader GetString 0]
+    lappend result [$dataReader GetInt64 1]
+    lappend result [$dataReader GetString 1]
+  }
+
+  $dataReader Close; unset dataReader
+
+  set result
+} -cleanup {
+  unset -nocomplain blob
+  unset -nocomplain dataReader
+
+  cleanupDb $fileName
+
+  unset -nocomplain byte i bytes size result db fileName
+
+  rename getBytesAsList ""
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result {4 {110 111 112 101} {49 57 56 52} 4 {49 57 56 52}\
+1 1 0 opqf 2 2 2 2:95}}
+
+###############################################################################
+
+runTest {test data-1.85 {sha1 extension} -setup {
+  setupDb [set fileName data-1.85.db]
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(x);
+    INSERT INTO t1 (x) VALUES(NULL);
+    INSERT INTO t1 (x) VALUES(1);
+    INSERT INTO t1 (x) VALUES('zero');
+    INSERT INTO t1 (x) VALUES(1.23);
+    INSERT INTO t1 (x) VALUES(x'45');
+  }
+
+  set connection [getDbConnection]
+  set result [list]
+
+  $connection EnableExtensions true
+
+  $connection LoadExtension \
+      [getCoreExtensionBinaryFileName null] sqlite3_sha_init
+
+  lappend result [sql execute -execute scalar $db \
+      {SELECT sha1('groundhog');}]
+
+  lappend result [sql execute -execute scalar $db \
+      {SELECT sha1_query('SELECT x FROM t1 ORDER BY x;');}]
+
+  set result
+} -cleanup {
+  freeDbConnection
+
+  unset -nocomplain result connection
+
+  cleanupDb $fileName
+
+  unset -nocomplain db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+defineConstant.System.Data.SQLite.INTEROP_SHA1_EXTENSION\
+System.Data.SQLite SQLiteInterop} -result \
+{5578139b470e35a3c231a499d06589215e46e8df\
+a27f5e6f85a3872ed2e4e4018c8fd7dfaff052bc}}
+
+###############################################################################
+
+runTest {test data-1.86 {connection string integer parsing} -setup {
+  object import System.Globalization
+  object import System.Threading
+
+  set culture [object create -alias CultureInfo en-US]
+  $culture NumberFormat.NegativeSign /
+
+  set savedCulture [object invoke Thread.CurrentThread CurrentCulture]
+  object invoke Thread.CurrentThread CurrentCulture $culture
+} -body {
+  setupDb [set fileName data-1.86.db]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain db fileName
+
+  catch {object invoke Thread.CurrentThread CurrentCulture $savedCulture}
+  unset -nocomplain savedCulture culture
+
+  object unimport -importpattern System.Threading
+  object unimport -importpattern System.Globalization
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+defineConstant.System.Data.SQLite.INTEROP_SHA1_EXTENSION System.Data.SQLite\
+SQLiteInterop} -match regexp -result \
+{^System#Data#SQLite#SQLiteConnection#\d+$}}
+
+###############################################################################
+
+reportSQLiteResources $test_channel true
+
+###############################################################################
+
+runTest {test data-1.87 {GetSettingValue cached directory/file name} -setup {
+  moveSystemDataSQLiteDllConfig false
+} -body {
+  object invoke -flags +NonPublic System.Data.SQLite.UnsafeNativeMethods \
+      GetSettingValue setting_for_data-1.87 null
+
+  expr {[getOtherCount Method_ResetCachedAssemblyDirectory] == -1 && \
+      [getOtherCount Method_ResetCachedXmlConfigFileName] == -1 && \
+      [getOtherCount Method_GetAssemblyDirectory] == 1 && \
+      [getOtherCount Method_GetXmlConfigFileName] == 1 && \
+      [getOtherCount Method_GetCachedAssemblyDirectory] >= 1 && \
+      [getOtherCount Method_GetCachedXmlConfigFileName] >= 1}
+} -cleanup {
+  moveSystemDataSQLiteDllConfig true
+} -constraints {eagle command.object monoBug28 System.Data.SQLite\
+buildConfiguration.Debug} -result {True}}
+
+###############################################################################
+
+reportSQLiteResources $test_channel true
+
+###############################################################################
+
+runTest {test data-1.88 {GetSettingValue cached directory/file name} -setup {
+  moveSystemDataSQLiteDllConfig false
+} -body {
+  object invoke -flags +NonPublic System.Data.SQLite.UnsafeNativeMethods \
+      GetSettingValue setting_for_data-1.88 null
+
+  object invoke -flags +NonPublic \
+      System.Data.SQLite.UnsafeNativeMethods ResetCachedAssemblyDirectory
+
+  object invoke -flags +NonPublic \
+      System.Data.SQLite.UnsafeNativeMethods ResetCachedXmlConfigFileName
+
+  object invoke -flags +NonPublic System.Data.SQLite.UnsafeNativeMethods \
+      GetSettingValue setting_for_data-1.88 null
+
+  expr {[getOtherCount Method_ResetCachedAssemblyDirectory] == 1 && \
+      [getOtherCount Method_ResetCachedXmlConfigFileName] == 1 && \
+      [getOtherCount Method_GetAssemblyDirectory] == 2 && \
+      [getOtherCount Method_GetXmlConfigFileName] == 2 && \
+      [getOtherCount Method_GetCachedAssemblyDirectory] >= 2 && \
+      [getOtherCount Method_GetCachedXmlConfigFileName] >= 2}
+} -cleanup {
+  moveSystemDataSQLiteDllConfig true
+} -constraints {eagle command.object monoBug28 System.Data.SQLite\
+buildConfiguration.Debug} -result {True}}
+
+###############################################################################
+
+runTest {test data-1.89 {using SQLiteBlob without rowid PK index} -setup {
+  setupDb [set fileName data-1.89.db]
+} -body {
+  sql execute $db {
+    CREATE TABLE t1 (x GUID UNIQUE NOT NULL, y BLOB NOT NULL);
+    INSERT INTO t1 (x, y) VALUES(
+      '12345678-0000-0000-0000-000000000000',
+      X'010203040506070809'
+    );
+    INSERT INTO t1 (x, y) VALUES(
+      '12345679-0000-0000-0000-000000000000',
+      X'0102030405060708090A0B0C0D0E0F101113'
+    );
+  }
+
+  set sql(1) { \
+    SELECT y FROM t1 \
+    WHERE x = '12345678-0000-0000-0000-000000000000'; \
+  }
+
+  set sql(2) { \
+    SELECT y FROM t1 \
+    WHERE x = '12345679-0000-0000-0000-000000000000'; \
+  }
+
+  set dataReader [sql execute -execute reader -format datareader \
+      -behavior +KeyInfo -alias $db $sql(1)]
+
+  while {[$dataReader Read]} {
+    set blob [object invoke -alias \
+        System.Data.SQLite.SQLiteBlob Create $dataReader 0 true]
+
+    lappend result [$blob GetCount]
+
+    $blob Close
+  }
+
+  $dataReader Close; unset dataReader
+
+  set dataReader [sql execute -execute reader -format datareader \
+      -behavior +KeyInfo -alias $db $sql(2)]
+
+  while {[$dataReader Read]} {
+    set blob [object invoke -alias \
+        System.Data.SQLite.SQLiteBlob Create $dataReader 0 true]
+
+    lappend result [$blob GetCount]
+
+    $blob Close
+  }
+
+  $dataReader Close; unset dataReader
+
+  set result
+} -cleanup {
+  unset -nocomplain blob
+  unset -nocomplain dataReader
+
+  cleanupDb $fileName
+
+  unset -nocomplain result sql db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite SQLiteInterop} -result {9 18}}
+
+###############################################################################
+
+runTest {test data-1.90 {stmt extension / 'sqlite_stmt' virtual table} -setup {
+  setupDb [set fileName data-1.90.db]
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(x);
+    INSERT INTO t1 (x) VALUES(1);
+  }
+
+  set result [list]
+
+  set reader(1) [sql execute -execute reader -format datareader -alias \
+      $db "SELECT * FROM t1;"]
+
+  lappend result [sql execute -execute reader -format list -alias \
+      $db "SELECT * FROM sqlite_stmt;"]
+
+  $reader(1) Close; unset -nocomplain $reader(1)
+
+  lappend result [sql execute -execute reader -format list -alias \
+      $db "SELECT * FROM sqlite_stmt;"]
+
+  set result
+} -cleanup {
+  unset -nocomplain reader
+
+  cleanupDb $fileName
+
+  unset -nocomplain result db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite SQLiteInterop} -match regexp -result {^\{\{SELECT \* FROM\
+sqlite_stmt;\} 11 1 1 0 0 0 0 0 1 \d+ \{SELECT \* FROM t1;\} 1 1 1 0 0 0\
+(?:7|9) 0 1 \d+\} \{\{SELECT \* FROM sqlite_stmt;\} 11 1 1 0 0 0 0 0 1 \d+\}$}}
+
+###############################################################################
+
+runTest {test data-1.91 {Password error (no encryption support)} -body {
+  list [catch {
+    setupDb [set fileName data-1.91.db] "" "" "" "" "Password=1234;"
+  } msg] [extractSystemDataSQLiteExceptionMessage $msg]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain msg db fileName
+} -constraints [fixConstraints {eagle !System.Data.SQLite.Encryption monoBug28\
+command.sql compile.DATA SQLite System.Data.SQLite}] -result {1 {SQL logic\
+error -- Cannot use "Password" connection string property: library was not\
+built with encryption support, please see "https://www.sqlite.org/see" for more\
+information}}}
+
+###############################################################################
+
+runTest {test data-1.92 {HexPassword error (no encryption support)} -body {
+  list [catch {
+    setupDb [set fileName data-1.92.db] "" "" "" "" "HexPassword=1234;"
+  } msg] [extractSystemDataSQLiteExceptionMessage $msg]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain msg db fileName
+} -constraints [fixConstraints {eagle !System.Data.SQLite.Encryption monoBug28\
+command.sql compile.DATA SQLite System.Data.SQLite}] -result {1 {SQL logic\
+error -- Cannot use "HexPassword" connection string property: library was not\
+built with encryption support, please see "https://www.sqlite.org/see" for more\
+information}}}
+
+###############################################################################
+
+runTest {test data-1.93 {extended error code messages} -setup {
+  #
+  # HACK: Temporarily disable automatic detection (and use) of the
+  #       native sqlite3_errstr() API.
+  #
+  object invoke -flags +NonPublic \
+      System.Data.SQLite.SQLite3 have_errstr false
+
+  setupDb [set fileName data-1.93.db]
+} -body {
+  set errCodes [list]
+
+  lappend errCodes 256; # SQLITE_OK_LOAD_PERMANENTLY
+  lappend errCodes 513; # SQLITE_ERROR_RETRY
+  lappend errCodes 522; # SQLITE_IOERR_SHORT_READ
+  lappend errCodes 270; # SQLITE_CANTOPEN_NOTEMPDIR
+  lappend errCodes 539; # SQLITE_NOTICE_RECOVER_ROLLBACK
+  lappend errCodes 284; # SQLITE_WARNING_AUTOINDEX
+  lappend errCodes 999; # unknown error
+
+  set connection [getDbConnection]
+
+  lappend result [catchAndReturn {$connection EnableExtensions true}]
+
+  lappend result [catchAndReturn {$connection LoadExtension \
+      [getCoreExtensionBinaryFileName null] interop_test_extension_init}]
+
+  lappend result [catchAndReturn {$connection SetExtendedResultCodes false}]
+
+  foreach errCode $errCodes {
+    #
+    # HACK: Without extended error codes, SQLITE_OK_* cannot be handled via
+    #       the semantics in the System.Data.SQLite.SQLite3.Prepare method;
+    #       it will always assume that more results are available when the
+    #       error code is Ok, thereby looping forever.
+    #
+    if {($errCode & 0xFF) == 0} then {continue}
+
+    resetException; catchAndSetException {
+      sql execute -execute scalar $db \
+          "SELECT interopError(?);" [list param1 Int32 $errCode]
+    } exception
+
+    lappend result [$exception ResultCode] \
+        [normalizeExceptionMessage [$exception Message]]
+  }
+
+  lappend result [catchAndReturn {$connection SetExtendedResultCodes true}]
+
+  foreach errCode $errCodes {
+    resetException; catchAndSetException {
+      sql execute -execute scalar $db \
+          "SELECT interopError(?);" [list param1 Int32 $errCode]
+    } exception
+
+    lappend result [$exception ResultCode] \
+        [normalizeExceptionMessage [$exception Message]]
+  }
+
+  set result
+} -cleanup {
+  cleanupDb $fileName
+
+  freeDbConnection
+
+  catch {
+    #
+    # HACK: Restore automatic detection (and use) of the native
+    #       sqlite3_errstr() API.
+    #
+    object invoke -flags +NonPublic \
+        System.Data.SQLite.SQLite3 have_errstr null
+  }
+
+  unset -nocomplain result exception errCode errCodes
+  unset -nocomplain connection db fileName
+} -constraints {eagle command.object monoBug28\
+compile.DATA defineConstant.System.Data.SQLite.INTEROP_TEST_EXTENSION\
+command.sql SQLite System.Data.SQLite} -constraintExpression \
+{[info exists core_library_version] && \
+[package vcompare $core_library_version 3.23] >= 0} -result {{0 {}} {0 {}} {0\
+{}} Error {SQL logic error ==> SQL logic error} IoErr {disk I/O error ==> disk\
+I/O error} CantOpen {unable to open database file ==> unable to open database\
+file} Notice {notification message ==> notification message} Warning {warning\
+message ==> warning message} 231 {SQL logic error ==> unknown error} {0 {}}\
+Ok_Load_Permanently {not an error ==> not an error} Error_Retry {SQL logic\
+error ==> SQL logic error} IoErr_Short_Read {disk I/O error ==> disk I/O error}\
+CantOpen_NoTempDir {unable to open database file ==> unable to open database\
+file} Notice_Recover_Rollback {notification message ==> notification message}\
+Warning_AutoIndex {warning message ==> warning message} 999 {SQL logic error\
+==> unknown error}}}
+
+###############################################################################
+
+runTest {test data-1.94 {extended error code messages} -setup {
+  setupDb [set fileName data-1.94.db]
+} -body {
+  set errCodes [list]
+
+  lappend errCodes 256; # SQLITE_OK_LOAD_PERMANENTLY
+  lappend errCodes 513; # SQLITE_ERROR_RETRY
+  lappend errCodes 522; # SQLITE_IOERR_SHORT_READ
+  lappend errCodes 270; # SQLITE_CANTOPEN_NOTEMPDIR
+  lappend errCodes 539; # SQLITE_NOTICE_RECOVER_ROLLBACK
+  lappend errCodes 284; # SQLITE_WARNING_AUTOINDEX
+  lappend errCodes 999; # unknown error
+
+  set connection [getDbConnection]
+
+  lappend result [catchAndReturn {$connection EnableExtensions true}]
+
+  lappend result [catchAndReturn {$connection LoadExtension \
+      [getCoreExtensionBinaryFileName null] interop_test_extension_init}]
+
+  lappend result [catchAndReturn {$connection SetExtendedResultCodes false}]
+
+  foreach errCode $errCodes {
+    #
+    # HACK: Without extended error codes, SQLITE_OK_* cannot be handled via
+    #       the semantics in the System.Data.SQLite.SQLite3.Prepare method;
+    #       it will always assume that more results are available when the
+    #       error code is Ok, thereby looping forever.
+    #
+    if {($errCode & 0xFF) == 0} then {continue}
+
+    resetException; catchAndSetException {
+      sql execute -execute scalar $db \
+          "SELECT interopError(?);" [list param1 Int32 $errCode]
+    } exception
+
+    lappend result [$exception ResultCode] \
+        [normalizeExceptionMessage [$exception Message]]
+  }
+
+  lappend result [catchAndReturn {$connection SetExtendedResultCodes true}]
+
+  foreach errCode $errCodes {
+    resetException; catchAndSetException {
+      sql execute -execute scalar $db \
+          "SELECT interopError(?);" [list param1 Int32 $errCode]
+    } exception
+
+    lappend result [$exception ResultCode] \
+        [normalizeExceptionMessage [$exception Message]]
+  }
+
+  set result
+} -cleanup {
+  cleanupDb $fileName
+
+  freeDbConnection
+
+  unset -nocomplain result exception errCode errCodes
+  unset -nocomplain connection db fileName
+} -constraints {eagle command.object monoBug28\
+compile.DATA defineConstant.System.Data.SQLite.INTEROP_TEST_EXTENSION\
+command.sql SQLite System.Data.SQLite} -constraintExpression \
+{[info exists core_library_version] && \
+[package vcompare $core_library_version 3.23] >= 0} -result {{0 {}} {0 {}} {0\
+{}} Error {SQL logic error ==> SQL logic error} IoErr {disk I/O error ==> disk\
+I/O error} CantOpen {unable to open database file ==> unable to open database\
+file} Notice {notification message ==> notification message} Warning {warning\
+message ==> warning message} 231 {unknown error ==> unknown error} {0 {}}\
+Ok_Load_Permanently {not an error ==> not an error} Error_Retry {SQL logic\
+error ==> SQL logic error} IoErr_Short_Read {disk I/O error ==> disk I/O error}\
+CantOpen_NoTempDir {unable to open database file ==> unable to open database\
+file} Notice_Recover_Rollback {notification message ==> notification message}\
+Warning_AutoIndex {warning message ==> warning message} 999 {unknown error ==>\
+unknown error}}}
+
+###############################################################################
+
+runTest {test data-1.95 {SetConfigurationOption method} -setup {
+  setupDb [set fileName data-1.95.db] "" "" "" \
+      "NoExtensionFunctions NoBindFunctions"
+} -body {
+  set dbConfigs [list]
+
+  lappend dbConfigs SQLITE_DBCONFIG_NONE; # nil
+  lappend dbConfigs SQLITE_DBCONFIG_MAINDBNAME; # char*
+  lappend dbConfigs SQLITE_DBCONFIG_LOOKASIDE; # void* int int
+
+  lappend dbConfigs SQLITE_DBCONFIG_ENABLE_FKEY; # int int*
+  lappend dbConfigs SQLITE_DBCONFIG_ENABLE_TRIGGER; # int int*
+  lappend dbConfigs SQLITE_DBCONFIG_ENABLE_FTS3_TOKENIZER; # int int*
+  lappend dbConfigs SQLITE_DBCONFIG_ENABLE_LOAD_EXTENSION; # int int*
+  lappend dbConfigs SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE; # int int*
+  lappend dbConfigs SQLITE_DBCONFIG_ENABLE_QPSG; # int int*
+  lappend dbConfigs SQLITE_DBCONFIG_TRIGGER_EQP; # int int*
+  lappend dbConfigs SQLITE_DBCONFIG_RESET_DATABASE; # int int*
+  lappend dbConfigs SQLITE_DBCONFIG_DEFENSIVE; # int int*
+  lappend dbConfigs SQLITE_DBCONFIG_WRITABLE_SCHEMA; # int int*
+  lappend dbConfigs SQLITE_DBCONFIG_LEGACY_ALTER_TABLE; # int int*
+  lappend dbConfigs SQLITE_DBCONFIG_DQS_DML; # int int*
+  lappend dbConfigs SQLITE_DBCONFIG_DQS_DDL; # int int*
+  lappend dbConfigs SQLITE_DBCONFIG_ENABLE_VIEW; # int int*
+
+  set connection [getDbConnection]
+
+  foreach dbConfig $dbConfigs {
+    switch -exact -- $dbConfig {
+      SQLITE_DBCONFIG_NONE {
+        set value null
+      }
+      SQLITE_DBCONFIG_MAINDBNAME {
+        set value [object create String test]
+      }
+      SQLITE_DBCONFIG_LOOKASIDE {
+        if {[info exists ptr]} then {
+          error "pointer value should not exist yet"
+        }
+
+        set size 100; set count 100
+
+        set ptr [object invoke -create \
+            System.Runtime.InteropServices.Marshal \
+            AllocCoTaskMem [expr {$size * $count}]]
+
+        set ints(0) [object invoke -create Int32 Parse $size]
+        set ints(1) [object invoke -create Int32 Parse $count]
+
+        set value [object create -alias Object\[\] 3]
+
+        $value SetValue $ptr 0
+        $value SetValue $ints(0) 1
+        $value SetValue $ints(1) 2
+      }
+      default {
+        set value [object invoke -create System.Boolean Parse true]
+      }
+    }
+
+    lappend result [$connection SetConfigurationOption $dbConfig $value]
+  }
+
+  set current(0) 0; set highwater(0) 0
+
+  lappend result [$connection -flags +NonPublic \
+      _sql.GetStatusParameter SQLITE_DBSTATUS_LOOKASIDE_USED \
+      false current(0) highwater(0)]
+
+  lappend result $current(0) $highwater(0)
+
+  sql execute $db {CREATE TABLE test.t1(x);}; # use some lookaside memory?
+
+  set current(1) 0; set highwater(1) 0
+
+  lappend result [$connection -flags +NonPublic \
+      _sql.GetStatusParameter SQLITE_DBSTATUS_LOOKASIDE_USED \
+      false current(1) highwater(1)]
+
+  lappend result $current(1) $highwater(1)
+
+  lappend result [expr {$highwater(1) > 0}]
+  lappend result [expr {$highwater(1) >= $current(1)}]
+} -cleanup {
+  cleanupDb $fileName
+
+  freeDbConnection
+
+  if {[info exists ptr]} then {
+    object invoke System.Runtime.InteropServices.Marshal \
+        FreeCoTaskMem $ptr
+  }
+
+  unset -nocomplain current highwater ints count size ptr value
+  unset -nocomplain result dbConfig dbConfigs
+  unset -nocomplain connection db fileName
+} -constraints {eagle monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -match regexp -result {^\{\} \{\} \{\} \{\} \{\} \{\} \{\}\
+\{\} \{\} \{\} \{\} \{\} \{\} \{\} \{\} \{\} \{\} Ok 0 0 Ok \d+ \d+ True True$}}
+
+###############################################################################
+
+runTest {test data-1.96 {connection pool interaction with read-only} -setup {
+  catch {
+    object invoke -flags +NonPublic \
+        System.Data.SQLite.SQLiteConnectionPool _poolOpened 0
+
+    object invoke -flags +NonPublic \
+        System.Data.SQLite.SQLiteConnectionPool _poolClosed 0
+  }
+
+  proc getPoolCounts {} {
+    if {[catch {
+      object invoke -flags +NonPublic \
+          System.Data.SQLite.SQLiteConnectionPool _poolOpened
+    } opened] == 0 && [catch {
+      object invoke -flags +NonPublic \
+          System.Data.SQLite.SQLiteConnectionPool _poolClosed
+    } closed] == 0} then {
+      return [list $opened $closed]
+    } else {
+      tputs $::test_channel \
+          "==== WARNING: connection pool counts are not available\n"
+
+      return [list 0 0]
+    }
+  }
+
+  setupDb [set fileName data-1.96.db]
+} -body {
+  sql execute $db "CREATE TABLE t1(x);"
+  sql execute $db "INSERT INTO t1 (x) VALUES(1);"
+
+  cleanupDb $fileName db true false false
+  setupDb $fileName "" "" "" "" "Read Only=True;Pooling=True;" true false
+
+  set code(1) [catch {
+    sql execute $db "INSERT INTO t1 (x) VALUES(2);"
+  } error(1)]
+
+  cleanupDb $fileName db true false false
+  setupDb $fileName "" "" "" "" "Read Only=True;Pooling=True;" true false
+
+  set code(2) [catch {
+    sql execute $db "INSERT INTO t1 (x) VALUES(3);"
+  } error(2)]
+
+  cleanupDb $fileName db true false false
+  setupDb $fileName "" "" "" "" "" true false
+
+  list [getPoolCounts] \
+      $code(1) [extractSystemDataSQLiteExceptionMessage $error(1)] \
+      $code(2) [extractSystemDataSQLiteExceptionMessage $error(2)] \
+      [sql execute -execute scalar $db "SELECT SUM(x) FROM t1;"]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain error code db fileName
+
+  rename getPoolCounts ""
+} -constraints \
+{eagle monoBug28 command.sql compile.DATA SQLite System.Data.SQLite} -result \
+{{0 0} 1 {attempt to write a readonly database} 1 {attempt to write a readonly\
+database} 1}}
+
+###############################################################################
+
+runTest {test data-1.97 {connection pool interaction with read-only} -setup {
+  setupDb [set fileName data-1.97.db]
+} -body {
+  sql execute $db "CREATE TABLE t1(x);"
+  sql execute $db "INSERT INTO t1 (x) VALUES(1);"
+
+  cleanupDb $fileName db true false false
+  setupDb $fileName "" "" "" "" "Read Only=True;Pooling=True;" true false
+
+  set code(1) [catch {
+    sql execute $db "INSERT INTO t1 (x) VALUES(2);"
+  } error(1)]
+
+  cleanupDb $fileName db true false false
+  setupDb $fileName "" "" "" "" "Pooling=True;" true false
+
+  set code(2) [catch {
+    sql execute $db "INSERT INTO t1 (x) VALUES(3);"
+  } error(2)]
+
+  cleanupDb $fileName db true false false
+  setupDb $fileName "" "" "" "" "" true false
+
+  list $code(1) [extractSystemDataSQLiteExceptionMessage $error(1)] \
+      $code(2) [extractSystemDataSQLiteExceptionMessage $error(2)] \
+      [sql execute -execute scalar $db "SELECT SUM(x) FROM t1;"]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain error code db fileName
+} -constraints \
+{eagle monoBug28 command.sql compile.DATA SQLite System.Data.SQLite} -result \
+{1 {attempt to write a readonly database} 0 1 4}}
+
+###############################################################################
+
+runTest {test data-1.98 {SQLiteLog initialize (enabled)} -setup {
+  #
+  # NOTE: Make sure that SQLite core library is completely shutdown prior to
+  #       starting this test.
+  #
+  shutdownSQLite $test_channel
+
+  proc threadStart {} {
+    for {set i 0} {$i < 1000} {incr i} {
+      set c($i) [object create System.Data.SQLite.SQLiteConnection]
+      incr ::count(0)
+    }
+  }
+
+  saveEnvironmentVariables [list No_SQLiteLog Initialize_SQLiteLog] savedEnv
+
+  unset -nocomplain env(No_SQLiteLog)
+  unset -nocomplain env(Initialize_SQLiteLog)
+} -body {
+  set count(1) [object invoke -flags +NonPublic \
+      System.Data.SQLite.SQLiteLog _initializeCallCount]
+
+  set count(2) [object invoke -flags +NonPublic \
+      System.Data.SQLite.SQLiteLog _attemptedInitialize]
+
+  tputs $test_channel [appendArgs \
+      "---- starting with call count " $count(1) " and attempt count " \
+      $count(2) \n]
+
+  object invoke -flags +NonPublic \
+      System.Data.SQLite.SQLiteLog _initializeCallCount 0
+
+  object invoke -flags +NonPublic \
+      System.Data.SQLite.SQLiteLog _attemptedInitialize 0
+
+  for {set i 0} {$i < 20} {incr i} {
+    set thread($i) [createThread threadStart false 1048576]
+    $thread($i) Name [appendArgs "test data-1.98 #" $i]
+  }
+
+  set count(0) 0
+
+  foreach i [array names thread] {
+    startThread $thread($i)
+  }
+
+  foreach i [array names thread] {
+    $thread($i) Join
+  }
+
+  list $count(0) [object invoke -flags +NonPublic \
+      System.Data.SQLite.SQLiteLog _initializeCallCount] [object invoke \
+      -flags +NonPublic System.Data.SQLite.SQLiteLog _attemptedInitialize]
+} -cleanup {
+  restoreEnvironmentVariables [list No_SQLiteLog Initialize_SQLiteLog] savedEnv
+
+  if {[info exists thread]} then {
+    foreach i [array names thread] {
+      if {[info exists thread($i)] && [cleanupThread $thread($i)]} then {
+        unset -nocomplain thread($i)
+      }
+    }
+  }
+
+  catch {object removecallback threadStart}
+
+  unset -nocomplain thread i count
+
+  rename threadStart ""
+} -constraints \
+{eagle command.object SQLite System.Data.SQLite compile.THREADING} -result \
+{20000 20000 1}}
+
+###############################################################################
+
+runTest {test data-1.99 {SQLiteLog initialize (disabled)} -setup {
+  #
+  # NOTE: Make sure that SQLite core library is completely shutdown prior to
+  #       starting this test.
+  #
+  shutdownSQLite $test_channel
+
+  proc threadStart {} {
+    for {set i 0} {$i < 1000} {incr i} {
+      set c($i) [object create System.Data.SQLite.SQLiteConnection]
+      incr ::count(0)
+    }
+  }
+
+  saveEnvironmentVariables [list No_SQLiteLog Initialize_SQLiteLog] savedEnv
+
+  set env(No_SQLiteLog) 1
+  unset -nocomplain env(Initialize_SQLiteLog)
+} -body {
+  set count(1) [object invoke -flags +NonPublic \
+      System.Data.SQLite.SQLiteLog _initializeCallCount]
+
+  set count(2) [object invoke -flags +NonPublic \
+      System.Data.SQLite.SQLiteLog _attemptedInitialize]
+
+  tputs $test_channel [appendArgs \
+      "---- starting with call count " $count(1) " and attempt count " \
+      $count(2) \n]
+
+  object invoke -flags +NonPublic \
+      System.Data.SQLite.SQLiteLog _initializeCallCount 0
+
+  object invoke -flags +NonPublic \
+      System.Data.SQLite.SQLiteLog _attemptedInitialize 0
+
+  for {set i 0} {$i < 20} {incr i} {
+    set thread($i) [createThread threadStart false 1048576]
+    $thread($i) Name [appendArgs "test data-1.99 #" $i]
+  }
+
+  set count(0) 0
+
+  foreach i [array names thread] {
+    startThread $thread($i)
+  }
+
+  foreach i [array names thread] {
+    $thread($i) Join
+  }
+
+  list $count(0) [object invoke -flags +NonPublic \
+      System.Data.SQLite.SQLiteLog _initializeCallCount] [object invoke \
+      -flags +NonPublic System.Data.SQLite.SQLiteLog _attemptedInitialize]
+} -cleanup {
+  restoreEnvironmentVariables [list No_SQLiteLog Initialize_SQLiteLog] savedEnv
+
+  if {[info exists thread]} then {
+    foreach i [array names thread] {
+      if {[info exists thread($i)] && [cleanupThread $thread($i)]} then {
+        unset -nocomplain thread($i)
+      }
+    }
+  }
+
+  catch {object removecallback threadStart}
+
+  unset -nocomplain thread i count
+
+  rename threadStart ""
+} -constraints \
+{eagle command.object SQLite System.Data.SQLite compile.THREADING} -result \
+{20000 0 0}}
+
+###############################################################################
+
+runTest {test data-1.100 {SQLiteLog forced initialize (enabled)} -setup {
+  #
+  # NOTE: Make sure that SQLite core library is completely shutdown prior to
+  #       starting this test.
+  #
+  shutdownSQLite $test_channel
+
+  proc threadStart {} {
+    for {set i 0} {$i < 1000} {incr i} {
+      set c($i) [object create System.Data.SQLite.SQLiteConnection]
+      incr ::count(0)
+    }
+  }
+
+  saveEnvironmentVariables [list No_SQLiteLog Initialize_SQLiteLog] savedEnv
+
+  unset -nocomplain env(No_SQLiteLog)
+  set env(Initialize_SQLiteLog) 1
+} -body {
+  set count(1) [object invoke -flags +NonPublic \
+      System.Data.SQLite.SQLiteLog _initializeCallCount]
+
+  set count(2) [object invoke -flags +NonPublic \
+      System.Data.SQLite.SQLiteLog _attemptedInitialize]
+
+  tputs $test_channel [appendArgs \
+      "---- starting with call count " $count(1) " and attempt count " \
+      $count(2) \n]
+
+  object invoke -flags +NonPublic \
+      System.Data.SQLite.SQLiteLog _initializeCallCount 0
+
+  object invoke -flags +NonPublic \
+      System.Data.SQLite.SQLiteLog _attemptedInitialize 0
+
+  for {set i 0} {$i < 20} {incr i} {
+    set thread($i) [createThread threadStart false 1048576]
+    $thread($i) Name [appendArgs "test data-1.100 #" $i]
+  }
+
+  set count(0) 0
+
+  foreach i [array names thread] {
+    startThread $thread($i)
+  }
+
+  foreach i [array names thread] {
+    $thread($i) Join
+  }
+
+  list $count(0) [object invoke -flags +NonPublic \
+      System.Data.SQLite.SQLiteLog _initializeCallCount] [object invoke \
+      -flags +NonPublic System.Data.SQLite.SQLiteLog _attemptedInitialize]
+} -cleanup {
+  restoreEnvironmentVariables [list No_SQLiteLog Initialize_SQLiteLog] savedEnv
+
+  if {[info exists thread]} then {
+    foreach i [array names thread] {
+      if {[info exists thread($i)] && [cleanupThread $thread($i)]} then {
+        unset -nocomplain thread($i)
+      }
+    }
+  }
+
+  catch {object removecallback threadStart}
+
+  unset -nocomplain thread i count
+
+  rename threadStart ""
+} -constraints \
+{eagle command.object SQLite System.Data.SQLite compile.THREADING} -result \
+{20000 20000 0}}
+
+###############################################################################
+
+runTest {test data-1.101 {SQLiteLog forced initialize (disabled)} -setup {
+  #
+  # NOTE: Make sure that SQLite core library is completely shutdown prior to
+  #       starting this test.
+  #
+  shutdownSQLite $test_channel
+
+  proc threadStart {} {
+    for {set i 0} {$i < 1000} {incr i} {
+      set c($i) [object create System.Data.SQLite.SQLiteConnection]
+      incr ::count(0)
+    }
+  }
+
+  saveEnvironmentVariables [list No_SQLiteLog Initialize_SQLiteLog] savedEnv
+
+  set env(No_SQLiteLog) 1
+  set env(Initialize_SQLiteLog) 1
+} -body {
+  set count(1) [object invoke -flags +NonPublic \
+      System.Data.SQLite.SQLiteLog _initializeCallCount]
+
+  set count(2) [object invoke -flags +NonPublic \
+      System.Data.SQLite.SQLiteLog _attemptedInitialize]
+
+  tputs $test_channel [appendArgs \
+      "---- starting with call count " $count(1) " and attempt count " \
+      $count(2) \n]
+
+  object invoke -flags +NonPublic \
+      System.Data.SQLite.SQLiteLog _initializeCallCount 0
+
+  object invoke -flags +NonPublic \
+      System.Data.SQLite.SQLiteLog _attemptedInitialize 0
+
+  for {set i 0} {$i < 20} {incr i} {
+    set thread($i) [createThread threadStart false 1048576]
+    $thread($i) Name [appendArgs "test data-1.101 #" $i]
+  }
+
+  set count(0) 0
+
+  foreach i [array names thread] {
+    startThread $thread($i)
+  }
+
+  foreach i [array names thread] {
+    $thread($i) Join
+  }
+
+  list $count(0) [object invoke -flags +NonPublic \
+      System.Data.SQLite.SQLiteLog _initializeCallCount] [object invoke \
+      -flags +NonPublic System.Data.SQLite.SQLiteLog _attemptedInitialize]
+} -cleanup {
+  restoreEnvironmentVariables [list No_SQLiteLog Initialize_SQLiteLog] savedEnv
+
+  if {[info exists thread]} then {
+    foreach i [array names thread] {
+      if {[info exists thread($i)] && [cleanupThread $thread($i)]} then {
+        unset -nocomplain thread($i)
+      }
+    }
+  }
+
+  catch {object removecallback threadStart}
+
+  unset -nocomplain thread i count
+
+  rename threadStart ""
+} -constraints \
+{eagle command.object SQLite System.Data.SQLite compile.THREADING} -result \
+{20000 0 0}}
+
+###############################################################################
+
+runTest {test data-1.102 {Target Framework Abbreviations} -body {
+  set targetFrameworkNames [list \
+      null "" bad 1.0 2.0 3.0 X.X \
+      .NETFramework,Version=v2.0 \
+      .NETFramework,Version=v3.5 \
+      .NETFramework,Version=v4.0 \
+      .NETFramework,Version=v4.5 \
+      .NETFramework,Version=v4.5.1 \
+      .NETFramework,Version=v4.5.2 \
+      .NETFramework,Version=v4.6 \
+      .NETFramework,Version=v4.6.1 \
+      .NETFramework,Version=v4.6.2 \
+      .NETFramework,Version=v4.7 \
+      .NETFramework,Version=v4.7.1 \
+      .NETFramework,Version=v4.7.2 \
+      .NETFramework,Version=v4.8 \
+      .NETFramework,Version=vX.X \
+      .NETStandard,Version=v2.0 \
+      .NETStandard,Version=v2.1 \
+      .NETStandard,Version=vX.X]
+
+  set targetFrameworkAbbreviations [list]
+
+  foreach targetFrameworkName $targetFrameworkNames {
+    set targetFrameworkAbbreviation [object invoke -flags +NonPublic \
+        System.Data.SQLite.UnsafeNativeMethods AbbreviateTargetFramework \
+        $targetFrameworkName]
+
+    lappend targetFrameworkAbbreviations $targetFrameworkAbbreviation
+  }
+
+  appendArgs ( [join $targetFrameworkAbbreviations )\n(] )
+} -cleanup {
+  unset -nocomplain targetFrameworkName targetFrameworkAbbreviation
+  unset -nocomplain targetFrameworkNames targetFrameworkAbbreviations
+} -constraints {eagle command.object System.Data.SQLite} -result {()
+()
+(bad)
+(1.0)
+(2.0)
+(3.0)
+(X.X)
+(net20)
+(net35)
+(net40)
+(net45)
+(net451)
+(net452)
+(net46)
+(net461)
+(net462)
+(net47)
+(net471)
+(net472)
+(net48)
+(netXX)
+(netstandard2.0)
+(netstandard2.1)
+(.NETStandard,Version=vX.X)}}
+
+###############################################################################
+
+runTest {test data-1.103 {SetLimitOption method} -setup {
+  setupDb [set fileName data-1.103.db]
+} -body {
+  set limits [list]
+
+  lappend limits SQLITE_LIMIT_NONE
+  lappend limits SQLITE_LIMIT_LENGTH
+  lappend limits SQLITE_LIMIT_SQL_LENGTH
+  lappend limits SQLITE_LIMIT_COLUMN
+  lappend limits SQLITE_LIMIT_EXPR_DEPTH
+  lappend limits SQLITE_LIMIT_COMPOUND_SELECT
+  lappend limits SQLITE_LIMIT_VDBE_OP
+  lappend limits SQLITE_LIMIT_FUNCTION_ARG
+  lappend limits SQLITE_LIMIT_ATTACHED
+  lappend limits SQLITE_LIMIT_LIKE_PATTERN_LENGTH
+  lappend limits SQLITE_LIMIT_VARIABLE_NUMBER
+  lappend limits SQLITE_LIMIT_TRIGGER_DEPTH
+  lappend limits SQLITE_LIMIT_WORKER_THREADS
+
+  set connection [getDbConnection]
+
+  foreach limit $limits {
+    lappend result [$connection SetLimitOption $limit 1]
+    lappend result [$connection SetLimitOption $limit 2]
+  }
+
+  set result
+} -cleanup {
+  cleanupDb $fileName
+
+  freeDbConnection
+
+  unset -nocomplain value result limit limits
+  unset -nocomplain connection db fileName
+} -constraints {eagle monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result {-1 -1 1000000000 1 1000000000 1 2000 1 1000 1 500\
+1 250000000 1 127 1 10 1 50000 1 999 1 1000 1 0 1}}
+
+###############################################################################
+
+reportSQLiteResources $test_channel
+
+###############################################################################
+
+runSQLiteTestFilesEpilogue
+runSQLiteTestEpilogue
+runTestEpilogue

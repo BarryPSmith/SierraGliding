@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ *
+ * SQLite.MSIL.nuspec -
+ *
+ * Written by Joe Mistachkin.
+ * Released to the public domain, use at your own risk!
+ *
+-->
+<package>
+  <metadata>
+    <id>System.Data.SQLite.MSIL</id>
+    <title>System.Data.SQLite (MSIL)</title>
+    <version>1.0.112.0</version>
+    <authors>SQLite Development Team</authors>
+    <description>This is a legacy package; if possible, please use either the &quot;System.Data.SQLite&quot; or &quot;System.Data.SQLite.Core&quot; package instead.  An ADO.NET provider for SQLite (managed-only).</description>
+    <language>en-US</language>
+    <projectUrl>https://system.data.sqlite.org/</projectUrl>
+    <iconUrl>https://system.data.sqlite.org/images/sqlite128.png</iconUrl>
+    <licenseUrl>https://www.sqlite.org/copyright.html</licenseUrl>
+    <tags>sqlite database ado.net provider interop</tags>
+    <copyright>Public Domain</copyright>
+    <dependencies>
+      <group targetFramework="net20">
+        <dependency id="System.Data.SQLite.Core.MSIL" version="1.0.112.0" />
+      </group>
+      <group targetFramework="net40">
+        <dependency id="System.Data.SQLite.Core.MSIL" version="1.0.112.0" />
+      </group>
+      <group targetFramework="net45">
+        <dependency id="System.Data.SQLite.Core.MSIL" version="1.0.112.0" />
+      </group>
+      <group targetFramework="net451">
+        <dependency id="System.Data.SQLite.Core.MSIL" version="1.0.112.0" />
+      </group>
+      <group targetFramework="net46">
+        <dependency id="System.Data.SQLite.Core.MSIL" version="1.0.112.0" />
+      </group>
+      <group targetFramework="net20">
+        <dependency id="System.Data.SQLite.Linq" version="1.0.112.0" />
+      </group>
+      <group targetFramework="net40">
+        <dependency id="System.Data.SQLite.Linq" version="1.0.112.0" />
+      </group>
+      <group targetFramework="net45">
+        <dependency id="System.Data.SQLite.Linq" version="1.0.112.0" />
+      </group>
+      <group targetFramework="net451">
+        <dependency id="System.Data.SQLite.Linq" version="1.0.112.0" />
+      </group>
+      <group targetFramework="net46">
+        <dependency id="System.Data.SQLite.Linq" version="1.0.112.0" />
+      </group>
+      <group targetFramework="net40">
+        <dependency id="System.Data.SQLite.EF6" version="1.0.112.0" />
+      </group>
+      <group targetFramework="net45">
+        <dependency id="System.Data.SQLite.EF6" version="1.0.112.0" />
+      </group>
+      <group targetFramework="net451">
+        <dependency id="System.Data.SQLite.EF6" version="1.0.112.0" />
+      </group>
+      <group targetFramework="net46">
+        <dependency id="System.Data.SQLite.EF6" version="1.0.112.0" />
+      </group>
+    </dependencies>
+  </metadata>
+  <files />
+</package>

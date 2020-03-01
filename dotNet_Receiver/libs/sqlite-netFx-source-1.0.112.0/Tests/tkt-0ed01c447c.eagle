@@ -1,0 +1,55 @@
+###############################################################################
+#
+# tkt-0ed01c447c.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+runTest {test tkt-0ed01c447c-1.1 {ProviderDbType for DataTypes} -setup {
+  setupDb [set fileName tkt-0ed01c447c-1.1.db]
+} -body {
+  set connection [getDbConnection]
+  set dataTable [$connection -alias GetSchema DATATYPES]
+  set results [list]
+
+  object foreach -alias dataRow [set dataRows [$dataTable -alias Rows]] {
+    lappend results [list \
+        [$dataRow Item TypeName] [$dataRow Item ProviderDbType]]
+  }
+
+  lsort $results
+} -cleanup {
+  cleanupDb $fileName
+
+  freeDbConnection
+
+  unset -nocomplain dataRow dataRows dataTable results connection db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result {{autoincrement 12} {bigint 12} {binary 1} {bit 3}\
+{blob 1} {bool 3} {boolean 3} {char 16} {counter 12} {currency 7} {date 6}\
+{datetime 6} {decimal 7} {double 8} {float 8} {general 1} {guid 9} {identity\
+12} {image 1} {int 11} {integer 12} {logical 3} {long 12} {longtext 16} {memo\
+16} {money 7} {nchar 16} {note 16} {ntext 16} {numeric 7} {nvarchar 16}\
+{oleobject 1} {real 8} {single 15} {smalldate 6} {smallint 10} {string 16}\
+{text 16} {time 6} {timestamp 6} {tinyint 2} {uniqueidentifier 9} {varbinary 1}\
+{varchar 16} {yesno 3}}}
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

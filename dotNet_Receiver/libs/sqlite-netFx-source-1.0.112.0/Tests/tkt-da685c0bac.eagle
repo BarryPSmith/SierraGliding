@@ -1,0 +1,53 @@
+###############################################################################
+#
+# tkt-da685c0bac.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+moveSystemDataSQLiteDllConfig false
+
+###############################################################################
+
+runTest {test tkt-da685c0bac-1.1 {GetXmlConfigFileName path handling} -setup \
+    [getAppDomainPreamble] -body {
+  package require Eagle.Library
+  package require Eagle.Test
+  package require System.Data.SQLite.Test
+
+  moveSystemDataSQLiteDllConfig false
+
+  object load -loadtype Bytes [base64 encode [readFile [file join \
+      [getBinaryDirectory] System.Data.SQLite.dll]]]
+
+  object invoke -flags +NonPublic \
+      System.Data.SQLite.UnsafeNativeMethods GetXmlConfigFileName
+} -cleanup {
+  moveSystemDataSQLiteDllConfig true
+} -isolationLevel AppDomain -constraints \
+{eagle command.object compile.ISOLATED_INTERPRETERS System.Data.SQLite\
+defineConstant.System.Data.SQLite.USE_INTEROP_DLL} -result {}}
+
+###############################################################################
+
+moveSystemDataSQLiteDllConfig true
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

@@ -1,0 +1,51 @@
+<!--
+ *
+ * SQLite.NET.Settings.targets.netFx40 -
+ *
+ * Written by Joe Mistachkin.
+ * Released to the public domain, use at your own risk!
+ *
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!--
+  ******************************************************************************
+  **                          Load Per-User Settings                          **
+  ******************************************************************************
+  -->
+
+  <!--
+      NOTE: If the per-user settings file exists, import it now.  The contained
+            settings, if any, will override the default ones provided below.
+  -->
+  <Import Project="$(SQLiteNetDir)\Targets\SQLite.NET.Settings.targets.netFx40.user"
+          Condition="('$(ConfigurationYear)' == '2010' Or
+                      '$(ConfigurationYear)' == '2012' Or
+                      '$(ConfigurationYear)' == '2013' Or
+                      '$(ConfigurationYear)' == '2015') And
+                     Exists('$(SQLiteNetDir)\Targets\SQLite.NET.Settings.targets.netFx40.user')" />
+
+  <!--
+  ******************************************************************************
+  -->
+
+  <PropertyGroup Condition="'$(ConfigurationYear)' == '2010' Or
+                            '$(ConfigurationYear)' == '2012' Or
+                            '$(ConfigurationYear)' == '2013' Or
+                            '$(ConfigurationYear)' == '2015'">
+    <NetFx20>false</NetFx20>
+    <NetFx35>false</NetFx35>
+    <NetFx40>true</NetFx40>
+    <NetFx45>false</NetFx45>
+    <NetFx451>false</NetFx451>
+    <NetFx452>false</NetFx452>
+    <NetFx46>false</NetFx46>
+    <NetFx461>false</NetFx461>
+    <NetFx462>false</NetFx462>
+    <NetFx47>false</NetFx47>
+    <NetFx471>false</NetFx471>
+    <NetFx472>false</NetFx472>
+    <TargetFrameworkVersion>v4.0</TargetFrameworkVersion>
+    <Prefer32Bit>false</Prefer32Bit>
+    <!-- <PlatformToolset>v100</PlatformToolset> -->
+  </PropertyGroup>
+</Project>

@@ -1,4 +1,6 @@
 ﻿using core_Receiver;
+using core_Receiver.Packets;
+using System.Data.SQLite;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -84,7 +86,15 @@ Arguments:
             if (npsFnIndex >= 0)
                 npsFn = args[npsFnIndex + 1];
 
-            OutputWriter.WriteLine("srcAddress: " + srcAddress);
+            string dbFn = null;
+            var dbIndex = Array.FindIndex(args, arg => arg.Equals("--db", StringComparison.OrdinalIgnoreCase));
+            if (dbIndex >= 0)
+                dbFn = args[dbIndex + 1];
+
+            OutputWriter.WriteLine("srcAddress: " + srcAddress); 
+            
+            if (!string.IsNullOrEmpty(dbFn))
+                InitialiseDatabase(dbFn);
 
 #if local_storage
             var dbArgIdx = Array.FindIndex(args, arg => arg.Equals("--db", StringComparison.OrdinalIgnoreCase));
@@ -151,6 +161,80 @@ Arguments:
             Task.WaitAll(tasks.ToArray());
         }
 
+        static SQLiteConnection _dbConn;
+        static void InitialiseDatabase(string sqliteFn)
+        {
+            SQLiteConnectionStringBuilder csb = new SQLiteConnectionStringBuilder();
+            csb.ForeignKeys = true;
+            csb.DataSource = "sierraGlidingReceiver.sqlite";
+            _dbConn = new SQLiteConnection(csb.ToString());
+            _dbConn.Open();
+            using var cmd = _dbConn.CreateCommand();
+            cmd.CommandText = @"
+                CREATE TABLE IF NOT EXISTS All_Packets (
+                    Timestamp INTEGER NOT NULL,
+                    Station_ID INTEGER NOT NULL,
+                    Type TEXT NOT NULL,
+                    Unique_ID INTEGER NOT NULL,
+                    To_String TEXT NULL,
+                    Data BLOB NULL
+                );
+
+                CREATE TABLE IF NOT EXISTS Undecipherable (
+                    Timestamp INTEGER NOT NULL,
+                    Data BLOB NOT NULL
+                );";
+            cmd.ExecuteNonQuery();
+            Console.WriteLine("Database Initialisation Successful.");
+        }
+
+        static void RecordUndecipherable(byte[] bytes)
+        {
+            if (_dbConn == null)
+                return;
+            if (bytes == null || !bytes.Any())
+                return;
+
+            using var cmd = _dbConn.CreateCommand();
+            cmd.CommandText = "INSERT INTO Undecipherable (Timestamp, Data) Values ($Timestamp, $Data)";
+            cmd.Parameters.AddWithValue("$Timestamp", DateTimeOffset.UtcNow.ToUniversalTime().ToUnixTimeSeconds());
+            cmd.Parameters.AddWithValue("$Data", bytes);
+            cmd.ExecuteNonQuery();
+        }
+
+        static void RecordPacket(Packet p)
+        {
+            if (_dbConn == null)
+                return;
+            switch (p.type)
+            {
+                case 'W':
+                    break;
+                default:
+                    using (var cmd = _dbConn.CreateCommand())
+                    {
+                        cmd.CommandText = @"INSERT INTO All_Packets
+                        (Timestamp, Station_ID, Type, Unique_ID, To_String, To_String, Data)
+                        VALUES
+                        ($Timestamp, $Station_ID, $Type, $Unique_ID, $To_String, $To_String, $Data);";
+                        cmd.Parameters.AddWithValue("$Timestamp", DateTimeOffset.Now.ToUniversalTime().ToUnixTimeSeconds());
+                        cmd.Parameters.AddWithValue("$Station_ID", p.sendingStation);
+                        cmd.Parameters.AddWithValue("$Type", p.type);
+                        cmd.Parameters.AddWithValue("$Unique_ID", p.uniqueID);
+                        var dataString = p.GetDataString?.Invoke(p.packetData) ?? p.packetData?.ToString();
+                        dataString = dataString?.Replace((char)0, ' ');
+
+                        cmd.Parameters.AddWithValue("$To_String", (Object)dataString ?? DBNull.Value);
+                        if (p.packetData is IEnumerable<byte> data)
+                            cmd.Parameters.AddWithValue("$Data", data.ToArray());
+                        else
+                            cmd.Parameters.AddWithValue("$Data", DBNull.Value);
+                        cmd.ExecuteNonQuery();
+                    }
+                    break;
+            }
+        }
+
         private static void OnPacketReceived(object sender, IList<byte> data)
         {
             DateTime receivedTime = DateTime.Now;
@@ -160,6 +244,7 @@ Arguments:
                 if (packet == null)
                 {
                     var localBytes = data.ToArray();
+                    RecordUndecipherable(localBytes);
                     Task.Run(() =>
                     {
                         _nps?.Write(Encoding.UTF8.GetBytes(receivedTime.ToString()));
@@ -195,6 +280,7 @@ Arguments:
                     case 'K':
                     case 'C':
                     case 'P':
+                    case (char)6:
                         break;
                     default:
                         //nps is often stdOut in debugging, don't write to it from multiple threads:
@@ -207,6 +293,8 @@ Arguments:
                         });
                         break;
                 }
+                RecordPacket(packet);
+                
             }
             catch (Exception ex)
             {

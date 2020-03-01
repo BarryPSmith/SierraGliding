@@ -1,0 +1,578 @@
+###############################################################################
+#
+# installer.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+runSQLiteTestFilesPrologue
+
+###############################################################################
+
+proc getLineNumber {} {
+  return [incr ::lineNumber]
+}
+
+###############################################################################
+
+runTest {test installer-1.1 {installer tool / Visual Studio 2005} -setup {
+  set fileName [file join [getTemporaryDirectory] [file tail [string map \
+      [list .log [appendArgs _ [pid] .log]] $testInstallVs2005LogFile]]]
+
+  cleanupFile $fileName
+} -body {
+  set output ""
+
+  set code [catch {
+    testClrExec $installerExeFile [list -eventflags Wait -stdout output \
+        -success Success] -debugPriority Lowest -tracePriority MediumHigh \
+        -noRuntimeVersion true -noCompact true -noNetFx35 true \
+        -noNetFx40 true -noNetFx45 true -noNetFx451 true -noNetFx452 true \
+        -noNetFx46 true -noNetFx461 true -noNetFx462 true -noNetFx47 true \
+        -noNetFx471 true -noNetFx472 true -noVs2008 true -noVs2010 true \
+        -noVs2012 true -noVs2013 true -noVs2015 true -noVs2017 true \
+        -whatIf true -verbose true -confirm true -install true -debug true \
+        -wow64 true -directory [file nativename [getBuildDirectory true]] \
+        -logFileName [appendArgs \" [file nativename $fileName] \"] \
+        -traceFormat [appendArgs \" "#{0}: {2}" \"]
+  } error]
+
+  tlog "---- BEGIN STDOUT OUTPUT\n"
+  tlog $output
+  tlog "\n---- END STDOUT OUTPUT\n"
+
+  set lineNumber 0
+  set is64 [haveConstraint amd64.64bit]
+  set wow64 [expr {$is64 ? "\\Wow6432Node" : ""}]
+
+  list $code [expr {$code == 0 ? [string equal -nocase [readFile $fileName] \
+      [subst -nobackslashes [readFile $testInstallVs2005LogFile]]] : $error}]
+} -cleanup {
+  cleanupFile $fileName
+  catch {info previouspid true}
+
+  unset -nocomplain wow64 is64 lineNumber code output error fileName
+} -constraints [fixConstraints {eagle administrator !wow64 buildYear.2005\
+visualStudio2005 System.Data.SQLite.dll_v2.0.50727 file_Installer.exe testExec\
+file_System.Data.SQLite.dll file_SQLite.Designer.dll\
+file_Installer_Test_Vs2005.log}] -result {0 True}}
+
+###############################################################################
+
+runTest {test installer-1.2 {uninstaller tool / Visual Studio 2005} -setup {
+  set fileName [file join [getTemporaryDirectory] [file tail [string map \
+      [list .log [appendArgs _ [pid] .log]] $testUninstallVs2005LogFile]]]
+
+  cleanupFile $fileName
+} -body {
+  set output ""
+
+  set code [catch {
+    testClrExec $installerExeFile [list -eventflags Wait -stdout output \
+        -success Success] -debugPriority Lowest -tracePriority MediumHigh \
+        -noRuntimeVersion true -noCompact true -noNetFx35 true \
+        -noNetFx40 true -noNetFx45 true -noNetFx451 true -noNetFx452 true \
+        -noNetFx46 true -noNetFx461 true -noNetFx462 true -noNetFx47 true \
+        -noNetFx471 true -noNetFx472 true -noVs2008 true -noVs2010 true \
+        -noVs2012 true -noVs2013 true -noVs2015 true -noVs2017 true \
+        -whatIf true -verbose true -confirm true -install false -debug true \
+        -wow64 true -directory [file nativename [getBuildDirectory true]] \
+        -logFileName [appendArgs \" [file nativename $fileName] \"] \
+        -traceFormat [appendArgs \" "#{0}: {2}" \"]
+  } error]
+
+  tlog "---- BEGIN STDOUT OUTPUT\n"
+  tlog $output
+  tlog "\n---- END STDOUT OUTPUT\n"
+
+  set lineNumber 0
+  set is64 [haveConstraint amd64.64bit]
+  set wow64 [expr {$is64 ? "\\Wow6432Node" : ""}]
+
+  list $code [expr {$code == 0 ? [string equal -nocase [readFile $fileName] \
+      [subst -nobackslashes [readFile $testUninstallVs2005LogFile]]] : $error}]
+} -cleanup {
+  cleanupFile $fileName
+  catch {info previouspid true}
+
+  unset -nocomplain wow64 is64 lineNumber code output error fileName
+} -constraints [fixConstraints {eagle administrator !wow64 buildYear.2005\
+visualStudio2005 System.Data.SQLite.dll_v2.0.50727 file_Installer.exe testExec\
+file_System.Data.SQLite.dll file_SQLite.Designer.dll\
+file_Uninstaller_Test_Vs2005.log}] -result {0 True}}
+
+###############################################################################
+
+runTest {test installer-1.3 {installer tool / Visual Studio 2008} -setup {
+  set fileName [file join [getTemporaryDirectory] [file tail [string map \
+      [list .log [appendArgs _ [pid] .log]] $testInstallVs2008LogFile]]]
+
+  cleanupFile $fileName
+} -body {
+  set output ""
+
+  set code [catch {
+    testClrExec $installerExeFile [list -eventflags Wait -stdout output \
+        -success Success] -debugPriority Lowest -tracePriority MediumHigh \
+        -noRuntimeVersion true -noCompact true -noNetFx40 true \
+        -noNetFx45 true -noNetFx451 true -noNetFx452 true -noNetFx46 true \
+        -noNetFx461 true -noNetFx462 true -noNetFx47 true -noNetFx471 true \
+        -noNetFx472 true -noVs2005 true -noVs2010 true -noVs2012 true \
+        -noVs2013 true -noVs2015 true -noVs2017 true -whatIf true \
+        -verbose true -confirm true -install true -debug true -wow64 true \
+        -directory [file nativename [getBuildDirectory true]] \
+        -logFileName [appendArgs \" [file nativename $fileName] \"] \
+        -traceFormat [appendArgs \" "#{0}: {2}" \"]
+  } error]
+
+  tlog "---- BEGIN STDOUT OUTPUT\n"
+  tlog $output
+  tlog "\n---- END STDOUT OUTPUT\n"
+
+  set lineNumber 0
+  set is64 [haveConstraint amd64.64bit]
+  set wow64 [expr {$is64 ? "\\Wow6432Node" : ""}]
+
+  list $code [expr {$code == 0 ? [string equal -nocase [readFile $fileName] \
+      [subst -nobackslashes [readFile $testInstallVs2008LogFile]]] : $error}]
+} -cleanup {
+  cleanupFile $fileName
+  catch {info previouspid true}
+
+  unset -nocomplain wow64 is64 lineNumber code output error fileName
+} -constraints [fixConstraints {eagle administrator !wow64 buildYear.2008\
+visualStudio2008 System.Data.SQLite.dll_v2.0.50727 file_Installer.exe testExec\
+file_System.Data.SQLite.dll file_System.Data.SQLite.Linq.dll\
+file_SQLite.Designer.dll file_Installer_Test_Vs2008.log}] -result {0 True}}
+
+###############################################################################
+
+runTest {test installer-1.4 {uninstaller tool / Visual Studio 2008} -setup {
+  set fileName [file join [getTemporaryDirectory] [file tail [string map \
+      [list .log [appendArgs _ [pid] .log]] $testUninstallVs2008LogFile]]]
+
+  cleanupFile $fileName
+} -body {
+  set output ""
+
+  set code [catch {
+    testClrExec $installerExeFile [list -eventflags Wait -stdout output \
+        -success Success] -debugPriority Lowest -tracePriority MediumHigh \
+        -noRuntimeVersion true -noCompact true -noNetFx40 true \
+        -noNetFx45 true -noNetFx451 true -noNetFx452 true -noNetFx46 true \
+        -noNetFx461 true -noNetFx462 true -noNetFx47 true -noNetFx471 true \
+        -noNetFx472 true -noVs2005 true -noVs2010 true -noVs2012 true \
+        -noVs2013 true -noVs2015 true -noVs2017 true -whatIf true \
+        -verbose true -confirm true -install false -debug true -wow64 true \
+        -directory [file nativename [getBuildDirectory true]] \
+        -logFileName [appendArgs \" [file nativename $fileName] \"] \
+        -traceFormat [appendArgs \" "#{0}: {2}" \"]
+  } error]
+
+  tlog "---- BEGIN STDOUT OUTPUT\n"
+  tlog $output
+  tlog "\n---- END STDOUT OUTPUT\n"
+
+  set lineNumber 0
+  set is64 [haveConstraint amd64.64bit]
+  set wow64 [expr {$is64 ? "\\Wow6432Node" : ""}]
+
+  list $code [expr {$code == 0 ? [string equal -nocase [readFile $fileName] \
+      [subst -nobackslashes [readFile $testUninstallVs2008LogFile]]] : $error}]
+} -cleanup {
+  cleanupFile $fileName
+  catch {info previouspid true}
+
+  unset -nocomplain wow64 is64 lineNumber code output error fileName
+} -constraints [fixConstraints {eagle administrator !wow64 buildYear.2008\
+visualStudio2008 System.Data.SQLite.dll_v2.0.50727 file_Installer.exe testExec\
+file_System.Data.SQLite.dll file_System.Data.SQLite.Linq.dll\
+file_SQLite.Designer.dll file_Uninstaller_Test_Vs2008.log}] -result {0 True}}
+
+###############################################################################
+
+runTest {test installer-1.5 {installer tool / Visual Studio 2010} -setup {
+  set fileName [file join [getTemporaryDirectory] [file tail [string map \
+      [list .log [appendArgs _ [pid] .log]] $testInstallVs2010LogFile]]]
+
+  cleanupFile $fileName
+} -body {
+  set output ""
+
+  set code [catch {
+    testClrExec $installerExeFile [list -eventflags Wait -stdout output \
+        -success Success] -debugPriority Lowest -tracePriority MediumHigh \
+        -noRuntimeVersion true -noCompact true -noNetFx20 true \
+        -noNetFx35 true -noNetFx45 true -noNetFx451 true -noNetFx452 true \
+        -noNetFx46 true -noNetFx461 true -noNetFx462 true -noNetFx47 true \
+        -noNetFx471 true -noNetFx472 true -noVs2005 true -noVs2008 true \
+        -noVs2012 true -noVs2013 true -noVs2015 true -noVs2017 true \
+        -whatIf true -verbose true -confirm true -install true -debug true \
+        -wow64 true -directory [file nativename [getBuildDirectory true]] \
+        -logFileName [appendArgs \" [file nativename $fileName] \"] \
+        -traceFormat [appendArgs \" "#{0}: {2}" \"]
+  } error]
+
+  tlog "---- BEGIN STDOUT OUTPUT\n"
+  tlog $output
+  tlog "\n---- END STDOUT OUTPUT\n"
+
+  set lineNumber 0
+  set is64 [haveConstraint amd64.64bit]
+  set wow64 [expr {$is64 ? "\\Wow6432Node" : ""}]
+
+  list $code [expr {$code == 0 ? [string equal -nocase [readFile $fileName] \
+      [subst -nobackslashes [readFile $testInstallVs2010LogFile]]] : $error}]
+} -cleanup {
+  cleanupFile $fileName
+  catch {info previouspid true}
+
+  unset -nocomplain wow64 is64 lineNumber code output error fileName
+} -constraints [fixConstraints {eagle administrator !wow64 buildYear.2010\
+visualStudio2010 System.Data.SQLite.dll_v4.0.30319 file_Installer.exe testExec\
+file_System.Data.SQLite.dll file_System.Data.SQLite.Linq.dll\
+file_System.Data.SQLite.EF6.dll file_SQLite.Designer.dll\
+file_Installer_Test_Vs2010.log}] -result {0 True}}
+
+###############################################################################
+
+runTest {test installer-1.6 {uninstaller tool / Visual Studio 2010} -setup {
+  set fileName [file join [getTemporaryDirectory] [file tail [string map \
+      [list .log [appendArgs _ [pid] .log]] $testUninstallVs2010LogFile]]]
+
+  cleanupFile $fileName
+} -body {
+  set output ""
+
+  set code [catch {
+    testClrExec $installerExeFile [list -eventflags Wait -stdout output \
+        -success Success] -debugPriority Lowest -tracePriority MediumHigh \
+        -noRuntimeVersion true -noCompact true -noNetFx20 true \
+        -noNetFx35 true -noNetFx45 true -noNetFx451 true -noNetFx452 true \
+        -noNetFx46 true -noNetFx461 true -noNetFx462 true -noNetFx47 true \
+        -noNetFx471 true -noNetFx472 true -noVs2005 true -noVs2008 true \
+        -noVs2012 true -noVs2013 true -noVs2015 true -noVs2017 true \
+        -whatIf true -verbose true -confirm true -install false -debug true \
+        -wow64 true -directory [file nativename [getBuildDirectory true]] \
+        -logFileName [appendArgs \" [file nativename $fileName] \"] \
+        -traceFormat [appendArgs \" "#{0}: {2}" \"]
+  } error]
+
+  tlog "---- BEGIN STDOUT OUTPUT\n"
+  tlog $output
+  tlog "\n---- END STDOUT OUTPUT\n"
+
+  set lineNumber 0
+  set is64 [haveConstraint amd64.64bit]
+  set wow64 [expr {$is64 ? "\\Wow6432Node" : ""}]
+
+  list $code [expr {$code == 0 ? [string equal -nocase [readFile $fileName] \
+      [subst -nobackslashes [readFile $testUninstallVs2010LogFile]]] : $error}]
+} -cleanup {
+  cleanupFile $fileName
+  catch {info previouspid true}
+
+  unset -nocomplain wow64 is64 lineNumber code output error fileName
+} -constraints [fixConstraints {eagle administrator !wow64 buildYear.2010\
+visualStudio2010 System.Data.SQLite.dll_v4.0.30319 file_Installer.exe testExec\
+file_System.Data.SQLite.dll file_System.Data.SQLite.Linq.dll\
+file_System.Data.SQLite.EF6.dll file_SQLite.Designer.dll\
+file_Uninstaller_Test_Vs2010.log}] -result {0 True}}
+
+###############################################################################
+
+runTest {test installer-1.7 {installer tool / Visual Studio 2012} -setup {
+  set fileName [file join [getTemporaryDirectory] [file tail [string map \
+      [list .log [appendArgs _ [pid] .log]] $testInstallVs2012LogFile]]]
+
+  cleanupFile $fileName
+} -body {
+  set output ""
+
+  set code [catch {
+    testClrExec $installerExeFile [list -eventflags Wait -stdout output \
+        -success Success] -debugPriority Lowest -tracePriority MediumHigh \
+        -noRuntimeVersion true -noCompact true -noNetFx20 true \
+        -noNetFx35 true -noNetFx40 true -noNetFx451 true -noNetFx452 true \
+        -noNetFx46 true -noNetFx461 true -noNetFx462 true -noNetFx47 true \
+        -noNetFx471 true -noNetFx472 true -noVs2005 true -noVs2008 true \
+        -noVs2010 true -noVs2013 true -noVs2015 true -noVs2017 true \
+        -whatIf true -verbose true -confirm true -install true -debug true \
+        -wow64 true -configVersion 4.0.30319 \
+        -directory [file nativename [getBuildDirectory true]] \
+        -logFileName [appendArgs \" [file nativename $fileName] \"] \
+        -traceFormat [appendArgs \" "#{0}: {2}" \"]
+  } error]
+
+  tlog "---- BEGIN STDOUT OUTPUT\n"
+  tlog $output
+  tlog "\n---- END STDOUT OUTPUT\n"
+
+  set lineNumber 0
+  set is64 [haveConstraint amd64.64bit]
+  set wow64 [expr {$is64 ? "\\Wow6432Node" : ""}]
+
+  list $code [expr {$code == 0 ? [string equal -nocase [readFile $fileName] \
+      [subst -nobackslashes [readFile $testInstallVs2012LogFile]]] : $error}]
+} -cleanup {
+  cleanupFile $fileName
+  catch {info previouspid true}
+
+  unset -nocomplain wow64 is64 lineNumber code output error fileName
+} -constraints [fixConstraints {eagle administrator !wow64 buildYear.2012\
+visualStudio2012 System.Data.SQLite.dll_v4.0.30319 file_Installer.exe testExec\
+file_System.Data.SQLite.dll file_System.Data.SQLite.Linq.dll\
+file_System.Data.SQLite.EF6.dll file_SQLite.Designer.dll\
+file_Installer_Test_Vs2012.log}] -result {0 True}}
+
+###############################################################################
+
+runTest {test installer-1.8 {uninstaller tool / Visual Studio 2012} -setup {
+  set fileName [file join [getTemporaryDirectory] [file tail [string map \
+      [list .log [appendArgs _ [pid] .log]] $testUninstallVs2012LogFile]]]
+
+  cleanupFile $fileName
+} -body {
+  set output ""
+
+  set code [catch {
+    testClrExec $installerExeFile [list -eventflags Wait -stdout output \
+        -success Success] -debugPriority Lowest -tracePriority MediumHigh \
+        -noRuntimeVersion true -noCompact true -noNetFx20 true \
+        -noNetFx35 true -noNetFx40 true -noNetFx451 true -noNetFx452 true \
+        -noNetFx46 true -noNetFx461 true -noNetFx462 true -noNetFx47 true \
+        -noNetFx471 true -noNetFx472 true -noVs2005 true -noVs2008 true \
+        -noVs2010 true -noVs2013 true -noVs2015 true -noVs2017 true \
+        -whatIf true -verbose true -confirm true -install false -debug true \
+        -wow64 true -configVersion 4.0.30319 \
+        -directory [file nativename [getBuildDirectory true]] \
+        -logFileName [appendArgs \" [file nativename $fileName] \"] \
+        -traceFormat [appendArgs \" "#{0}: {2}" \"]
+  } error]
+
+  tlog "---- BEGIN STDOUT OUTPUT\n"
+  tlog $output
+  tlog "\n---- END STDOUT OUTPUT\n"
+
+  set lineNumber 0
+  set is64 [haveConstraint amd64.64bit]
+  set wow64 [expr {$is64 ? "\\Wow6432Node" : ""}]
+
+  list $code [expr {$code == 0 ? [string equal -nocase [readFile $fileName] \
+      [subst -nobackslashes [readFile $testUninstallVs2012LogFile]]] : $error}]
+} -cleanup {
+  cleanupFile $fileName
+  catch {info previouspid true}
+
+  unset -nocomplain wow64 is64 lineNumber code output error fileName
+} -constraints [fixConstraints {eagle administrator !wow64 buildYear.2012\
+visualStudio2012 System.Data.SQLite.dll_v4.0.30319 file_Installer.exe testExec\
+file_System.Data.SQLite.dll file_System.Data.SQLite.Linq.dll\
+file_System.Data.SQLite.EF6.dll file_SQLite.Designer.dll\
+file_Uninstaller_Test_Vs2012.log}] -result {0 True}}
+
+###############################################################################
+
+runTest {test installer-1.9 {installer tool / Visual Studio 2013} -setup {
+  set fileName [file join [getTemporaryDirectory] [file tail [string map \
+      [list .log [appendArgs _ [pid] .log]] $testInstallVs2013LogFile]]]
+
+  cleanupFile $fileName
+} -body {
+  set output ""
+
+  set code [catch {
+    testClrExec $installerExeFile [list -eventflags Wait -stdout output \
+        -success Success] -debugPriority Lowest -tracePriority MediumHigh \
+        -noRuntimeVersion true -noCompact true -noNetFx20 true \
+        -noNetFx35 true -noNetFx40 true -noNetFx45 true -noNetFx452 true \
+        -noNetFx46 true -noNetFx461 true -noNetFx462 true -noNetFx47 true \
+        -noNetFx471 true -noNetFx472 true -noVs2005 true -noVs2008 true \
+        -noVs2010 true -noVs2012 true -noVs2015 true -noVs2017 true \
+        -whatIf true -verbose true -confirm true -install true -debug true \
+        -wow64 true -configVersion 4.0.30319 \
+        -directory [file nativename [getBuildDirectory true]] \
+        -logFileName [appendArgs \" [file nativename $fileName] \"] \
+        -traceFormat [appendArgs \" "#{0}: {2}" \"]
+  } error]
+
+  tlog "---- BEGIN STDOUT OUTPUT\n"
+  tlog $output
+  tlog "\n---- END STDOUT OUTPUT\n"
+
+  set lineNumber 0
+  set is64 [haveConstraint amd64.64bit]
+  set wow64 [expr {$is64 ? "\\Wow6432Node" : ""}]
+
+  list $code [expr {$code == 0 ? [string equal -nocase [readFile $fileName] \
+      [subst -nobackslashes [readFile $testInstallVs2013LogFile]]] : $error}]
+} -cleanup {
+  cleanupFile $fileName
+  catch {info previouspid true}
+
+  unset -nocomplain wow64 is64 lineNumber code output error fileName
+} -constraints [fixConstraints {eagle administrator !wow64 buildYear.2013\
+visualStudio2013 System.Data.SQLite.dll_v4.0.30319 file_Installer.exe testExec\
+file_System.Data.SQLite.dll file_System.Data.SQLite.Linq.dll\
+file_System.Data.SQLite.EF6.dll file_SQLite.Designer.dll\
+file_Installer_Test_Vs2013.log}] -result {0 True}}
+
+###############################################################################
+
+runTest {test installer-1.10 {uninstaller tool / Visual Studio 2013} -setup {
+  set fileName [file join [getTemporaryDirectory] [file tail [string map \
+      [list .log [appendArgs _ [pid] .log]] $testUninstallVs2013LogFile]]]
+
+  cleanupFile $fileName
+} -body {
+  set output ""
+
+  set code [catch {
+    testClrExec $installerExeFile [list -eventflags Wait -stdout output \
+        -success Success] -debugPriority Lowest -tracePriority MediumHigh \
+        -noRuntimeVersion true -noCompact true -noNetFx20 true \
+        -noNetFx35 true -noNetFx40 true -noNetFx45 true -noNetFx452 true \
+        -noNetFx46 true -noNetFx461 true -noNetFx462 true -noNetFx47 true \
+        -noNetFx471 true -noNetFx472 true -noVs2005 true -noVs2008 true \
+        -noVs2010 true -noVs2012 true -noVs2015 true -noVs2017 true \
+        -whatIf true -verbose true -confirm true -install false -debug true \
+        -wow64 true -configVersion 4.0.30319 \
+        -directory [file nativename [getBuildDirectory true]] \
+        -logFileName [appendArgs \" [file nativename $fileName] \"] \
+        -traceFormat [appendArgs \" "#{0}: {2}" \"]
+  } error]
+
+  tlog "---- BEGIN STDOUT OUTPUT\n"
+  tlog $output
+  tlog "\n---- END STDOUT OUTPUT\n"
+
+  set lineNumber 0
+  set is64 [haveConstraint amd64.64bit]
+  set wow64 [expr {$is64 ? "\\Wow6432Node" : ""}]
+
+  list $code [expr {$code == 0 ? [string equal -nocase [readFile $fileName] \
+      [subst -nobackslashes [readFile $testUninstallVs2013LogFile]]] : $error}]
+} -cleanup {
+  cleanupFile $fileName
+  catch {info previouspid true}
+
+  unset -nocomplain wow64 is64 lineNumber code output error fileName
+} -constraints [fixConstraints {eagle administrator !wow64 buildYear.2013\
+visualStudio2013 System.Data.SQLite.dll_v4.0.30319 file_Installer.exe testExec\
+file_System.Data.SQLite.dll file_System.Data.SQLite.Linq.dll\
+file_System.Data.SQLite.EF6.dll file_SQLite.Designer.dll\
+file_Uninstaller_Test_Vs2013.log}] -result {0 True}}
+
+###############################################################################
+
+runTest {test installer-1.11 {installer tool / Visual Studio 2015} -setup {
+  set fileName [file join [getTemporaryDirectory] [file tail [string map \
+      [list .log [appendArgs _ [pid] .log]] $testInstallVs2015LogFile]]]
+
+  cleanupFile $fileName
+} -body {
+  set output ""
+
+  set code [catch {
+    testClrExec $installerExeFile [list -eventflags Wait -stdout output \
+        -success Success] -debugPriority Lowest -tracePriority MediumHigh \
+        -noRuntimeVersion true -noCompact true -noNetFx20 true \
+        -noNetFx35 true -noNetFx40 true -noNetFx45 true -noNetFx451 true \
+        -noNetFx452 true -noNetFx461 true -noNetFx462 true -noNetFx47 true \
+        -noNetFx471 true -noNetFx472 true -noVs2005 true -noVs2008 true \
+        -noVs2010 true -noVs2012 true -noVs2013 true -noVs2017 true \
+        -whatIf true -verbose true -confirm true -install true -debug true \
+        -wow64 true -configVersion 4.0.30319 \
+        -directory [file nativename [getBuildDirectory true]] \
+        -logFileName [appendArgs \" [file nativename $fileName] \"] \
+        -traceFormat [appendArgs \" "#{0}: {2}" \"]
+  } error]
+
+  tlog "---- BEGIN STDOUT OUTPUT\n"
+  tlog $output
+  tlog "\n---- END STDOUT OUTPUT\n"
+
+  set lineNumber 0
+  set is64 [haveConstraint amd64.64bit]
+  set wow64 [expr {$is64 ? "\\Wow6432Node" : ""}]
+
+  list $code [expr {$code == 0 ? [string equal -nocase [readFile $fileName] \
+      [subst -nobackslashes [readFile $testInstallVs2015LogFile]]] : $error}]
+} -cleanup {
+  cleanupFile $fileName
+  catch {info previouspid true}
+
+  unset -nocomplain wow64 is64 lineNumber code output error fileName
+} -constraints [fixConstraints {eagle administrator !wow64 buildYear.2015\
+visualStudio2015 System.Data.SQLite.dll_v4.0.30319 file_Installer.exe testExec\
+file_System.Data.SQLite.dll file_System.Data.SQLite.Linq.dll\
+file_System.Data.SQLite.EF6.dll file_SQLite.Designer.dll\
+file_Installer_Test_Vs2015.log}] -result {0 True}}
+
+###############################################################################
+
+runTest {test installer-1.12 {uninstaller tool / Visual Studio 2015} -setup {
+  set fileName [file join [getTemporaryDirectory] [file tail [string map \
+      [list .log [appendArgs _ [pid] .log]] $testUninstallVs2015LogFile]]]
+
+  cleanupFile $fileName
+} -body {
+  set output ""
+
+  set code [catch {
+    testClrExec $installerExeFile [list -eventflags Wait -stdout output \
+        -success Success] -debugPriority Lowest -tracePriority MediumHigh \
+        -noRuntimeVersion true -noCompact true -noNetFx20 true \
+        -noNetFx35 true -noNetFx40 true -noNetFx45 true -noNetFx451 true \
+        -noNetFx452 true -noNetFx461 true -noNetFx462 true -noNetFx47 true \
+        -noNetFx471 true -noNetFx472 true -noVs2005 true -noVs2008 true \
+        -noVs2010 true -noVs2012 true -noVs2013 true -noVs2017 true \
+        -whatIf true -verbose true -confirm true -install false -debug true \
+        -wow64 true -configVersion 4.0.30319 \
+        -directory [file nativename [getBuildDirectory true]] \
+        -logFileName [appendArgs \" [file nativename $fileName] \"] \
+        -traceFormat [appendArgs \" "#{0}: {2}" \"]
+  } error]
+
+  tlog "---- BEGIN STDOUT OUTPUT\n"
+  tlog $output
+  tlog "\n---- END STDOUT OUTPUT\n"
+
+  set lineNumber 0
+  set is64 [haveConstraint amd64.64bit]
+  set wow64 [expr {$is64 ? "\\Wow6432Node" : ""}]
+
+  list $code [expr {$code == 0 ? [string equal -nocase [readFile $fileName] \
+      [subst -nobackslashes [readFile $testUninstallVs2015LogFile]]] : $error}]
+} -cleanup {
+  cleanupFile $fileName
+  catch {info previouspid true}
+
+  unset -nocomplain wow64 is64 lineNumber code output error fileName
+} -constraints [fixConstraints {eagle administrator !wow64 buildYear.2015\
+visualStudio2015 System.Data.SQLite.dll_v4.0.30319 file_Installer.exe testExec\
+file_System.Data.SQLite.dll file_System.Data.SQLite.Linq.dll\
+file_System.Data.SQLite.EF6.dll file_SQLite.Designer.dll\
+file_Uninstaller_Test_Vs2015.log}] -result {0 True}}
+
+###############################################################################
+
+rename getLineNumber ""
+
+###############################################################################
+
+runSQLiteTestFilesEpilogue
+runSQLiteTestEpilogue
+runTestEpilogue

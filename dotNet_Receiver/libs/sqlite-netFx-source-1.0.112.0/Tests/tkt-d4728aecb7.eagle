@@ -1,0 +1,138 @@
+###############################################################################
+#
+# tkt-d4728aecb7.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+moveSystemDataSQLiteDllConfig false
+
+###############################################################################
+
+set d472_binary_directory [string map [list \\ /] [getBinaryDirectory]]
+set d472_target_framework [string map [list Fx ""] [getBuildNetFx]]
+
+###############################################################################
+
+runTest {test tkt-d4728aecb7-1.1 {tokens in environment variable} -setup \
+    [getAppDomainPreamble] -body {
+  package require Eagle.Library
+  package require Eagle.Test
+  package require System.Data.SQLite.Test
+
+  saveEnvironmentVariables [list d472_1 d472_2 d472_3] savedEnv
+
+  set env(d472_1) {prfx1/%PreLoadSQLite_AssemblyDirectory%/sufx1}
+  set env(d472_2) {prfx2/%PreLoadSQLite_TargetFramework%/sufx2}
+  set env(d472_3) {prfx3/%PreLoadSQLite_XmlConfigDirectory%/sufx3}
+
+  object load -loadtype File [file join \
+      [getBinaryDirectory] System.Data.SQLite.dll]
+
+  set result [list]
+
+  lappend result [string map [list \\ /] [object invoke -flags +NonPublic \
+      System.Data.SQLite.UnsafeNativeMethods GetSettingValue d472_1 null]]
+
+  lappend result [string map [list \\ /] [object invoke -flags +NonPublic \
+      System.Data.SQLite.UnsafeNativeMethods GetSettingValue d472_2 null]]
+
+  lappend result [string map [list \\ /] [object invoke -flags +NonPublic \
+      System.Data.SQLite.UnsafeNativeMethods GetSettingValue d472_3 null]]
+
+  set result
+} -cleanup {
+  restoreEnvironmentVariables [list d472_1 d472_2 d472_3] savedEnv
+
+  unset -nocomplain result
+} -isolationLevel AppDomain -constraints {eagle command.object\
+compile.ISOLATED_INTERPRETERS System.Data.SQLite\
+defineConstant.System.Data.SQLite.USE_INTEROP_DLL} -result [list [appendArgs \
+prfx1/ $d472_binary_directory /sufx1] [appendArgs prfx2/ \
+$d472_target_framework /sufx2] prfx3/%PreLoadSQLite_XmlConfigDirectory%/sufx3]}
+
+###############################################################################
+
+#
+# HACK: This test relies (indirectly) upon the CodeBase property being set on
+#       the assembly loaded via its bytes to the Eagle core library assembly
+#       file name (i.e. because it is the calling assembly).  This appears to
+#       be non-portable and will not work on Mono.
+#
+runTest {test tkt-d4728aecb7-1.2 {tokens in XML configuration file} -setup \
+    [getAppDomainPreamble] -body {
+  package require Eagle.Library
+  package require Eagle.Test
+  package require System.Data.SQLite.Test
+
+  moveSystemDataSQLiteDllConfig false
+
+  set fileName [writeSystemDataSQLiteDllConfig [string trim {
+    <?xml version="1.0"?>
+    <configuration>
+      <appSettings>
+        <add key="d472_1"
+             value="prfx1/%PreLoadSQLite_AssemblyDirectory%/sufx1" />
+        <add key="d472_2"
+             value="prfx2/%PreLoadSQLite_TargetFramework%/sufx2" />
+        <add key="d472_3"
+             value="prfx3/%PreLoadSQLite_XmlConfigDirectory%/sufx3" />
+      </appSettings>
+    </configuration>
+  }]]
+
+  object load -loadtype Bytes [base64 encode [readFile [file join \
+      [getBinaryDirectory] System.Data.SQLite.dll]]]
+
+  set result [list]
+
+  lappend result [string map [list \\ /] [object invoke -flags +NonPublic \
+      System.Data.SQLite.UnsafeNativeMethods GetSettingValue d472_1 null]]
+
+  lappend result [string map [list \\ /] [object invoke -flags +NonPublic \
+      System.Data.SQLite.UnsafeNativeMethods GetSettingValue d472_2 null]]
+
+  lappend result [string map [list \\ /] [object invoke -flags +NonPublic \
+      System.Data.SQLite.UnsafeNativeMethods GetSettingValue d472_3 null]]
+
+  set result
+} -cleanup {
+  catch {file delete $fileName}
+
+  unset -nocomplain result fileName
+
+  moveSystemDataSQLiteDllConfig true
+} -isolationLevel AppDomain -constraints {eagle command.object dotNet\
+compile.ISOLATED_INTERPRETERS System.Data.SQLite\
+defineConstant.System.Data.SQLite.USE_INTEROP_DLL} -result [list [appendArgs \
+prfx1/ $d472_binary_directory /sufx1] [appendArgs prfx2/ \
+$d472_target_framework /sufx2] [appendArgs prfx3/ $d472_binary_directory \
+/sufx3]]}
+
+###############################################################################
+
+unset -nocomplain d472_target_framework d472_binary_directory
+
+###############################################################################
+
+moveSystemDataSQLiteDllConfig true
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

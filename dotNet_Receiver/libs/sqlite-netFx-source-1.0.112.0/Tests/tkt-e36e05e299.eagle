@@ -1,0 +1,108 @@
+###############################################################################
+#
+# tkt-e36e05e299.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+proc hasIndexOutOfRangeException { value } {
+  return [regexp -- { System\.IndexOutOfRangeException: } $value]
+}
+
+###############################################################################
+
+runTest {test tkt-e36e05e299-1.1 {GetOrdinal, -1 for not found} -setup {
+  setupDb [set fileName tkt-e36e05e299-1.1.db]
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(x);
+    INSERT INTO t1 (x) VALUES(NULL);
+  }
+
+  set dataReader [sql execute \
+      -execute reader -format datareader \
+      -alias $db "SELECT x FROM t1 ORDER BY x;"]
+
+  lappend result(1) [catch {$dataReader GetOrdinal x} result(2)]
+
+  if {$result(1)} then {
+    set result(2) [hasIndexOutOfRangeException $result(2)]
+  }
+
+  lappend result(3) [catch {$dataReader GetOrdinal y} result(4)]
+
+  if {$result(3)} then {
+    set result(4) [hasIndexOutOfRangeException $result(4)]
+  }
+
+  testArrayGet result
+} -cleanup {
+  unset -nocomplain dataReader
+
+  cleanupDb $fileName db
+
+  unset -nocomplain result db fileName
+} -constraints \
+{eagle monoBug28 command.sql compile.DATA SQLite System.Data.SQLite} -result \
+{1 0 2 0 3 0 4 -1}}
+
+###############################################################################
+
+runTest {test tkt-e36e05e299-1.2 {GetOrdinal, throw on not found} -setup {
+  setupDb [set fileName tkt-e36e05e299-1.2.db] "" "" "" StrictConformance
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(x);
+    INSERT INTO t1 (x) VALUES(NULL);
+  }
+
+  set dataReader [sql execute \
+      -execute reader -format datareader \
+      -alias $db "SELECT x FROM t1 ORDER BY x;"]
+
+  lappend result(1) [catch {$dataReader GetOrdinal x} result(2)]
+
+  if {$result(1)} then {
+    set result(2) [hasIndexOutOfRangeException $result(2)]
+  }
+
+  lappend result(3) [catch {$dataReader GetOrdinal y} result(4)]
+
+  if {$result(3)} then {
+    set result(4) [hasIndexOutOfRangeException $result(4)]
+  }
+
+  testArrayGet result
+} -cleanup {
+  unset -nocomplain dataReader
+
+  cleanupDb $fileName db
+
+  unset -nocomplain result db fileName
+} -constraints \
+{eagle monoBug28 command.sql compile.DATA SQLite System.Data.SQLite} -result \
+{1 0 2 0 3 1 4 1}}
+
+###############################################################################
+
+rename hasIndexOutOfRangeException ""
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

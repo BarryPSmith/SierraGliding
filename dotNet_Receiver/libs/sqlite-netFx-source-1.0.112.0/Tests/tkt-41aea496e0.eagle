@@ -1,0 +1,62 @@
+###############################################################################
+#
+# tkt-41aea496e0.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+runSQLiteTestFilesPrologue
+
+###############################################################################
+
+runTest {test tkt-41aea496e0-1.1 {LINQ non-rowid primary key support} -body {
+  copySampleDatabaseFiles
+
+  set result [list]
+  set output ""
+
+  set code [catch {
+    testClrExec $testLinqExeFile [list -eventflags Wait -directory \
+        [file dirname $testLinqExeFile] -nocarriagereturns -stdout output \
+        -success Success] -complexprimarykey
+  } error]
+
+  tlog "---- BEGIN STDOUT OUTPUT\n"
+  tlog $output
+  tlog "\n---- END STDOUT OUTPUT\n"
+
+  lappend result $code
+
+  if {$code == 0} then {
+    lappend result [string trim $output]
+  } else {
+    lappend result [string trim $error]
+  }
+
+  set result
+} -cleanup {
+  catch {info previouspid true}
+
+  unset -nocomplain code output error result
+} -constraints {eagle monoToDo SQLite file_System.Data.SQLite.dll testExec\
+file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \
+-result {0 {inserted 2
+updated 2}}}
+
+###############################################################################
+
+runSQLiteTestFilesEpilogue
+runSQLiteTestEpilogue
+runTestEpilogue

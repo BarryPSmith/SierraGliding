@@ -1,0 +1,78 @@
+###############################################################################
+#
+# tkt-5251bd0878.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+runTest {test tkt-5251bd0878-1.1 {indexed expressions schema} -setup {
+  setupDb [set fileName tkt-5251bd0878-1.1.db]
+} -body {
+  set connection [getDbConnection]
+
+  sql execute $db {
+    CREATE TABLE t1(x INTEGER PRIMARY KEY, y INTEGER);
+    INSERT INTO t1 (y) VALUES (-2000);
+    INSERT INTO t1 (y) VALUES (-1000);
+    INSERT INTO t1 (y) VALUES (-200);
+    INSERT INTO t1 (y) VALUES (-100);
+    INSERT INTO t1 (y) VALUES (-20);
+    INSERT INTO t1 (y) VALUES (-10);
+    INSERT INTO t1 (y) VALUES (0);
+    INSERT INTO t1 (y) VALUES (10);
+    INSERT INTO t1 (y) VALUES (20);
+    INSERT INTO t1 (y) VALUES (100);
+    INSERT INTO t1 (y) VALUES (200);
+    INSERT INTO t1 (y) VALUES (1000);
+    INSERT INTO t1 (y) VALUES (2000);
+    INSERT INTO t1 (y) VALUES (10000);
+    INSERT INTO t1 (y) VALUES (20000);
+    CREATE INDEX i1 ON t1(x, abs(y));
+  }
+
+  set dataReader [sql execute -execute reader -format datareader \
+      -alias $db "SELECT x, y FROM t1;"]
+
+  set dataTable [$dataReader -alias GetSchemaTable]
+  set result [list]
+
+  foreach row [getRowsFromDataTable $dataTable] {
+    foreach column $row {
+      if {[lindex $column 0] in [list ColumnName IsKey]} then {
+        lappend result $column
+      }
+    }
+  }
+
+  set result
+} -cleanup {
+  unset -nocomplain dataTable dataReader
+
+  cleanupDb $fileName
+
+  freeDbConnection
+
+  unset -nocomplain column row result connection db fileName
+} -constraints {eagle command.object monoBug28 monoBug211 command.sql\
+compile.DATA SQLite System.Data.SQLite} -result {{ColumnName x} {IsKey True}\
+{ColumnName y} {IsKey False}}}
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

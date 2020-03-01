@@ -1,0 +1,137 @@
+###############################################################################
+#
+# tkt-964063da16.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+runTest {test tkt-964063da16-1.1 {pre-existing connection flags} -body {
+  set connection [object create -alias \
+      System.Data.SQLite.SQLiteConnection \
+      "Data Source=:memory:;NoDefaultFlags=False;"]
+
+  $connection Open
+  $connection Flags
+} -cleanup {
+  unset -nocomplain connection
+} -constraints {eagle command.object SQLite System.Data.SQLite} -match regexp \
+-result {^Default|LogCallbackException$}}
+
+###############################################################################
+
+runTest {test tkt-964063da16-1.2 {pre-existing connection flags} -body {
+  set connection [object create -alias \
+      System.Data.SQLite.SQLiteConnection \
+      "Data Source=:memory:;NoDefaultFlags=True;"]
+
+  $connection Open
+  $connection Flags
+} -cleanup {
+  unset -nocomplain connection
+} -constraints {eagle command.object SQLite System.Data.SQLite} -result \
+{None}}
+
+###############################################################################
+
+runTest {test tkt-964063da16-1.3 {pre-existing connection flags} -body {
+  set connection [object create -alias \
+      System.Data.SQLite.SQLiteConnection \
+      "Data Source=:memory:;NoDefaultFlags=False;"]
+
+  $connection Flags NoExtensionFunctions; $connection Open
+  $connection Flags
+} -cleanup {
+  unset -nocomplain connection
+} -constraints {eagle command.object SQLite System.Data.SQLite} -match regexp \
+-result {^Default, NoExtensionFunctions|NoExtensionFunctions,\
+Default|LogCallbackException, NoExtensionFunctions$}}
+
+###############################################################################
+
+runTest {test tkt-964063da16-1.4 {pre-existing connection flags} -body {
+  set connection [object create -alias \
+      System.Data.SQLite.SQLiteConnection \
+      "Data Source=:memory:;NoDefaultFlags=True;"]
+
+  $connection Flags NoExtensionFunctions; $connection Open
+  $connection Flags
+} -cleanup {
+  unset -nocomplain connection
+} -constraints {eagle command.object SQLite System.Data.SQLite} -result \
+{NoExtensionFunctions}}
+
+###############################################################################
+
+runTest {test tkt-964063da16-1.5 {pre-existing connection flags} -body {
+  set connection [object create -alias \
+      System.Data.SQLite.SQLiteConnection \
+      "Data Source=:memory:;NoDefaultFlags=False;Flags=GetAllAsText;"]
+
+  $connection Open
+  $connection Flags
+} -cleanup {
+  unset -nocomplain connection
+} -constraints {eagle command.object SQLite System.Data.SQLite} -result \
+{GetAllAsText}}
+
+###############################################################################
+
+runTest {test tkt-964063da16-1.6 {pre-existing connection flags} -body {
+  set connection [object create -alias \
+      System.Data.SQLite.SQLiteConnection \
+      "Data Source=:memory:;NoDefaultFlags=True;Flags=GetAllAsText;"]
+
+  $connection Open
+  $connection Flags
+} -cleanup {
+  unset -nocomplain connection
+} -constraints {eagle command.object SQLite System.Data.SQLite} -result \
+{GetAllAsText}}
+
+###############################################################################
+
+runTest {test tkt-964063da16-1.7 {pre-existing connection flags} -body {
+  set connection [object create -alias \
+      System.Data.SQLite.SQLiteConnection \
+      "Data Source=:memory:;NoDefaultFlags=False;Flags=GetAllAsText;"]
+
+  $connection Flags NoExtensionFunctions; $connection Open
+  $connection Flags
+} -cleanup {
+  unset -nocomplain connection
+} -constraints {eagle command.object SQLite System.Data.SQLite} -result \
+{NoExtensionFunctions, GetAllAsText}}
+
+###############################################################################
+
+runTest {test tkt-964063da16-1.8 {pre-existing connection flags} -body {
+  set connection [object create -alias \
+      System.Data.SQLite.SQLiteConnection \
+      "Data Source=:memory:;NoDefaultFlags=True;Flags=GetAllAsText;"]
+
+  $connection Flags NoExtensionFunctions; $connection Open
+  $connection Flags
+} -cleanup {
+  unset -nocomplain connection
+} -constraints {eagle command.object SQLite System.Data.SQLite} -result \
+{NoExtensionFunctions, GetAllAsText}}
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

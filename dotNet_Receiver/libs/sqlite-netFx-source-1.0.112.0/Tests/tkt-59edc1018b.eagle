@@ -1,0 +1,109 @@
+###############################################################################
+#
+# tkt-59edc1018b.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+runSQLiteTestFilesPrologue
+
+###############################################################################
+
+runTest {test tkt-59edc1018b-1.1 {LINQ with EndsWith} -body {
+  copySampleDatabaseFiles
+
+  set result [list]
+
+  foreach value [list "" a b z 1+1 don notthere] {
+    set output ""
+
+    set code [catch {
+      testClrExec $testLinqExeFile [list -eventflags Wait -directory \
+          [file dirname $testLinqExeFile] -nocarriagereturns -stdout output \
+          -success Success] -endsWith $value
+    } error]
+
+    tlog "---- BEGIN STDOUT OUTPUT\n"
+    tlog $output
+    tlog "\n---- END STDOUT OUTPUT\n"
+
+    lappend result $code
+
+    if {$code == 0} then {
+      lappend result [string trim $output]
+    } else {
+      lappend result [string trim $error]
+    }
+  }
+
+  set result
+} -cleanup {
+  catch {info previouspid true}
+
+  unset -nocomplain code output error result value
+} -constraints \
+{eagle monoToDo defineConstant.System.Data.SQLite.USE_INTEROP_DLL\
+defineConstant.System.Data.SQLite.INTEROP_EXTENSION_FUNCTIONS SQLite testExec\
+file_System.Data.SQLite.dll file_System.Data.SQLite.Linq.dll file_testlinq.exe\
+file_northwindEF.db} -result {0 {} 0 {FURIB GALED GODOS LAZYK LINOD PRINI REGGC\
+WOLZA} 0 {} 0 ERNSH 0 {} 0 {AROUT BSBEV CONSH EASTC NORTS SEVES} 0 {}}}
+
+###############################################################################
+
+runTest {test tkt-59edc1018b-1.2 {EF6 with EndsWith} -body {
+  copySampleDatabaseFiles
+
+  set result [list]
+
+  foreach value [list "" a b z 1+1 don notthere] {
+    set output ""
+
+    set code [catch {
+      testClrExec $testEf6ExeFile [list -eventflags Wait -directory \
+          [file dirname $testEf6ExeFile] -nocarriagereturns -stdout output \
+          -success Success] -endsWith $value
+    } error]
+
+    tlog "---- BEGIN STDOUT OUTPUT\n"
+    tlog $output
+    tlog "\n---- END STDOUT OUTPUT\n"
+
+    lappend result $code
+
+    if {$code == 0} then {
+      lappend result [string trim $output]
+    } else {
+      lappend result [string trim $error]
+    }
+  }
+
+  set result
+} -cleanup {
+  catch {info previouspid true}
+
+  unset -nocomplain code output error result value
+} -constraints \
+{eagle monoToDo defineConstant.System.Data.SQLite.USE_INTEROP_DLL\
+defineConstant.System.Data.SQLite.INTEROP_EXTENSION_FUNCTIONS SQLite testExec\
+file_EntityFramework.dll file_System.Data.SQLite.dll\
+file_System.Data.SQLite.EF6.dll file_testef6.exe file_northwindEF.db} -result \
+{0 {} 0 {FURIB GALED GODOS LAZYK LINOD PRINI REGGC WOLZA} 0 {} 0 ERNSH 0 {} 0\
+{AROUT BSBEV CONSH EASTC NORTS SEVES} 0 {}}}
+
+###############################################################################
+
+runSQLiteTestFilesEpilogue
+runSQLiteTestEpilogue
+runTestEpilogue

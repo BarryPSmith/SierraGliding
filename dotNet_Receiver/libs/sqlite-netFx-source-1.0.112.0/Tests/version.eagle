@@ -1,0 +1,1374 @@
+###############################################################################
+#
+# version.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+runSQLiteTestFilesPrologue
+
+###############################################################################
+# ******************** BEGIN VOLATILE VERSION INFORMATION *********************
+###############################################################################
+
+#
+# NOTE: For these unit tests to be useful and accurate, the following version
+#       numbers must be manually kept synchronized with the version numbers for
+#       the source code files, the built binaries, and the release packages.
+#       The revision number is reserved for NuGet package versioning.
+#
+set version(major)             1
+set version(minor)             0
+set version(build)           112; # NOTE: Incremented with each release.
+set version(revision)          0
+
+###############################################################################
+
+#
+# NOTE: What is the full version of the included SQLite core library?  This
+#       must be kept synchronized with the version numbers for the associated
+#       source code and property files.
+#
+set version(core,full) 3.30.1.0
+set version(core,short) 3.30.1
+
+###############################################################################
+
+#
+# NOTE: What is the full version of the EntityFramework NuGet package (which
+#       is not [necessarily] the same version as the assembly itself) in use
+#       by the System.Data.SQLite NuGet packages?
+#
+set version(ef6) 6.3.0
+
+###############################################################################
+# ********************* END VOLATILE VERSION INFORMATION **********************
+###############################################################################
+
+#
+# NOTE: Build the full version number using the components setup above.  This
+#       should not have to be changed.
+#
+set version(full) [appendArgs $version(major) . $version(minor) . \
+                              $version(build) . $version(revision)]
+
+###############################################################################
+
+#
+# NOTE: Build the version number regular expression used for the NuGet
+#       packages.  This should be the same as the above version number,
+#       with the exception of the revision, which may differ.
+#
+set version(nuget) [appendArgs $version(major) \\. $version(minor) \\. \
+                               $version(build) \\. \\d+]
+
+###############################################################################
+
+runTest {test version-1.1 {'System.Data.SQLite' binary version} -body {
+  file version $systemDataSQLiteDllFile
+} -constraints {eagle file_System.Data.SQLite.dll} -result $version(full)}
+
+###############################################################################
+
+runTest {test version-1.2 {'System.Data.SQLite' assembly version} -body {
+  set assemblyName [object invoke -alias System.Reflection.AssemblyName \
+      GetAssemblyName $systemDataSQLiteDllFile]
+
+  $assemblyName Version.ToString
+} -cleanup {
+  unset -nocomplain assemblyName
+} -constraints {eagle command.object file_System.Data.SQLite.dll} -result \
+$version(full)}
+
+###############################################################################
+
+runTest {test version-1.3 {'System.Data.SQLite.Linq' binary version} -body {
+  file version $systemDataSQLiteLinqDllFile
+} -constraints {eagle file_System.Data.SQLite.Linq.dll} -result $version(full)}
+
+###############################################################################
+
+runTest {test version-1.4 {'System.Data.SQLite.Linq' assembly version} -body {
+  set assemblyName [object invoke -alias System.Reflection.AssemblyName \
+      GetAssemblyName $systemDataSQLiteLinqDllFile]
+
+  $assemblyName Version.ToString
+} -cleanup {
+  unset -nocomplain assemblyName
+} -constraints {eagle command.object file_System.Data.SQLite.Linq.dll} -result \
+$version(full)}
+
+###############################################################################
+
+runTest {test version-1.5 {'System.Data.SQLite.EF6' binary version} -body {
+  file version $systemDataSQLiteEf6DllFile
+} -constraints {eagle file_System.Data.SQLite.EF6.dll} -result $version(full)}
+
+###############################################################################
+
+runTest {test version-1.6 {'System.Data.SQLite.EF6' assembly version} -body {
+  set assemblyName [object invoke -alias System.Reflection.AssemblyName \
+      GetAssemblyName $systemDataSQLiteEf6DllFile]
+
+  $assemblyName Version.ToString
+} -cleanup {
+  unset -nocomplain assemblyName
+} -constraints {eagle command.object file_System.Data.SQLite.EF6.dll} -result \
+$version(full)}
+
+###############################################################################
+
+runTest {test version-1.7 {'SQLite.Designer' binary version} -body {
+  file version $sqliteDesignerDllFile
+} -constraints {eagle file_SQLite.Designer.dll} -result $version(full)}
+
+###############################################################################
+
+runTest {test version-1.8 {'SQLite.Designer' assembly version} -body {
+  set assemblyName [object invoke -alias System.Reflection.AssemblyName \
+      GetAssemblyName $sqliteDesignerDllFile]
+
+  $assemblyName Version.ToString
+} -cleanup {
+  unset -nocomplain assemblyName
+} -constraints {eagle command.object file_SQLite.Designer.dll} -result \
+$version(full)}
+
+###############################################################################
+
+runTest {test version-1.9 {'test' binary version} -body {
+  file version $testExeFile
+} -constraints {eagle file_test.exe} -result $version(full)}
+
+###############################################################################
+
+runTest {test version-1.10 {'test' assembly version} -body {
+  set assemblyName [object invoke -alias System.Reflection.AssemblyName \
+      GetAssemblyName $testExeFile]
+
+  $assemblyName Version.ToString
+} -cleanup {
+  unset -nocomplain assemblyName
+} -constraints {eagle command.object file_test.exe} -result $version(full)}
+
+###############################################################################
+
+runTest {test version-1.11 {'testlinq' binary version} -body {
+  file version $testLinqExeFile
+} -constraints {eagle file_testlinq.exe} -result $version(full)}
+
+###############################################################################
+
+runTest {test version-1.12 {'testlinq' assembly version} -body {
+  set assemblyName [object invoke -alias System.Reflection.AssemblyName \
+      GetAssemblyName $testLinqExeFile]
+
+  $assemblyName Version.ToString
+} -cleanup {
+  unset -nocomplain assemblyName
+} -constraints {eagle command.object file_testlinq.exe} -result $version(full)}
+
+###############################################################################
+
+runTest {test version-1.13 {'testef6' binary version} -body {
+  file version $testEf6ExeFile
+} -constraints {eagle file_testef6.exe} -result $version(full)}
+
+###############################################################################
+
+runTest {test version-1.14 {'testef6' assembly version} -body {
+  set assemblyName [object invoke -alias System.Reflection.AssemblyName \
+      GetAssemblyName $testEf6ExeFile]
+
+  $assemblyName Version.ToString
+} -cleanup {
+  unset -nocomplain assemblyName
+} -constraints {eagle command.object file_testef6.exe} -result $version(full)}
+
+###############################################################################
+
+runTest {test version-1.15 {SQLiteVersion} -body {
+  object invoke System.Data.SQLite.SQLiteConnection SQLiteVersion
+} -constraints {eagle command.object SQLite System.Data.SQLite} -match regexp \
+-result {^\d+\.\d+\.\d+(?:\.\d+)?$}}
+
+###############################################################################
+
+runTest {test version-1.16 {SQLiteSourceId} -body {
+  object invoke System.Data.SQLite.SQLiteConnection SQLiteSourceId
+} -constraints {eagle command.object SQLite System.Data.SQLite} -match regexp \
+-result {^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [0-9a-f]{40,64}$}}
+
+###############################################################################
+
+runTest {test version-1.17 {InteropVersion} -body {
+  object invoke System.Data.SQLite.SQLiteConnection InteropVersion
+} -constraints {eagle command.object SQLiteInterop System.Data.SQLite} -result \
+$version(full)}
+
+###############################################################################
+
+runTest {test version-1.18 {InteropSourceId} -body {
+  object invoke System.Data.SQLite.SQLiteConnection InteropSourceId
+} -constraints {eagle command.object SQLiteInterop System.Data.SQLite} -match \
+regexp -result {^[0-9a-f]{40,64} \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC$}}
+
+###############################################################################
+
+runTest {test version-1.19 {ProviderVersion} -body {
+  object invoke System.Data.SQLite.SQLiteConnection ProviderVersion
+} -constraints {eagle command.object System.Data.SQLite} -result $version(full)}
+
+###############################################################################
+
+runTest {test version-1.20 {ProviderSourceId} -body {
+  #
+  # NOTE: The ProviderSourceId property value may be null, which
+  #       would result in an empty string being returned here.
+  #
+  object invoke System.Data.SQLite.SQLiteConnection ProviderSourceId
+} -constraints {eagle command.object System.Data.SQLite} -match regexp -result \
+{^(?:|[0-9a-f]{40,64} \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC)$}}
+
+###############################################################################
+
+unset -nocomplain patterns
+
+###############################################################################
+# readme.htm
+###############################################################################
+
+lappend patterns \
+    [appendArgs "Using <a href=\"https://www\\.sqlite\\.org/releaselog/" \
+        [string map [list . _] $version(core,short)] "\\.html\">SQLite " \
+        [string map [list . \\.] $version(core,short)] </a>] \
+    [appendArgs " to <a href=\"https://www\\.sqlite\\.org/releaselog/" \
+        [string map [list . _] $version(core,short)] "\\.html\">SQLite " \
+        [string map [list . \\.] $version(core,short)] </a>] \
+    [appendArgs Version " " [string map [list . \\.] $version(full)] " "] \
+    [appendArgs <b> [string map [list . \\.] $version(full)] " - "] \
+    [appendArgs Version= [string map [list . \\.] $version(full)] ,]
+
+###############################################################################
+# dbfactorysupport.html
+###############################################################################
+
+lappend patterns \
+    [appendArgs Version= [string map [list . \\.] $version(full)] ,]
+
+###############################################################################
+# version.html
+###############################################################################
+
+lappend patterns \
+    [appendArgs " to <a href=\"https://www\\.sqlite\\.org/releaselog/" \
+        [string map [list . _] $version(core,short)] "\\.html\">SQLite " \
+        [string map [list . \\.] $version(core,short)] </a>] \
+    [appendArgs <b> [string map [list . \\.] $version(full)] " - "]
+
+###############################################################################
+# welcome.html
+###############################################################################
+
+lappend patterns \
+    [appendArgs &quot\; [format %03d $version(build)] &quot\;]
+
+###############################################################################
+# SQLite.nuspec
+###############################################################################
+
+lappend patterns \
+    [appendArgs <version> $version(nuget) </version>] \
+    [appendArgs " targetFramework=\"net20\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net40\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net45\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net451\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net46\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"netstandard2\\.0\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net20\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net40\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net45\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net451\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net46\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net40\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net45\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net451\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net46\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\" version=\"" $version(nuget) \
+        "\" "]
+
+###############################################################################
+# SQLite.Beta.nuspec
+###############################################################################
+
+lappend patterns \
+    [appendArgs <version> $version(nuget) </version>] \
+    [appendArgs " targetFramework=\"net20\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net40\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net45\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net451\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net46\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"netstandard2\\.0\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net20\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net40\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net45\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net451\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net46\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net40\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net45\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net451\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net46\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\\.Beta\" version=\"" \
+        $version(nuget) "\" "]
+
+###############################################################################
+# SQLite.Core.nuspec
+###############################################################################
+
+lappend patterns \
+    [appendArgs <version> $version(nuget) </version>]
+
+###############################################################################
+# SQLite.Core.Beta.nuspec
+###############################################################################
+
+lappend patterns \
+    [appendArgs <version> $version(nuget) </version>]
+
+###############################################################################
+# SQLite.Core.Test.nuspec
+###############################################################################
+
+lappend patterns \
+    [appendArgs <version> $version(nuget) </version>]
+
+###############################################################################
+# SQLite.Core.MSIL.nuspec
+###############################################################################
+
+lappend patterns \
+    [appendArgs <version> $version(nuget) </version>]
+
+###############################################################################
+# SQLite.Core.MSIL.Beta.nuspec
+###############################################################################
+
+lappend patterns \
+    [appendArgs <version> $version(nuget) </version>]
+
+###############################################################################
+# SQLite.Core.MSIL.Test.nuspec
+###############################################################################
+
+lappend patterns \
+    [appendArgs <version> $version(nuget) </version>]
+
+###############################################################################
+# SQLite.EF6.nuspec
+###############################################################################
+
+lappend patterns \
+    [appendArgs <version> $version(nuget) </version>] \
+    [appendArgs " targetFramework=\"net40\".*? " \
+        "id=\"EntityFramework\" version=\"" [string map [list . \\.] \
+        $version(ef6)] "\" "] \
+    [appendArgs " targetFramework=\"net45\".*? " \
+        "id=\"EntityFramework\" version=\"" [string map [list . \\.] \
+        $version(ef6)] "\" "] \
+    [appendArgs " targetFramework=\"net451\".*? " \
+        "id=\"EntityFramework\" version=\"" [string map [list . \\.] \
+        $version(ef6)] "\" "] \
+    [appendArgs " targetFramework=\"net46\".*? " \
+        "id=\"EntityFramework\" version=\"" [string map [list . \\.] \
+        $version(ef6)] "\" "] \
+    [appendArgs " targetFramework=\"netstandard2\\.1\".*? " \
+        "id=\"EntityFramework\" version=\"" [string map [list . \\.] \
+        $version(ef6)] "\" "]
+
+###############################################################################
+# SQLite.EF6.Beta.nuspec
+###############################################################################
+
+lappend patterns \
+    [appendArgs <version> $version(nuget) </version>] \
+    [appendArgs " targetFramework=\"net40\".*? " \
+        "id=\"EntityFramework\" version=\"" [string map [list . \\.] \
+        $version(ef6)] "\" "] \
+    [appendArgs " targetFramework=\"net45\".*? " \
+        "id=\"EntityFramework\" version=\"" [string map [list . \\.] \
+        $version(ef6)] "\" "] \
+    [appendArgs " targetFramework=\"net451\".*? " \
+        "id=\"EntityFramework\" version=\"" [string map [list . \\.] \
+        $version(ef6)] "\" "] \
+    [appendArgs " targetFramework=\"net46\".*? " \
+        "id=\"EntityFramework\" version=\"" [string map [list . \\.] \
+        $version(ef6)] "\" "] \
+    [appendArgs " targetFramework=\"netstandard2\\.1\".*? " \
+        "id=\"EntityFramework\" version=\"" [string map [list . \\.] \
+        $version(ef6)] "\" "]
+
+###############################################################################
+# SQLite.EF6.Test.nuspec
+###############################################################################
+
+lappend patterns \
+    [appendArgs <version> $version(nuget) </version>] \
+    [appendArgs " targetFramework=\"net40\".*? " \
+        "id=\"EntityFramework\" version=\"" [string map [list . \\.] \
+        $version(ef6)] "\" "] \
+    [appendArgs " targetFramework=\"net45\".*? " \
+        "id=\"EntityFramework\" version=\"" [string map [list . \\.] \
+        $version(ef6)] "\" "] \
+    [appendArgs " targetFramework=\"net451\".*? " \
+        "id=\"EntityFramework\" version=\"" [string map [list . \\.] \
+        $version(ef6)] "\" "] \
+    [appendArgs " targetFramework=\"net46\".*? " \
+        "id=\"EntityFramework\" version=\"" [string map [list . \\.] \
+        $version(ef6)] "\" "] \
+    [appendArgs " targetFramework=\"netstandard2\\.1\".*? " \
+        "id=\"EntityFramework\" version=\"" [string map [list . \\.] \
+        $version(ef6)] "\" "]
+
+###############################################################################
+# SQLite.Linq.nuspec
+###############################################################################
+
+lappend patterns \
+    [appendArgs <version> $version(nuget) </version>]
+
+###############################################################################
+# SQLite.Linq.Beta.nuspec
+###############################################################################
+
+lappend patterns \
+    [appendArgs <version> $version(nuget) </version>]
+
+###############################################################################
+# SQLite.Linq.Test.nuspec
+###############################################################################
+
+lappend patterns \
+    [appendArgs <version> $version(nuget) </version>]
+
+###############################################################################
+# SQLite.MSIL.nuspec
+###############################################################################
+
+lappend patterns \
+    [appendArgs <version> $version(nuget) </version>] \
+    [appendArgs " targetFramework=\"net20\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\\.MSIL\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net40\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\\.MSIL\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net45\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\\.MSIL\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net451\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\\.MSIL\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net46\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\\.MSIL\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net20\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net40\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net45\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net451\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net46\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net40\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net45\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net451\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net46\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\" version=\"" $version(nuget) \
+        "\" "]
+
+###############################################################################
+# SQLite.MSIL.Beta.nuspec
+###############################################################################
+
+lappend patterns \
+    [appendArgs <version> $version(nuget) </version>] \
+    [appendArgs " targetFramework=\"net20\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\\.MSIL\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net40\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\\.MSIL\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net45\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\\.MSIL\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net451\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\\.MSIL\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net46\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\\.MSIL\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net20\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net40\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net45\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net451\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net46\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net40\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net45\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net451\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\\.Beta\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net46\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\\.Beta\" version=\"" \
+        $version(nuget) "\" "]
+
+###############################################################################
+# SQLite.MSIL.Test.nuspec
+###############################################################################
+
+lappend patterns \
+    [appendArgs <version> $version(nuget) </version>] \
+    [appendArgs " targetFramework=\"net20\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\\.MSIL\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net40\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\\.MSIL\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net45\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\\.MSIL\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net451\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\\.MSIL\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net46\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\\.MSIL\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net20\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net40\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net45\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net451\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net46\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net40\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net45\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net451\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net46\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\\.Test\" version=\"" \
+        $version(nuget) "\" "]
+
+###############################################################################
+# SQLite.Test.nuspec
+###############################################################################
+
+lappend patterns \
+    [appendArgs <version> $version(nuget) </version>] \
+    [appendArgs " targetFramework=\"net20\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net40\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net45\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net451\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net46\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Core\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net20\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net40\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net45\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net451\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net46\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net40\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net45\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net451\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"net46\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\\.Test\" version=\"" \
+        $version(nuget) "\" "] \
+    [appendArgs " targetFramework=\"netstandard2\\.0\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\\.Test\" version=\"" \
+        $version(nuget) "\" "]
+
+###############################################################################
+# SQLite.x64.nuspec
+###############################################################################
+
+lappend patterns \
+    [appendArgs <version> $version(nuget) </version>] \
+    [appendArgs " targetFramework=\"net20\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net40\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net45\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net451\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net46\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net40\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net45\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net451\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net46\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\" version=\"" $version(nuget) \
+        "\" "]
+
+###############################################################################
+# SQLite.x86.nuspec
+###############################################################################
+
+lappend patterns \
+    [appendArgs <version> $version(nuget) </version>] \
+    [appendArgs " targetFramework=\"net20\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net40\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net45\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net451\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net46\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.Linq\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net40\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net45\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net451\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\" version=\"" $version(nuget) \
+        "\" "] \
+    [appendArgs " targetFramework=\"net46\".*? " \
+        "id=\"System\\.Data\\.SQLite\\.EF6\" version=\"" $version(nuget) \
+        "\" "]
+
+###############################################################################
+# SQLite.Designer/AssemblyInfo.cs
+###############################################################################
+
+lappend patterns \
+    [appendArgs AssemblyVersion\\(\" [string map [list . \\.] \
+        $version(full)] \"\\)] \
+    [appendArgs AssemblyFileVersion\\(\" [string map [list . \\.] \
+        $version(full)] \"\\)]
+
+###############################################################################
+# source.extension.vsixmanifest
+###############################################################################
+
+lappend patterns \
+    [appendArgs <Version> [string map [list . \\.] \
+        $version(full)] </Version>]
+
+###############################################################################
+# SQLite.Interop.2005.vsprops
+###############################################################################
+
+lappend patterns \
+    [appendArgs Value=\" [format %03d $version(build)] \"] \
+    [appendArgs Value=\" [string map [list . \\.] $version(full)] \"] \
+    [appendArgs Value=\" [string map [list . ,] $version(full)] \"]
+
+###############################################################################
+# SQLite.Interop.2008.vsprops
+###############################################################################
+
+lappend patterns \
+    [appendArgs Value=\" [format %03d $version(build)] \"] \
+    [appendArgs Value=\" [string map [list . \\.] $version(full)] \"] \
+    [appendArgs Value=\" [string map [list . ,] $version(full)] \"] \
+
+###############################################################################
+# SQLite.Interop.2010.props
+###############################################################################
+
+lappend patterns \
+    [appendArgs <INTEROP_BUILD_NUMBER> [format %03d $version(build)] \
+        </INTEROP_BUILD_NUMBER>] \
+    [appendArgs <INTEROP_MANIFEST_VERSION> [string map [list . \\.] \
+        $version(full)] </INTEROP_MANIFEST_VERSION>] \
+    [appendArgs <INTEROP_RC_VERSION> [string map [list . ,] \
+        $version(full)] </INTEROP_RC_VERSION>]
+
+###############################################################################
+# SQLite.Interop.2012.props
+###############################################################################
+
+lappend patterns \
+    [appendArgs <INTEROP_BUILD_NUMBER> [format %03d $version(build)] \
+        </INTEROP_BUILD_NUMBER>] \
+    [appendArgs <INTEROP_MANIFEST_VERSION> [string map [list . \\.] \
+        $version(full)] </INTEROP_MANIFEST_VERSION>] \
+    [appendArgs <INTEROP_RC_VERSION> [string map [list . ,] \
+        $version(full)] </INTEROP_RC_VERSION>]
+
+###############################################################################
+# SQLite.Interop.2013.props
+###############################################################################
+
+lappend patterns \
+    [appendArgs <INTEROP_BUILD_NUMBER> [format %03d $version(build)] \
+        </INTEROP_BUILD_NUMBER>] \
+    [appendArgs <INTEROP_MANIFEST_VERSION> [string map [list . \\.] \
+        $version(full)] </INTEROP_MANIFEST_VERSION>] \
+    [appendArgs <INTEROP_RC_VERSION> [string map [list . ,] \
+        $version(full)] </INTEROP_RC_VERSION>]
+
+###############################################################################
+# SQLite.Interop.2015.props
+###############################################################################
+
+lappend patterns \
+    [appendArgs <INTEROP_BUILD_NUMBER> [format %03d $version(build)] \
+        </INTEROP_BUILD_NUMBER>] \
+    [appendArgs <INTEROP_MANIFEST_VERSION> [string map [list . \\.] \
+        $version(full)] </INTEROP_MANIFEST_VERSION>] \
+    [appendArgs <INTEROP_RC_VERSION> [string map [list . ,] \
+        $version(full)] </INTEROP_RC_VERSION>]
+
+###############################################################################
+# SQLite.Interop.2017.props
+###############################################################################
+
+lappend patterns \
+    [appendArgs <INTEROP_BUILD_NUMBER> [format %03d $version(build)] \
+        </INTEROP_BUILD_NUMBER>] \
+    [appendArgs <INTEROP_MANIFEST_VERSION> [string map [list . \\.] \
+        $version(full)] </INTEROP_MANIFEST_VERSION>] \
+    [appendArgs <INTEROP_RC_VERSION> [string map [list . ,] \
+        $version(full)] </INTEROP_RC_VERSION>]
+
+###############################################################################
+# sqlite3.props
+###############################################################################
+
+lappend patterns \
+    [appendArgs <SQLITE_MANIFEST_VERSION> [string map [list . \\.] \
+        $version(core,full)] </SQLITE_MANIFEST_VERSION>] \
+    [appendArgs <SQLITE_RC_VERSION> [string map [list . ,] \
+        $version(core,full)] </SQLITE_RC_VERSION>]
+
+###############################################################################
+# sqlite3.vsprops
+###############################################################################
+
+lappend patterns \
+    [appendArgs Value=\" [string map [list . \\.] $version(core,full)] \"] \
+    [appendArgs Value=\" [string map [list . ,] $version(core,full)] \"]
+
+###############################################################################
+# interop.h
+###############################################################################
+
+lappend patterns \
+    [appendArgs \" [string map [list . \\.] $version(full)] \"]
+
+###############################################################################
+# System.Data.SQLite/AssemblyInfo.cs
+###############################################################################
+
+lappend patterns \
+    [appendArgs AssemblyVersion\\(\" [string map [list . \\.] \
+        $version(full)] \"\\)] \
+    [appendArgs AssemblyFileVersion\\(\" [string map [list . \\.] \
+        $version(full)] \"\\)]
+
+###############################################################################
+# SQLite3.cs
+###############################################################################
+
+lappend patterns \
+    [appendArgs \" [string map [list . \\.] $version(full)] \"]
+
+###############################################################################
+# UnsafeNativeMethods.cs
+###############################################################################
+
+lappend patterns \
+    [appendArgs \"SQLite.Interop. [format %03d $version(build)] .dll\"]
+
+###############################################################################
+# System.Data.SQLite.Linq/AssemblyInfo.cs
+###############################################################################
+
+lappend patterns \
+    [appendArgs AssemblyVersion\\(\" [string map [list . \\.] \
+        $version(full)] \"\\)] \
+    [appendArgs AssemblyFileVersion\\(\" [string map [list . \\.] \
+        $version(full)] \"\\)]
+
+###############################################################################
+# test/AssemblyInfo.cs
+###############################################################################
+
+lappend patterns \
+    [appendArgs AssemblyVersion\\(\" [string map [list . \\.] \
+        $version(full)] \"\\)] \
+    [appendArgs AssemblyFileVersion\\(\" [string map [list . \\.] \
+        $version(full)] \"\\)]
+
+###############################################################################
+# test/app.config
+###############################################################################
+
+lappend patterns \
+    [appendArgs Version= [string map [list . \\.] $version(full)] ,]
+
+###############################################################################
+# testce/AssemblyInfo.cs
+###############################################################################
+
+lappend patterns \
+    [appendArgs AssemblyVersion\\(\" [string map [list . \\.] \
+        $version(full)] \"\\)] \
+    [appendArgs AssemblyFileVersion\\(\" [string map [list . \\.] \
+        $version(full)] \"\\)]
+
+###############################################################################
+# 2008/LINQ/App.config
+###############################################################################
+
+lappend patterns \
+    [appendArgs \
+        "SQLiteProviderFactory, System\\.Data\\.SQLite\\.Linq, " \
+        "Version=" [string map [list . \\.] $version(full)] ,]
+
+###############################################################################
+# 2010/EF6/App.config
+###############################################################################
+
+lappend patterns \
+    [appendArgs \
+        "SQLiteProviderFactory, System\\.Data\\.SQLite\\.EF6, " \
+        "Version=" [string map [list . \\.] $version(full)] ,] \
+    [appendArgs \
+        "SQLiteProviderServices, System\\.Data\\.SQLite\\.EF6, " \
+        "Version=" [string map [list . \\.] $version(full)] ,]
+
+###############################################################################
+# 2010/LINQ/App.config
+###############################################################################
+
+lappend patterns \
+    [appendArgs \
+        "SQLiteProviderFactory, System\\.Data\\.SQLite\\.Linq, " \
+        "Version=" [string map [list . \\.] $version(full)] ,]
+
+###############################################################################
+# 2012/EF6/App.config
+###############################################################################
+
+lappend patterns \
+    [appendArgs \
+        "SQLiteProviderFactory, System\\.Data\\.SQLite\\.EF6, " \
+        "Version=" [string map [list . \\.] $version(full)] ,] \
+    [appendArgs \
+        "SQLiteProviderServices, System\\.Data\\.SQLite\\.EF6, " \
+        "Version=" [string map [list . \\.] $version(full)] ,]
+
+###############################################################################
+# 2012/LINQ/App.config
+###############################################################################
+
+lappend patterns \
+    [appendArgs \
+        "SQLiteProviderFactory, System\\.Data\\.SQLite\\.Linq, " \
+        "Version=" [string map [list . \\.] $version(full)] ,]
+
+###############################################################################
+# 2013/EF6/App.config
+###############################################################################
+
+lappend patterns \
+    [appendArgs \
+        "SQLiteProviderFactory, System\\.Data\\.SQLite\\.EF6, " \
+        "Version=" [string map [list . \\.] $version(full)] ,] \
+    [appendArgs \
+        "SQLiteProviderServices, System\\.Data\\.SQLite\\.EF6, " \
+        "Version=" [string map [list . \\.] $version(full)] ,]
+
+###############################################################################
+# 2013/LINQ/App.config
+###############################################################################
+
+lappend patterns \
+    [appendArgs \
+        "SQLiteProviderFactory, System\\.Data\\.SQLite\\.Linq, " \
+        "Version=" [string map [list . \\.] $version(full)] ,]
+
+###############################################################################
+# 2015/EF6/App.config
+###############################################################################
+
+lappend patterns \
+    [appendArgs \
+        "SQLiteProviderFactory, System\\.Data\\.SQLite\\.EF6, " \
+        "Version=" [string map [list . \\.] $version(full)] ,] \
+    [appendArgs \
+        "SQLiteProviderServices, System\\.Data\\.SQLite\\.EF6, " \
+        "Version=" [string map [list . \\.] $version(full)] ,]
+
+###############################################################################
+# 2015/LINQ/App.config
+###############################################################################
+
+lappend patterns \
+    [appendArgs \
+        "SQLiteProviderFactory, System\\.Data\\.SQLite\\.Linq, " \
+        "Version=" [string map [list . \\.] $version(full)] ,]
+
+###############################################################################
+# 2017/EF6/App.config
+###############################################################################
+
+lappend patterns \
+    [appendArgs \
+        "SQLiteProviderFactory, System\\.Data\\.SQLite\\.EF6, " \
+        "Version=" [string map [list . \\.] $version(full)] ,] \
+    [appendArgs \
+        "SQLiteProviderServices, System\\.Data\\.SQLite\\.EF6, " \
+        "Version=" [string map [list . \\.] $version(full)] ,]
+
+###############################################################################
+# 2017/LINQ/App.config
+###############################################################################
+
+lappend patterns \
+    [appendArgs \
+        "SQLiteProviderFactory, System\\.Data\\.SQLite\\.Linq, " \
+        "Version=" [string map [list . \\.] $version(full)] ,]
+
+###############################################################################
+# NetStandard21/EF6/App.config
+###############################################################################
+
+lappend patterns \
+    [appendArgs \
+        "SQLiteProviderServices, System\\.Data\\.SQLite\\.EF6, " \
+        "Version=" [string map [list . \\.] $version(full)] ,]
+
+###############################################################################
+# testlinq/Properties/AssemblyInfo.cs
+###############################################################################
+
+lappend patterns \
+    [appendArgs AssemblyVersion\\(\" [string map [list . \\.] \
+        $version(full)] \"\\)] \
+    [appendArgs AssemblyFileVersion\\(\" [string map [list . \\.] \
+        $version(full)] \"\\)]
+
+###############################################################################
+# tools/install/Properties/AssemblyInfo.cs
+###############################################################################
+
+lappend patterns \
+    [appendArgs AssemblyVersion\\(\" [string map [list . \\.] \
+        $version(full)] \"\\)] \
+    [appendArgs AssemblyFileVersion\\(\" [string map [list . \\.] \
+        $version(full)] \"\\)]
+
+###############################################################################
+# news.wiki
+###############################################################################
+
+lappend patterns \
+    [appendArgs " to \\\[https://www\\.sqlite\\.org/releaselog/" \
+        [string map [list . _] $version(core,short)] "\\.html|SQLite " \
+        [string map [list . \\.] $version(core,short)] \\\]] \
+    [appendArgs <b> [string map [list . \\.] $version(full)] " - "]
+
+###############################################################################
+
+set fileNames [list \
+    readme.htm \
+    readme.htm \
+    readme.htm \
+    readme.htm \
+    readme.htm \
+    [file join Doc Extra Provider dbfactorysupport.html] \
+    [file join Doc Extra Provider version.html] \
+    [file join Doc Extra Provider version.html] \
+    [file join Doc Extra Provider welcome.html] \
+    [file join NuGet SQLite.nuspec] \
+    [file join NuGet SQLite.nuspec] \
+    [file join NuGet SQLite.nuspec] \
+    [file join NuGet SQLite.nuspec] \
+    [file join NuGet SQLite.nuspec] \
+    [file join NuGet SQLite.nuspec] \
+    [file join NuGet SQLite.nuspec] \
+    [file join NuGet SQLite.nuspec] \
+    [file join NuGet SQLite.nuspec] \
+    [file join NuGet SQLite.nuspec] \
+    [file join NuGet SQLite.nuspec] \
+    [file join NuGet SQLite.nuspec] \
+    [file join NuGet SQLite.nuspec] \
+    [file join NuGet SQLite.nuspec] \
+    [file join NuGet SQLite.nuspec] \
+    [file join NuGet SQLite.nuspec] \
+    [file join NuGet SQLite.Beta.nuspec] \
+    [file join NuGet SQLite.Beta.nuspec] \
+    [file join NuGet SQLite.Beta.nuspec] \
+    [file join NuGet SQLite.Beta.nuspec] \
+    [file join NuGet SQLite.Beta.nuspec] \
+    [file join NuGet SQLite.Beta.nuspec] \
+    [file join NuGet SQLite.Beta.nuspec] \
+    [file join NuGet SQLite.Beta.nuspec] \
+    [file join NuGet SQLite.Beta.nuspec] \
+    [file join NuGet SQLite.Beta.nuspec] \
+    [file join NuGet SQLite.Beta.nuspec] \
+    [file join NuGet SQLite.Beta.nuspec] \
+    [file join NuGet SQLite.Beta.nuspec] \
+    [file join NuGet SQLite.Beta.nuspec] \
+    [file join NuGet SQLite.Beta.nuspec] \
+    [file join NuGet SQLite.Beta.nuspec] \
+    [file join NuGet SQLite.Core.nuspec] \
+    [file join NuGet SQLite.Core.Beta.nuspec] \
+    [file join NuGet SQLite.Core.Test.nuspec] \
+    [file join NuGet SQLite.Core.MSIL.nuspec] \
+    [file join NuGet SQLite.Core.MSIL.Beta.nuspec] \
+    [file join NuGet SQLite.Core.MSIL.Test.nuspec] \
+    [file join NuGet SQLite.EF6.nuspec] \
+    [file join NuGet SQLite.EF6.nuspec] \
+    [file join NuGet SQLite.EF6.nuspec] \
+    [file join NuGet SQLite.EF6.nuspec] \
+    [file join NuGet SQLite.EF6.nuspec] \
+    [file join NuGet SQLite.EF6.nuspec] \
+    [file join NuGet SQLite.EF6.Beta.nuspec] \
+    [file join NuGet SQLite.EF6.Beta.nuspec] \
+    [file join NuGet SQLite.EF6.Beta.nuspec] \
+    [file join NuGet SQLite.EF6.Beta.nuspec] \
+    [file join NuGet SQLite.EF6.Beta.nuspec] \
+    [file join NuGet SQLite.EF6.Beta.nuspec] \
+    [file join NuGet SQLite.EF6.Test.nuspec] \
+    [file join NuGet SQLite.EF6.Test.nuspec] \
+    [file join NuGet SQLite.EF6.Test.nuspec] \
+    [file join NuGet SQLite.EF6.Test.nuspec] \
+    [file join NuGet SQLite.EF6.Test.nuspec] \
+    [file join NuGet SQLite.EF6.Test.nuspec] \
+    [file join NuGet SQLite.Linq.nuspec] \
+    [file join NuGet SQLite.Linq.Beta.nuspec] \
+    [file join NuGet SQLite.Linq.Test.nuspec] \
+    [file join NuGet SQLite.MSIL.nuspec] \
+    [file join NuGet SQLite.MSIL.nuspec] \
+    [file join NuGet SQLite.MSIL.nuspec] \
+    [file join NuGet SQLite.MSIL.nuspec] \
+    [file join NuGet SQLite.MSIL.nuspec] \
+    [file join NuGet SQLite.MSIL.nuspec] \
+    [file join NuGet SQLite.MSIL.nuspec] \
+    [file join NuGet SQLite.MSIL.nuspec] \
+    [file join NuGet SQLite.MSIL.nuspec] \
+    [file join NuGet SQLite.MSIL.nuspec] \
+    [file join NuGet SQLite.MSIL.nuspec] \
+    [file join NuGet SQLite.MSIL.nuspec] \
+    [file join NuGet SQLite.MSIL.nuspec] \
+    [file join NuGet SQLite.MSIL.nuspec] \
+    [file join NuGet SQLite.MSIL.nuspec] \
+    [file join NuGet SQLite.MSIL.Beta.nuspec] \
+    [file join NuGet SQLite.MSIL.Beta.nuspec] \
+    [file join NuGet SQLite.MSIL.Beta.nuspec] \
+    [file join NuGet SQLite.MSIL.Beta.nuspec] \
+    [file join NuGet SQLite.MSIL.Beta.nuspec] \
+    [file join NuGet SQLite.MSIL.Beta.nuspec] \
+    [file join NuGet SQLite.MSIL.Beta.nuspec] \
+    [file join NuGet SQLite.MSIL.Beta.nuspec] \
+    [file join NuGet SQLite.MSIL.Beta.nuspec] \
+    [file join NuGet SQLite.MSIL.Beta.nuspec] \
+    [file join NuGet SQLite.MSIL.Beta.nuspec] \
+    [file join NuGet SQLite.MSIL.Beta.nuspec] \
+    [file join NuGet SQLite.MSIL.Beta.nuspec] \
+    [file join NuGet SQLite.MSIL.Beta.nuspec] \
+    [file join NuGet SQLite.MSIL.Beta.nuspec] \
+    [file join NuGet SQLite.MSIL.Test.nuspec] \
+    [file join NuGet SQLite.MSIL.Test.nuspec] \
+    [file join NuGet SQLite.MSIL.Test.nuspec] \
+    [file join NuGet SQLite.MSIL.Test.nuspec] \
+    [file join NuGet SQLite.MSIL.Test.nuspec] \
+    [file join NuGet SQLite.MSIL.Test.nuspec] \
+    [file join NuGet SQLite.MSIL.Test.nuspec] \
+    [file join NuGet SQLite.MSIL.Test.nuspec] \
+    [file join NuGet SQLite.MSIL.Test.nuspec] \
+    [file join NuGet SQLite.MSIL.Test.nuspec] \
+    [file join NuGet SQLite.MSIL.Test.nuspec] \
+    [file join NuGet SQLite.MSIL.Test.nuspec] \
+    [file join NuGet SQLite.MSIL.Test.nuspec] \
+    [file join NuGet SQLite.MSIL.Test.nuspec] \
+    [file join NuGet SQLite.MSIL.Test.nuspec] \
+    [file join NuGet SQLite.Test.nuspec] \
+    [file join NuGet SQLite.Test.nuspec] \
+    [file join NuGet SQLite.Test.nuspec] \
+    [file join NuGet SQLite.Test.nuspec] \
+    [file join NuGet SQLite.Test.nuspec] \
+    [file join NuGet SQLite.Test.nuspec] \
+    [file join NuGet SQLite.Test.nuspec] \
+    [file join NuGet SQLite.Test.nuspec] \
+    [file join NuGet SQLite.Test.nuspec] \
+    [file join NuGet SQLite.Test.nuspec] \
+    [file join NuGet SQLite.Test.nuspec] \
+    [file join NuGet SQLite.Test.nuspec] \
+    [file join NuGet SQLite.Test.nuspec] \
+    [file join NuGet SQLite.Test.nuspec] \
+    [file join NuGet SQLite.Test.nuspec] \
+    [file join NuGet SQLite.Test.nuspec] \
+    [file join NuGet SQLite.x64.nuspec] \
+    [file join NuGet SQLite.x64.nuspec] \
+    [file join NuGet SQLite.x64.nuspec] \
+    [file join NuGet SQLite.x64.nuspec] \
+    [file join NuGet SQLite.x64.nuspec] \
+    [file join NuGet SQLite.x64.nuspec] \
+    [file join NuGet SQLite.x64.nuspec] \
+    [file join NuGet SQLite.x64.nuspec] \
+    [file join NuGet SQLite.x64.nuspec] \
+    [file join NuGet SQLite.x64.nuspec] \
+    [file join NuGet SQLite.x86.nuspec] \
+    [file join NuGet SQLite.x86.nuspec] \
+    [file join NuGet SQLite.x86.nuspec] \
+    [file join NuGet SQLite.x86.nuspec] \
+    [file join NuGet SQLite.x86.nuspec] \
+    [file join NuGet SQLite.x86.nuspec] \
+    [file join NuGet SQLite.x86.nuspec] \
+    [file join NuGet SQLite.x86.nuspec] \
+    [file join NuGet SQLite.x86.nuspec] \
+    [file join NuGet SQLite.x86.nuspec] \
+    [file join SQLite.Designer AssemblyInfo.cs] \
+    [file join SQLite.Designer AssemblyInfo.cs] \
+    [file join SQLite.Designer source.extension.vsixmanifest] \
+    [file join SQLite.Interop props SQLite.Interop.2005.vsprops] \
+    [file join SQLite.Interop props SQLite.Interop.2005.vsprops] \
+    [file join SQLite.Interop props SQLite.Interop.2005.vsprops] \
+    [file join SQLite.Interop props SQLite.Interop.2008.vsprops] \
+    [file join SQLite.Interop props SQLite.Interop.2008.vsprops] \
+    [file join SQLite.Interop props SQLite.Interop.2008.vsprops] \
+    [file join SQLite.Interop props SQLite.Interop.2010.props] \
+    [file join SQLite.Interop props SQLite.Interop.2010.props] \
+    [file join SQLite.Interop props SQLite.Interop.2010.props] \
+    [file join SQLite.Interop props SQLite.Interop.2012.props] \
+    [file join SQLite.Interop props SQLite.Interop.2012.props] \
+    [file join SQLite.Interop props SQLite.Interop.2012.props] \
+    [file join SQLite.Interop props SQLite.Interop.2013.props] \
+    [file join SQLite.Interop props SQLite.Interop.2013.props] \
+    [file join SQLite.Interop props SQLite.Interop.2013.props] \
+    [file join SQLite.Interop props SQLite.Interop.2015.props] \
+    [file join SQLite.Interop props SQLite.Interop.2015.props] \
+    [file join SQLite.Interop props SQLite.Interop.2015.props] \
+    [file join SQLite.Interop props SQLite.Interop.2017.props] \
+    [file join SQLite.Interop props SQLite.Interop.2017.props] \
+    [file join SQLite.Interop props SQLite.Interop.2017.props] \
+    [file join SQLite.Interop props sqlite3.props] \
+    [file join SQLite.Interop props sqlite3.props] \
+    [file join SQLite.Interop props sqlite3.vsprops] \
+    [file join SQLite.Interop props sqlite3.vsprops] \
+    [file join SQLite.Interop src generic interop.h] \
+    [file join System.Data.SQLite AssemblyInfo.cs] \
+    [file join System.Data.SQLite AssemblyInfo.cs] \
+    [file join System.Data.SQLite SQLite3.cs] \
+    [file join System.Data.SQLite UnsafeNativeMethods.cs] \
+    [file join System.Data.SQLite.Linq AssemblyInfo.cs] \
+    [file join System.Data.SQLite.Linq AssemblyInfo.cs] \
+    [file join test AssemblyInfo.cs] \
+    [file join test AssemblyInfo.cs] \
+    [file join test app.config] \
+    [file join testce AssemblyInfo.cs] \
+    [file join testce AssemblyInfo.cs] \
+    [file join testlinq 2008 LINQ App.config] \
+    [file join testlinq 2010 EF6 App.config] \
+    [file join testlinq 2010 EF6 App.config] \
+    [file join testlinq 2010 LINQ App.config] \
+    [file join testlinq 2012 EF6 App.config] \
+    [file join testlinq 2012 EF6 App.config] \
+    [file join testlinq 2012 LINQ App.config] \
+    [file join testlinq 2013 EF6 App.config] \
+    [file join testlinq 2013 EF6 App.config] \
+    [file join testlinq 2013 LINQ App.config] \
+    [file join testlinq 2015 EF6 App.config] \
+    [file join testlinq 2015 EF6 App.config] \
+    [file join testlinq 2015 LINQ App.config] \
+    [file join testlinq 2017 EF6 App.config] \
+    [file join testlinq 2017 EF6 App.config] \
+    [file join testlinq 2017 LINQ App.config] \
+    [file join testlinq NetStandard21 EF6 App.config] \
+    [file join testlinq Properties AssemblyInfo.cs] \
+    [file join testlinq Properties AssemblyInfo.cs] \
+    [file join tools install Properties AssemblyInfo.cs] \
+    [file join tools install Properties AssemblyInfo.cs] \
+    [file join www news.wiki] \
+    [file join www news.wiki]]
+
+if {[llength $patterns] == [llength $fileNames]} then {
+  for {set i 1} {$i <= [llength $fileNames]} {incr i} {
+    set pattern [lindex $patterns [expr {$i - 1}]]
+    set fileName [lindex $fileNames [expr {$i - 1}]]
+    set constraint [string map [list / _ \\ _] $fileName]
+    set fileName [file nativename [file join $root_path $fileName]]
+
+    if {![haveConstraint [appendArgs file_ $constraint]]} then {
+      checkForFile $test_channel $fileName $constraint; # EXEMPT: Dynamic.
+    }
+
+    runTest {test [appendArgs version-1.21. $i] \
+        [appendArgs "pattern {" $pattern "} in file \"" $fileName \"] -body {
+      if {[hasRuntimeOption verbose]} then {
+        tputs $test_channel [appendArgs \
+            "---- checking pattern {" $pattern "} against file \"" \
+            $fileName \"...\n]
+      }
+      regexp -- $pattern [readFile $fileName]
+    } -constraints [list eagle [appendArgs file_ $constraint]] -result {1}}
+  }
+} else {
+  tputs $test_channel [appendArgs \
+      "---- number of regular expression patterns " [llength $patterns] \
+      " does not match number of file names " [llength $fileNames] \n]
+}
+
+###############################################################################
+
+unset -nocomplain constraint fileName pattern fileNames patterns i version
+
+###############################################################################
+
+runSQLiteTestFilesEpilogue
+runSQLiteTestEpilogue
+runTestEpilogue

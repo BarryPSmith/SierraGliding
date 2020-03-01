@@ -1,0 +1,45 @@
+<!--
+ *
+ * SQLite.NET.NetStandard21.Settings.targets -
+ *
+ * Written by Joe Mistachkin.
+ * Released to the public domain, use at your own risk!
+ *
+-->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!--
+  ******************************************************************************
+  **               .NET Standard 2.1 Specific Settings (Common)               **
+  ******************************************************************************
+  -->
+
+  <PropertyGroup>
+    <!--
+        TODO: This list of properties must be kept synchronized with the common
+              list in the "build_net_standard_21.bat" file.
+    -->
+    <ConfigurationSuffix Condition="'$(ConfigurationSuffix)' == ''">NetStandard21</ConfigurationSuffix>
+    <InteropCodec Condition="'$(InteropCodec)' == ''">false</InteropCodec>
+    <InteropLog Condition="'$(InteropLog)' == ''">false</InteropLog>
+  </PropertyGroup>
+
+  <!--
+  ******************************************************************************
+  **               .NET Standard 2.1 Specific Settings (Debug)                **
+  ******************************************************************************
+  -->
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <!--
+        TODO: This list of properties must be kept synchronized with the debug
+              list in the "build_net_standard_21.bat" file.
+    -->
+    <CheckState Condition="'$(CheckState)' == ''">true</CheckState>
+    <CountHandle Condition="'$(CountHandle)' == ''">true</CountHandle>
+    <TraceConnection Condition="'$(TraceConnection)' == ''">true</TraceConnection>
+    <TraceDetection Condition="'$(TraceDetection)' == ''">true</TraceDetection>
+    <TraceHandle Condition="'$(TraceHandle)' == ''">true</TraceHandle>
+    <TraceStatement Condition="'$(TraceStatement)' == ''">true</TraceStatement>
+    <TrackMemoryBytes Condition="'$(TrackMemoryBytes)' == ''">true</TrackMemoryBytes>
+  </PropertyGroup>
+</Project>

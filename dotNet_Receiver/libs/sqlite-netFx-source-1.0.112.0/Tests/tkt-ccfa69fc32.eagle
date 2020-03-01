@@ -1,0 +1,110 @@
+###############################################################################
+#
+# tkt-ccfa69fc32.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+runSQLiteTestFilesPrologue
+
+###############################################################################
+
+runTest {test tkt-ccfa69fc32-1.1 {LINQ Transaction Scope} -body {
+  copySampleDatabaseFiles
+
+  set result [list]
+
+  foreach add [list false true false] {
+    set output ""
+
+    set code [catch {
+      testClrExec $testLinqExeFile [list -eventflags Wait -directory \
+          [file dirname $testLinqExeFile] -nocarriagereturns -stdout output \
+          -success Success] -efTransaction $add
+    } error]
+
+    tlog "---- BEGIN STDOUT OUTPUT\n"
+    tlog $output
+    tlog "\n---- END STDOUT OUTPUT\n"
+
+    lappend result $code
+
+    if {$code == 0} then {
+      lappend result [string trim \
+          [extractSystemDataSQLiteExceptionMessage $output]]
+    } else {
+      lappend result [string trim \
+          [extractSystemDataSQLiteExceptionMessage $error]]
+    }
+  }
+
+  set result
+} -cleanup {
+  catch {info previouspid true}
+
+  unset -nocomplain code output error result add
+} -constraints {eagle monoToDo SQLite file_System.Data.SQLite.dll testExec\
+file_System.Data.SQLite.Linq.dll file_testlinq.exe file_northwindEF.db} \
+-result {0 {1581 1730 1833 2116 2139} 0 {constraint failed -- UNIQUE constraint\
+failed: Territories.TerritoryID} 0 {1 2 3 4 5 6 7 8 9 10 1576 1577 1578 1579\
+1580 1581 1730 1833 2116 2139}}}
+
+###############################################################################
+
+runTest {test tkt-ccfa69fc32-1.2 {EF6 Transaction Scope} -body {
+  copySampleDatabaseFiles
+
+  set result [list]
+
+  foreach add [list false true false] {
+    set output ""
+
+    set code [catch {
+      testClrExec $testEf6ExeFile [list -eventflags Wait -directory \
+          [file dirname $testEf6ExeFile] -nocarriagereturns -stdout output \
+          -success Success] -efTransaction $add
+    } error]
+
+    tlog "---- BEGIN STDOUT OUTPUT\n"
+    tlog $output
+    tlog "\n---- END STDOUT OUTPUT\n"
+
+    lappend result $code
+
+    if {$code == 0} then {
+      lappend result [string trim \
+          [extractSystemDataSQLiteExceptionMessage $output]]
+    } else {
+      lappend result [string trim \
+          [extractSystemDataSQLiteExceptionMessage $error]]
+    }
+  }
+
+  set result
+} -cleanup {
+  catch {info previouspid true}
+
+  unset -nocomplain code output error result add
+} -constraints {eagle monoToDo SQLite file_EntityFramework.dll\
+file_System.Data.SQLite.dll testExec file_System.Data.SQLite.EF6.dll\
+file_testef6.exe file_northwindEF.db} -result {0 {1581 1730 1833 2116 2139} 0\
+{constraint failed -- UNIQUE constraint failed: Territories.TerritoryID} 0 {1 2\
+3 4 5 6 7 8 9 10 1576 1577 1578 1579 1580 1581 1730 1833 2116 2139}}}
+
+###############################################################################
+
+runSQLiteTestFilesEpilogue
+runSQLiteTestEpilogue
+runTestEpilogue

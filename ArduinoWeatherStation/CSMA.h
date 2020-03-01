@@ -155,13 +155,6 @@ class CSMAWrapper
       _readBufferLenPointer++;
       
       return(state);
-      //Not sure what the code below is about... replaces NO_PACET_AVAILABLE with ERR_NONE.
-      if (state != NO_PACKET_AVAILABLE)
-      {
-        return(state);
-      }
-      else
-        return ERR_NONE;
     }
 
     int16_t readIfPossible() {
@@ -170,9 +163,7 @@ class CSMAWrapper
       if (!s_packetWaiting) {
         return(NO_PACKET_AVAILABLE);
       }
-
-      //AWS_DEBUG_PRINTLN(F("Got one in CSMA"));
-
+      
       if (_writeBufferLenPointer == maxQueue) {
         return(NOT_ENOUGH_SPACE);
       }
@@ -183,6 +174,7 @@ class CSMAWrapper
       }
 
       int16_t state = _base->readData(_buffer + bufferEnd, packetSize);
+      s_packetWaiting = false;
       LORA_CHECK(enterIdleState());
 
       //calculate some statistics:
@@ -205,7 +197,6 @@ class CSMAWrapper
 
       _messageLengths[_writeBufferLenPointer] = packetSize;
       _writeBufferLenPointer++;
-      s_packetWaiting = false;
       return(ERR_NONE);
     }
 

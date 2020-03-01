@@ -1,0 +1,224 @@
+###############################################################################
+#
+# tkt-5cee5409f8.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+#
+# NOTE: This test is disabled for .NET Core due to its lack of support for
+#       distributed transactions.
+#
+runTest {test tkt-5cee5409f8-1.1 {asynchronous transaction handling} -setup {
+  setupDb [set fileName tkt-5cee5409f8-1.1.db]
+} -body {
+  sql execute $db "CREATE TABLE t1(x INTEGER);"
+
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System;
+    using System.Data.SQLite;
+    using System.Threading;
+    using System.Transactions;
+
+    namespace _Dynamic${id}
+    {
+      public static class Test${id}
+      {
+        #region Private EnlistmentNotification Class
+        private sealed class EnlistmentNotification : IEnlistmentNotification
+        {
+          #region Private Data
+          private bool forceRollback;
+          #endregion
+
+          /////////////////////////////////////////////////////////////////////
+
+          #region Private Constructors
+          private EnlistmentNotification(bool forceRollback)
+          {
+            this.forceRollback = forceRollback;
+          }
+          #endregion
+
+          /////////////////////////////////////////////////////////////////////
+
+          #region IEnlistmentNotification Members
+          public void Commit(Enlistment enlistment)
+          {
+            enlistment.Done();
+          }
+
+          /////////////////////////////////////////////////////////////////////
+
+          public void InDoubt(Enlistment enlistment)
+          {
+            enlistment.Done();
+          }
+
+          /////////////////////////////////////////////////////////////////////
+
+          public void Prepare(PreparingEnlistment preparingEnlistment)
+          {
+            if (forceRollback)
+              preparingEnlistment.ForceRollback();
+            else
+              preparingEnlistment.Prepared();
+          }
+
+          /////////////////////////////////////////////////////////////////////
+
+          public void Rollback(Enlistment enlistment)
+          {
+            enlistment.Done();
+          }
+          #endregion
+
+          /////////////////////////////////////////////////////////////////////
+
+          #region Public Static Methods
+          public static void UseDistributedTransaction(bool forceRollback)
+          {
+            Transaction.Current.EnlistDurable(
+                Guid.NewGuid(), new EnlistmentNotification(forceRollback),
+                EnlistmentOptions.None);
+          }
+          #endregion
+        }
+        #endregion
+
+        ///////////////////////////////////////////////////////////////////////
+
+        #region Private Static Data
+        private static int resetCount;
+        private static int timeoutCount;
+        #endregion
+
+        ///////////////////////////////////////////////////////////////////////
+
+        #region Private Static Methods
+        private static void DoTransactions(SQLiteConnection connection)
+        {
+          Random random = new Random();
+
+          for (int iteration = 0; iteration < 10000; iteration++)
+          {
+            using (TransactionScope transactionScope = new TransactionScope())
+            {
+              EnlistmentNotification.UseDistributedTransaction(false);
+
+              TransactionInformation transactionInformation =
+                  Transaction.Current.TransactionInformation;
+
+              if (transactionInformation.DistributedIdentifier.Equals(
+                  Guid.Empty))
+              {
+                throw new Exception("distributed identifier is empty");
+              }
+
+              connection.EnlistTransaction(Transaction.Current);
+
+              using (SQLiteCommand command = connection.CreateCommand())
+              {
+                command.CommandText = "INSERT INTO t1(x) VALUES(?);";
+                command.Parameters.Add(new SQLiteParameter("", iteration));
+                command.ExecuteNonQuery();
+              }
+
+              transactionScope.Complete();
+            }
+
+            Thread.Sleep(random.Next(10));
+          }
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        private static void WaitOnEnlistments(object state)
+        {
+          SQLiteConnection connection = (SQLiteConnection)state;
+          Random random = new Random();
+
+          for (int iteration = 0; iteration < 1000; iteration++)
+          {
+            if (connection.WaitForEnlistmentReset(1, false))
+              Interlocked.Increment(ref resetCount);
+            else
+              Interlocked.Increment(ref timeoutCount);
+
+            Thread.Sleep(random.Next(100));
+          }
+        }
+        #endregion
+
+        ///////////////////////////////////////////////////////////////////////
+
+        #region Public Static Methods
+        public static string DoTest()
+        {
+          using (SQLiteConnection connection = new SQLiteConnection(
+              "Data Source=${dataSource};[getTestProperties]"))
+          {
+            ThreadPool.QueueUserWorkItem(WaitOnEnlistments, connection);
+
+            connection.Open();
+
+            DoTransactions(connection);
+          }
+
+          int count1 = Interlocked.CompareExchange(ref resetCount, 0, 0);
+          int count2 = Interlocked.CompareExchange(ref timeoutCount, 0, 0);
+
+          return String.Format("{0}, {1}", count1, count2);
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Main()
+        {
+          // do nothing.
+        }
+        #endregion
+      }
+    }
+  }] true false true results errors System.Data.SQLite.dll]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} DoTest
+      } result] : [set result ""]}] \
+      [expr {[lindex $result 0] > 0}] \
+      [expr {[lindex $result 1] > 0}]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result results errors code dataSource id db fileName
+} -constraints [fixConstraints {eagle command.object monoBug211 monoBug64\
+command.sql compile.DATA SQLite System.Data.SQLite compileCSharp !dotNetCore}] \
+-match regexp -result {^Ok System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0\
+True True$}}
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

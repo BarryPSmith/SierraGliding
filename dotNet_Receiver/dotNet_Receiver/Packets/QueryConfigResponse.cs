@@ -20,6 +20,8 @@ namespace core_Receiver.Packets
             ms.Seek(0, SeekOrigin.Begin);
             BinaryReader br = new BinaryReader(ms);
             Initialised = br.ReadBoolean();
+            if (VersionNumber >= new Version(2, 1))
+                StationID = (char)br.ReadByte();
             ShortInterval = br.ReadUInt32();
             LongInterval = br.ReadUInt32();
             BatteryThreshold_mV = br.ReadUInt16();
@@ -45,6 +47,7 @@ namespace core_Receiver.Packets
         }
 
         public bool Initialised { get; set; }
+        public char StationID { get; set; }
         public UInt32 ShortInterval { get; set; }
         public UInt32 LongInterval { get; set; }
         public UInt16 BatteryThreshold_mV { get; set; }

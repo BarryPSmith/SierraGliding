@@ -154,12 +154,13 @@ void InitMessaging()
   updateIdleState();
 }
 
-bool handleMessageCommand(MessageSource& src)
+bool handleMessageCommand(MessageSource& src, byte* desc)
 {
-#ifndef NO_COMMANDS
   byte descByte;
   if (src.readByte(descByte))
     return false;
+  else if (desc)
+    *desc = descByte;
 
   auto state = lora.standby(SX126X_STANDBY_RC);
   if (state != ERR_NONE)
@@ -270,12 +271,9 @@ bool handleMessageCommand(MessageSource& src)
   default:
     state = ERR_UNKNOWN;
   }
-  updateIdleState();
-  //LORA_CHECK(csma.enterIdleState());
+  //updateIdleState();
+  LORA_CHECK(csma.enterIdleState());
   return state == ERR_NONE;
-#else // !MOTEINO_96
-  return false;
-#endif 
 }
 
 void appendMessageStatistics(MessageDestination& msg)

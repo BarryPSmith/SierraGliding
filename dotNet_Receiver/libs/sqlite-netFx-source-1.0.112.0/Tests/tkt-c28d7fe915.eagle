@@ -1,0 +1,46 @@
+###############################################################################
+#
+# tkt-c28d7fe915.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+runTest {test tkt-c28d7fe915-1.1 {GetOrdinal without current row} -setup {
+  setupDb [set fileName tkt-c28d7fe915-1.1.db]
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(x);
+  }
+
+  set dataReader [sql execute -execute reader -format datareader \
+      -alias $db "SELECT x FROM t1;"]
+
+  list [$dataReader GetName 0] [$dataReader GetOrdinal x]
+} -cleanup {
+  unset -nocomplain dataReader
+
+  cleanupDb $fileName
+
+  unset -nocomplain db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result {x 0}}
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

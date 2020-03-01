@@ -1,0 +1,90 @@
+###############################################################################
+#
+# tkt-2abbf2c244.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+runTest {test tkt-2abbf2c244-1.1 {PRAGMA incremental_vacuum} -setup {
+  setupDb [set fileName tkt-2abbf2c244-1.1.db]
+} -body {
+  set result [list]
+
+  lappend result [sql execute $db {PRAGMA page_size = 4096;}]
+  lappend result [sql execute $db {PRAGMA auto_vacuum = INCREMENTAL;}]
+  lappend result [sql execute -execute scalar $db {PRAGMA auto_vacuum;}]
+  lappend result [file size [file join [getDatabaseDirectory] $fileName]]
+
+  lappend result [sql execute $db {
+    CREATE TABLE t1(x INTEGER, y TEXT);
+    INSERT INTO t1 (x, y) VALUES(1, RANDOMBLOB(1048576));
+    INSERT INTO t1 (x, y) VALUES(2, RANDOMBLOB(1048576));
+    INSERT INTO t1 (x, y) VALUES(3, RANDOMBLOB(1048576));
+    INSERT INTO t1 (x, y) VALUES(4, RANDOMBLOB(1048576));
+    INSERT INTO t1 (x, y) VALUES(5, RANDOMBLOB(1048576));
+    INSERT INTO t1 (x, y) VALUES(6, RANDOMBLOB(1048576));
+    INSERT INTO t1 (x, y) VALUES(7, RANDOMBLOB(1048576));
+    INSERT INTO t1 (x, y) VALUES(8, RANDOMBLOB(1048576));
+    INSERT INTO t1 (x, y) VALUES(9, RANDOMBLOB(1048576));
+  }]
+
+  lappend result [file size [file join [getDatabaseDirectory] $fileName]]
+
+  lappend result [sql execute -execute scalar $db {
+    SELECT COUNT(*) FROM t1;
+  }]
+
+  lappend result [sql execute -execute scalar $db {
+    PRAGMA freelist_count;
+  }]
+
+  lappend result [sql execute $db {
+    DELETE FROM t1 WHERE x < 5;
+  }]
+
+  lappend result [sql execute -execute scalar $db {
+    SELECT COUNT(*) FROM t1;
+  }]
+
+  lappend result [sql execute -execute scalar $db {
+    PRAGMA freelist_count;
+  }]
+
+  lappend result [file size [file join [getDatabaseDirectory] $fileName]]
+
+  lappend result [sql execute -execute scalar $db {
+    PRAGMA incremental_vacuum;
+  }]
+
+  lappend result [file size [file join [getDatabaseDirectory] $fileName]]
+  lappend result [expr {[lindex $result end] < [lindex $result end-2]}]
+
+  set result
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result db fileName
+} -constraints \
+{eagle monoBug28 command.sql compile.DATA SQLite System.Data.SQLite} -match \
+regexp -result {^-1 (?:-1|0) 2 4096 9 9469952 9 0 4 5 1025 9469952 \{\} 9465856\
+True$}}
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

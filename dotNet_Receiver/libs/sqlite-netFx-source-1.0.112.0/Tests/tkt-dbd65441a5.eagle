@@ -1,0 +1,129 @@
+###############################################################################
+#
+# tkt-dbd65441a5.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+runTest {test tkt-dbd65441a5-1.1 {BOOLEAN with 't' and 'f', etc} -setup {
+  setupDb [set fileName tkt-dbd65441a5-1.1.db] "" "" "" NoVerifyTextAffinity
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(x BOOLEAN);
+    INSERT INTO t1 (x) VALUES('true');
+    INSERT INTO t1 (x) VALUES('tru');
+    INSERT INTO t1 (x) VALUES('tr');
+    INSERT INTO t1 (x) VALUES('t');
+    INSERT INTO t1 (x) VALUES('false');
+    INSERT INTO t1 (x) VALUES('fals');
+    INSERT INTO t1 (x) VALUES('fal');
+    INSERT INTO t1 (x) VALUES('fa');
+    INSERT INTO t1 (x) VALUES('f');
+    INSERT INTO t1 (x) VALUES('-0');
+    INSERT INTO t1 (x) VALUES('-1');
+    INSERT INTO t1 (x) VALUES('-2');
+    INSERT INTO t1 (x) VALUES('-3');
+    INSERT INTO t1 (x) VALUES('0');
+    INSERT INTO t1 (x) VALUES('1');
+    INSERT INTO t1 (x) VALUES('2');
+    INSERT INTO t1 (x) VALUES('3');
+  }
+
+  set dataReader [sql execute -execute reader -format datareader \
+      -alias $db "SELECT x FROM t1 ORDER BY x;"]
+
+  set results [list]
+
+  while {[$dataReader Read]} {
+    catch {
+      list [$dataReader GetString 0] [$dataReader GetValue 0]
+    } result
+
+    lappend results $result
+  }
+
+  set results
+} -cleanup {
+  unset -nocomplain dataReader
+
+  cleanupDb $fileName
+
+  unset -nocomplain result results db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result {{-3 True} {-2 True} {-1 True} {0 False} {0 False}\
+{1 True} {2 True} {3 True} {f False} {fa False} {fal False} {fals False} {false\
+False} {t True} {tr True} {tru True} {true True}}}
+
+###############################################################################
+
+runTest {test tkt-dbd65441a5-1.2 {BOOLEAN with 't' and 'f', etc} -setup {
+  setupDb [set fileName tkt-dbd65441a5-1.1.db]
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(x BOOLEAN);
+    INSERT INTO t1 (x) VALUES('true');
+    INSERT INTO t1 (x) VALUES('tru');
+    INSERT INTO t1 (x) VALUES('tr');
+    INSERT INTO t1 (x) VALUES('t');
+    INSERT INTO t1 (x) VALUES('false');
+    INSERT INTO t1 (x) VALUES('fals');
+    INSERT INTO t1 (x) VALUES('fal');
+    INSERT INTO t1 (x) VALUES('fa');
+    INSERT INTO t1 (x) VALUES('f');
+    INSERT INTO t1 (x) VALUES('-0');
+    INSERT INTO t1 (x) VALUES('-1');
+    INSERT INTO t1 (x) VALUES('-2');
+    INSERT INTO t1 (x) VALUES('-3');
+    INSERT INTO t1 (x) VALUES('0');
+    INSERT INTO t1 (x) VALUES('1');
+    INSERT INTO t1 (x) VALUES('2');
+    INSERT INTO t1 (x) VALUES('3');
+  }
+
+  set dataReader [sql execute -execute reader -format datareader \
+      -alias $db "SELECT x FROM t1 ORDER BY x;"]
+
+  set results [list]
+
+  while {[$dataReader Read]} {
+    catch {
+      list [$dataReader GetString 0] [$dataReader GetValue 0]
+    } result
+
+    lappend results $result
+  }
+
+  set results
+} -cleanup {
+  unset -nocomplain dataReader
+
+  cleanupDb $fileName
+
+  unset -nocomplain result results db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -match glob -result {{* ---> System.InvalidCastException:\
+*} {* ---> System.InvalidCastException: *} {* ---> System.InvalidCastException:\
+*} {* ---> System.InvalidCastException: *} {* ---> System.InvalidCastException:\
+*} {* ---> System.InvalidCastException: *} {* ---> System.InvalidCastException:\
+*} {* ---> System.InvalidCastException: *} {f False} {fa False} {fal False}\
+{fals False} {false False} {t True} {tr True} {tru True} {true True}}}
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

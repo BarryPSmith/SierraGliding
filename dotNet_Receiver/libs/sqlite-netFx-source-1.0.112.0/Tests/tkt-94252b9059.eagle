@@ -1,0 +1,83 @@
+###############################################################################
+#
+# tkt-94252b9059.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+runTest {test tkt-94252b9059-1.1 {GetDataTypeName with no current row} -setup {
+  setupDb [set fileName tkt-94252b9059-1.1.db]
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(x SOMETYPE, y INTEGER, z);
+  }
+
+  set dataReader [sql execute -execute reader -format datareader \
+      -alias $db "SELECT x, y, z FROM t1;"]
+
+  list [$dataReader GetDataTypeName 0] \
+      [$dataReader GetDataTypeName 1] \
+      [$dataReader GetDataTypeName 2] \
+      [$dataReader -tostring GetFieldType 0] \
+      [$dataReader -tostring GetFieldType 1] \
+      [$dataReader -tostring GetFieldType 2]
+} -cleanup {
+  unset -nocomplain dataReader
+
+  cleanupDb $fileName
+
+  unset -nocomplain db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result \
+{SOMETYPE INTEGER {} System.Object System.Int64 System.Object}}
+
+###############################################################################
+
+runTest {test tkt-94252b9059-1.2 {GetDataTypeName with current row} -setup {
+  setupDb [set fileName tkt-94252b9059-1.2.db]
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(x SOMETYPE, y INTEGER, z);
+    INSERT INTO t1 (x, y, z) VALUES(RANDOMBLOB(1), 1, 'z');
+  }
+
+  set dataReader [sql execute -execute reader -format datareader \
+      -alias $db "SELECT x, y, z FROM t1;"]
+
+  $dataReader Read
+
+  list [$dataReader GetDataTypeName 0] \
+      [$dataReader GetDataTypeName 1] \
+      [$dataReader GetDataTypeName 2] \
+      [$dataReader -tostring GetFieldType 0] \
+      [$dataReader -tostring GetFieldType 1] \
+      [$dataReader -tostring GetFieldType 2]
+} -cleanup {
+  unset -nocomplain dataReader
+
+  cleanupDb $fileName
+
+  unset -nocomplain db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result \
+{SOMETYPE INTEGER {} {System.Byte[]} System.Int64 System.String}}
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

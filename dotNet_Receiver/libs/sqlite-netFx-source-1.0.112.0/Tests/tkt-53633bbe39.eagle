@@ -1,0 +1,74 @@
+###############################################################################
+#
+# tkt-53633bbe39.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+runTest {test tkt-53633bbe39-1.1 {column affinity overrides} -setup {
+  saveSQLiteConnectionEnvironment
+  saveSQLiteConvertEnvironment
+
+  set env(DefaultFlags_SQLiteConnection) \
+      "DetectTextAffinity, DetectStringType, NoVerifyTextAffinity"
+
+  set env(Use_SQLiteConvert_DefaultDbType) String
+  set env(Use_SQLiteConvert_DefaultTypeName) TEXT
+
+  setupDb [set fileName tkt-53633bbe39-1.1.db]
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(x);
+    INSERT INTO t1 (x) VALUES(NULL);
+    INSERT INTO t1 (x) VALUES(1);
+    INSERT INTO t1 (x) VALUES(2.0);
+    INSERT INTO t1 (x) VALUES(3.14159);
+  }
+
+  set dataReader [sql execute -execute reader -format datareader \
+      -alias $db "SELECT x FROM t1 ORDER BY x;"]
+
+  set results [list]
+
+  while {[$dataReader Read]} {
+    set result(0) [list]
+
+    lappend result(0) [catch {$dataReader GetString 0} result(1)] $result(1)
+    lappend result(0) [catch {$dataReader GetValue 0} result(1)] $result(1)
+
+    lappend results $result(0)
+  }
+
+  set results
+} -cleanup {
+  unset -nocomplain dataReader
+
+  cleanupDb $fileName
+  restoreSQLiteConvertEnvironment
+  restoreSQLiteConnectionEnvironment
+
+  unset -nocomplain result results db fileName savedEnv
+} -constraints \
+{eagle monoBug28 command.sql compile.DATA SQLite System.Data.SQLite} -match \
+regexp -result {^\{0 \{\} 0 System#DBNull#\d+\} \{0 1 0 1\} \{0 2\.0 0 2\.0\}\
+\{0 3\.14159 0 3\.14159\}$}}
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

@@ -8,7 +8,7 @@ constexpr auto LORA_CR = 5;
 constexpr auto maxPacketSize = 255;
 
 void InitMessaging();
-bool handleMessageCommand(MessageSource& src);
+bool handleMessageCommand(MessageSource& src, byte* desc = nullptr);
 void appendMessageStatistics(MessageDestination& msg);
 
 #ifdef DEBUG

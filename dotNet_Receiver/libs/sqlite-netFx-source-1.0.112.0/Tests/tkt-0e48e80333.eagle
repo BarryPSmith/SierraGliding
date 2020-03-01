@@ -1,0 +1,332 @@
+###############################################################################
+#
+# tkt-0e48e80333.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+#
+# HACK: This test is non-portable (e.g. to Mono) due to its use of Managed
+#       Debugging Assistants (MDAs), which are only implemented by the full
+#       .NET Framework.
+#
+runTest {test tkt-0e48e80333-1.1 {unhook delegates on pooled close} -setup {
+  moveEagleShellMdaConfig false
+
+  saveEagleShellEnvironment
+  saveMdaConfigEnvironment
+} -body {
+  set configFileName [writeEagleShellMdaConfig [string trim {
+    <?xml version="1.0" encoding="UTF-8" ?>
+    <mdaConfig xmlns="http://schemas.microsoft.com/CLR/2004/10/mda">
+      <assistants>
+        <callbackOnCollectedDelegate listSize="50" />
+      </assistants>
+    </mdaConfig>
+  }]]
+
+  set scriptFileName [file tempname]
+
+  writeFile $scriptFileName [string trim {
+    package require Eagle
+    package require Eagle.Library
+    package require Eagle.Test
+    package require System.Data.SQLite.Test
+
+    proc traceCallback { sender e } {
+      lappend ::result [$e Statement]
+      lappend ::result [$sender IsReadOnly null]
+    }
+
+    object load System.Data.SQLite
+    set ::test_channel stdout
+
+    setupDb [set fileName tkt-0e48e80333-1.1.db]
+    sql execute $db {CREATE TABLE t1(x);}
+    cleanupDb $fileName db true false false
+
+    set ::result ""
+
+    set count 10
+
+    set sql [string trim { \
+      INSERT INTO t1 (x) VALUES(1); \
+    }]
+
+    for {set i 0} {$i < $count} {incr i} {
+      setupDb $fileName \
+          "" "" "" "" "Pooling=True;" true false
+
+      set connection [getDbConnection]
+      $connection add_Trace traceCallback
+
+      sql execute $db $sql
+
+      freeDbConnection
+      cleanupDb $fileName db true false false
+    }
+
+    if {$::result eq [lrepeat $count $sql False]} then {
+      exit Success
+    } else {
+      exit Failure
+    }
+  }]
+
+  set env(NoMutexes) 1; # ignore Eagle mutexes.
+  set env(COMPLUS_MDA) 1; # enable MDA config file.
+
+  set code [catch {
+    execTestShell [list \
+        -eventflags Wait -success Success -stdout output] \
+        -preInitialize [appendArgs \" "set no(logFileName) 1" \"] \
+        -file [appendArgs \" $scriptFileName \"] \
+        -logFile [appendArgs \" [getTestLog] \"]
+  } error]
+
+  tlog "---- BEGIN STDOUT OUTPUT\n"
+  tlog $output
+  tlog "\n---- END STDOUT OUTPUT\n"
+
+  set code
+} -cleanup {
+  cleanupDb tkt-0e48e80333-1.1.db
+
+  catch {file delete $scriptFileName}
+  catch {file delete $configFileName}
+
+  catch {info previouspid true}
+
+  unset -nocomplain code output error scriptFileName configFileName
+
+  restoreMdaConfigEnvironment
+  restoreEagleShellEnvironment
+
+  moveEagleShellMdaConfig true
+} -constraints {eagle dotNet testExec command.object monoBug28 command.sql\
+compile.DATA SQLite System.Data.SQLite} -result {0}}
+
+###############################################################################
+
+#
+# HACK: This test is non-portable (e.g. to Mono) due to its use of Managed
+#       Debugging Assistants (MDAs), which are only implemented by the full
+#       .NET Framework.
+#
+runTest {test tkt-0e48e80333-1.2 {delegate MDA on pooled close} -setup {
+  moveEagleShellMdaConfig false
+
+  saveEagleShellEnvironment
+  saveMdaConfigEnvironment
+
+  setupDb [set fileName tkt-0e48e80333-1.2.db]
+} -body {
+  set configFileName [writeEagleShellMdaConfig [string trim {
+    <?xml version="1.0" encoding="UTF-8" ?>
+    <mdaConfig xmlns="http://schemas.microsoft.com/CLR/2004/10/mda">
+      <assistants>
+        <callbackOnCollectedDelegate listSize="50" />
+      </assistants>
+    </mdaConfig>
+  }]]
+
+  set scriptFileName [file tempname]
+
+  writeFile $scriptFileName [string trim {
+    package require Eagle
+    package require Eagle.Library
+    package require Eagle.Test
+    package require System.Data.SQLite.Test
+
+    set ::test_channel ""; # disable [tputs]
+
+    set id [object invoke Interpreter.GetActive NextId]
+    set dataSource [file join [getDatabaseDirectory] $fileName]
+
+    set count(1) 1000; # thread work-item count
+    set count(2) 1000; # per-thread query count
+    set count(3) [expr {$count(1) * $count(2)}]; # total query count
+    set count(4) [expr {0.00002 * $count(3)}]; # timeout in seconds
+    set count(5) 10; # busy loop sleep milliseconds
+
+    set sql { \
+      SELECT 1; \
+    }
+
+    unset -nocomplain results errors
+
+    set code [compileCSharpWith [subst {
+      using System;
+      using System.Data;
+      using System.Data.SQLite;
+      using System.Threading;
+
+      namespace _Dynamic${id}
+      {
+        public static class Test${id}
+        {
+          #region Private Static Data
+          private static long count;
+
+          /////////////////////////////////////////////////////////////////////
+
+          private static SQLiteTraceEventHandler handler;
+          #endregion
+
+          /////////////////////////////////////////////////////////////////////
+
+          #region Public Static Methods
+          public static void TraceEventHandler(
+            object sender,
+            TraceEventArgs e
+            )
+          {
+            /* IGNORED */
+            Interlocked.Increment(ref count);
+          }
+
+          /////////////////////////////////////////////////////////////////////
+
+          public static SQLiteConnection MakeConnection()
+          {
+            SQLiteConnection connection = new SQLiteConnection(
+                "Data Source=${dataSource};Journal Mode=Wal;Pooling=true;" +
+                "[getTestProperties AllowNestedTransactions]");
+
+            connection.Open();
+            connection.Trace += handler;
+
+            return connection;
+          }
+
+          /////////////////////////////////////////////////////////////////////
+
+          public static long ThreadedPoolTraceTest()
+          {
+            for (int index1 = 0; index1 < ${count(1)}; index1++)
+            {
+              ThreadPool.QueueUserWorkItem(delegate(object state) {
+                using (SQLiteConnection connection = MakeConnection())
+                {
+                  for (int index2 = 0; index2 < ${count(2)}; index2++)
+                  {
+                    using (SQLiteTransaction transaction =
+                        connection.BeginTransaction())
+                    {
+                      using (SQLiteCommand command =
+                          connection.CreateCommand())
+                      {
+                        command.CommandText = "[subst ${sql}]";
+                        command.ExecuteNonQuery();
+                      }
+                    }
+                  }
+                }
+              });
+
+              GC.Collect();
+            }
+
+            DateTime start = DateTime.UtcNow;
+
+            while (true)
+            {
+              if (Interlocked.CompareExchange(ref count, 0, 0) >= ${count(3)})
+                  break;
+
+              if (DateTime.UtcNow.Subtract(start).TotalSeconds >= ${count(4)})
+                  break;
+
+              Thread.Sleep(${count(5)});
+            }
+
+            return Interlocked.CompareExchange(ref count, 0, 0);
+          }
+
+          /////////////////////////////////////////////////////////////////////
+
+          public static void Main()
+          {
+            handler = new SQLiteTraceEventHandler(TraceEventHandler);
+          }
+          #endregion
+        }
+      }
+    }] true false true results errors System.Data.SQLite.dll]
+
+    puts stdout [list $code $results \
+        [expr {[info exists errors] ? $errors : ""}] \
+        [expr {$code eq "Ok" ? [catch {
+          object invoke _Dynamic${id}.Test${id} Main
+        } result] : [set result ""]}] $result \
+        [expr {$code eq "Ok" ? [catch {
+          object invoke _Dynamic${id}.Test${id} ThreadedPoolTraceTest
+        } result] : [set result ""]}] $result]
+  }]
+
+  set env(NoMutexes) 1; # ignore Eagle mutexes.
+  set env(COMPLUS_MDA) 1; # enable MDA config file.
+
+  set code [catch {
+    execTestShell [list \
+        -eventflags Wait -success Success -stdout output] \
+        -preInitialize [appendArgs \" "set fileName {" $fileName }\"] \
+        -preInitialize [appendArgs \" "set no(logFileName) 1" \"] \
+        -file [appendArgs \" $scriptFileName \"] \
+        -logFile [appendArgs \" [getTestLog] \"]
+  } error]
+
+  tlog "---- BEGIN STDOUT OUTPUT\n"
+  tlog $output
+  tlog "\n---- END STDOUT OUTPUT\n"
+
+  set error [lindex \
+      [split [string map [list \r\n \n] [string trim $error]] \n] end]
+
+  if {![regexp -- {0 (\d+)$} $error dummy count]} then {
+    set count <unknown>
+  }
+
+  tputs $test_channel [appendArgs \
+      "---- executed a total of " $count " queries\n"]
+
+  list $code $error
+} -cleanup {
+  cleanupDb $fileName
+
+  catch {file delete $scriptFileName}
+  catch {file delete $configFileName}
+
+  catch {info previouspid true}
+
+  unset -nocomplain dummy count
+  unset -nocomplain code output error scriptFileName configFileName
+  unset -nocomplain db fileName
+
+  restoreMdaConfigEnvironment
+  restoreEagleShellEnvironment
+
+  moveEagleShellMdaConfig true
+} -constraints {eagle dotNet command.object monoBug28 command.sql compile.DATA\
+SQLite System.Data.SQLite compileCSharp} -match regexp -result {^0 \{Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0 \{\} 0 \d+\}$}}
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

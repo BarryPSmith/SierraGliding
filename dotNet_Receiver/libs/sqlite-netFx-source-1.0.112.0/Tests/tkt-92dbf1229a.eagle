@@ -1,0 +1,59 @@
+###############################################################################
+#
+# tkt-92dbf1229a.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+runTest {test tkt-92dbf1229a-1.1 {GetSchemaTable w/non-table columns} -setup {
+  setupDb [set fileName tkt-92dbf1229a-1.1.db]
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(x INTEGER, y INTEGER, z TEXT, PRIMARY KEY(x, y));
+  }
+
+  set dataReader [sql execute -execute reader -format datareader \
+      -alias $db "SELECT x, y, NULL AS w, z FROM t1;"]
+
+  set dataTable [$dataReader -alias GetSchemaTable]
+  set result [list]
+
+  foreach row [getRowsFromDataTable $dataTable] {
+    foreach column $row {
+      if {[lindex $column 0] in [list ColumnName IsKey]} then {
+        lappend result $column
+      }
+    }
+  }
+
+  set result
+} -cleanup {
+  unset -nocomplain dataTable dataReader
+
+  cleanupDb $fileName
+
+  unset -nocomplain column row result db fileName
+} -constraints {eagle command.object monoBug28 monoBug211 command.sql\
+compile.DATA SQLite System.Data.SQLite} -result {{ColumnName x} {IsKey True}\
+{ColumnName y} {IsKey True} {ColumnName w} {IsKey False} {ColumnName z} {IsKey\
+False}}}
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

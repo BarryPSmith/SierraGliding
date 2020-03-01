@@ -14,7 +14,7 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 4: Flynns Rev 2
 # 5: Dorji Modem
 # 6: First attempt at a printed PCB
-BOARD = 6
+BOARD = 1
 include Boards.makefile
 
 #Flags, etc.

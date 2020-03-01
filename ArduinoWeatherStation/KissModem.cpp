@@ -141,7 +141,9 @@ int main()
       if (dst.finishAndSend() == MESSAGE_END)
       {
         wdt_reset();
+#ifdef WATCHDOG_LOOPS
         watchdogLoops = 0;
+#endif
       }
     }
     
@@ -159,8 +161,19 @@ int main()
       }
       else if (kissSrc.getMessageType() == 0x06)
       {
-        if (handleMessageCommand(kissSrc))
+        byte desc;
+        if (handleMessageCommand(kissSrc, &desc))
           Serial.println(F("Command SUCCESS"));
+        else if (desc == 'I')
+        {
+          KissMessageDestination reply;
+          reply.appendByte('X');
+          reply.appendByte(0x06); //Message type
+          reply.appendByte(0x00); //Station ID
+          reply.appendByte(0x00); //Unique ID
+          appendMessageStatistics(reply);
+          reply.finishAndSend();
+        }
         else
           Serial.println(F("Command FAILURE"));
       }

@@ -1,0 +1,65 @@
+###############################################################################
+#
+# tkt-5535448538.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+runTest {test tkt-5535448538-1.1 {reading oversize integer values} -setup {
+  setupDb [set fileName tkt-5535448538-1.1.db] "" "" "" NoVerifyTypeAffinity
+} -body {
+  set result [list]
+
+  set dataReader [sql execute -execute reader -format datareader \
+      -alias $db "SELECT ?, 0x10FFFFFFF, 0x1FFFFFFFF;" [list param1 \
+      String 0xFFFFFFFF]]
+
+  while {[$dataReader Read]} {
+    lappend result [$dataReader GetByte 0]
+    lappend result [$dataReader GetInt16 0]
+    lappend result [$dataReader GetInt32 0]
+    lappend result [$dataReader GetInt64 0]
+
+    lappend result [$dataReader GetByte 1]
+    lappend result [$dataReader GetInt16 1]
+    lappend result [$dataReader GetInt32 1]
+    lappend result [$dataReader GetInt64 1]
+
+    lappend result [$dataReader GetByte 2]
+    lappend result [$dataReader GetInt16 2]
+    lappend result [$dataReader GetInt32 2]
+    lappend result [$dataReader GetInt64 2]
+  }
+
+  $dataReader Close; unset dataReader
+
+  set result
+} -cleanup {
+  unset -nocomplain dataReader
+
+  cleanupDb $fileName
+
+  unset -nocomplain result db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result {255 -1 -1 4294967295 255 -1 268435455 4563402751\
+255 -1 -1 8589934591}}
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

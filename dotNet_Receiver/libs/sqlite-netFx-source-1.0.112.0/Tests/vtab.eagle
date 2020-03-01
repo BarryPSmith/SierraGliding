@@ -1,0 +1,2011 @@
+###############################################################################
+#
+# vtab.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+proc normalizeVtabResult { value } {
+  set result $value
+
+  if {[string first \r $result] != -1} then {
+    set result [string map [list \r\n \n] $result]
+  }
+
+  return [string map [list \n " -- "] $result]
+}
+
+###############################################################################
+
+runTest {test vtab-1.1 {basic virtual table support} -setup {
+  set fileName vtab-1.1.db
+} -body {
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  set sql { \
+    CREATE VIRTUAL TABLE t${id} USING mod${id}; \
+  }
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System;
+    using System.Data.SQLite;
+
+    namespace _Dynamic${id}
+    {
+      public sealed class SQLiteModuleTest${id} : SQLiteModuleNoop
+      {
+        public SQLiteModuleTest${id}(string name)
+          : base(name)
+        {
+          // do nothing.
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public override SQLiteErrorCode Create(
+          SQLiteConnection connection,
+          IntPtr pClientData,
+          string\[\] arguments,
+          ref SQLiteVirtualTable table,
+          ref string error
+          )
+        {
+          SQLiteErrorCode rc = DeclareTable(
+            connection, "CREATE TABLE ignored(x);", ref error);
+
+          if (rc != SQLiteErrorCode.Ok)
+            return rc;
+
+          table = new SQLiteVirtualTable(arguments);
+          return SQLiteErrorCode.Ok;
+        }
+      }
+
+      /////////////////////////////////////////////////////////////////////////
+
+      public static class Test${id}
+      {
+        public static void Main()
+        {
+          using (SQLiteConnection connection = new SQLiteConnection(
+              "Data Source=${dataSource};[getTestProperties]"))
+          {
+            connection.Open();
+            connection.CreateModule(new SQLiteModuleTest${id}("mod${id}"));
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql}]";
+              command.ExecuteNonQuery();
+            }
+
+            connection.Close();
+          }
+        }
+      }
+    }
+  }] true false true results errors System.Data.SQLite.dll]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} Main
+      } result] : [set result ""]}] [normalizeVtabResult $result]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result code results errors sql dataSource id fileName
+} -constraints {eagle command.object monoBug28 monoCrash211 command.sql\
+compile.DATA SQLite System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_VIRTUAL_TABLE compileCSharp} -match \
+regexp -result [normalizeVtabResult {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0 \{\}$}]}
+
+###############################################################################
+
+runTest {test vtab-1.2.1 {IEnumerable virtual table} -setup {
+  set fileName vtab-1.2.1.db
+} -body {
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  set sql(1) { \
+    CREATE VIRTUAL TABLE t${id} USING mod${id}; \
+  }
+
+  set sql(2) { \
+    SELECT * FROM t${id}; \
+  }
+
+  set sql(3) { \
+    UPDATE t${id} SET x = 1; \
+  }
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System;
+    using System.Data.SQLite;
+    using Eagle._Containers.Public;
+
+    namespace _Dynamic${id}
+    {
+      public static class Test${id}
+      {
+        public static StringList GetList(params string\[\] strings)
+        {
+          StringList result = new StringList();
+
+          using (SQLiteConnection connection = new SQLiteConnection(
+              "Data Source=${dataSource};[getTestProperties]"))
+          {
+            connection.Open();
+
+            connection.CreateModule(new SQLiteModuleEnumerable(
+              "mod${id}", strings));
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(1)}]";
+              command.ExecuteNonQuery();
+            }
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(2)}]";
+
+              using (SQLiteDataReader dataReader = command.ExecuteReader())
+              {
+                while (dataReader.Read())
+                  result.Add(dataReader\[0\].ToString());
+              }
+            }
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(3)}]";
+
+              try
+              {
+                command.ExecuteNonQuery();
+              }
+              catch (SQLiteException e)
+              {
+                result.Add(e.ResultCode.ToString());
+                result.Add(e.Message);
+              }
+            }
+
+            connection.Close();
+          }
+
+          return result;
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Main()
+        {
+          // do nothing.
+        }
+      }
+    }
+  }] true false true results errors [list System.Data.SQLite.dll Eagle.dll]]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} GetList one two three 4 5.0
+      } result] : [set result ""]}] [normalizeVtabResult $result]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result code results errors sql dataSource id fileName
+} -constraints {eagle command.object monoBug28 monoCrash211 command.sql\
+compile.DATA SQLite System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_VIRTUAL_TABLE compileCSharp} -match \
+regexp -result [normalizeVtabResult {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0 \{one two three 4 5\.0 Error\
+\{SQL logic error( or missing database)? -- virtual table "t\d+" is\
+read-only\}\}$}]}
+
+###############################################################################
+
+runTest {test vtab-1.2.2 {IEnumerable virtual table} -setup {
+  set fileName vtab-1.2.2.db
+} -body {
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  set sql(1) { \
+    CREATE VIRTUAL TABLE t${id} USING mod${id}; \
+  }
+
+  set sql(2) { \
+    SELECT * FROM t${id}; \
+  }
+
+  set sql(3) { \
+    UPDATE t${id} SET x = 1; \
+  }
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System;
+    using System.Data.SQLite;
+    using Eagle._Containers.Public;
+
+    namespace _Dynamic${id}
+    {
+      public static class Test${id}
+      {
+        public static StringList GetList(params string\[\] strings)
+        {
+          StringList result = new StringList();
+
+          using (SQLiteConnection connection = new SQLiteConnection(
+              "Data Source=${dataSource};[getTestProperties]"))
+          {
+            connection.Open();
+
+            SQLiteModule module = new SQLiteModuleEnumerable(
+                "mod${id}", strings);
+
+            connection.CreateModule(module);
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(1)}]";
+              command.ExecuteNonQuery();
+            }
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(2)}]";
+
+              using (SQLiteDataReader dataReader = command.ExecuteReader())
+              {
+                while (dataReader.Read())
+                  result.Add(dataReader\[0\].ToString());
+              }
+            }
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(3)}]";
+
+              try
+              {
+                command.ExecuteNonQuery();
+              }
+              catch (SQLiteException e)
+              {
+                result.Add(e.ResultCode.ToString());
+                result.Add(e.Message);
+              }
+            }
+
+            module.Dispose();
+            connection.Close();
+          }
+
+          return result;
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Main()
+        {
+          // do nothing.
+        }
+      }
+    }
+  }] true false true results errors [list System.Data.SQLite.dll Eagle.dll]]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} GetList one two three 4 5.0
+      } result] : [set result ""]}] [normalizeVtabResult $result]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result code results errors sql dataSource id fileName
+} -constraints {eagle command.object monoBug28 monoCrash211 command.sql\
+compile.DATA SQLite System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_VIRTUAL_TABLE compileCSharp} -match \
+regexp -result [normalizeVtabResult {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0 \{one two three 4 5\.0 Error\
+\{SQL logic error( or missing database)? -- virtual table "t\d+" is\
+read-only\}\}$}]}
+
+###############################################################################
+
+runTest {test vtab-1.3.1 {IEnumerable<T> virtual table} -setup {
+  set fileName vtab-1.3.1.db
+} -body {
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  set sql(1) { \
+    CREATE VIRTUAL TABLE t${id} USING mod${id}; \
+  }
+
+  set sql(2) { \
+    SELECT * FROM t${id}; \
+  }
+
+  set sql(3) { \
+    UPDATE t${id} SET x = 1; \
+  }
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System;
+    using System.Data.SQLite;
+    using System.Data.SQLite.Generic;
+    using Eagle._Containers.Public;
+
+    namespace _Dynamic${id}
+    {
+      public static class Test${id}
+      {
+        public static StringList GetList(params int\[\] integers)
+        {
+          StringList result = new StringList();
+
+          using (SQLiteConnection connection = new SQLiteConnection(
+              "Data Source=${dataSource};[getTestProperties]"))
+          {
+            connection.Open();
+
+            connection.CreateModule(new SQLiteModuleEnumerable<int>(
+              "mod${id}", integers));
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(1)}]";
+              command.ExecuteNonQuery();
+            }
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(2)}]";
+
+              using (SQLiteDataReader dataReader = command.ExecuteReader())
+              {
+                while (dataReader.Read())
+                  result.Add(dataReader\[0\].ToString());
+              }
+            }
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(3)}]";
+
+              try
+              {
+                command.ExecuteNonQuery();
+              }
+              catch (SQLiteException e)
+              {
+                result.Add(e.ResultCode.ToString());
+                result.Add(e.Message);
+              }
+            }
+
+            connection.Close();
+          }
+
+          return result;
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Main()
+        {
+          // do nothing.
+        }
+      }
+    }
+  }] true false true results errors [list System.Data.SQLite.dll Eagle.dll]]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} GetList 1 2 3 4 5
+      } result] : [set result ""]}] [normalizeVtabResult $result]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result code results errors sql dataSource id fileName
+} -constraints {eagle command.object monoBug28 monoCrash211 command.sql\
+compile.DATA SQLite System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_VIRTUAL_TABLE compileCSharp} -match \
+regexp -result [normalizeVtabResult {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0 \{1 2 3 4 5 Error \{SQL\
+logic error( or missing database)? -- virtual table "t\d+" is read-only\}\}$}]}
+
+###############################################################################
+
+runTest {test vtab-1.3.2 {IEnumerable<T> virtual table} -setup {
+  set fileName vtab-1.3.2.db
+} -body {
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  set sql(1) { \
+    CREATE VIRTUAL TABLE t${id} USING mod${id}; \
+  }
+
+  set sql(2) { \
+    SELECT * FROM t${id}; \
+  }
+
+  set sql(3) { \
+    UPDATE t${id} SET x = 1; \
+  }
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System;
+    using System.Data.SQLite;
+    using System.Data.SQLite.Generic;
+    using Eagle._Containers.Public;
+
+    namespace _Dynamic${id}
+    {
+      public static class Test${id}
+      {
+        public static StringList GetList(params int\[\] integers)
+        {
+          StringList result = new StringList();
+
+          using (SQLiteConnection connection = new SQLiteConnection(
+              "Data Source=${dataSource};[getTestProperties]"))
+          {
+            connection.Open();
+
+            SQLiteModule module = new SQLiteModuleEnumerable<int>(
+                "mod${id}", integers);
+
+            connection.CreateModule(module);
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(1)}]";
+              command.ExecuteNonQuery();
+            }
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(2)}]";
+
+              using (SQLiteDataReader dataReader = command.ExecuteReader())
+              {
+                while (dataReader.Read())
+                  result.Add(dataReader\[0\].ToString());
+              }
+            }
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(3)}]";
+
+              try
+              {
+                command.ExecuteNonQuery();
+              }
+              catch (SQLiteException e)
+              {
+                result.Add(e.ResultCode.ToString());
+                result.Add(e.Message);
+              }
+            }
+
+            module.Dispose();
+            connection.Close();
+          }
+
+          return result;
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Main()
+        {
+          // do nothing.
+        }
+      }
+    }
+  }] true false true results errors [list System.Data.SQLite.dll Eagle.dll]]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} GetList 1 2 3 4 5
+      } result] : [set result ""]}] [normalizeVtabResult $result]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result code results errors sql dataSource id fileName
+} -constraints {eagle command.object monoBug28 monoCrash211 command.sql\
+compile.DATA SQLite System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_VIRTUAL_TABLE compileCSharp} -match \
+regexp -result [normalizeVtabResult {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0 \{1 2 3 4 5 Error \{SQL\
+logic error( or missing database)? -- virtual table "t\d+" is read-only\}\}$}]}
+
+###############################################################################
+
+runTest {test vtab-1.4 {virtual table function support} -setup {
+  set fileName vtab-1.4.db
+} -body {
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  set sql(1) { \
+    CREATE VIRTUAL TABLE t${id} USING mod${id}; \
+  }
+
+  set sql(2) { \
+    SELECT Base64(x, CAST('one' AS BLOB)) FROM t${id}; \
+  }
+
+  set sql(3) { \
+    SELECT Base64(x, CAST('one' AS BLOB), 'two') FROM t${id}; \
+  }
+
+  set sql(4) { \
+    SELECT Base65(x, CAST('one' AS BLOB)) FROM t${id}; \
+  }
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System;
+    using System.Data.SQLite;
+    using Eagle._Containers.Public;
+
+    namespace _Dynamic${id}
+    {
+      public class SQLiteFunction${id} : SQLiteFunction
+      {
+        public SQLiteFunction${id}()
+          : base(SQLiteDateFormats.Default, DateTimeKind.Unspecified,
+                 null, false)
+        {
+          // do nothing.
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public override object Invoke(
+          object\[\] args
+          )
+        {
+          if (args == null)
+            return null;
+
+          if (args.Length != 2)
+            return new ArgumentException(String.Format(
+              "need exactly two arguments, got {0}", args.Length));
+
+          object arg = args\[1\];
+
+          if (arg == null)
+            return String.Empty;
+
+          Type type = arg.GetType();
+
+          if (type == typeof(DBNull))
+            return String.Empty;
+
+          if (type != typeof(byte\[\]))
+            return new ArgumentException(String.Format(
+              "argument must be byte array, got {0}", type));
+
+          return Convert.ToBase64String((byte\[\]) arg);
+        }
+      }
+
+      /////////////////////////////////////////////////////////////////////////
+
+      public sealed class SQLiteModuleTest${id} : SQLiteModuleNoop
+      {
+        public SQLiteModuleTest${id}(string name)
+          : base(name)
+        {
+          // do nothing.
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public override SQLiteErrorCode Create(
+          SQLiteConnection connection,
+          IntPtr pClientData,
+          string\[\] arguments,
+          ref SQLiteVirtualTable table,
+          ref string error
+          )
+        {
+          SQLiteErrorCode rc = DeclareTable(
+            connection, "CREATE TABLE ignored(x);", ref error);
+
+          if (rc != SQLiteErrorCode.Ok)
+            return rc;
+
+          rc = DeclareFunction(connection, -1, "Base64", ref error);
+
+          if (rc != SQLiteErrorCode.Ok)
+            return rc;
+
+          table = new SQLiteVirtualTable(arguments);
+          return SQLiteErrorCode.Ok;
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public override SQLiteErrorCode Open(
+          SQLiteVirtualTable table,
+          ref SQLiteVirtualTableCursor cursor
+          )
+        {
+          cursor = new SQLiteVirtualTableCursor(table);
+          return SQLiteErrorCode.Ok;
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public override bool FindFunction(
+          SQLiteVirtualTable table,
+          int argumentCount,
+          string name,
+          ref SQLiteFunction function,
+          ref IntPtr pClientData
+          )
+        {
+          if (argumentCount != 2)
+          {
+            SetTableError(table, String.Format(
+              "no \\"{0}\\" functions accept {1} argument(s)",
+              base.Name, argumentCount));
+
+            return false;
+          }
+
+          if (!String.Equals(name, "Base64",
+              StringComparison.OrdinalIgnoreCase))
+          {
+            SetTableError(table, String.Format(
+              "no \\"{0}\\" functions are named \\"{1}\\"",
+              base.Name, name));
+
+            return false;
+          }
+
+          function = new SQLiteFunction${id}();
+          return true;
+        }
+      }
+
+      /////////////////////////////////////////////////////////////////////////
+
+      public static class Test${id}
+      {
+        public static StringList GetList()
+        {
+          StringList result = new StringList();
+
+          using (SQLiteConnection connection = new SQLiteConnection(
+              "Data Source=${dataSource};[getTestProperties NoBindFunctions]"))
+          {
+            connection.Open();
+            connection.CreateModule(new SQLiteModuleTest${id}("mod${id}"));
+
+            try
+            {
+              using (SQLiteCommand command = connection.CreateCommand())
+              {
+                command.CommandText = "[subst ${sql(1)}]";
+                result.Add(String.Format("{0}", command.ExecuteScalar()));
+              }
+            }
+            catch (Exception e)
+            {
+              result.Add(e.Message);
+            }
+
+            try
+            {
+              using (SQLiteCommand command = connection.CreateCommand())
+              {
+                command.CommandText = "[subst ${sql(2)}]";
+                result.Add(String.Format("{0}", command.ExecuteScalar()));
+              }
+            }
+            catch (Exception e)
+            {
+              result.Add(e.Message);
+            }
+
+            try
+            {
+              using (SQLiteCommand command = connection.CreateCommand())
+              {
+                command.CommandText = "[subst ${sql(3)}]";
+                result.Add(String.Format("{0}", command.ExecuteScalar()));
+              }
+            }
+            catch (Exception e)
+            {
+              result.Add(e.Message);
+            }
+
+            try
+            {
+              using (SQLiteCommand command = connection.CreateCommand())
+              {
+                command.CommandText = "[subst ${sql(4)}]";
+                result.Add(String.Format("{0}", command.ExecuteScalar()));
+              }
+            }
+            catch (Exception e)
+            {
+              result.Add(e.Message);
+            }
+
+            connection.Close();
+          }
+
+          return result;
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Main()
+        {
+          // do nothing.
+        }
+      }
+    }
+  }] true false true results errors [list System.Data.SQLite.dll Eagle.dll]]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} GetList
+      } result] : [set result ""]}] [normalizeVtabResult $result]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result code results errors sql dataSource id fileName
+} -constraints {eagle command.object monoBug28 monoCrash211 command.sql\
+compile.DATA SQLite System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_VIRTUAL_TABLE compileCSharp} -match \
+regexp -result [normalizeVtabResult {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0 \{\{\} b25l \{SQL logic\
+error( or missing database)? -- unable to use function Base64 in the requested\
+context\} \{SQL logic error( or missing database)? -- no such function:\
+Base65\}\}$}]}
+
+###############################################################################
+
+runTest {test vtab-1.5 {virtual table function support} -setup {
+  set fileName vtab-1.5.db
+} -body {
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  set sql(1) { \
+    CREATE VIRTUAL TABLE t${id} USING mod${id}; \
+  }
+
+  set sql(2) { \
+    SELECT Base64(x, CAST('one' AS BLOB)) FROM t${id}; \
+  }
+
+  set sql(3) { \
+    SELECT Base64(x, CAST('one' AS BLOB), 'two') FROM t${id}; \
+  }
+
+  set sql(4) { \
+    SELECT Base65(x, CAST('one' AS BLOB)) FROM t${id}; \
+  }
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System;
+    using System.Data.SQLite;
+    using Eagle._Containers.Public;
+
+    namespace _Dynamic${id}
+    {
+      public class SQLiteFunction${id} : SQLiteFunction
+      {
+        public SQLiteFunction${id}()
+          : base(SQLiteDateFormats.Default, DateTimeKind.Unspecified,
+                 null, false)
+        {
+          // do nothing.
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public override object Invoke(
+          object\[\] args
+          )
+        {
+          if (args == null)
+            return null;
+
+          if (args.Length != 2)
+            return new ArgumentException(String.Format(
+              "need exactly two arguments, got {0}", args.Length));
+
+          object arg = args\[1\];
+
+          if (arg == null)
+            return String.Empty;
+
+          Type type = arg.GetType();
+
+          if (type == typeof(DBNull))
+            return String.Empty;
+
+          if (type != typeof(byte\[\]))
+            return new ArgumentException(String.Format(
+              "argument must be byte array, got {0}", type));
+
+          return Convert.ToBase64String((byte\[\]) arg);
+        }
+      }
+
+      /////////////////////////////////////////////////////////////////////////
+
+      public sealed class SQLiteModuleTest${id} : SQLiteModuleNoop
+      {
+        public SQLiteModuleTest${id}(string name)
+          : base(name)
+        {
+          // do nothing.
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public override SQLiteErrorCode Create(
+          SQLiteConnection connection,
+          IntPtr pClientData,
+          string\[\] arguments,
+          ref SQLiteVirtualTable table,
+          ref string error
+          )
+        {
+          SQLiteErrorCode rc = DeclareTable(
+            connection, "CREATE TABLE ignored(x);", ref error);
+
+          if (rc != SQLiteErrorCode.Ok)
+            return rc;
+
+          rc = DeclareFunction(connection, -1, "Base64", ref error);
+
+          if (rc != SQLiteErrorCode.Ok)
+            return rc;
+
+          table = new SQLiteVirtualTable(arguments);
+          return SQLiteErrorCode.Ok;
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public override SQLiteErrorCode Open(
+          SQLiteVirtualTable table,
+          ref SQLiteVirtualTableCursor cursor
+          )
+        {
+          cursor = new SQLiteVirtualTableCursor(table);
+          return SQLiteErrorCode.Ok;
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public override bool FindFunction(
+          SQLiteVirtualTable table,
+          int argumentCount,
+          string name,
+          ref SQLiteFunction function,
+          ref IntPtr pClientData
+          )
+        {
+          if (argumentCount != 2)
+          {
+            SetTableError(table, String.Format(
+              "no \\"{0}\\" functions accept {1} argument(s)",
+              base.Name, argumentCount));
+
+            return false;
+          }
+
+          if (!String.Equals(name, "Base64",
+              StringComparison.OrdinalIgnoreCase))
+          {
+            SetTableError(table, String.Format(
+              "no \\"{0}\\" functions are named \\"{1}\\"",
+              base.Name, name));
+
+            return false;
+          }
+
+          function = new SQLiteFunction${id}();
+          return true;
+        }
+      }
+
+      /////////////////////////////////////////////////////////////////////////
+
+      public static class Test${id}
+      {
+        public static StringList GetList()
+        {
+          StringList result = new StringList();
+
+          using (SQLiteConnection connection = new SQLiteConnection(
+              "Data Source=${dataSource};[getTestProperties]"))
+          {
+            connection.Open();
+            connection.CreateModule(new SQLiteModuleTest${id}("mod${id}"));
+
+            try
+            {
+              using (SQLiteCommand command = connection.CreateCommand())
+              {
+                command.CommandText = "[subst ${sql(1)}]";
+                result.Add(String.Format("{0}", command.ExecuteScalar()));
+              }
+            }
+            catch (Exception e)
+            {
+              result.Add(e.Message);
+            }
+
+            try
+            {
+              using (SQLiteCommand command = connection.CreateCommand())
+              {
+                command.CommandText = "[subst ${sql(2)}]";
+                result.Add(String.Format("{0}", command.ExecuteScalar()));
+              }
+            }
+            catch (Exception e)
+            {
+              result.Add(e.Message);
+            }
+
+            try
+            {
+              using (SQLiteCommand command = connection.CreateCommand())
+              {
+                command.CommandText = "[subst ${sql(3)}]";
+                result.Add(String.Format("{0}", command.ExecuteScalar()));
+              }
+            }
+            catch (Exception e)
+            {
+              result.Add(e.Message);
+            }
+
+            try
+            {
+              using (SQLiteCommand command = connection.CreateCommand())
+              {
+                command.CommandText = "[subst ${sql(4)}]";
+                result.Add(String.Format("{0}", command.ExecuteScalar()));
+              }
+            }
+            catch (Exception e)
+            {
+              result.Add(e.Message);
+            }
+
+            connection.Close();
+          }
+
+          return result;
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Main()
+        {
+          // do nothing.
+        }
+      }
+    }
+  }] true false true results errors [list System.Data.SQLite.dll Eagle.dll]]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} GetList
+      } result] : [set result ""]}] [normalizeVtabResult $result]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result code results errors sql dataSource id fileName
+} -constraints {eagle command.object monoBug28 monoCrash211 command.sql\
+compile.DATA SQLite System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_VIRTUAL_TABLE compileCSharp} -match \
+regexp -result [normalizeVtabResult {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0 \{\{\} b25l \{SQL logic\
+error( or missing database)? -- (?:unable to use function Base64 in the\
+requested context|need exactly one argument, got 3)\} \{SQL logic error( or\
+missing database)? -- no such function: Base65\}\}$}]}
+
+###############################################################################
+
+runTest {test vtab-1.6 {virtual table rename support} -setup {
+  set fileName vtab-1.6.db
+} -body {
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  set sql(1) { \
+    CREATE VIRTUAL TABLE t${id} USING mod${id}; \
+  }
+
+  set sql(2) { \
+    ALTER TABLE t${id} RENAME TO x${id}; \
+  }
+
+  set sql(3) { \
+    SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name; \
+  }
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System;
+    using System.Data.SQLite;
+    using Eagle._Containers.Public;
+
+    namespace _Dynamic${id}
+    {
+      public sealed class SQLiteModuleTest${id} : SQLiteModuleNoop
+      {
+        public SQLiteModuleTest${id}(string name)
+          : base(name)
+        {
+          // do nothing.
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public override SQLiteErrorCode Create(
+          SQLiteConnection connection,
+          IntPtr pClientData,
+          string\[\] arguments,
+          ref SQLiteVirtualTable table,
+          ref string error
+          )
+        {
+          SQLiteErrorCode rc = DeclareTable(
+            connection, "CREATE TABLE ignored(x);", ref error);
+
+          if (rc != SQLiteErrorCode.Ok)
+            return rc;
+
+          table = new SQLiteVirtualTable(arguments);
+          return SQLiteErrorCode.Ok;
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public override SQLiteErrorCode Open(
+          SQLiteVirtualTable table,
+          ref SQLiteVirtualTableCursor cursor
+          )
+        {
+          cursor = new SQLiteVirtualTableCursor(table);
+          return SQLiteErrorCode.Ok;
+        }
+      }
+
+      /////////////////////////////////////////////////////////////////////////
+
+      public static class Test${id}
+      {
+        public static StringList GetList()
+        {
+          StringList result = new StringList();
+
+          using (SQLiteConnection connection = new SQLiteConnection(
+              "Data Source=${dataSource};[getTestProperties]"))
+          {
+            connection.Open();
+            connection.CreateModule(new SQLiteModuleTest${id}("mod${id}"));
+
+            try
+            {
+              using (SQLiteCommand command = connection.CreateCommand())
+              {
+                command.CommandText = "[subst ${sql(1)}]";
+                result.Add(String.Format("{0}", command.ExecuteScalar()));
+              }
+            }
+            catch (Exception e)
+            {
+              result.Add(e.Message);
+            }
+
+            try
+            {
+              using (SQLiteCommand command = connection.CreateCommand())
+              {
+                command.CommandText = "[subst ${sql(3)}]";
+
+                using (SQLiteDataReader dataReader = command.ExecuteReader())
+                {
+                  while (dataReader.Read())
+                    result.Add(dataReader\[0\].ToString());
+                }
+              }
+            }
+            catch (Exception e)
+            {
+              result.Add(e.Message);
+            }
+
+            try
+            {
+              using (SQLiteCommand command = connection.CreateCommand())
+              {
+                command.CommandText = "[subst ${sql(2)}]";
+                result.Add(String.Format("{0}", command.ExecuteScalar()));
+              }
+            }
+            catch (Exception e)
+            {
+              result.Add(e.Message);
+            }
+
+            try
+            {
+              using (SQLiteCommand command = connection.CreateCommand())
+              {
+                command.CommandText = "[subst ${sql(3)}]";
+
+                using (SQLiteDataReader dataReader = command.ExecuteReader())
+                {
+                  while (dataReader.Read())
+                    result.Add(dataReader\[0\].ToString());
+                }
+              }
+            }
+            catch (Exception e)
+            {
+              result.Add(e.Message);
+            }
+
+            connection.Close();
+          }
+
+          return result;
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Main()
+        {
+          // do nothing.
+        }
+      }
+    }
+  }] true false true results errors [list System.Data.SQLite.dll Eagle.dll]]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} GetList
+      } result] : [set result ""]}] [normalizeVtabResult $result]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result code results errors sql dataSource id fileName
+} -constraints {eagle command.object monoBug28 monoCrash211 command.sql\
+compile.DATA SQLite System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_VIRTUAL_TABLE compileCSharp} -match \
+regexp -result [normalizeVtabResult {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0 \{\{\} t\d+ \{\} x\d+\}$}]}
+
+###############################################################################
+
+runTest {test vtab-1.7 {virtual table xBestIndex marshalling (1)} -setup {
+  set fileName vtab-1.7.db
+} -body {
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  set sql(1) { \
+    CREATE TABLE t${id}(y CHAR(10) NOT NULL PRIMARY KEY); \
+    CREATE VIRTUAL TABLE u${id} USING mod${id}; \
+  }
+
+  set sql(2) { \
+    INSERT INTO t${id} SELECT x FROM u${id}; \
+  }
+
+  set sql(3) { \
+    SELECT v${id}.y FROM t${id} v${id} LEFT OUTER JOIN \
+    u${id} ON u${id}.x = v${id}.y WHERE u${id}.x IS NOT NULL \
+    ORDER BY v${id}.y DESC; \
+  }
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System;
+    using System.Collections;
+    using System.Data.SQLite;
+    using Eagle._Containers.Public;
+
+    namespace _Dynamic${id}
+    {
+      public sealed class SQLiteModuleTest${id} : SQLiteModuleEnumerable
+      {
+        public string Result;
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public SQLiteModuleTest${id}(
+          string name,
+          IEnumerable enumerable
+          )
+          : base(name, enumerable)
+        {
+          // do nothing.
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        //
+        // BUGFIX: This method helps verify ticket \[56f511d268\] is fixed.
+        //
+        public override SQLiteErrorCode BestIndex(
+          SQLiteVirtualTable table,
+          SQLiteIndex index
+          )
+        {
+          if (index.Outputs.ConstraintUsages.Length > 0)
+          {
+            if (index.Outputs.ConstraintUsages\[0\] == null)
+              throw new ArgumentException("ConstraintUsages\[0\] is null");
+            else
+              Result = "ConstraintUsages is OK";
+          }
+
+          return base.BestIndex(table, index);
+        }
+      }
+
+      /////////////////////////////////////////////////////////////////////////
+
+      public static class Test${id}
+      {
+        public static StringList GetList(params string\[\] strings)
+        {
+          StringList result = new StringList();
+
+          using (SQLiteConnection connection = new SQLiteConnection(
+              "Data Source=${dataSource};[getTestProperties]"))
+          {
+            connection.Open();
+
+            SQLiteModuleTest${id} module = new SQLiteModuleTest${id}(
+                "mod${id}", strings);
+
+            connection.CreateModule(module);
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(1)}]";
+              result.Add(command.ExecuteNonQuery().ToString());
+            }
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(2)}]";
+              result.Add(command.ExecuteNonQuery().ToString());
+            }
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(3)}]";
+
+              using (SQLiteDataReader dataReader = command.ExecuteReader())
+              {
+                while (dataReader.Read())
+                  result.Add(dataReader\[0\].ToString());
+              }
+            }
+
+            result.Add(module.Result);
+            connection.Close();
+          }
+
+          return result;
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Main()
+        {
+          // do nothing.
+        }
+      }
+    }
+  }] true false true results errors [list System.Data.SQLite.dll Eagle.dll]]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} GetList one two three 4 5.0
+      } result] : [set result ""]}] [normalizeVtabResult $result]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result code results errors sql dataSource id fileName
+} -constraints {eagle command.object monoBug28 monoCrash211 command.sql\
+compile.DATA SQLite System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_VIRTUAL_TABLE compileCSharp} -match \
+regexp -result [normalizeVtabResult {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0 \{0 5 two three one 5\.0\
+4 \{ConstraintUsages is OK\}\}$}]}
+
+###############################################################################
+
+runTest {test vtab-1.8 {virtual table xBestIndex marshalling (2)} -setup {
+  set fileName vtab-1.8.db
+} -body {
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  set sql(1) { \
+    CREATE TABLE t${id}(y CHAR(10) NOT NULL PRIMARY KEY); \
+    CREATE VIRTUAL TABLE u${id} USING mod${id}; \
+  }
+
+  set sql(2) { \
+    INSERT INTO t${id} SELECT x FROM u${id}; \
+  }
+
+  set sql(3) { \
+    SELECT v${id}.y FROM t${id} v${id} LEFT OUTER JOIN \
+    u${id} ON u${id}.x = v${id}.y WHERE u${id}.x IS NOT NULL \
+    AND u${id}.x BETWEEN 'one' and 'three' ORDER BY u${id}.x ASC, \
+    u${id}.x DESC; \
+  }
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System;
+    using System.Collections;
+    using System.Data.SQLite;
+    using Eagle._Containers.Public;
+
+    namespace _Dynamic${id}
+    {
+      public sealed class SQLiteModuleTest${id} : SQLiteModuleEnumerable
+      {
+        public string Result;
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public SQLiteModuleTest${id}(
+          string name,
+          IEnumerable enumerable
+          )
+          : base(name, enumerable)
+        {
+          // do nothing.
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        //
+        // BUGFIX: This method helps verify ticket \[56f511d268\] is fixed.
+        //
+        public override SQLiteErrorCode BestIndex(
+          SQLiteVirtualTable table,
+          SQLiteIndex index
+          )
+        {
+          if (index.Outputs.ConstraintUsages.Length > 0)
+          {
+            if (index.Outputs.ConstraintUsages\[0\] == null)
+              throw new ArgumentException("ConstraintUsages\[0\] is null");
+            else
+              Result = "ConstraintUsages is OK";
+          }
+
+          return base.BestIndex(table, index);
+        }
+      }
+
+      /////////////////////////////////////////////////////////////////////////
+
+      public static class Test${id}
+      {
+        public static StringList GetList(params string\[\] strings)
+        {
+          StringList result = new StringList();
+
+          using (SQLiteConnection connection = new SQLiteConnection(
+              "Data Source=${dataSource};[getTestProperties]"))
+          {
+            connection.Open();
+
+            SQLiteModuleTest${id} module = new SQLiteModuleTest${id}(
+                "mod${id}", strings);
+
+            connection.CreateModule(module);
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(1)}]";
+              result.Add(command.ExecuteNonQuery().ToString());
+            }
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(2)}]";
+              result.Add(command.ExecuteNonQuery().ToString());
+            }
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(3)}]";
+
+              using (SQLiteDataReader dataReader = command.ExecuteReader())
+              {
+                while (dataReader.Read())
+                  result.Add(dataReader\[0\].ToString());
+              }
+            }
+
+            result.Add(module.Result);
+            connection.Close();
+          }
+
+          return result;
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Main()
+        {
+          // do nothing.
+        }
+      }
+    }
+  }] true false true results errors [list System.Data.SQLite.dll Eagle.dll]]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} GetList one two three 4 5.0
+      } result] : [set result ""]}] [normalizeVtabResult $result]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result code results errors sql dataSource id fileName
+} -constraints {eagle command.object monoBug28 monoCrash211 command.sql\
+compile.DATA SQLite System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_VIRTUAL_TABLE compileCSharp} -match \
+regexp -result [normalizeVtabResult {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0 \{0 5 one three\
+\{ConstraintUsages is OK\}\}$}]}
+
+###############################################################################
+
+runTest {test vtab-1.9 {IEnumerable virtual table w/large byte array} -setup {
+  set fileName vtab-1.9.db
+} -body {
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  set sql(1) { \
+    CREATE VIRTUAL TABLE t${id} USING mod${id}; \
+  }
+
+  set sql(2) { \
+    SELECT SUM(x) FROM t${id}; \
+  }
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System;
+    using System.Data.SQLite;
+
+    namespace _Dynamic${id}
+    {
+      public static class Test${id}
+      {
+        public static object GetSum()
+        {
+          using (SQLiteConnection connection = new SQLiteConnection(
+              "Data Source=${dataSource};[getTestProperties]"))
+          {
+            connection.Open();
+
+            byte\[\] bytes = new byte\[1048576\];
+            new Random().NextBytes(bytes);
+
+            connection.CreateModule(new SQLiteModuleEnumerable(
+              "mod${id}", bytes));
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(1)}]";
+              command.ExecuteNonQuery();
+            }
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(2)}]";
+              return command.ExecuteScalar();
+            }
+          }
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Main()
+        {
+          // do nothing.
+        }
+      }
+    }
+  }] true false true results errors System.Data.SQLite.dll]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} GetSum
+      } result] : [set result ""]}] [normalizeVtabResult $result]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result code results errors sql dataSource id fileName
+} -time true -constraints {eagle command.object monoBug28 monoCrash211\
+command.sql compile.DATA SQLite System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_VIRTUAL_TABLE compileCSharp} -match \
+regexp -result [normalizeVtabResult {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0 (?:-)?\d+$}]}
+
+###############################################################################
+
+runTest {test vtab-1.10 {virtual table xRowId uniqueness} -setup {
+  set fileName vtab-1.10.db
+} -body {
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  set sql(1) { \
+    CREATE VIRTUAL TABLE t${id} USING mod${id}; \
+  }
+
+  set sql(2) { \
+    SELECT CASE WHEN 0 THEN rowId ELSE rowId END, \
+           CASE WHEN 1 THEN rowId ELSE rowId END FROM t${id}; \
+  }
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System;
+    using System.Data.SQLite;
+    using Eagle._Containers.Public;
+
+    namespace _Dynamic${id}
+    {
+      public static class Test${id}
+      {
+        public static StringList GetList(params string\[\] strings)
+        {
+          StringList result = new StringList();
+
+          using (SQLiteConnection connection = new SQLiteConnection(
+              "Data Source=${dataSource};[getTestProperties]"))
+          {
+            connection.Open();
+
+            connection.CreateModule(new SQLiteModuleEnumerable(
+              "mod${id}", strings));
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(1)}]";
+              result.Add(command.ExecuteNonQuery().ToString());
+            }
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(2)}]";
+
+              using (SQLiteDataReader dataReader = command.ExecuteReader())
+              {
+                //
+                // NOTE: Mask off the hash code portion because it differs
+                //       between framework versions.
+                //
+                long mask = unchecked((long)0xFFFFFFFF00000000);
+
+                while (dataReader.Read())
+                {
+                  result.Add((dataReader.GetInt64(0) & mask).ToString());
+                  result.Add((dataReader.GetInt64(1) & mask).ToString());
+                }
+              }
+            }
+
+            connection.Close();
+          }
+
+          return result;
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Main()
+        {
+          // do nothing.
+        }
+      }
+    }
+  }] true false true results errors [list System.Data.SQLite.dll Eagle.dll]]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} GetList one one two one two two
+      } result] : [set result ""]}] [normalizeVtabResult $result]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result code results errors sql dataSource id fileName
+} -constraints {eagle command.object monoBug28 monoCrash211 command.sql\
+compile.DATA SQLite System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_VIRTUAL_TABLE compileCSharp} -match \
+regexp -result [normalizeVtabResult {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0 \{0 4294967296 4294967296\
+8589934592 8589934592 12884901888 12884901888 17179869184 17179869184\
+21474836480 21474836480 25769803776 25769803776\}$}]}
+
+###############################################################################
+
+runTest {test vtab-1.11 {IEnumerable virtual table w/object identity} -setup {
+  set fileName vtab-1.11.db
+} -body {
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  set sql(1) { \
+    CREATE VIRTUAL TABLE t${id} USING mod${id}; \
+  }
+
+  set sql(2) { \
+    SELECT rowId, * FROM t${id}; \
+  }
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System;
+    using System.Data.SQLite;
+    using Eagle._Containers.Public;
+
+    namespace _Dynamic${id}
+    {
+      public static class Test${id}
+      {
+        public static StringList GetList(params string\[\] strings)
+        {
+          StringList result = new StringList();
+
+          using (SQLiteConnection connection = new SQLiteConnection(
+              "Data Source=${dataSource};[getTestProperties]"))
+          {
+            connection.Open();
+
+            connection.CreateModule(new SQLiteModuleEnumerable(
+              "mod${id}", strings, true));
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(1)}]";
+              command.ExecuteNonQuery();
+            }
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(2)}]";
+
+              using (SQLiteDataReader dataReader = command.ExecuteReader())
+              {
+                while (dataReader.Read())
+                {
+                  result.Add(dataReader\[0\].ToString());
+                  result.Add(dataReader\[1\].ToString());
+                }
+              }
+            }
+
+            connection.Close();
+          }
+
+          return result;
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Main()
+        {
+          // do nothing.
+        }
+      }
+    }
+  }] true false true results errors [list System.Data.SQLite.dll Eagle.dll]]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} GetList one two three 4 5.0
+      } result] : [set result ""]}] [normalizeVtabResult $result]
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result code results errors sql dataSource id fileName
+} -constraints {eagle command.object monoBug28 monoCrash211 command.sql\
+compile.DATA SQLite System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_VIRTUAL_TABLE compileCSharp} -match \
+regexp -result [normalizeVtabResult {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0 \{-?\d+ one -?\d+ two -?\d+\
+three -?\d+ 4 -?\d+ 5\.0\}$}]}
+
+###############################################################################
+
+runTest {test vtab-1.12 {SQLiteIndex managed-to-native-to-managed} -setup {
+  set nConstraint 3; set nOrderBy 3
+} -body {
+  set index(1) [object create -alias -flags +NonPublic \
+      System.Data.SQLite.SQLiteIndex $nConstraint $nOrderBy]
+
+  for {set iConstraint 0} {$iConstraint < $nConstraint} {incr iConstraint} {
+    set constraint(1) [object create -alias -flags +NonPublic \
+        System.Data.SQLite.SQLiteIndexConstraint 0 0 0 0]
+
+    $index(1) Inputs.Constraints.SetValue $constraint(1) $iConstraint
+
+    $constraint(1) iColumn [expr {int(0x01234567 + $iConstraint)}]
+    $constraint(1) op [expr {0xFF - $iConstraint}]
+    $constraint(1) usable [expr {0xCC + $iConstraint}]
+    $constraint(1) iTermOffset [expr {int(0x89ABCDEF + $iConstraint)}]
+  }
+
+  for {set iOrderBy 0} {$iOrderBy < $nOrderBy} {incr iOrderBy} {
+    set orderBy(1) [object create -alias -flags +NonPublic \
+        System.Data.SQLite.SQLiteIndexOrderBy 0 0]
+
+    $index(1) Inputs.OrderBys.SetValue $orderBy(1) $iOrderBy
+
+    $orderBy(1) iColumn [expr {int(0x23016745 + $iOrderBy)}]
+    $orderBy(1) desc [expr {0xFF - $iOrderBy}]
+  }
+
+  for {set iConstraint 0} {$iConstraint < $nConstraint} {incr iConstraint} {
+    set constraintUsage(1) [object create -alias -flags +NonPublic \
+        System.Data.SQLite.SQLiteIndexConstraintUsage 0 0]
+
+    $index(1) Outputs.ConstraintUsages.SetValue $constraintUsage(1) \
+        $iConstraint
+
+    $constraintUsage(1) argvIndex [expr {int(0xAB89EFCD + $iConstraint)}]
+    $constraintUsage(1) omit [expr {0xCC + $iConstraint}]
+  }
+
+  $index(1) Outputs.IndexNumber [expr {int(0xAAAAAAAA)}]
+  $index(1) Outputs.IndexString "\x01test index string.\xFF"
+  $index(1) Outputs.NeedToFreeIndexString [expr {int(0x55555555)}]
+  $index(1) Outputs.OrderByConsumed [expr {int(0x33333333)}]
+  $index(1) Outputs.EstimatedCost 1.0
+
+  if {[$index(1) Outputs.CanUseEstimatedRows]} then {
+    $index(1) Outputs.EstimatedRows [expr {int(0xCCCCCCCC)}]
+  }
+
+  if {[$index(1) Outputs.CanUseIndexFlags]} then {
+    $index(1) Outputs.IndexFlags [expr {int(0xEEEEEEEE)}]
+  }
+
+  if {[$index(1) Outputs.CanUseColumnsUsed]} then {
+    $index(1) Outputs.ColumnsUsed [expr {wide(0xBADC0FFEE875621A)}]
+  }
+
+  set pIndex(1) [object invoke -create -flags +NonPublic \
+      System.Data.SQLite.SQLiteIndex AllocateAndInitializeNative \
+      $nConstraint $nOrderBy]
+
+  object invoke -flags +NonPublic \
+      System.Data.SQLite.SQLiteIndex ToIntPtr $index(1) $pIndex(1) true
+
+  set index(2) [object create -alias -flags +NonPublic \
+      System.Data.SQLite.SQLiteIndex $nConstraint $nOrderBy]
+
+  object invoke -alias -flags +NonPublic \
+      System.Data.SQLite.SQLiteIndex FromIntPtr $pIndex(1) true index(2)
+
+  for {set iConstraint 0} {$iConstraint < $nConstraint} {incr iConstraint} {
+    set constraint(1) [$index(1) \
+        -alias Inputs.Constraints.GetValue $iConstraint]
+
+    set constraint(2) [$index(2) \
+        -alias Inputs.Constraints.GetValue $iConstraint]
+
+    if {[$constraint(1) iColumn] != [$constraint(2) iColumn]} then {
+      error [appendArgs \
+          "iColumn at index " $iConstraint " does not match"]
+    }
+
+    if {[$constraint(1) op] != [$constraint(2) op]} then {
+      error [appendArgs \
+          "op at index " $iConstraint " does not match"]
+    }
+
+    if {[$constraint(1) usable] != [$constraint(2) usable]} then {
+      error [appendArgs \
+          "usable at index " $iConstraint " does not match"]
+    }
+
+    if {[$constraint(1) iTermOffset] != [$constraint(2) iTermOffset]} then {
+      error [appendArgs \
+          "iTermOffset at index " $iConstraint " does not match"]
+    }
+  }
+
+  for {set iOrderBy 0} {$iOrderBy < $nOrderBy} {incr iOrderBy} {
+    set orderBy(1) [$index(1) \
+        -alias Inputs.OrderBys.GetValue $iOrderBy]
+
+    set orderBy(2) [$index(2) \
+        -alias Inputs.OrderBys.GetValue $iOrderBy]
+
+    if {[$orderBy(1) iColumn] != [$orderBy(2) iColumn]} then {
+      error [appendArgs \
+          "iColumn at index " $iOrderBy " does not match"]
+    }
+
+    if {[$orderBy(1) desc] != [$orderBy(2) desc]} then {
+      error [appendArgs \
+          "desc at index " $iOrderBy " does not match"]
+    }
+  }
+
+  for {set iConstraint 0} {$iConstraint < $nConstraint} {incr iConstraint} {
+    set constraintUsage(1) [$index(1) \
+        -alias Outputs.ConstraintUsages.GetValue $iConstraint]
+
+    set constraintUsage(2) [$index(2) \
+        -alias Outputs.ConstraintUsages.GetValue $iConstraint]
+
+    if {[$constraintUsage(1) argvIndex] != \
+        [$constraintUsage(2) argvIndex]} then {
+      error [appendArgs \
+          "argvIndex at index " $iConstraint " does not match"]
+    }
+
+    if {[$constraintUsage(1) omit] != [$constraintUsage(2) omit]} then {
+      error [appendArgs \
+          "omit at index " $iConstraint " does not match"]
+    }
+  }
+
+  if {[$index(1) Outputs.IndexNumber] != \
+      [$index(2) Outputs.IndexNumber]} then {
+    error "IndexNumber does not match"
+  }
+
+  if {[$index(1) Outputs.IndexString] ne \
+      [$index(2) Outputs.IndexString]} then {
+    error "IndexString does not match"
+  }
+
+  if {[$index(1) Outputs.NeedToFreeIndexString] != \
+      [$index(2) Outputs.NeedToFreeIndexString]} then {
+    error "NeedToFreeIndexString does not match"
+  }
+
+  if {[$index(1) Outputs.OrderByConsumed] != \
+      [$index(2) Outputs.OrderByConsumed]} then {
+    error "OrderByConsumed does not match"
+  }
+
+  if {[$index(1) Outputs.EstimatedCost] != \
+      [$index(2) Outputs.EstimatedCost]} then {
+    error "EstimatedCost does not match"
+  }
+
+  if {[$index(1) Outputs.CanUseEstimatedRows] && \
+      [$index(2) Outputs.CanUseEstimatedRows]} then {
+    if {[$index(1) Outputs.EstimatedRows] != \
+        [$index(2) Outputs.EstimatedRows]} then {
+      error "EstimatedRows does not match"
+    }
+
+    tputs $test_channel "---- checked EstimatedRows property\n"
+  }
+
+  if {[$index(1) Outputs.CanUseIndexFlags] && \
+      [$index(2) Outputs.CanUseIndexFlags]} then {
+    if {[$index(1) Outputs.IndexFlags] != \
+        [$index(2) Outputs.IndexFlags]} then {
+      error "IndexFlags does not match"
+    }
+
+    tputs $test_channel "---- checked IndexFlags property\n"
+  }
+
+  if {[$index(1) Outputs.CanUseColumnsUsed] && \
+      [$index(2) Outputs.CanUseColumnsUsed]} then {
+    if {[$index(1) Outputs.ColumnsUsed] != \
+        [$index(2) Outputs.ColumnsUsed]} then {
+      error "ColumnsUsed does not match"
+    }
+
+    tputs $test_channel "---- checked ColumnsUsed property\n"
+  }
+} -cleanup {
+  catch {
+    object invoke -flags +NonPublic \
+        System.Data.SQLite.SQLiteIndex FreeNative $pIndex(1)
+  }
+
+  unset -nocomplain constraintUsage
+  unset -nocomplain orderBy nOrderBy iOrderBy
+  unset -nocomplain constraint nConstraint iConstraint
+  unset -nocomplain pIndex index
+} -constraints {eagle command.object monoBug211 SQLite System.Data.SQLite\
+SQLiteInterop defineConstant.System.Data.SQLite.INTEROP_VIRTUAL_TABLE} \
+-result {}}
+
+###############################################################################
+
+rename normalizeVtabResult ""
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

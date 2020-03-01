@@ -1,0 +1,63 @@
+###############################################################################
+#
+# tkt-a799e3978f.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+runTest {test tkt-a799e3978f-1.1 {DateTime2 type mapping} -setup {
+  setupDb [set fileName tkt-a799e3978f-1.1.db] "" "" "" UseConnectionTypes
+} -body {
+  set connection [getDbConnection]
+  set result [list]
+
+  lappend result [sql execute $db \
+      "CREATE TABLE t1(x INTEGER PRIMARY KEY, y DATETIME2);"]
+
+  set dateTime [clock format [clock scan "2014-02-01 12:34:56Z"] \
+      -format yyyyMMddHHmmss -gmt true]
+
+  lappend result [sql execute $db [appendArgs \
+      "INSERT INTO t1 (y) VALUES('" $dateTime "');"]]
+
+  lappend result [sql execute -verbatim -execute reader -format list \
+      -datetimeformat [getDateTimeFormat] $db "SELECT x, y FROM t1;"]
+
+  lappend result [$connection ClearTypeMappings]; # 0
+  lappend result [$connection AddTypeMapping DATETIME2 DateTime false]; # 0
+
+  lappend result [sql execute -verbatim -execute reader -format list \
+      -datetimeformat [getDateTimeFormat] $db "SELECT x, y FROM t1;"]
+
+  set result
+} -cleanup {
+  freeDbConnection
+
+  unset -nocomplain result connection
+
+  cleanupDb $fileName
+
+  unset -nocomplain dateTime db fileName
+} -constraints {eagle command.object monoBug28 command.sql compile.DATA SQLite\
+System.Data.SQLite} -result \
+{0 1 {1 20140201123456} 0 0 {1 {2014-02-01 12:34:56}}}}
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

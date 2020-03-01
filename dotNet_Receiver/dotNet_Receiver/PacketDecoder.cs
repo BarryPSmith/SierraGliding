@@ -75,6 +75,9 @@ namespace core_Receiver
 
             switch (type)
             {
+                case (char)6:
+                    ret.packetData = new ModemResponse(bytes.AsSpan(cur));
+                    break;
                 case 'W':
                     ret.packetData = DecodeWeatherPackets(bytes.AsSpan(cur));
                     ret.GetDataString = 

@@ -1,0 +1,60 @@
+###############################################################################
+#
+# tkt-69cf6e5dc8.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+runTest {test tkt-69cf6e5dc8-1.1 {Julian DateTime precision} -setup {
+  setupDb [set fileName tkt-69cf6e5dc8-1.1.db] "" JulianDay Utc \
+      BindDateTimeWithKind [appendArgs DateTimeFormatString= \
+      [getDateTimeFormat] \;]
+} -body {
+  sql execute $db {
+    CREATE TABLE t1(x);
+  }
+
+  set dateTime(0) [object create DateTime 2016 11 20 0 46 3 0 Utc]
+
+  sql execute -execute scalar $db \
+      "INSERT INTO t1 (x) VALUES(?);" [list param1 DateTime $dateTime(0)]
+
+  set dataReader [sql execute -execute reader -format datareader -alias \
+      $db "SELECT x FROM t1;"]
+
+  while {[$dataReader Read]} {
+    lappend result [$dataReader GetValue 0]
+    set dateTime(1) [$dataReader -create -alias GetDateTime 0]
+    lappend result [$dateTime(1) ToString [getDateTimeFormat]]
+  }
+
+  set result
+} -cleanup {
+  unset -nocomplain dataReader
+
+  cleanupDb $fileName
+
+  unset -nocomplain dateTime result db fileName
+} -constraints {eagle command.object monoBug28 monoBug42 command.sql\
+compile.DATA SQLite System.Data.SQLite} -match regexp -result \
+{^(?:2457712\.53197917|2457712\.5319791664) \{2016-11-20 00:46:03Z\}$}}
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

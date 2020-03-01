@@ -1,0 +1,262 @@
+###############################################################################
+#
+# tkt-85b824b736.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+runTest {test tkt-85b824b736-1.1 {SQLiteValue.GetString return value} -setup {
+  set fileName tkt-85b824b736-1.1.db
+} -body {
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  set sql(1) { \
+    CREATE VIRTUAL TABLE u${id} USING mod${id}; \
+  }
+
+  set sql(2) { \
+    UPDATE u${id} SET x = x || '-string' WHERE x IN ('one', 'two'); \
+  }
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System;
+    using System.Collections;
+    using System.Data.SQLite;
+    using Eagle._Containers.Public;
+
+    namespace _Dynamic${id}
+    {
+      public sealed class SQLiteModuleTest${id} : SQLiteModuleEnumerable
+      {
+        public string Result = String.Empty;
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public SQLiteModuleTest${id}(
+          string name,
+          IEnumerable enumerable
+          )
+          : base(name, enumerable)
+        {
+          // do nothing.
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public override SQLiteErrorCode Update(
+          SQLiteVirtualTable table,
+          SQLiteValue\[\] values,
+          ref long rowId
+          )
+        {
+          if ((values != null) && (values.Length > 0))
+            Result += " " + values\[values.Length - 1\].GetString();
+
+          return SQLiteErrorCode.Ok;
+        }
+      }
+
+      /////////////////////////////////////////////////////////////////////////
+
+      public static class Test${id}
+      {
+        public static StringList GetList(params string\[\] strings)
+        {
+          StringList result = new StringList();
+
+          using (SQLiteConnection connection = new SQLiteConnection(
+              "Data Source=${dataSource};[getTestProperties]"))
+          {
+            connection.Open();
+
+            SQLiteModuleTest${id} module = new SQLiteModuleTest${id}(
+                "mod${id}", strings);
+
+            connection.CreateModule(module);
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(1)}]";
+              result.Add(command.ExecuteNonQuery().ToString());
+            }
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(2)}]";
+              result.Add(command.ExecuteNonQuery().ToString());
+            }
+
+            result.Add(module.Result.Trim());
+            connection.Close();
+          }
+
+          return result;
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Main()
+        {
+          // do nothing.
+        }
+      }
+    }
+  }] true false true results errors [list System.Data.SQLite.dll Eagle.dll]]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} GetList one two three 4 5.0
+      } result] : [set result ""]}] $result
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result code results errors sql dataSource id fileName
+} -constraints {eagle command.object monoBug28 monoCrash211 command.sql\
+compile.DATA SQLite System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_VIRTUAL_TABLE compileCSharp} -match \
+regexp -result [string map [list \n \r\n] {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0 \{0 2 \{one-string\
+two-string\}\}$}]}
+
+###############################################################################
+
+runTest {test tkt-85b824b736-1.2 {SQLiteValue.GetBlob return value} -setup {
+  set fileName tkt-85b824b736-1.2.db
+} -body {
+  set id [object invoke Interpreter.GetActive NextId]
+  set dataSource [file join [getDatabaseDirectory] $fileName]
+
+  set sql(1) { \
+    CREATE VIRTUAL TABLE u${id} USING mod${id}; \
+  }
+
+  set sql(2) { \
+    UPDATE u${id} SET x = x || '-blob' WHERE x IN ('one', 'two'); \
+  }
+
+  unset -nocomplain results errors
+
+  set code [compileCSharpWith [subst {
+    using System;
+    using System.Collections;
+    using System.Data.SQLite;
+    using Eagle._Containers.Public;
+
+    namespace _Dynamic${id}
+    {
+      public sealed class SQLiteModuleTest${id} : SQLiteModuleEnumerable
+      {
+        public ByteList Result = new ByteList();
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public SQLiteModuleTest${id}(
+          string name,
+          IEnumerable enumerable
+          )
+          : base(name, enumerable)
+        {
+          // do nothing.
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public override SQLiteErrorCode Update(
+          SQLiteVirtualTable table,
+          SQLiteValue\[\] values,
+          ref long rowId
+          )
+        {
+          if ((values != null) && (values.Length > 0))
+            Result.AddRange(values\[values.Length - 1\].GetBlob());
+
+          return SQLiteErrorCode.Ok;
+        }
+      }
+
+      /////////////////////////////////////////////////////////////////////////
+
+      public static class Test${id}
+      {
+        public static ByteList GetList(params string\[\] strings)
+        {
+          ByteList result = new ByteList();
+
+          using (SQLiteConnection connection = new SQLiteConnection(
+              "Data Source=${dataSource};[getTestProperties]"))
+          {
+            connection.Open();
+
+            SQLiteModuleTest${id} module = new SQLiteModuleTest${id}(
+                "mod${id}", strings);
+
+            connection.CreateModule(module);
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(1)}]";
+              result.Add((byte)command.ExecuteNonQuery());
+            }
+
+            using (SQLiteCommand command = connection.CreateCommand())
+            {
+              command.CommandText = "[subst ${sql(2)}]";
+              result.Add((byte)command.ExecuteNonQuery());
+            }
+
+            result.AddRange(module.Result);
+            connection.Close();
+          }
+
+          return result;
+        }
+
+        ///////////////////////////////////////////////////////////////////////
+
+        public static void Main()
+        {
+          // do nothing.
+        }
+      }
+    }
+  }] true false true results errors [list System.Data.SQLite.dll Eagle.dll]]
+
+  list $code $results \
+      [expr {[info exists errors] ? $errors : ""}] \
+      [expr {$code eq "Ok" ? [catch {
+        object invoke _Dynamic${id}.Test${id} GetList one two three 4 5.0
+      } result] : [set result ""]}] $result
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result code results errors sql dataSource id fileName
+} -constraints {eagle command.object monoBug28 monoCrash211 command.sql\
+compile.DATA SQLite System.Data.SQLite SQLiteInterop\
+defineConstant.System.Data.SQLite.INTEROP_VIRTUAL_TABLE compileCSharp} -match \
+regexp -result [string map [list \n \r\n] {^Ok\
+System#CodeDom#Compiler#CompilerResults#\d+ \{\} 0 \{0 2 111 110 101 45 98 108\
+111 98 116 119 111 45 98 108 111 98\}$}]}
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

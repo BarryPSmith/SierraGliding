@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ *
+ * SQLite.EF6.Beta.nuspec -
+ *
+ * Written by Joe Mistachkin.
+ * Released to the public domain, use at your own risk!
+ *
+-->
+<package>
+  <metadata>
+    <id>System.Data.SQLite.EF6.Beta</id>
+    <title>System.Data.SQLite EF6 Beta</title>
+    <version>1.0.112.0</version>
+    <authors>SQLite Development Team</authors>
+    <description>This is a &quot;beta&quot; package and is not intended for production use.  Support for Entity Framework 6 using System.Data.SQLite.</description>
+    <language>en-US</language>
+    <projectUrl>https://system.data.sqlite.org/</projectUrl>
+    <iconUrl>https://system.data.sqlite.org/images/sqlite128.png</iconUrl>
+    <licenseUrl>https://www.sqlite.org/copyright.html</licenseUrl>
+    <tags>sqlite database ado.net provider interop</tags>
+    <copyright>Public Domain</copyright>
+    <dependencies>
+      <group targetFramework="net40">
+        <dependency id="EntityFramework" version="6.3.0" />
+      </group>
+      <group targetFramework="net45">
+        <dependency id="EntityFramework" version="6.3.0" />
+      </group>
+      <group targetFramework="net451">
+        <dependency id="EntityFramework" version="6.3.0" />
+      </group>
+      <group targetFramework="net46">
+        <dependency id="EntityFramework" version="6.3.0" />
+      </group>
+      <group targetFramework="netstandard2.1">
+        <dependency id="EntityFramework" version="6.3.0" />
+      </group>
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="..\bin\2010\Release\bin\System.Data.SQLite.EF6.dll" target="lib\net40" />
+    <file src="..\bin\2012\Release\bin\System.Data.SQLite.EF6.dll" target="lib\net45" />
+    <file src="..\bin\2013\Release\bin\System.Data.SQLite.EF6.dll" target="lib\net451" />
+    <file src="..\bin\2015\Release\bin\System.Data.SQLite.EF6.dll" target="lib\net46" />
+    <file src="..\bin\NetStandard21\ReleaseNetStandard21\bin\netstandard2.1\System.Data.SQLite.EF6.dll" target="lib\netstandard2.1" />
+    <file src="..\bin\NetStandard21\ReleaseNetStandard21\bin\netstandard2.1\System.Data.SQLite.EF6.xml" target="lib\netstandard2.1" />
+    <file src="shared\Core\content\config.install.xdt" target="content\net40\app.config.install.xdt" />
+    <file src="shared\Core\content\config.install.xdt" target="content\net40\web.config.install.xdt" />
+    <file src="shared\Core\content\config.install.xdt" target="content\net45\app.config.install.xdt" />
+    <file src="shared\Core\content\config.install.xdt" target="content\net45\web.config.install.xdt" />
+    <file src="shared\Core\content\config.install.xdt" target="content\net451\app.config.install.xdt" />
+    <file src="shared\Core\content\config.install.xdt" target="content\net451\web.config.install.xdt" />
+    <file src="shared\Core\content\config.install.xdt" target="content\net46\app.config.install.xdt" />
+    <file src="shared\Core\content\config.install.xdt" target="content\net46\web.config.install.xdt" />
+    <file src="net40\EF6\content\config.transform" target="content\net40\app.config.transform" />
+    <file src="net40\EF6\content\config.transform" target="content\net40\web.config.transform" />
+    <file src="net40\EF6\content\config.transform" target="content\net45\app.config.transform" />
+    <file src="net40\EF6\content\config.transform" target="content\net45\web.config.transform" />
+    <file src="net40\EF6\content\config.transform" target="content\net451\app.config.transform" />
+    <file src="net40\EF6\content\config.transform" target="content\net451\web.config.transform" />
+    <file src="net40\EF6\content\config.transform" target="content\net46\app.config.transform" />
+    <file src="net40\EF6\content\config.transform" target="content\net46\web.config.transform" />
+    <file src="net40\EF6\tools\provider.ps1" target="tools\net40\install.ps1" />
+    <file src="net40\EF6\tools\provider.ps1" target="tools\net45\install.ps1" />
+    <file src="net40\EF6\tools\provider.ps1" target="tools\net451\install.ps1" />
+    <file src="net40\EF6\tools\provider.ps1" target="tools\net46\install.ps1" />
+  </files>
+</package>

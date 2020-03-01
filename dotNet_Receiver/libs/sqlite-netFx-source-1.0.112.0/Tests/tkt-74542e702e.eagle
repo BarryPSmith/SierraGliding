@@ -1,0 +1,54 @@
+###############################################################################
+#
+# tkt-74542e702e.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+runTest {test tkt-74542e702e-1.1 {RecordsAffected return values} -setup {
+  setupDb [set fileName tkt-74542e702e-1.1.db]
+} -body {
+  lappend result [sql execute $db "CREATE TABLE t1(x);"]
+
+  lappend result [sql execute $db {
+    INSERT INTO t1 VALUES(1);
+    INSERT INTO t1 VALUES(2);
+    INSERT INTO t1 VALUES(3);
+    INSERT INTO t1 VALUES(4);
+  }]
+
+  lappend result [sql execute $db "UPDATE t1 SET x = x + 99;"]
+  lappend result [sql execute $db "SELECT x FROM t1;"]
+  lappend result [sql execute $db "DELETE FROM t1;"]
+  lappend result [sql execute $db "SELECT x FROM t1;"]
+  lappend result [sql execute $db "DELETE FROM t1;"]
+  lappend result [sql execute $db "DROP TABLE t1;"]
+
+  set result
+} -cleanup {
+  cleanupDb $fileName
+
+  unset -nocomplain result db fileName
+} -constraints \
+{eagle monoBug28 command.sql compile.DATA SQLite System.Data.SQLite} -result \
+{0 4 4 -1 4 -1 0 0}}
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

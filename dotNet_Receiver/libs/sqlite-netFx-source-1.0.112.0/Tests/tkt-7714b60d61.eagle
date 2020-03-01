@@ -1,0 +1,66 @@
+###############################################################################
+#
+# tkt-7714b60d61.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+runTest {test tkt-7714b60d61-1.1 {SQLite3.GetValue with BOOLEAN} -setup {
+  setupDb [set fileName tkt-7714b60d61-1.1.db]
+} -body {
+  set connection [getDbConnection]
+
+  sql execute $db {
+    CREATE TABLE t1 (x INTEGER PRIMARY KEY, y BOOLEAN);
+    INSERT INTO t1 (x, y) VALUES(1, NULL);
+    INSERT INTO t1 (x, y) VALUES(2, 0);
+    INSERT INTO t1 (x, y) VALUES(3, 1);
+    INSERT INTO t1 (x, y) VALUES(4, 0.0);
+    INSERT INTO t1 (x, y) VALUES(5, 1.0);
+    INSERT INTO t1 (x, y) VALUES(6, '0');
+    INSERT INTO t1 (x, y) VALUES(7, '1');
+    INSERT INTO t1 (x, y) VALUES(8, 'False');
+    INSERT INTO t1 (x, y) VALUES(9, 'True');
+  }
+
+  set command [$connection -alias CreateCommand]
+  $command CommandText {SELECT x, y FROM t1 ORDER BY x;}
+
+  set dataAdapter [object create -alias \
+      System.Data.SQLite.SQLiteDataAdapter $command]
+
+  set dataTable [object create -alias System.Data.DataTable]
+
+  $dataAdapter Fill $dataTable; getRowsFromDataTable $dataTable
+} -cleanup {
+  unset -nocomplain dataTable dataAdapter command
+
+  freeDbConnection
+
+  cleanupDb $fileName
+
+  unset -nocomplain connection db fileName
+} -constraints {eagle command.object monoBug28 monoBug211 command.sql\
+compile.DATA SQLite System.Data.SQLite} -result {{{x 1} y} {{x 2} {y False}}\
+{{x 3} {y True}} {{x 4} {y False}} {{x 5} {y True}} {{x 6} {y False}} {{x 7}\
+{y True}} {{x 8} {y False}} {{x 9} {y True}}}}
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

@@ -1,0 +1,143 @@
+###############################################################################
+#
+# tkt-71bedaca19.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+runTest {test tkt-71bedaca19-1.1 {SQLiteErrorCode names and values} -setup {
+  object import System.Data.SQLite
+} -body {
+  set result [list]
+
+  foreach name [lsort [object invoke Enum GetNames SQLiteErrorCode]] {
+    if {$name ni [list NonExtendedMask Unknown]} then {
+      set convertible [object invoke -create -alias \
+          -flags {:Static Public GetField} -returntype IConvertible \
+          SQLiteErrorCode $name]
+
+      lappend result [list $name [$convertible ToUInt64 null]]
+    }
+  }
+
+  join $result \n
+} -cleanup {
+  object unimport -importpattern System.Data.SQLite
+
+  unset -nocomplain result convertible name
+} -constraints {eagle command.object System.Data.SQLite} -result {Abort 4
+Abort_Rollback 516
+Auth 23
+Auth_User 279
+Busy 5
+Busy_Recovery 261
+Busy_Snapshot 517
+CantOpen 14
+CantOpen_ConvPath 1038
+CantOpen_FullPath 782
+CantOpen_IsDir 526
+CantOpen_NoTempDir 270
+Constraint 19
+Constraint_Check 275
+Constraint_CommitHook 531
+Constraint_ForeignKey 787
+Constraint_Function 1043
+Constraint_NotNull 1299
+Constraint_PrimaryKey 1555
+Constraint_RowId 2579
+Constraint_Trigger 1811
+Constraint_Unique 2067
+Constraint_Vtab 2323
+Corrupt 11
+Corrupt_Sequence 523
+Corrupt_Vtab 267
+Done 101
+Empty 16
+Error 1
+Error_Missing_CollSeq 257
+Error_Retry 513
+Format 24
+Full 13
+Internal 2
+Interrupt 9
+IoErr 10
+IoErr_Access 3338
+IoErr_Auth 7178
+IoErr_Begin_Atomic 7434
+IoErr_Blocked 2826
+IoErr_CheckReservedLock 3594
+IoErr_Close 4106
+IoErr_Commit_Atomic 7690
+IoErr_ConvPath 6666
+IoErr_Delete 2570
+IoErr_Delete_NoEnt 5898
+IoErr_Dir_Close 4362
+IoErr_Dir_Fsync 1290
+IoErr_Fstat 1802
+IoErr_Fsync 1034
+IoErr_GetTempPath 6410
+IoErr_Lock 3850
+IoErr_Mmap 6154
+IoErr_NoMem 3082
+IoErr_RdLock 2314
+IoErr_Read 266
+IoErr_Rollback_Atomic 7946
+IoErr_Seek 5642
+IoErr_ShmLock 5130
+IoErr_ShmMap 5386
+IoErr_ShmOpen 4618
+IoErr_ShmSize 4874
+IoErr_Short_Read 522
+IoErr_Truncate 1546
+IoErr_Unlock 2058
+IoErr_VNode 6922
+IoErr_Write 778
+Locked 6
+Locked_SharedCache 262
+Locked_Vtab 518
+Mismatch 20
+Misuse 21
+NoLfs 22
+NoMem 7
+NotADb 26
+NotFound 12
+Notice 27
+Notice_Recover_Rollback 539
+Notice_Recover_Wal 283
+Ok 0
+Ok_Load_Permanently 256
+Perm 3
+Protocol 15
+Range 25
+ReadOnly 8
+ReadOnly_CantInit 1288
+ReadOnly_CantLock 520
+ReadOnly_DbMoved 1032
+ReadOnly_Directory 1544
+ReadOnly_Recovery 264
+ReadOnly_Rollback 776
+Row 100
+Schema 17
+TooBig 18
+Warning 28
+Warning_AutoIndex 284}}
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

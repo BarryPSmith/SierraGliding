@@ -1,0 +1,271 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+ *
+ * System.Data.SQLite.EF6.NetStandard21.csproj -
+ *
+ * Written by Joe Mistachkin.
+ * Released to the public domain, use at your own risk!
+ *
+-->
+<Project ToolsVersion="16.0">
+  <!--
+  ******************************************************************************
+  **                     Import .NET Core SDK Properties                      **
+  ******************************************************************************
+  -->
+
+  <!--
+      WARNING: This project cannot use the recommended pattern of having the
+               "Project" element simply include the "Sdk" attribute, due to
+               the "BuildDependsOn" property not being honored, see:
+
+               https://github.com/Microsoft/msbuild/issues/1680
+
+               Instead, the .NET Core SDK properties file is imported here
+               and the corresponding targets file is imported right before
+               resetting the "BuildDependsOn" property to include targets
+               necessary for this project.
+  -->
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+
+  <!--
+  ******************************************************************************
+  **                       Project Specific Properties                        **
+  ******************************************************************************
+  -->
+
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{5C2DC333-3ADB-4AA7-BE56-0C675C8EE32E}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>System.Data.SQLite.EF6</RootNamespace>
+    <AssemblyName>System.Data.SQLite.EF6</AssemblyName>
+    <SQLiteNetDir>$(MSBuildProjectDirectory)\..</SQLiteNetDir>
+    <IsDotNetStandard>true</IsDotNetStandard>
+    <ConfigurationYear>NetStandard21</ConfigurationYear>
+    <UseEntityFramework6>true</UseEntityFramework6>
+  </PropertyGroup>
+
+  <!--
+  ******************************************************************************
+  **             Project / .NET Standard 2.1 Specific Properties              **
+  ******************************************************************************
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <Deterministic>False</Deterministic>
+    <EnableDefaultItems>false</EnableDefaultItems>
+  </PropertyGroup>
+
+  <!--
+  ******************************************************************************
+  **    .NET Standard 2.1 Specific Strong Name Signing Property Overrides     **
+  ******************************************************************************
+  -->
+
+  <PropertyGroup>
+    <!--
+        NOTE: Apparently, the .NET Core build system sets the SignAssembly
+              property to false; therefore, reset it to true.  Also, delay
+              signing is currently non-functional due to the inability to
+              run the strong name signing tool (sn.exe).  It behaves badly
+              when run against a .NET Core assembly.
+    -->
+    <SignAssembly>true</SignAssembly>
+    <DelaySign>false</DelaySign>
+
+    <!--
+        TODO: Why is this needed?  It seems that public signing is quite
+              similar to delay signing.  Why is this necessary when not
+              running on Windows?
+    -->
+    <PublicSign Condition="'$(OS)' != 'Windows_NT'">true</PublicSign>
+  </PropertyGroup>
+
+  <!--
+  ******************************************************************************
+  **                     Import Project Default Settings                      **
+  ******************************************************************************
+  -->
+
+  <Import Project="$(SQLiteNetDir)\Targets\SQLite.NET.Platform.Settings.targets" />
+  <Import Project="$(SQLiteNetDir)\Targets\SQLite.NET.Settings.targets" />
+
+  <!--
+  ******************************************************************************
+  **                       Import Project Build Targets                       **
+  ******************************************************************************
+  -->
+
+  <Import Project="$(SQLiteNetDir)\Targets\SQLite.NET.targets" />
+
+  <!--
+  ******************************************************************************
+  **               Convert Project Settings To MSBuild Settings               **
+  ******************************************************************************
+  -->
+
+  <PropertyGroup Condition="'$(BinaryOutputPath)' != ''">
+    <OutputPath>$(BinaryOutputPath)</OutputPath>
+    <DocumentationFile>$(BinaryOutputPath)netstandard2.1\System.Data.SQLite.EF6.xml</DocumentationFile>
+  </PropertyGroup>
+
+  <!--
+  ******************************************************************************
+  **                Project Configuration Specific Properties                 **
+  ******************************************************************************
+  -->
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DebugSymbols>true</DebugSymbols>
+    <Optimize>false</Optimize>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+
+  <!--
+  ******************************************************************************
+  -->
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <Optimize>true</Optimize>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+  </PropertyGroup>
+
+  <!--
+  ******************************************************************************
+  **                Project Source Code Files (Unconditional)                 **
+  ******************************************************************************
+  -->
+
+  <ItemGroup>
+    <Compile Include="AssemblyInfo.cs" />
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <Compile Include="SQL Generation\DmlSqlGenerator.cs" />
+    <Compile Include="SQL Generation\InternalBase.cs" />
+    <Compile Include="SQL Generation\ISqlFragment.cs" />
+    <Compile Include="SQL Generation\JoinSymbol.cs" />
+    <Compile Include="SQL Generation\KeyToListMap.cs" />
+    <Compile Include="SQL Generation\MetadataHelpers.cs" />
+    <Compile Include="SQL Generation\SkipClause.cs" />
+    <Compile Include="SQL Generation\SqlBuilder.cs" />
+    <Compile Include="SQL Generation\SqlChecker.cs" />
+    <Compile Include="SQL Generation\SqlGenerator.cs" />
+    <Compile Include="SQL Generation\SqlSelectStatement.cs" />
+    <Compile Include="SQL Generation\SqlWriter.cs" />
+    <Compile Include="SQL Generation\StringUtil.cs" />
+    <Compile Include="SQL Generation\Symbol.cs" />
+    <Compile Include="SQL Generation\SymbolPair.cs" />
+    <Compile Include="SQL Generation\SymbolTable.cs" />
+    <Compile Include="SQL Generation\TopClause.cs" />
+    <Compile Include="SQLiteProviderFactory.cs" />
+    <Compile Include="SQLiteProviderManifest.cs" />
+    <Compile Include="SQLiteProviderServices.cs" />
+  </ItemGroup>
+
+  <!--
+  ******************************************************************************
+  **                     Project Embedded Resource Files                      **
+  ******************************************************************************
+  -->
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\SQLiteProviderServices.StoreSchemaDefinition.EF6.ssdl">
+      <LogicalName>System.Data.SQLite.SQLiteProviderServices.StoreSchemaDefinition.ssdl</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\Common.ConceptualSchemaDefinition.csdl">
+      <LogicalName>System.Data.SQLite.Common.ConceptualSchemaDefinition.csdl</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\SQLiteProviderServices.ProviderManifest.xml">
+      <LogicalName>System.Data.SQLite.SQLiteProviderServices.ProviderManifest.xml</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Resources\SQLiteProviderServices.StoreSchemaMapping.msl">
+      <LogicalName>System.Data.SQLite.SQLiteProviderServices.StoreSchemaMapping.msl</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <LogicalName>System.Data.SQLite.Properties.resources</LogicalName>
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <!--
+  ******************************************************************************
+  **                        Library Project References                        **
+  ******************************************************************************
+  -->
+
+  <ItemGroup>
+    <ProjectReference Include="..\System.Data.SQLite\System.Data.SQLite.NetStandard21.csproj">
+      <Project>{AC139952-261A-4463-B6FA-AEBC25283A66}</Project>
+      <Name>System.Data.SQLite.NetStandard21</Name>
+      <Private>False</Private>
+    </ProjectReference>
+  </ItemGroup>
+
+  <!--
+  ******************************************************************************
+  **                      .NET Core Assembly References                       **
+  ******************************************************************************
+  -->
+
+  <ItemGroup>
+    <PackageReference Include="EntityFramework" Version="6.3.0" />
+  </ItemGroup>
+
+  <!--
+  ******************************************************************************
+  **                       Import .NET Core SDK Targets                       **
+  ******************************************************************************
+  -->
+
+  <!--
+      WARNING: This project cannot use the recommended pattern of having the
+               "Project" element simply include the "Sdk" attribute, see the
+               comment at the top of this file for more information.
+  -->
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+
+  <!--
+  ******************************************************************************
+  **                           Import Build Targets                           **
+  ******************************************************************************
+  -->
+
+  <Import Project="$(SQLiteNetDir)\System.Data.SQLite\Targets\System.Data.SQLite.Properties.targets" />
+
+  <!--
+  ******************************************************************************
+  **                  Add Targets To BuildDependsOn Property                  **
+  ******************************************************************************
+  -->
+
+  <PropertyGroup>
+    <BuildDependsOn>
+      DetectBuildTool;
+      DetectOperatingSystem;
+      $(BuildDependsOn);
+      CopyConfigurations;
+    </BuildDependsOn>
+    <CleanDependsOn>
+      $(CleanDependsOn);
+      CleanConfigurations;
+    </CleanDependsOn>
+  </PropertyGroup>
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it.
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

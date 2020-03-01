@@ -1,0 +1,75 @@
+###############################################################################
+#
+# tkt-53962f9eff.eagle --
+#
+# Written by Joe Mistachkin.
+# Released to the public domain, use at your own risk!
+#
+###############################################################################
+
+package require Eagle
+package require Eagle.Library
+package require Eagle.Test
+
+runTestPrologue
+
+###############################################################################
+
+package require System.Data.SQLite.Test
+runSQLiteTestPrologue
+
+###############################################################################
+
+runTest {test tkt-53962f9eff-1.1 {SQLiteException ToString IoErr} -body {
+  set errCode [object invoke -create Enum Parse \
+      System.Data.SQLite.SQLiteErrorCode IoErr_Delete_NoEnt false]
+
+  set exception [object create -alias \
+      System.Data.SQLite.SQLiteException $errCode "ioerr message."]
+
+  normalizeExceptionMessage [$exception ToString]
+} -cleanup {
+  unset -nocomplain exception errCode
+} -constraints {eagle command.object SQLite System.Data.SQLite} -match \
+regexp -result {^code = IoErr_Delete_NoEnt \(5898\), message =\
+System\.Data\.SQLite\.SQLiteException(?: \(0x8[0-9A-Fa-f]{7}\))?: disk I/O\
+error ==> ioerr message\.$}}
+
+###############################################################################
+
+runTest {test tkt-53962f9eff-1.2 {SQLiteException ToString Ok} -body {
+  set errCode [object invoke -create Enum Parse \
+      System.Data.SQLite.SQLiteErrorCode Ok_Load_Permanently false]
+
+  set exception [object create -alias \
+      System.Data.SQLite.SQLiteException $errCode "ok message."]
+
+  normalizeExceptionMessage [$exception ToString]
+} -cleanup {
+  unset -nocomplain exception errCode
+} -constraints {eagle command.object SQLite System.Data.SQLite} -match \
+regexp -result {^code = Ok_Load_Permanently \(256\), message =\
+System\.Data\.SQLite\.SQLiteException(?: \(0x0[0-9A-Fa-f]{7}\))?: not an\
+error ==> ok message.$}}
+
+###############################################################################
+
+runTest {test tkt-53962f9eff-1.3 {SQLiteException ToString unknown} -body {
+  set errCode [object invoke -create Enum Parse \
+      System.Data.SQLite.SQLiteErrorCode 999 false]
+
+  set exception [object create -alias \
+      System.Data.SQLite.SQLiteException $errCode "unknown message."]
+
+  normalizeExceptionMessage [$exception ToString]
+} -cleanup {
+  unset -nocomplain exception errCode
+} -constraints {eagle command.object SQLite System.Data.SQLite} -match \
+regexp -result {^code = 999 \(999\), message =\
+System\.Data\.SQLite\.SQLiteException(?: \(0x8[0-9A-Fa-f]{7}\))?: unknown\
+error ==> unknown message\.$}}
+
+###############################################################################
+
+runSQLiteTestEpilogue
+runTestEpilogue

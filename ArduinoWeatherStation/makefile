@@ -97,15 +97,23 @@ VPATH = $(FOLDERS)
 all: $(OBJFOLDER)/all.hex
 
 clean:
-	del /S *.o *.hex *.obj *.elf
+	del /S obj/*.o obj/*.hex obj/*.obj obj/*.elf
+	del /S obj_mod/*.o obj_mod/*.hex obj_mod/*.obj obj_mod/*.elf
+	del /S obj_debug/*.o obj_debug/*.hex obj_debug/*.obj obj_debug/*.elf
+	del /S obj_mod_debug/*.o obj_mod_debug/*.hex obj_mod_debug/*.obj obj_mod_debug/*.elf
 #rm -rf *.o *.hex *.obj *.elf
 
 $(OBJFOLDER):
 	mkdir $(OBJFOLDER)
+
+saved:
+	mkdir saved
 	
 %.hex: %.obj
 	avr-objcopy -R .eeprom -O ihex $< $@
-	echo INFO : $@ Built
+
+%.s: %.obj
+	avr-objdump -S $< > $@
 
 checkSize: $(OBJFOLDER)/all.elf
 	avr-size $(OBJFOLDER)/all.elf
@@ -127,7 +135,11 @@ $(OBJFOLDER)/%.o: %.cpp *.h | $(OBJFOLDER)
 $(OBJFOLDER)/all.obj: $(OBJS)
 	$(CC) $(INCLUDES) $(DEFINES) $(CFLAGS) $(OBJS) $(LDFLAGS) -o $@
 
-program: $(OBJFOLDER)/all.hex
+
+program: $(OBJFOLDER)/all.hex $(OBJFOLDER)/all.s
 	avrdude -c arduino -p $(MCU) -P $(PORT) -b $(PROG_BAUD) -U $(OBJFOLDER)/all.hex
 	ECHO INFO : All done
-	
+
+.PHONY: save_outputs
+save_outputs: $(OBJFOLDER)/all.hex $(OBJFOLDER)/all.s | saved
+	save_outputs.cmd $(OBJFOLDER)

@@ -25,7 +25,7 @@ namespace core_Receiver
         const int MaxPacketCount = 192; //This is hardcoded in the stations.
         const int MaxImageSize = 32768 - 1024; //32768: Atmega328P flash size, 1024: bootload size.
 
-        private List<byte> _image;
+        private readonly List<byte> _image;
         private readonly KissCommunication _communicator;
         private readonly string _fn;
         public string Fn => _fn;
@@ -112,13 +112,13 @@ namespace core_Receiver
             Dictionary<byte, AutoResetEvent> acksReceived = stationIDs
                 .ToDictionary(id => id, id => new AutoResetEvent(false));
             ConcurrentDictionary<byte, byte> unIds = new ConcurrentDictionary<byte, byte>();
-            EventHandler<IList<byte>> packetReceived = (sender, data) =>
+            void packetReceived(object sender, IList<byte> data)
             {
                 try
                 {
                     var packet = PacketDecoder.DecodeBytes(data.ToArray());
                     var packetSrc = packet.sendingStation;
-                    if (packet.type == 'K' &&
+                    if (packet.type == PacketTypes.Response &&
                         stationIDs.Any(id => id == packetSrc) &&
                         unIds.TryGetValue(packetSrc, out var statUnId) && statUnId == packet.uniqueID)
                     {
@@ -127,7 +127,7 @@ namespace core_Receiver
                     }
                 }
                 catch { }
-            };
+            }
             _communicator.PacketReceived += packetReceived;
             try
             {
@@ -232,20 +232,20 @@ namespace core_Receiver
                 byte lastUniqueID = 0;
                 ProgrammingResponse lastResponse = null;
 
-                EventHandler<IList<byte>> packetReceived = (sender, data) =>
+                void packetReceived(object sender, IList<byte> data)
                 {
                     try
                     {
                         var packet = PacketDecoder.DecodeBytes(data.ToArray());
-                        if (packet?.type == 'K' && packet.uniqueID == lastUniqueID && packet.sendingStation == destinationStationID)
+                        if (packet?.type == PacketTypes.Response && packet.uniqueID == lastUniqueID && packet.sendingStation == destinationStationID)
                         {
                             lastResponse = packet.packetData as ProgrammingResponse;
                             replyReceived.Set();
                         }
                     }
-                    catch (Exception ex)
+                    catch
                     { }
-                };
+                }
 
                 _communicator.PacketReceived += packetReceived;
                 try
@@ -495,7 +495,7 @@ namespace core_Receiver
                 void packetReceived(object sender, IList<byte> bytes)
                 {
                     var packet = PacketDecoder.DecodeBytes(bytes.ToArray());
-                    if (packet?.type == 'K' && packet.uniqueID == lastUniqueID && packet.sendingStation == stationID)
+                    if (packet?.type == PacketTypes.Response && packet.uniqueID == lastUniqueID && packet.sendingStation == stationID)
                     {
                         lastData = (byte[])packet.packetData;
                         replyReceived.Set();

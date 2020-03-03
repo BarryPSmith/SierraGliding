@@ -162,11 +162,13 @@ Arguments:
         }
 
         static SQLiteConnection _dbConn;
-        static void InitialiseDatabase(string sqliteFn)
+        static void InitialiseDatabase(string fn)
         {
-            SQLiteConnectionStringBuilder csb = new SQLiteConnectionStringBuilder();
-            csb.ForeignKeys = true;
-            csb.DataSource = "sierraGlidingReceiver.sqlite";
+            SQLiteConnectionStringBuilder csb = new SQLiteConnectionStringBuilder
+            {
+                ForeignKeys = true,
+                DataSource = fn
+            };
             _dbConn = new SQLiteConnection(csb.ToString());
             _dbConn.Open();
             using var cmd = _dbConn.CreateCommand();
@@ -174,7 +176,7 @@ Arguments:
                 CREATE TABLE IF NOT EXISTS All_Packets (
                     Timestamp INTEGER NOT NULL,
                     Station_ID INTEGER NOT NULL,
-                    Type TEXT NOT NULL,
+                    Type INTEGER NOT NULL,
                     Unique_ID INTEGER NOT NULL,
                     To_String TEXT NULL,
                     Data BLOB NULL
@@ -183,9 +185,51 @@ Arguments:
                 CREATE TABLE IF NOT EXISTS Undecipherable (
                     Timestamp INTEGER NOT NULL,
                     Data BLOB NOT NULL
-                );";
+                );
+            
+                CREATE TABLE IF NOT EXISTS ProgramLog (
+                    Timestamp INTEGER NOT NULL,
+                    Message TEXT NOT NULL
+                );
+
+                CREATE VIEW IF NOT EXISTS View_All_Packets AS 
+                SELECT 
+                    DateTime(Timestamp, 'unixepoch', 'localtime')       AS Timestamp,
+
+                    CASE WHEN (Station_ID BETWEEN 32 AND 126) THEN
+                        CHAR(Station_ID)
+                    ELSE
+                        NULL
+                    END                                                 AS Station_ID_Char,
+                        
+                    Station_ID,
+
+                    CASE WHEN (Type BETWEEN 32 AND 126) THEN
+                        CHAR(Type)
+                    ELSE
+                        NULL
+                    END                                                 AS Type_Char,
+
+                    Type,
+                    Unique_ID,
+                    To_String,
+                    Data
+                FROM All_Packets;
+
+                CREATE VIEW IF NOT EXISTS View_Undecipherable AS
+                SELECT DateTime(Timestamp, 'unixepoch', 'localtime') AS Timestamp, Data FROM Undecipherable;
+
+                CREATE VIEW IF NOT EXISTS View_ProgramLog AS
+                SELECT DateTime(Timestamp, 'unixepoch', 'localtime') AS Timestamp, Message FROM ProgramLog;
+                ";
             cmd.ExecuteNonQuery();
-            Console.WriteLine("Database Initialisation Successful.");
+            using var cmd2 = _dbConn.CreateCommand();
+            cmd2.CommandText = "INSERT INTO ProgramLog (Timestamp, Message) VALUES ($Timestamp, $Message);";
+            cmd2.Parameters.AddWithValue("$Timestamp", DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+            cmd2.Parameters.AddWithValue("$Message", "Startup");
+            cmd2.ExecuteNonQuery();
+            
+            Console.WriteLine($"Database Initialisation Successful with filename '{_dbConn.DataSource}'.");
         }
 
         static void RecordUndecipherable(byte[] bytes)
@@ -208,7 +252,7 @@ Arguments:
                 return;
             switch (p.type)
             {
-                case 'W':
+                case PacketTypes.Weather:
                     break;
                 default:
                     using (var cmd = _dbConn.CreateCommand())
@@ -219,12 +263,12 @@ Arguments:
                         ($Timestamp, $Station_ID, $Type, $Unique_ID, $To_String, $To_String, $Data);";
                         cmd.Parameters.AddWithValue("$Timestamp", DateTimeOffset.Now.ToUniversalTime().ToUnixTimeSeconds());
                         cmd.Parameters.AddWithValue("$Station_ID", p.sendingStation);
-                        cmd.Parameters.AddWithValue("$Type", p.type);
+                        cmd.Parameters.AddWithValue("$Type", (byte)p.type);
                         cmd.Parameters.AddWithValue("$Unique_ID", p.uniqueID);
                         var dataString = p.GetDataString?.Invoke(p.packetData) ?? p.packetData?.ToString();
                         dataString = dataString?.Replace((char)0, ' ');
 
-                        cmd.Parameters.AddWithValue("$To_String", (Object)dataString ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("$To_String", (object)dataString ?? DBNull.Value);
                         if (p.packetData is IEnumerable<byte> data)
                             cmd.Parameters.AddWithValue("$Data", data.ToArray());
                         else
@@ -244,7 +288,7 @@ Arguments:
                 if (packet == null)
                 {
                     var localBytes = data.ToArray();
-                    RecordUndecipherable(localBytes);
+                    Task.Run(() => RecordUndecipherable(localBytes));
                     Task.Run(() =>
                     {
                         _nps?.Write(Encoding.UTF8.GetBytes(receivedTime.ToString()));
@@ -258,29 +302,14 @@ Arguments:
                 var consoleTask = Task.Run(() => OutputWriter.WriteLine($"Packet {receivedTime}: {packet.ToString()}"));
                 switch (packet.type)
                 {
-                    case 'W': //Weather data
-#if local_storage
-                                try
-                                {
-                                    storage?.StoreWeatherData(packet, receivedTime);
-                                }
-                                catch (Exception ex)
-                                {
-                                    Console.Error.WriteLine($"Store Error {DateTime.Now}: {ex}");
-                                }
-#endif
+                    case PacketTypes.Weather:
                         foreach (var serverPoster in _serverPosters)
                             serverPoster?.SendWeatherDataAsync(packet, receivedTime);
                         break;
-#if false
-                            case 'D': //Wind direciton debug data
-                                File.AppendAllLines(log, new[] { packet.GetDataString(packet.packetData) });
-                                break;
-#endif
-                    case 'K':
-                    case 'C':
-                    case 'P':
-                    case (char)6:
+                    case PacketTypes.Response:
+                    case PacketTypes.Command:
+                    case PacketTypes.Ping:
+                    case PacketTypes.Modem:
                         break;
                     default:
                         //nps is often stdOut in debugging, don't write to it from multiple threads:
@@ -293,7 +322,7 @@ Arguments:
                         });
                         break;
                 }
-                RecordPacket(packet);
+                Task.Run(() => RecordPacket(packet));
                 
             }
             catch (Exception ex)
@@ -304,9 +333,11 @@ Arguments:
 
         private static void StartPingLoop()
         {
-            Thread t = new Thread(PingLoop);
-            t.IsBackground = true;
-            t.Name = "PingThread";
+            Thread t = new Thread(PingLoop)
+            {
+                IsBackground = true,
+                Name = "PingThread"
+            };
             t.Start();
         }
 

@@ -47,11 +47,11 @@ namespace core_Receiver.Packets
             }
             if (br.ReadChar() != 'R')
                 throw new InvalidDataException("Did not find expected 'R' marker.");
-            for (char type = br.ReadChar(); type != 0; type = br.ReadChar())
+            for (byte type = br.ReadByte(); type != 0; type = br.ReadByte())
             {
                 RecentlyRelayedPackets.Add(new Packet
                 {
-                    type = type,
+                    type = (PacketTypes)type,
                     uniqueID = br.ReadByte(),
                     sendingStation = br.ReadByte()
                 });

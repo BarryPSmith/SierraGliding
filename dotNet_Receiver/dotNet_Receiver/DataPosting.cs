@@ -27,7 +27,7 @@ namespace core_Receiver
 
         public async Task SendWeatherDataAsync(Packet packet, DateTime receivedTime)
         {
-            if (packet.type != 'W')
+            if (packet.type != PacketTypes.Weather)
                 throw new InvalidOperationException();
 
             var now = new DateTimeOffset(receivedTime).ToUniversalTime();
@@ -63,10 +63,10 @@ namespace core_Receiver
                 {
                     var response = await _client.PostAsync(uri, content);
                     if (response.IsSuccessStatusCode)
-                        OutputWriter.WriteLine($"Succesfully posted {packet.sendingStation}/{packet.type}{packet.uniqueID} to {url}.");
+                        OutputWriter.WriteLine($"Succesfully posted {packet.sendingStation}/{(char)packet.type}{packet.uniqueID} to {url}.");
                     else
                     {
-                        OutputWriter.WriteLine($"Post of {packet.sendingStation}/{packet.type}{packet.uniqueID} to {url} failed ({response.StatusCode}): {response.ReasonPhrase}");
+                        OutputWriter.WriteLine($"Post of {packet.sendingStation}/{(char)packet.type}{packet.uniqueID} to {url} failed ({response.StatusCode}): {response.ReasonPhrase}");
                         OutputWriter.WriteLine($"Content: {response.Content.ReadAsStringAsync().Result}");
                         OutputWriter.WriteLine($"JSON: {json}");
                     }

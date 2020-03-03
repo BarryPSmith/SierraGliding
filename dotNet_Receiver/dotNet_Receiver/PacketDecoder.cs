@@ -59,7 +59,8 @@ namespace core_Receiver
             if (x != 'X')
                 return null;
 #endif
-            var type = Encoding.ASCII.GetChars(bytes, cur++, 1)[0];
+            bool wasRelayDemanded = (bytes[cur] & 0x80) != 0;
+            var type = (byte)(bytes[cur++] & 0x7F);
 
             var sendingStationID = bytes[cur];
             var uniqueID = bytes[cur + 1];
@@ -68,22 +69,22 @@ namespace core_Receiver
             Packet ret = new Packet
             {
                 CallSign = "X",
-                type = type,
+                type = (PacketTypes)type,
                 sendingStation = sendingStationID,
                 uniqueID = uniqueID
             };
 
-            switch (type)
+            switch (ret.type)
             {
-                case (char)6:
+                case PacketTypes.Modem:
                     ret.packetData = new ModemResponse(bytes.AsSpan(cur));
                     break;
-                case 'W':
+                case PacketTypes.Weather:
                     ret.packetData = DecodeWeatherPackets(bytes.AsSpan(cur));
                     ret.GetDataString = 
                         data => (data as IList<SingleWeatherData>)?.ToCsv();
                     break;
-                case 'K':
+                case PacketTypes.Response:
                     bool knownCommand = RecentCommands.TryGetValue(uniqueID, out var cmdType);
                     if (knownCommand)
                     {
@@ -122,19 +123,9 @@ namespace core_Receiver
                             ret.packetData = bytes.Skip(dataStart).ToCsv(b => $"{Packet.GetChar(b)}:{b:X}");
                     }
                     break;
-                    /*
-                case 'D':
-                    ushort[] dirData = new ushort[(bytes.Length - 9) / 2];
-                    Buffer.BlockCopy(bytes, 10, dirData, 0, dirData.Length * 2);
-                    ret.packetData = dirData;
-                    ret.GetDataString =
-                        data => (data as ushort[])?.ToCsv();
+                default:
+                    ret.packetData = bytes.Skip(dataStart).ToArray();
                     break;
-                case 'K':
-                case 'R':
-                    // TODO: Other packet types
-                    break;
-                    */
             }
             return ret;
         }

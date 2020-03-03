@@ -9,7 +9,7 @@ namespace core_Receiver.Packets
         public string CallSign;
         public byte sendingStation;
         public byte uniqueID;
-        public char type;
+        public PacketTypes type;
 
         public object packetData;
 
@@ -23,7 +23,7 @@ namespace core_Receiver.Packets
                 dataString = $" {packetData}";
             else
                 dataString = "";
-            return $"{CallSign} {GetChar(sendingStation)} {uniqueID:X2} {type}{dataString}";
+            return $"{CallSign} {GetChar(sendingStation)} {uniqueID:X2} {GetChar((byte)type)}{dataString}";
         }
 
         internal Func<object, string> GetDataString;

@@ -43,8 +43,6 @@ export default {
                 return;
             }
 
-            //Clear the existing annotation sets:
-            //this.chart.options.annotation.annotations = [];
             this.chart.data.allData.splice(1, this.annotationSets.length);
             this.chart.data.datasets.splice(1, this.annotationSets.length);
             this.annotationSets = [];
@@ -104,6 +102,7 @@ export default {
 
             this.chart.data.allData.splice(1, 0, ...this.annotationSets);
             this.chart.data.datasets.splice(1, 0, ...descriptors);
+            this.update_chart();
         },
 
         set_direction_range: function() {

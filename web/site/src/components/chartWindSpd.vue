@@ -43,6 +43,7 @@ export default {
 
     methods: {
         set_windspeed_range: function () {
+            return;
             if (!this.dataManager || !this.chart || !this.legend)
                 return;
 
@@ -126,6 +127,8 @@ export default {
 
             this.chart.data.allData.splice(this.dataSetCount, 0, ...this.annotationSets);
             this.chart.data.datasets.splice(this.dataSetCount, 0, ...descriptors);
+
+            this.update_chart();
         },
 
         ensure_chart: function () {

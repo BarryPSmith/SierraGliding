@@ -293,7 +293,7 @@ Arguments:
             // Give the serial port time to connect:
             Thread.Sleep(1000);
             //         0  1  2  345678
-            // Ping is P{80}{00}KN6DUC
+            // Ping is P{00}{00}KN6DUC
             // X is prepended by modem
             byte i = 0;
             while (true)
@@ -301,8 +301,9 @@ Arguments:
                 try
                 {
                     byte[] ping = Encoding.ASCII.GetBytes("P0#" + CallSign);
-                    ping[0] |= 0x80; // Demand relay
-                    ping[2] = i; //This isn't used, but is around for debugging.
+                    //ping[0] |= 0x80; // Demand relay
+                    ping[1] = 0x00; //Addressed to all stations (any station which is set to relay commands will also relay the ping).
+                    ping[2] = i; //This is used for relay tracking
                     _dataReceiver.WriteSerial(ping);
                     OutputWriter.WriteLine($"Ping sent: {i}");
                     unchecked

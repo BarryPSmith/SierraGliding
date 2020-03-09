@@ -86,7 +86,7 @@ namespace RemoteProgramming
   {
     PROGRAM_PRINTLN(F("Processing flash command..."));
     byte rwe;
-    uint16_t add;
+    uint32_t add;
     byte count;
     if (msg.readByte(rwe) || 
         msg.read(add))
@@ -98,6 +98,7 @@ namespace RemoteProgramming
 #endif
 
     flash.wakeup();
+    auto ret = true;
     switch (rwe)
     {
     case 'E':
@@ -109,30 +110,45 @@ namespace RemoteProgramming
         flash.writeByte(add++, b);
       break;
     case 'R':
-      {
-        byte count;
-        if (msg.read(count))
-        {
-          flash.sleep();
-          return false;
-        }
-        LoraMessageDestination dest(false);
-        dest.appendByte('K');
-        dest.appendByte(stationID);
-        dest.appendByte(uniqueID);
-        PROGRAM_PRINTVAR(add);
-        for (int i = 0; i < count; i++)
-        {
-          byte b = flash.readByte(add++);
-          PROGRAM_PRINT(b, HEX);
-          PROGRAM_PRINT(' ');
-          dest.appendByte(b);
-        }
-        PROGRAM_PRINTLN();
-      }
-      *ackRequired = false;
+      ret = hanleReadCommand(msg, add, ackRequired);
     }
     flash.sleep();
+    return ret;
+  }
+
+  bool handleReadCommand(MessageSource& msg, uint32_t add, bool* ackRequired)
+  {
+    byte count;
+    if (msg.read(count))
+      return false;
+
+    char internalOrExt;
+    if (msg.read(internalOrExt)
+      internalOrExt = 'E';
+    bool external = internalOrExt == 'E';
+    if (!external && internalOrExt != 'I')
+      return false;
+    if (!external && (add >= 32768 || add + count > 32768)
+      return false;
+
+    LoraMessageDestination dest(false);
+    dest.appendByte('K');
+    dest.appendByte(stationID);
+    dest.appendByte(uniqueID);
+    PROGRAM_PRINTVAR(add);
+    for (int i = 0; i < count; i++)
+    {
+      byte b;
+      if (external)
+        b = flash.readByte(add++);
+      else
+        b = pgm_read_byte(add++);
+      PROGRAM_PRINT(b, HEX);
+      PROGRAM_PRINT(' ');
+      dest.appendByte(b);
+    }
+    PROGRAM_PRINTLN();
+    *ackRequired = false;
     return true;
   }
 

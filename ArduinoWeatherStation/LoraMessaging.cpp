@@ -298,7 +298,6 @@ LoraMessageDestination::LoraMessageDestination(bool isOutbound)
   else
     appendByte('X');
   
-  // TODO: Check if this interrupts a currently-in-progress receive.
   _isOutbound = isOutbound;
 }
 

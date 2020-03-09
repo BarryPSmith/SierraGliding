@@ -126,7 +126,7 @@ namespace MessageHandling
   bool shouldRelay(byte msgType, byte msgStatID, byte msgUniqueID)
   {
     //Check if the source or destination is in our relay list:
-    if (msgType == 'C' || msgType == 'K' || msgType == 'R')
+    if (msgType == 'C' || msgType == 'K' || msgType == 'R' || msgType == 'P')
     {
       byte stationsToRelayCommands[permanentArraySize];
       GET_PERMANENT(stationsToRelayCommands);
@@ -197,8 +197,8 @@ namespace MessageHandling
 
   void relayMessage(MessageSource& msg, byte msgType, byte msgFirstByte, byte msgStatID, byte msgUniqueID)
   {
-    //Outbound messages are 'C'
-    MESSAGE_DESTINATION_SOLID relay(msgType == 'C');
+    //Outbound messages are 'C' or 'P'
+    MESSAGE_DESTINATION_SOLID relay(msgType == 'C' || msgType == 'P');
     relay.appendByte(msgFirstByte);
     relay.appendByte(msgStatID);
     relay.appendByte(msgUniqueID);

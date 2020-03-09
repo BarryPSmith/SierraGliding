@@ -55,13 +55,15 @@ export default {
                     continue;
                 }
                 let subEntries = [entry];
-                if (entry.start > entry.end) {
+                const start = this.map_y(entry.start);
+                const end = this.map_y(entry.end);
+                if (start > end) {
                     subEntries = [{
                         start: 0,
-                        end: entry.end,
+                        end: end,
                         color: entry.color
                     }, {
-                        start: entry.start,
+                        start: start,
                         end: 360,
                         color: entry.color
                     }];
@@ -111,11 +113,16 @@ export default {
         },
 
         map_data_point: function(pt) {
-            if (pt.y < this.chart.options.scales.yAxes[0].ticks.min)
-                pt.y += 360;
-            if (pt.y > this.chart.options.scales.yAxes[0].ticks.max)
-                pt.y -= 360;
+            pt.y = this.map_y(pt.y);
             return pt;
+        },
+
+        map_y: function(y) {
+            if (y < this.chart.options.scales.yAxes[0].ticks.min)
+                y += 360;
+            if (y > this.chart.options.scales.yAxes[0].ticks.max)
+                y -= 360;
+            return y;
         },
 
         ensure_chart: function () {
@@ -169,7 +176,8 @@ export default {
                         datasets: [{
                             //label: 'Wind Direction',
                             pointBackgroundColor: 'black',
-                            pointBorderColor: 'black',
+                            pointBorderColor: 'transparent',
+                            pointBorderWidth: 0,
                             pointRadius: 2,
                             borderColor: 'black',
                             showLine: false,
@@ -181,6 +189,41 @@ export default {
                     options: wdOpts
                 });
             }
+        },
+
+        before_update: function() {
+            this.set_points();
+        },
+
+        set_points: function() {
+            if (!this.chart || !this.dataManager || !this.dataManager.currentSampleInterval
+                || !this.duration) {
+                return;
+            }
+
+            const maxPtRadius = 2;
+            const minPtRadius = 2;
+            
+            let pointOpacity = 1;
+            
+            const wdElem = this.$refs.chart;
+            const width = wdElem.clientWidth;
+            let desiredPtRadius = width * 
+                Math.max(this.dataManager.currentSampleInterval, this.dataManager.stationDataRate) / this.duration;
+
+            if (desiredPtRadius < minPtRadius)
+            {
+                pointOpacity = 0.3 + 0.7 * desiredPtRadius / minPtRadius;
+                if (pointOpacity > 1)
+                    pointOpacity = 1;
+                desiredPtRadius = minPtRadius;
+            } else if (desiredPtRadius > maxPtRadius) {
+                desiredPtRadius = maxPtRadius;
+            }
+
+            this.chart.data.datasets[0].pointRadius = desiredPtRadius;
+            this.chart.data.datasets[0].pointBackgroundColor = 'rgba(0, 0, 0, ' + pointOpacity + ')';
+            this.chart.data.datasets[0].pointBorderColor = 'rgba(0, 0, 0, 0.1)';
         }
     }
 }

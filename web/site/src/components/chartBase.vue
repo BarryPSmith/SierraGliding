@@ -153,6 +153,9 @@ export default {
                 this.chart_range_derived();
             this.chart.options.scales.xAxes[0].ticks.min = this.cur_start();
             this.chart.options.scales.xAxes[0].ticks.max = this.cur_end();
+            
+            if (this.before_update)
+                this.before_update();
             this.chart.update();
         },
 
@@ -199,6 +202,8 @@ export default {
                     this.set_data(0, this.dataSource);
                 }
                 this.update_annotation_range();
+                if (this.before_update)
+                    this.before_update();
                 this.chart.update();
             }
         },

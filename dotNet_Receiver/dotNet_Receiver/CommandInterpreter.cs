@@ -65,8 +65,6 @@ namespace core_Receiver
             return true;
         }
         
-        Dictionary<int, Task> _currentTasks = new Dictionary<int, Task>();
-
         void HandleSimpleLine(string line, byte packetType)
         {
             var reader = new SimpleLineReader(line.Substring(1));

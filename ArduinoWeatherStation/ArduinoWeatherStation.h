@@ -28,9 +28,9 @@ void AwsRecordState(int i);
 #define TX_PRINTLN AWS_DEBUG_PRINTLN
 #define TX_PRINTVAR PRINT_VARIABLE
 #else
-#define TX_PRINT
-#define TX_PRINTLN
-#define TX_PRINTVAR
+#define TX_PRINT(...) do { } while (0)
+#define TX_PRINTLN(...) do { } while (0)
+#define TX_PRINTVAR(...) do { } while (0)
 #endif
 
 #define MESSAGE_DESTINATION_SOLID LoraMessageDestination

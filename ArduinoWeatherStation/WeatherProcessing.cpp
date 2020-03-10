@@ -5,14 +5,15 @@
 #include "PermanentStorage.h"
 #include <avr/boot.h>
 
+#define DEBUG_WEATHER
 #ifdef DEBUG_WEATHER
 #define WEATHER_PRINT AWS_DEBUG_PRINT
 #define WEATHER_PRINTLN AWS_DEBUG_PRINTLN
 #define WEATHER_PRINTVAR PRINT_VARIABLE
 #else
-#define WEATHER_PRINT
-#define WEATHER_PRINTLN
-#define WEATHER_PRINTVAR
+#define WEATHER_PRINT(...)  do { } while (0)
+#define WEATHER_PRINTLN(...)  do { } while (0)
+#define WEATHER_PRINTVAR(...)  do { } while (0)
 #endif
 
 #if defined(DAVIS_WIND) && defined(ARGENTDATA_WIND)
@@ -28,14 +29,19 @@ namespace WeatherProcessing
   unsigned volatile long tickCounts = 0;
   unsigned long requiredTicks = 100;
 
+  #ifdef WIND_DIR_AVERAGING
+  float curWindX = 0, curWindY = 0;
+  volatile bool sampleWind = false;
+  #endif
+
   void calibrateWindDirection();
   void countWind();
   void timer2Tick();
   void signalWindCalibration(unsigned long durationRemaining);
   #ifdef DAVIS_WIND
-  byte getWindDirectionDavis();
+  byte getCurWindDirectionDavis();
   #elif defined(ARGENTDATA_WIND)
-  byte getWindDirectionArgentData();
+  byte getCurWindDirectionArgentData();
   #else
   #error No Wind System Selected
   #endif
@@ -45,6 +51,7 @@ namespace WeatherProcessing
   void setupWindCounter();
   byte getExternalTemperature();
   byte getInternalTemperature();
+  byte getCurWindDirection();
 
   volatile int windCounts = 0;
 
@@ -57,19 +64,28 @@ namespace WeatherProcessing
   constexpr int windDirPin = WIND_DIR_PIN;
   constexpr int windSpdPin = WIND_SPD_PIN;
 
-  #if DEBUG_Speed
-  const size_t speedTickLength = 200;
-  int speedTicks[200];
-  byte curSpeedLocation = 0;
-  #endif
   byte getWindDirection()
+  {
+#if WIND_DIR_AVERAGING
+    WEATHER_PRINTVAR(curWindX);
+    WEATHER_PRINTVAR(curWindY);
+    if (curWindX != 0 || curWindY != 0)
+      return (byte)((atan2(curWindX, curWindY) / (2 * PI) + 0.5)* 255);
+    else
+      return getCurWindDirection();
+#else
+    return getCurWindDirection();
+#endif
+  }
+
+  byte getCurWindDirection()
   {
   #ifdef DAVIS_WIND
 #pragma message "using davis wind"
-    return getWindDirectionDavis();
+    return getCurWindDirectionDavis();
   #elif ARGENTDATA_WIND
 #pragma message "using ad wind"
-    return getWindDirectionArgentData();
+    return getCurWindDirectionArgentData();
   #endif
   }
 
@@ -77,7 +93,7 @@ namespace WeatherProcessing
   //Davis vane is a potentiometer sweep. 0 and full resistance correspond to 'north'.
   //We connect the ends of pot to +VCC and GND. So we just measure the centre pin and it linearly correlates with angle.
   //We're going to ignore the dead zone for now. Maybe test for it later. But given we intend to replace it all with ultrasonics, probably don't waste time.
-  byte getWindDirectionDavis()
+  byte getCurWindDirectionDavis()
   {
     int maxVoltage = 1023;
     int minVoltage = 0;
@@ -176,7 +192,7 @@ namespace WeatherProcessing
 
   //Get the wind direction for an argent data wind vane (8 distinct directions, sometimes landing between them).
   //This assumes a 4kOhm resistor in series to form a voltage divider
-  byte getWindDirectionArgentData()
+  byte getCurWindDirectionArgentData()
   {
     //Ver 2: We're going to use the full range of a byte for wind. 0 = N, 255 =~ 1 degree west.
     //N  0
@@ -394,73 +410,34 @@ namespace WeatherProcessing
     weatherInterval = requiredTicks * TimerTwo::MillisPerTick;
   }
 
-  #if DEBUG_Speed
-  void circularMemCpy(void* dest, void* src0, byte srcOffset, byte srcSize, byte amount);
-
-  void sendSpeedDebugMessage()
-  {
-    static byte lastSpeedLocation = 0;
-    byte msgBuffer[250];
-    byte localSpeedLocation = curSpeedLocation;
-
-    byte totalDataPoints = (int)(localSpeedLocation - lastSpeedLocation) % speedTickLength;
-    byte firstMessageSize = totalDataPoints;
-    if (firstMessageSize > 100)
-      firstMessageSize = 100;
-    msgBuffer[messageOffset] = 1;
-    msgBuffer[messageOffset + 1] = localSpeedLocation;
-    circularMemCpy( msgBuffer + messageOffset + 2, 
-                    speedTicks, 
-                    lastSpeedLocation * sizeof(int), 
-                    speedTickLength * sizeof(int), 
-                    firstMessageSize * sizeof(int));
-    size_t msgSize = 2 + firstMessageSize * sizeof(int);
-    sendMessage(msgBuffer, msgSize, 250);
-
-    if (firstMessageSize < totalDataPoints)
-    {
-      byte secondMessageSize = totalDataPoints - firstMessageSize;
-      msgBuffer[messageOffset] = 2;
-      circularMemCpy(msgBuffer + messageOffset,
-                    speedTicks, 
-                    (lastSpeedLocation + firstMessageSize) * sizeof(int), 
-                    speedTickLength * sizeof(int),
-                    secondMessageSize * sizeof(int));
-      msgSize = 1 + secondMessageSize * sizeof(int);
-      sendMessage(msgBuffer, msgSize, 250);
-    }
-    lastSpeedLocation = localSpeedLocation;
-  }
-
-  void circularMemCpy(void* dest, void* src0, size_t srcOffset, size_t srcSize, size_t amount)
-  {
-    if (amount > srcSize)
-      amount = srcSize;
-    if (srcOffset + amount < srcSize)
-      memcpy(dest, src0 + srcOffset, amount);
-    else
-    {
-      byte firstSize = srcSize - srcOffset;
-      memcpy(dest, src0 + srcOffset, firstSize);
-      byte secondSize = amount - firstSize;
-      memcpy(dest + firstSize, src0, secondSize);
-    }
-  }
-  #endif
-
   unsigned long lastWindCountMillis;
   constexpr unsigned long minWindInterval = 3; //Debounce. 330 kph = broken station;
   void countWind()
   {
-    #if DEBUG_Speed
-    speedTicks[curSpeedLocation++] = millis();
-    curSpeedLocation = curSpeedLocation % 200;
-    #endif
     // debounce the signal:
     if (millis() - lastWindCountMillis < minWindInterval)
       return;
+    #ifdef WIND_DIR_AVERAGING
+    sampleWind = true;
+    #endif
     lastWindCountMillis = millis();
     windCounts++;
+  }
+
+  void processWeather()
+  {
+    #ifdef WIND_DIR_AVERAGING
+    cli();
+    bool localSample = sampleWind;
+    sampleWind = false;
+    sei();
+    if (localSample)
+    {
+      byte wd = getCurWindDirection();
+      curWindX += sin(2 * PI * wd / 255);
+      curWindY += cos(2 * PI * wd / 255);
+    }
+    #endif
   }
 
   void setupWindCounter()

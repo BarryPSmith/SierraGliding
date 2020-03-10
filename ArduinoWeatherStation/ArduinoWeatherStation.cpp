@@ -1,7 +1,3 @@
-//32kb program memory. 2kb dynamic memory
-#define DEBUG_Speed 0
-#define DEBUG_Direction 0
-
 #include <avr/wdt.h>
 #include <spi.h>
 //#include <TimerOne.h>
@@ -199,6 +195,7 @@ void loop() {
   // Generate and discard a random number. Just used to ensure that all of the RNGs out there will give different numbers.
   random();
   MessageHandling::readMessages();
+  WeatherProcessing::processWeather();
   
   noInterrupts();
   bool localWeatherRequired = WeatherProcessing::weatherRequired;

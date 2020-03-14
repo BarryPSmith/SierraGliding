@@ -2,17 +2,18 @@
     <div class="border-b border--gray-light">
         <div v-on:click="title_click"
              class="rightGridSingle cursor-pointer">
-            <div>
+            <div style="grid-column:1">
                 <h2 class="txt-h4" v-text="station.name" />
             </div>
-            <div v-if="collapsed" class="flex-parent">
-                <div style="height:40px">
+            <div v-if="collapsed" class="flex-parent"
+                style="grid-column:2">
+                <div class='flex-child' style="height:40px">
                     <curWindDirIndicator :dataManager="dataManager"
                                          :legend="station.Wind_Dir_Legend"
                                          :detailed="false"
                                          :strokeWidth="3"/>
                 </div>
-                <div>
+                <div class='flex-child' style='height: 40pxpt async defer src="https://api.mapbox.com/mapbox-assembly/v0.24.0/assembly.js"></script>;'>
                     <curWindSpdIndicator v-bind:dataManager="dataManager"
                                          :legend="station.Wind_Speed_Legend"
                                          :detailed="false"

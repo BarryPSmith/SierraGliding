@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div style='height: 40px;'>
         <svg viewBox="0 0 100 100"
              :style="image_style">
             <legendArc v-for="entry in legend"
@@ -84,7 +84,7 @@ export default {
 
     computed: {
         image_style: function() { 
-            if (!this.detailed) return 'height:-webkit-fill-available';
+            if (!this.detailed) return 'height: 40px;';
             else return '';
         }
     },

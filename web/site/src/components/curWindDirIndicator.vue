@@ -84,7 +84,7 @@ export default {
 
     computed: {
         image_style: function() { 
-            if (!this.detailed) return 'height: 40px;';
+            if (!this.detailed) return 'height: 100%;';
             else return '';
         }
     },

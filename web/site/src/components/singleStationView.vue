@@ -7,13 +7,13 @@
             </div>
             <div v-if="collapsed" class="flex-parent"
                 style="grid-column:2">
-                <div class='flex-child' style="height: 40px;">
+                <div class='flex-child' style="height: 48px;">
                     <curWindDirIndicator :dataManager="dataManager"
                                          :legend="station.Wind_Dir_Legend"
                                          :detailed="false"
                                          :strokeWidth="3"/>
                 </div>
-                <div class='flex-child' style='height: 40px'>
+                <div class='flex-child'>
                     <curWindSpdIndicator v-bind:dataManager="dataManager"
                                          :legend="station.Wind_Speed_Legend"
                                          :detailed="false"

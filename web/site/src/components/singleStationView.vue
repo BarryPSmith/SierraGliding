@@ -2,8 +2,8 @@
     <div class="border-b border--gray-light">
         <div v-on:click="title_click"
              class="rightGridSingle cursor-pointer">
-            <div style="grid-column:1">
-                <h2 class="txt-h4" v-text="station.name" />
+            <div class='flex-parent flex-parent--center-cross' style="grid-column:1">
+                <h2 class="ml12 flex-child txt-h4" v-text="station.name" />
             </div>
             <div v-if="collapsed" class="flex-parent"
                 style="grid-column:2">

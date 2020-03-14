@@ -5,9 +5,9 @@
             <div class='flex-parent flex-parent--center-cross' style="grid-column:1">
                 <h2 class="ml12 flex-child txt-h4" v-text="station.name" />
             </div>
-            <div v-if="collapsed" class="flex-parent"
+            <div v-if="collapsed" class="flex-parent flex-parent--center-cross mr12"
                 style="grid-column:2">
-                <div class='flex-child' style="height: 48px;">
+                <div class='flex-child' style="height: 40px;">
                     <curWindDirIndicator :dataManager="dataManager"
                                          :legend="station.Wind_Dir_Legend"
                                          :detailed="false"
@@ -63,7 +63,7 @@
                 <chartBattery :dataManager="dataManager"
                               :duration="duration"
                               :chartEnd.sync="chartEnd"
-                              :range="{min:-15, max:45}" 
+                              :range="{min:-15, max:45}"
                               :dataSource="'externalTempData'"
                               :label="'External Temperature'"/>
             </div>
@@ -71,7 +71,7 @@
                 <chartBattery :dataManager="dataManager"
                               :duration="duration"
                               :chartEnd.sync="chartEnd"
-                              :range="{min:-15, max:45}" 
+                              :range="{min:-15, max:45}"
                               :dataSource="'internalTempData'"
                               :label="'Case Temperature'"/>
             </div>
@@ -157,7 +157,7 @@ export default {
         },
 
         windDirCentre: function() {
-            if (this.station && 
+            if (this.station &&
                 this.station.Wind_Dir_Legend &&
                 typeof(this.station.Wind_Dir_Legend.centre) == "number") {
                 return this.station.Wind_Dir_Legend.centre;

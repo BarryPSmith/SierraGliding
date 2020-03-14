@@ -62,7 +62,7 @@ export default {
     },
 
     props: {
-        dataManager: undefined, 
+        dataManager: undefined,
         legend: undefined,
         detailed: {
             type: Boolean,
@@ -83,7 +83,7 @@ export default {
     },
 
     computed: {
-        image_style: function() { 
+        image_style: function() {
             if (!this.detailed) return 'height: 100%;';
             else return '';
         }

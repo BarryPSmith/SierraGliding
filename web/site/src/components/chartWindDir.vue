@@ -207,6 +207,9 @@ export default {
             let pointOpacity = 1;
             
             const wdElem = this.$refs.chart;
+            if (!wdElem) {
+                return;
+            }
             const width = wdElem.clientWidth;
             let desiredPtRadius = width * 
                 Math.max(this.dataManager.currentSampleInterval, this.dataManager.stationDataRate) / this.duration;

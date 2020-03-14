@@ -1,5 +1,5 @@
 <template>
-    <div style='height: 40px;'>
+    <div style='height: 100%'>
         <svg viewBox="0 0 100 100"
              :style="image_style">
             <legendArc v-for="entry in legend"

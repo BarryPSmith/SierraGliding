@@ -80,6 +80,7 @@ namespace core_Receiver
                     bool demandRelay = args.Length >= 2 && bool.TryParse(args[1], out var tmpDemandRelay) && tmpDemandRelay;
                     switch (method)
                     {
+                        case "BulkUpload":
                         case "Bulk":
                         case "B":
                         case nameof(RemoteProgrammer.BulkUploadToStation):
@@ -87,6 +88,7 @@ namespace core_Receiver
                                 throw new CommandException($"BulkUpload requires station ID as first parameter (can be zero).");
                             t = Programmer.BulkUploadToStation(stationID.Value, demandRelay, TokenSource.Token);
                             break;
+                        case "Complete":
                         case "CompleteUpload":
                         case "CU":
                         case nameof(RemoteProgrammer.CompleteUploadToStationAsync):

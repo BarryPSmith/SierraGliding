@@ -1,7 +1,13 @@
 <template>
-    <h1 class="align-center align-mid outlineText"
-        :class="text_size"
-        :style="{ color: color }">{{ curVal | number1 }} {{ dataManager ? dataManager.unit : '' }}</h1>
+    <div>
+	    <h1 class="align-center align-mid outlineText"
+		:class="text_size"
+		:style="{ color: color }">{{ curVal | number1 }}</h1>
+
+	    <h1 class="align-center align-mid outlineText"
+		:class="text_size"
+		:style="{ color: color }">{{ dataManager ? dataManager.unit : '' }}</h1>
+    </div>
 </template>
 <script>
 export default {

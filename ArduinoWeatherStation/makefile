@@ -1,5 +1,5 @@
 #COM port for upload
-PORT=COM7
+PORT=COM4
 #Hardware spects
 MCU=atmega328p
 #115200
@@ -14,7 +14,7 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 4: Flynns Rev 2
 # 5: Dorji Modem
 # 6: First attempt at a printed PCB
-BOARD = 2
+BOARD = 6
 include Boards.makefile
 
 #Flags, etc.
@@ -96,10 +96,10 @@ VPATH = $(FOLDERS)
 all: $(OBJFOLDER)/all.hex
 
 clean:
-	del /S obj/*.o obj/*.hex obj/*.obj obj/*.elf
-	del /S obj_mod/*.o obj_mod/*.hex obj_mod/*.obj obj_mod/*.elf
-	del /S obj_debug/*.o obj_debug/*.hex obj_debug/*.obj obj_debug/*.elf
-	del /S obj_mod_debug/*.o obj_mod_debug/*.hex obj_mod_debug/*.obj obj_mod_debug/*.elf
+	del /S obj\\*.o obj\\*.hex obj\\*.obj obj\\*.elf
+	del /S obj_mod\\*.o obj_mod\\*.hex obj_mod\\*.obj obj_mod\\*.elf
+	del /S obj_debug\\*.o obj_debug\\*.hex obj_debug\\*.obj obj_debug\\*.elf
+	del /S obj_mod_debug\\*.o obj_mod_debug\\*.hex obj_mod_debug\\*.obj obj_mod_debug\\*.elf
 #rm -rf *.o *.hex *.obj *.elf
 
 $(OBJFOLDER):

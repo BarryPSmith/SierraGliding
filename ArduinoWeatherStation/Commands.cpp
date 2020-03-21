@@ -414,7 +414,7 @@ namespace Commands
       do
       {
         duplicate = false;
-        newID = random(1, 255);
+        newID = random(1, 127);
         for (int i = 0; i < MessageHandling::recentArraySize; i++)
         {
           if (!MessageHandling::recentlySeenStations[i].id)

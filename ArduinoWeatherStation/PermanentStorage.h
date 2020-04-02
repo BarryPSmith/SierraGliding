@@ -64,6 +64,11 @@ typedef struct PermanentVariables
   int wdCalibMin, 
     wdCalibMax;
 
+  unsigned short chargeVoltage_mV;
+  unsigned short chargeResponseRate;
+  unsigned short safeFreezingChargeLevel_mV;
+  byte safeFreezingPwm;
+
   short crc; //2
 } PermanentVariables;
 

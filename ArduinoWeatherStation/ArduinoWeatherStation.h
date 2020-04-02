@@ -23,7 +23,7 @@ void AwsRecordState(int i);
   AWS_DEBUG_PRINTLN(a); \
   } while (0)
 
-#define DEBUG_TX
+//#define DEBUG_TX
 #ifdef DEBUG_TX
 #define TX_PRINT AWS_DEBUG_PRINT
 #define TX_PRINTLN AWS_DEBUG_PRINTLN
@@ -37,7 +37,7 @@ void AwsRecordState(int i);
 #define MESSAGE_DESTINATION_SOLID LoraMessageDestination
 #define MESSAGE_SOURCE_SOLID LoraMessageSource
 
-#define ver F("2.1." REV_ID) //Wind station Version 2.0
+#define ver F("2.2." REV_ID)
 #define STATUS_MESSAGE F(" SierraGliding Weather Station. github.com/BarryPSmith/SierraGliding for source. SierraGliding.us for location. This station identified by first three bytes=XW")
 
 //Station Specific Constants

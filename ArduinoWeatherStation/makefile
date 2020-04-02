@@ -14,11 +14,13 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 4: Flynns Rev 2
 # 5: Dorji Modem
 # 6: First attempt at a printed PCB
-BOARD = 6
+# 7: Second printed PCB (includes battery PWM circuitry)
+BOARD = 7
 include Boards.makefile
 
 #Flags, etc.
-DEFINES=$(BOARD_DEFINES) -DARDUINO=100 #-DRADIOLIB_DEBUG 
+DEFINES=$(BOARD_DEFINES) -DARDUINO=100
+#-DRADIOLIB_DEBUG 
 #-DRADIOLIB_VERBOSE
 CFLAGS= -mcall-prologues -mmcu=$(MCU) -Os -fdata-sections -ffunction-sections -fno-exceptions -flto -std=c++17 -g
 LDFLAGS=-Wl,--gc-sections -Wl,--relax
@@ -73,7 +75,7 @@ else
 SRCS_C = ArduinoWeatherStation.cpp Commands.cpp MessageHandling.cpp \
 		 LoraMessaging.cpp WeatherProcessing.cpp MessagingCommon.cpp \
 		 delay.c millis.cpp TimerTwo.cpp PermanentStorage.cpp StackCanary.cpp \
-		 RemoteProgramming.cpp \
+		 RemoteProgramming.cpp PWMSolar.cpp \
 		 $(LIBRARIES)
 endif
 

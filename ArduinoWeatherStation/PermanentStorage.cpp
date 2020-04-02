@@ -31,19 +31,26 @@ void PermanentStorage::initialise()
 {
   bool initialised;
   GET_PERMANENT_S(initialised);
+
+  // If possible we use the stored stationID regardless of initialised or CRC check - this helps keep stationID constant across upgrades..
+  GET_PERMANENT_S(stationID);
+  if (stationID < 1 || stationID & 0x80)
+  {
+    AWS_DEBUG_PRINTLN("Using default station ID");
+    stationID = defaultStationID;
+    SET_PERMANENT_S(stationID);
+  }
+
   if (!initialised || !checkCRC())
   {
     AWS_DEBUG_PRINTLN(F("Initialising Default Parameters"));
+
     initialised = true;
     const long shortInterval = 4000;// - 90 * (stationID - '1');
     const long longInterval = 4000;// - 90 * (stationID - '1'); //longInterval == shortInterval because it turns out the transmit is negligble draw.
     const unsigned short batteryThreshold_mV = 4000;
     const unsigned short batteryUpperThresh_mV = 4700;
     // These default tsOffset / tsGain values correspond to the datasheet example values on page 215.
-    signed char tsOffset = -75;
-    byte tsGain = 164;
-    int wdCalibMin = 0;
-    int wdCalibMax = 1023;
     const bool demandRelay = false;
     const byte emptyBuffer[permanentArraySize] = { 0 };
 
@@ -55,7 +62,16 @@ void PermanentStorage::initialise()
     const unsigned long csmaTimeslot = 4000; // 4ms
     const unsigned short outboundPreambleLength = 128; // allow end nodes to spend most of their time asleep.
 
-    SET_PERMANENT_S(stationID);
+    signed char tsOffset = -75;
+    byte tsGain = 164;
+    int wdCalibMin = 0;
+    int wdCalibMax = 1023;
+
+    unsigned short chargeVoltage_mV = 4000,
+      chargeResponseRate = 256,
+      safeFreezingChargeLevel_mV = 3700;
+    byte safeFreezingPwm = 255;
+
     SET_PERMANENT_S(shortInterval);
     SET_PERMANENT_S(longInterval);
     SET_PERMANENT_S(batteryThreshold_mV);
@@ -75,12 +91,18 @@ void PermanentStorage::initialise()
     SET_PERMANENT_S(tsGain);
     SET_PERMANENT_S(wdCalibMin);
     SET_PERMANENT_S(wdCalibMax);
+
+    SET_PERMANENT_S(chargeVoltage_mV);
+    SET_PERMANENT_S(chargeResponseRate);
+    SET_PERMANENT_S(safeFreezingChargeLevel_mV);
+    SET_PERMANENT_S(safeFreezingPwm);
     setCRC();
   }
   else
   {
-    GET_PERMANENT_S(stationID);
 #if DEBUG
+    AWS_DEBUG_PRINTLN(F("Using saved parameters"));
+
     long shortInterval;
     long longInterval;
     unsigned short batteryThreshold_mV,
@@ -91,6 +113,8 @@ void PermanentStorage::initialise()
     signed char tsOffset;
     byte tsGain;
     int wdCalibMin, wdCalibMax;
+    unsigned short chargeVoltage_mV, chargeResponseRate, safeFreezingChargeLevel_mV;
+    byte safeFreezingPwm;
 
     GET_PERMANENT_S(shortInterval);
     GET_PERMANENT_S(longInterval);
@@ -98,10 +122,8 @@ void PermanentStorage::initialise()
     GET_PERMANENT_S(batteryUpperThresh_mV);
     GET_PERMANENT_S(tsOffset);
     GET_PERMANENT_S(tsGain);
-    GET_PERMANENT2(buffer, stationsToRelayWeather);
     GET_PERMANENT_S(initialised);
 
-    AWS_DEBUG_PRINTLN(F("Using saved parameters"));
     PRINT_VARIABLE(stationID);
     PRINT_VARIABLE(initialised);
     PRINT_VARIABLE(shortInterval);
@@ -155,6 +177,15 @@ void PermanentStorage::initialise()
     GET_PERMANENT_S(wdCalibMax);
     PRINT_VARIABLE(wdCalibMin);
     PRINT_VARIABLE(wdCalibMax);
+
+    GET_PERMANENT_S(chargeVoltage_mV);
+    GET_PERMANENT_S(chargeResponseRate);
+    GET_PERMANENT_S(safeFreezingChargeLevel_mV);
+    GET_PERMANENT_S(safeFreezingPwm);
+    PRINT_VARIABLE(chargeVoltage_mV);
+    PRINT_VARIABLE(chargeResponseRate);
+    PRINT_VARIABLE(safeFreezingChargeLevel_mV);
+    PRINT_VARIABLE(safeFreezingPwm);
 #endif
   }
   _initialised = true;

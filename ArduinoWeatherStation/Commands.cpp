@@ -5,6 +5,7 @@
 #include "PermanentStorage.h"
 #include "WeatherProcessing.h"
 #include "RemoteProgramming.h"
+#include "PWMSolar.h"
 
 namespace Commands
 {
@@ -14,6 +15,7 @@ namespace Commands
   bool handleRelayCommand(MessageSource& msg);
   bool handleIntervalCommand(MessageSource& msg);
   bool handleThresholdCommand(MessageSource& msg);
+  bool handleChargingCommand(MessageSource& msg);
   bool handleIDCommand(MessageSource& msg, bool demandRelay, byte uniqueID);
   bool handleQueryCommand(MessageSource& msg, bool demandRelay, byte uniqueID);
   void handleQueryConfigCommand(MessageDestination& response);
@@ -61,6 +63,10 @@ namespace Commands
 
         case 'B': //Battery threshold command
           handled = handleThresholdCommand(msg);
+        break;
+
+        case 'C':
+          handled = handleChargingCommand(msg);
         break;
 
         case 'Q': //Query
@@ -292,6 +298,34 @@ namespace Commands
     if (msg.read(batteryThreshold_mV))
       return false;
     SET_PERMANENT_S(batteryThreshold_mV);
+    return true;
+  }
+
+  bool handleChargingCommand(MessageSource& msg)
+  {
+    unsigned short chargeVoltage_mV;
+    unsigned short chargeResponseRate;
+    unsigned short safeFreezingChargeLevel_mV;
+    byte safeFreezingPwm;
+    if (msg.read(chargeVoltage_mV))
+      return false;
+    if (msg.read(chargeResponseRate))
+      return false;
+    if (msg.read(safeFreezingChargeLevel_mV))
+      return false;
+    if (msg.read(safeFreezingPwm))
+      return false;
+
+    SET_PERMANENT_S(chargeVoltage_mV);
+    SET_PERMANENT_S(chargeResponseRate);
+    SET_PERMANENT_S(safeFreezingChargeLevel_mV);
+    SET_PERMANENT_S(safeFreezingPwm);
+
+    PwmSolar::chargeVoltage_mV = chargeVoltage_mV;
+    PwmSolar::chargeResponseRate = chargeResponseRate;
+    PwmSolar::safeFreezingChargeLevel_mV = safeFreezingChargeLevel_mV;
+    PwmSolar::safeFreezingPwm = safeFreezingPwm;
+    
     return true;
   }
 

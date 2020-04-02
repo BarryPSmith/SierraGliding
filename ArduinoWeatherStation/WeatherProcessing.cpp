@@ -5,7 +5,7 @@
 #include "PermanentStorage.h"
 #include <avr/boot.h>
 
-#define DEBUG_WEATHER
+//#define DEBUG_WEATHER
 #ifdef DEBUG_WEATHER
 #define WEATHER_PRINT AWS_DEBUG_PRINT
 #define WEATHER_PRINTLN AWS_DEBUG_PRINTLN
@@ -28,6 +28,9 @@ namespace WeatherProcessing
   volatile bool weatherRequired = true;
   unsigned volatile long tickCounts = 0;
   unsigned long requiredTicks = 100;
+
+  short internalTemperature;
+  float externalTemperature;
 
   #ifdef WIND_DIR_AVERAGING
   float curWindX = 0, curWindY = 0;
@@ -70,7 +73,11 @@ namespace WeatherProcessing
     WEATHER_PRINTVAR(curWindX);
     WEATHER_PRINTVAR(curWindY);
     if (curWindX != 0 || curWindY != 0)
-      return (byte)((atan2(curWindX, curWindY) / (2 * PI) + 0.5)* 255);
+    {
+      auto ret = (byte)((atan2(-curWindX, -curWindY) / (2 * PI) + 0.5)* 255);
+      curWindX = curWindY = 0;
+      return ret;
+    }
     else
       return getCurWindDirection();
 #else
@@ -212,6 +219,9 @@ namespace WeatherProcessing
     //NW 224
     //NNW 240
     int wdVoltage = analogRead(windDirPin);
+#ifdef INVERSE_AD_WIND
+    wdVoltage = 1023 - wdVoltage;
+#endif
     WEATHER_PRINTVAR(wdVoltage);
     if (wdVoltage < 168)
       return 80;  // 5 (ESE)
@@ -331,11 +341,11 @@ namespace WeatherProcessing
     else
       simpleMessagesSent++;
     #ifdef WIND_PWR_PIN
-    digitalWrite(WIND_PWR_PIN, LOW);
+    //digitalWrite(WIND_PWR_PIN, LOW);
     #endif
   #ifdef DEBUG
     unsigned long weatherPrepMicros = micros() - entryMicros;
-    WEATHER_PRINTVAR(weatherPrepMicros);
+    //WEATHER_PRINTVAR(weatherPrepMicros);
   #endif
   #if 1
     WEATHER_PRINTLN(F("  ======================"));
@@ -436,6 +446,10 @@ namespace WeatherProcessing
       byte wd = getCurWindDirection();
       curWindX += sin(2 * PI * wd / 255);
       curWindY += cos(2 * PI * wd / 255);
+      WEATHER_PRINTVAR(windCounts);
+      WEATHER_PRINTVAR(wd);
+      WEATHER_PRINTVAR(curWindX);
+      WEATHER_PRINTVAR(curWindY);
     }
     #endif
   }
@@ -522,13 +536,16 @@ namespace WeatherProcessing
     ADMUX = oldMux;
     delay(1);
 
+#if 0
     WEATHER_PRINT("Weather reading: ");
     WEATHER_PRINTLN(ADC);
     WEATHER_PRINTVAR(tsOffset);
     WEATHER_PRINTVAR(tsGain);
+#endif
 
-    int temp_x2_offset = (((long)ADC + tsOffset - (273 + 100)) * 256) / tsGain + 100 * 2;
-    temp_x2_offset += 64;
+    int temp_x2 = (((long)ADC + tsOffset - (273 + 100)) * 256) / tsGain + 100 * 2;
+    internalTemperature = temp_x2 / 2;
+    int temp_x2_offset = temp_x2 + 64;
     if (temp_x2_offset < 0)
       temp_x2_offset = 0;
     if (temp_x2_offset > 255)
@@ -554,12 +571,17 @@ namespace WeatherProcessing
     constexpr float T0 = 273.15 + 25;
     float T = 1/(1/T0 - invB * log(r2_r1));
 
+#if 0
     WEATHER_PRINTVAR(tempReading);
     WEATHER_PRINTVAR(r2_r1);
     WEATHER_PRINTVAR(log(r2_r1));
     WEATHER_PRINTVAR(T);
+#endif
 
     T -= 273.15;
+    
+    externalTemperature = T;
+
     //We send temperature as a byte, ranging from -32 to 95 C (1 LSB = half a degree)
     if (T < -32)
       T = -32;

@@ -8,4 +8,7 @@ namespace WeatherProcessing
   void createWeatherData(MessageDestination& message);
   bool handleWeatherCommand(MessageSource& src);
   extern volatile bool weatherRequired;
+
+  extern short internalTemperature;
+  extern float externalTemperature;
 }

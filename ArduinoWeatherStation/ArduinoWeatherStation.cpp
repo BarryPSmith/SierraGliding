@@ -11,6 +11,7 @@
 #include "PermanentStorage.h"
 #include "StackCanary.h"
 #include "RemoteProgramming.h"
+#include "PWMSolar.h"
 
 unsigned long weatherInterval = 2000; //Current weather interval.
 unsigned long overrideStartMillis;
@@ -125,7 +126,6 @@ void setup() {
   wdt_enable(WDTO_8S);
   WDTCSR |= (1 << WDIE);
 
-  WeatherProcessing::setupWeatherProcessing();
 #ifdef DEBUG
   Serial.begin(tncBaud);
 #else //Use the serial LEDs as status lights:
@@ -155,6 +155,11 @@ void setup() {
   digitalWrite(FLASH_SELECT, HIGH);
 
   PermanentStorage::initialise();
+  #ifdef SOLAR_PWM
+  PwmSolar::setupPwm();
+  #endif
+
+  WeatherProcessing::setupWeatherProcessing();
   if (!RemoteProgramming::remoteProgrammingInit())
   {
     AWS_DEBUG_PRINTLN(F("!! Remote programming failed to initialise !!"));
@@ -202,8 +207,13 @@ void loop() {
   WeatherProcessing::weatherRequired = false;
   interrupts();
 
+  
   #ifdef DEBUG
   messageDebugAction();
+  #endif
+
+  #ifdef SOLAR_PWM
+  PwmSolar::doPwmLoop();
   #endif
   
   if (localWeatherRequired)

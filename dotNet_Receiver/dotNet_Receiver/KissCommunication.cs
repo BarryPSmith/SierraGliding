@@ -146,11 +146,15 @@ namespace core_Receiver
             List<byte> curPacket = new List<byte>();
             if (!_writeQueue.TryAdd(stream, new ConcurrentQueue<(byte[] data, byte writeType)>()))
                 throw new InvalidOperationException($"Already connected to stream '{stream}.");
+
+            DateTimeOffset lastNpsTimestamp = DateTimeOffset.MinValue;
+            bool npsNeedsTimestamp = true;
+
             for (var curByte = ReadOrWriteStream(stream); curByte != -1; curByte = ReadOrWriteStream(stream))
             {
                 if (_disconnectRequested)
                     break;
-                
+
                 if (curByte == FEND)
                 {
                     if (inPacket)
@@ -183,7 +187,13 @@ namespace core_Receiver
 
                 if (!inPacket)
                 {
+                    if (npsNeedsTimestamp && (DateTimeOffset.Now - lastNpsTimestamp) > TimeSpan.FromSeconds(1))
+                    {
+                        var timestamp = Encoding.UTF8.GetBytes($"{DateTime.Now}: ");
+                        NonPacketStream?.Write(timestamp, 0, timestamp.Length);
+                    }
                     NonPacketStream?.WriteByte((byte)curByte);
+                    npsNeedsTimestamp = curByte == '\n';
                     continue;
                 }
 

@@ -12,7 +12,35 @@ namespace core_Receiver
     {
         class ProgrammerInterpreter
         {
-            
+            public const string Help =
+@"Programmer Regex:
+P(?<id>\d*)(\.(?<method>\w+))?(\s+(?<argstring>.+))?
+If id is not present, uses P0
+
+Initialisation:
+P(?<id>\d*) (?<Filename>.+)
+
+Commands:
+ P            Display programmer info.
+ P.Cancel     Cancels the current command
+ P.Go         Performs Init, Bulk, Complete (optionally Confirm)
+              First parameter: List of stationIDs. Comma separated numbers. No Zero.
+              Second parameter (opt): Timeout in seconds for entire command.
+              Third parameter (opt): 'True' to perform Confirm.
+
+These commands all take a single station ID as their parameter
+ P.Init       Initialise a station to receive the image.
+ P.Bulk       Performs a bulk upload. 
+ P.Complete   Uploads until a station has a complete image.
+ P.Confirm    Instructs a station with a complete image to use that image.
+ P.Query      Query a station for current image status.
+ P.ReadRemote Reads the image present on a remote station (For debugging)
+
+Adjust programmer settings
+ P.Timeout    Sets the timeout for each message, in seconds.
+ P.Interval   Sets the interval between message, in seconds.
+";
+
             readonly Dictionary<int, ProgrammerWrapper> _programmers = new Dictionary<int, ProgrammerWrapper>();
             readonly KissCommunication _comminucator;
             private TextWriter _outWriter = Console.Out;

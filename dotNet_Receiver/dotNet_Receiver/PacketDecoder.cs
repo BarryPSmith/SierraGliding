@@ -12,34 +12,6 @@ namespace core_Receiver
 
     enum BasicResponse { OK, Ignored };
 
-
-
-
-#if false
-    /// <summary>
-    /// We were getting electrical noise on the wind speed counter.
-    /// This data format was used to confirm what was going on. There was no proper protocol. It will likely change in the future
-    /// </summary>
-    class WindSpeedDebugPacket : Packet
-    {
-        public byte packetNumber;
-        public byte bufferLocation;
-        public byte[] data;
-
-        public override string ToString()
-        {
-            StringBuilder sb = new StringBuilder();
-            sb.Append($"_{packetNumber}:{bufferLocation:X2}_,");
-            for (int i = 0; i + 1 < data.Length; i += 2)
-            {
-                ushort value = BitConverter.ToUInt16(data, i);
-                sb.Append($"{value},");
-            }
-            return sb.ToString();
-        }
-    }
-#endif
-
     static class PacketDecoder
     {
         public static Dictionary<byte, string> RecentCommands { get; } = new Dictionary<byte, string>();
@@ -77,7 +49,7 @@ namespace core_Receiver
             switch (ret.type)
             {
                 case PacketTypes.Modem:
-                    ret.packetData = new ModemResponse(bytes.AsSpan(cur));
+                    ret.packetData = new ModemResponse(bytes.AsSpan(dataStart));
                     break;
                 case PacketTypes.Weather:
                     ret.packetData = DecodeWeatherPackets(bytes.AsSpan(cur));

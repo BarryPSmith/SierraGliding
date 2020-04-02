@@ -119,7 +119,9 @@ Arguments:
             }
             else if (!npsFn.Equals("DISCARD", StringComparison.OrdinalIgnoreCase))
             {
-                _nps = npsFs = new FileStream(npsFn, FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete, 4096);
+                npsFs = new FileStream(npsFn, FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete, 4096);
+                _nps = Stream.Synchronized(npsFs);
+                FlushForever(_nps);
             }
             _dataReceiver.NonPacketStream = _nps;
 
@@ -144,6 +146,13 @@ Arguments:
                     npsFs.Close();
                 }
             }
+        }
+
+        private static void FlushForever(Stream str)
+        {
+            Task.Delay(1000)
+                .ContinueWith(notUsed => str.Flush())
+                .ContinueWith(notUsed => FlushForever(str));
         }
 
         private static void RunNonInteractive(string srcAddress, string serialAddress, int serialArgIndex)

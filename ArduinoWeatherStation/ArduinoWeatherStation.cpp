@@ -144,6 +144,7 @@ void setup() {
 #endif // DEBUG
   delay(50);
   
+#ifdef DEBUG_STACK
   if (oldSP >= 0x100)
   {
     AWS_DEBUG_PRINT(F("Previous Stack Pointer: "));
@@ -156,6 +157,7 @@ void setup() {
     }
     AWS_DEBUG_PRINTLN();
   }
+#endif
   AWS_DEBUG_PRINTLN(F("Starting..."));
 
   pinMode(SX_SELECT, OUTPUT);

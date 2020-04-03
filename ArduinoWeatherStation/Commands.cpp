@@ -7,10 +7,21 @@
 #include "RemoteProgramming.h"
 #include "PWMSolar.h"
 
+#ifdef DEBUG_COMMANDS
+#define COMMAND_PRINT AWS_DEBUG_PRINT
+#define COMMAND_PRINTLN AWS_DEBUG_PRINTLN
+#define COMMAND_PRINTVAR PRINT_VARIABLE
+#else
+#define COMMAND_PRINT(...)  do { } while (0)
+#define COMMAND_PRINTLN(...)  do { } while (0)
+#define COMMAND_PRINTVAR(...)  do { } while (0)
+#endif
+
 namespace Commands
 {
   //We keep track of recently handled commands to avoid executing the same command multiple times
   byte recentlyHandledCommands[MessageHandling::recentArraySize];
+  byte curCmdIndex = 0;
 
   bool handleRelayCommand(MessageSource& msg);
   bool handleIntervalCommand(MessageSource& msg);
@@ -25,20 +36,19 @@ namespace Commands
 
   void handleCommandMessage(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific)
   {
-    int i;
     //Check if we've already handled this command:
-    for (i = 0; i < MessageHandling::recentArraySize; i++)
+    if (uniqueID != 0)
     {
-      if (!recentlyHandledCommands[i])
-        break;
-      if (recentlyHandledCommands[i] == uniqueID)
-        return;
+      for (int i = 0; i < MessageHandling::recentArraySize; i++)
+      {
+        if (recentlyHandledCommands[i] == uniqueID)
+          return;
+      }
+      //Remember that we've handled this command:
+      recentlyHandledCommands[curCmdIndex++] = uniqueID;
+      if (curCmdIndex >= MessageHandling::recentArraySize)
+        curCmdIndex = 0;
     }
-    if (i == MessageHandling::recentArraySize)
-      i--;
-    //Remember that we've handled this command:
-    memmove(recentlyHandledCommands + 1, recentlyHandledCommands, i);
-    recentlyHandledCommands[0] = uniqueID;
 
     //Can't delay with streaming messages. Perhaps a short delay before committing our response.
 
@@ -48,8 +58,8 @@ namespace Commands
 
     if (msg.readByte(command) == MESSAGE_OK)
     {
-      AWS_DEBUG_PRINT(F("Command Received: "));
-      AWS_DEBUG_PRINTLN((char)command);
+      COMMAND_PRINT(F("Command Received: "));
+      COMMAND_PRINTLN((char)command);
 
       switch (command)
       {
@@ -93,25 +103,6 @@ namespace Commands
         case 'U': // Change ID
           handled = handleIDCommand(msg, demandRelay, uniqueID);
           break;
-
-        #if DEBUG_Speed
-        case 'S':
-          handled = true;
-          speedDebugging = !speedDebugging;
-          acknowledgeMessage(message);
-          break;
-        case 'W':
-          handled = true;
-          countWind();
-          acknowledgeMessage(message);
-          break;
-        #endif
-        #if DEBUG_Direction
-        case 'E':
-          handled = true;
-          directionDebugging = !directionDebugging;
-          acknowledgeMessage(message);
-        #endif
 
         default:
         //do nothing. handled = false, so we send "IGNORED"
@@ -187,17 +178,8 @@ namespace Commands
       {
         bool removed = false;
         for (int i = 0; i < MessageHandling::recentArraySize; i++)
-        {
-          if (!list[i])
-            break;
           if (list[i] == statID)
-          {
-            memmove(list + i, list + i + 1, MessageHandling::recentArraySize - i - 1);
-            removed = true;
-          }
-        }
-        if (removed)
-          list[i - 1] = 0;
+            list[i] = 0;
       }
     }
     SET_PERMANENT(stationsToRelayWeather);
@@ -208,43 +190,11 @@ namespace Commands
   //Interval command: C(ID)(UID)I(length)(new short interval)(new long interval)
   bool handleIntervalCommand(MessageSource& msg)
   {
-    byte dataLength;
-    if (msg.readByte(dataLength) || dataLength == 0)
-      return false;
-
     unsigned long shortInterval, longInterval;
-    if (dataLength == 2)
-    {
-      byte tmp;
-      if (msg.readByte(tmp))
-        return false;
-      shortInterval = tmp * 1000;
-      if (msg.readByte(tmp))
-        return false;
-      longInterval = tmp * 1000;
-    }
-    else if (dataLength == 4)
-    {
-      uint16_t tmp;
-      if (msg.read(tmp))
-        return false;
-      shortInterval = tmp * 1000;
-      if (msg.read(tmp))
-        return false;
-      longInterval = tmp * 1000;
-    }
-    else if (dataLength == 8)
-    {
-      //Use a temporary variable for in case we encounter an error halfway through reading.
-      unsigned long tmp;
-      if (msg.read(tmp))
-        return false;
-      shortInterval = tmp;
-      if (msg.read(tmp))
-        return false;
-      longInterval = tmp;
-    }
-    else
+    
+    if (msg.read(shortInterval))
+      return false;
+    if (msg.read(longInterval))
       return false;
 
     SET_PERMANENT_S(shortInterval);
@@ -273,18 +223,7 @@ namespace Commands
     if (msg.read(val))
       return false;
 
-    unsigned long multiplier = 1000;
-    byte multByte;
-    if (!msg.readByte(multByte))
-    {
-      switch (multByte)
-      {
-      case 'H':
-        multiplier = 3600000;
-      case 'M':
-        multiplier = 60000;
-      }
-    }
+    constexpr unsigned long multiplier = 1000;
 
     overrideDuration = val * multiplier;
     overrideStartMillis = millis();
@@ -338,16 +277,19 @@ namespace Commands
       queryType = 'C';
   
     MESSAGE_DESTINATION_SOLID response(false);
+    byte headerStart[4];
+    
     if (responseDemandRelay)
-      response.appendByte('K' | 0x80);
+      headerStart[0] = ('K' | 0x80);
     else
-      response.appendByte('K');
-    response.appendByte(stationID);
-    response.appendByte(uniqueID);
+      headerStart[0] = ('K');
+    headerStart[1] = (stationID);
+    headerStart[2] = (uniqueID);
 
     //Version (a few bytes)
-    response.appendByte('V');
-    response.append(ver, strlen_P((const char*)ver));
+    headerStart[3] = ('V');
+    response.append(headerStart, 4);
+    response.append(ver, ver_size);
     response.appendByte(0);
 
     switch (queryType)
@@ -391,10 +333,6 @@ namespace Commands
     response.appendByte('S');
     for (int i = 0; i < MessageHandling::recentArraySize; i++)
     {
-      if (!MessageHandling::recentlySeenStations[i].id)
-      {
-        break;
-      }
       response.appendT(MessageHandling::recentlySeenStations[i]);
     }
     response.appendByte(0);
@@ -403,8 +341,6 @@ namespace Commands
     response.appendByte('C');
     for (int i = 0; i < MessageHandling::recentArraySize; i++)
     {
-      if (!recentlyHandledCommands[i])
-        break;
       response.appendByte(recentlyHandledCommands[i]);
     }
     response.appendByte(0);
@@ -413,8 +349,6 @@ namespace Commands
     response.appendByte('R');
     for (int i = 0; i < MessageHandling::recentArraySize; i++)
     {
-      if (!MessageHandling::recentlyRelayedMessages[i].type)
-        break;
       response.appendT(MessageHandling::recentlyRelayedMessages[i]);
     }
     response.appendByte(0);
@@ -451,8 +385,6 @@ namespace Commands
         newID = random(1, 127);
         for (int i = 0; i < MessageHandling::recentArraySize; i++)
         {
-          if (!MessageHandling::recentlySeenStations[i].id)
-            break;
           if (MessageHandling::recentlySeenStations[i].id == newID)
           {
             duplicate = true;

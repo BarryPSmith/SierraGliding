@@ -28,16 +28,28 @@ void AwsRecordState(int i);
 #define TX_PRINT AWS_DEBUG_PRINT
 #define TX_PRINTLN AWS_DEBUG_PRINTLN
 #define TX_PRINTVAR PRINT_VARIABLE
+#define TX_DEBUG(...) __VA_ARGS__
 #else
 #define TX_PRINT(...) do { } while (0)
 #define TX_PRINTLN(...) do { } while (0)
 #define TX_PRINTVAR(...) do { } while (0)
+#define TX_DEBUG(...) do { } while (0)
 #endif
 
 #define MESSAGE_DESTINATION_SOLID LoraMessageDestination
 #define MESSAGE_SOURCE_SOLID LoraMessageSource
 
-#define ver F("2.2." REV_ID)
+#define ver_str "2.2." REV_ID
+#define ver F(ver_str)
+#define ver_size (sizeof(ver_str) - 1)
+
+/*extern const PROGMEM char verPM[] = "2.2." REV_ID;
+inline constexpr byte verS = sizeof(verPM);
+#define ver reinterpret_cast<__FlashStringHelper *>(verPM);*/
+
+/*inline constexpr char verC[] = "2.2." REV_ID;
+inline constexpr byte verS = sizeof(verC);
+inline constexpr __FlashStringHelper verF = F(verC);*/
 #define STATUS_MESSAGE F(" SierraGliding Weather Station. github.com/BarryPSmith/SierraGliding for source. SierraGliding.us for location. This station identified by first three bytes=XW")
 
 //Station Specific Constants

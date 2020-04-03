@@ -56,20 +56,19 @@ class CSMAWrapper
     }
 
     int16_t transmit(uint8_t* data, size_t len, uint16_t preambleLength, uint8_t addr = 0) {
-      
-      auto entryMicros = micros();
+      TX_DEBUG(auto entryMicros = micros());
       LORA_CHECK(delayCSMA());
-      auto delayMicros = micros() - entryMicros;
+      TX_DEBUG(auto delayMicros = micros() - entryMicros);
       
       auto ret = _base->setPreambleLength(preambleLength);
-      auto preambleMicros = micros() - entryMicros;
+      TX_DEBUG(auto preambleMicros = micros() - entryMicros);
       if (ret != ERR_NONE)
         return ret;
       ret = _base->transmit(data, len, addr);
       
-      auto txMicros = micros() - entryMicros;
+      TX_DEBUG(auto txMicros = micros() - entryMicros);
       enterIdleState();
-      auto idleMicros = micros() - entryMicros;
+      TX_DEBUG(auto idleMicros = micros() - entryMicros);
       TX_PRINTVAR(delayMicros);
       TX_PRINTVAR(preambleMicros);
       TX_PRINTVAR(txMicros);

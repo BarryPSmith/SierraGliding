@@ -29,6 +29,8 @@ namespace MessageHandling
   //These arrays use 320 bytes.
   RecentlySeenStation recentlySeenStations[recentArraySize]; //100
   RecentlyRelayedMessage recentlyRelayedMessages[recentArraySize]; //60
+  byte recentlyRelayedMessageIndex = 0;
+  byte recentlySeenStationIndex = 0;
   byte curUniqueID = 0;
 
   byte weatherRelayBuffer[weatherRelayBufferSize]; //100
@@ -136,12 +138,9 @@ namespace MessageHandling
 
       for (int i = 0; i < recentArraySize; i++)
       {
-        if (!stationsToRelayCommands[i])
-          break;
         if (stationsToRelayCommands[i] == msgStatID)
         {
           return true;
-          break;
         }
       }
     }
@@ -151,12 +150,9 @@ namespace MessageHandling
       GET_PERMANENT(stationsToRelayWeather);
       for (int i = 0; i < recentArraySize; i++)
       {
-        if (!stationsToRelayWeather[i])
-          break;
         if (stationsToRelayWeather[i] == msgStatID)
         {
           return true;
-          break;
         }
       }
     }
@@ -168,10 +164,6 @@ namespace MessageHandling
       //Check if we've already relayed this message (more appropriate for command relays than weather)
     for (int i = 0; i < recentArraySize; i++)
     {
-      if (!recentlyRelayedMessages[i].type)
-      {
-        break;
-      }
       if (recentlyRelayedMessages[i].type == msgType &&
           recentlyRelayedMessages[i].stationID == msgStatID &&
           recentlyRelayedMessages[i].msgID == msgUniqueID)
@@ -183,11 +175,12 @@ namespace MessageHandling
   }
 
   void recordMessageRelay(byte msgType, byte msgStatID, byte msgUniqueID)
-  {  
-    memmove(recentlyRelayedMessages + 1, recentlyRelayedMessages, (recentArraySize - 1) * 3);
-    recentlyRelayedMessages[0].type = msgType;
-    recentlyRelayedMessages[0].stationID = msgStatID;
-    recentlyRelayedMessages[0].msgID = msgUniqueID;
+  { 
+    recentlyRelayedMessages[recentlyRelayedMessageIndex].type = msgType;
+    recentlyRelayedMessages[recentlyRelayedMessageIndex].stationID = msgStatID;
+    recentlyRelayedMessages[recentlyRelayedMessageIndex].msgID = msgUniqueID;
+    if (++recentlyRelayedMessageIndex >= recentArraySize)
+      recentlyRelayedMessageIndex = 0;
   }
 
   byte getUniqueID()
@@ -254,28 +247,11 @@ namespace MessageHandling
   }
 
   void recordHeardStation(byte msgStatID)
-  {  
-    int i = 0;
-    for (; i < recentArraySize; i++)
-    {
-      if (!recentlySeenStations[i].id)
-      {
-        break;
-      }
-      if (i < recentArraySize - 1 && recentlySeenStations[i].id ==msgStatID)
-      {
-        memmove(recentlySeenStations + i, 
-                recentlySeenStations + i + 1, 
-                sizeof(RecentlySeenStation) * (recentArraySize - i - 1));
-        i--;
-      }
-    }
-    if (i == recentArraySize)
-      i--;
-    memmove(recentlySeenStations + 1, recentlySeenStations, sizeof(RecentlySeenStation) * i);
-  
-    recentlySeenStations[0].id = msgStatID;
-    recentlySeenStations[0].millis = millis();
+  { 
+    recentlySeenStations[recentlySeenStationIndex].id = msgStatID;
+    recentlySeenStations[recentlySeenStationIndex].millis = millis();
+    if (++recentlySeenStationIndex > recentArraySize)
+      recentlySeenStationIndex = 0;
   }
 
   void sendWeatherMessage()

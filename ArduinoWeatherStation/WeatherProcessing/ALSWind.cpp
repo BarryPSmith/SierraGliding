@@ -1,5 +1,6 @@
 #ifdef ALS_WIND
 #include "WeatherProcessing.h"
+#include "Wind.h"
 #include <Wire.h>
 namespace WeatherProcessing
 {
@@ -53,7 +54,7 @@ namespace WeatherProcessing
   {
     short sX, sY;
     takeReading(&sX, &sY);
-    return (byte)((atan2(-sX, -sY) / (2 * PI) + 0.5) * 255 + 0.5);
+    return atan2ToByte(sX, sY);
   }
   
   void doSampleWind()

@@ -27,11 +27,7 @@ class LoraMessageSource : public MessageSource
     MESSAGE_RESULT seek(const byte newPosition);
 
   private:
-#ifdef MOTEINO_96
-    byte _incomingBuffer[255];
-#else
     byte* _incomingBuffer;
-#endif
     byte _incomingMessageSize;
 };
 
@@ -46,7 +42,7 @@ class LoraMessageDestination : public MessageDestination
     void abort();
     
     static constexpr byte outgoingBufferSize = 255;
-  private:
+  //private:
     byte _outgoingBuffer[outgoingBufferSize];
     bool _isOutbound;
 };

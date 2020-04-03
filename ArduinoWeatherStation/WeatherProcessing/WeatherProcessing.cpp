@@ -63,7 +63,7 @@ namespace WeatherProcessing
     WEATHER_PRINTVAR(curWindY);
     if (curWindX != 0 || curWindY != 0)
     {
-      auto ret = (byte)((atan2(-curWindX, -curWindY) / (2 * PI) + 0.5) * 255 + 0.5);
+      auto ret = atan2ToByte(curWindX, curWindY);
       curWindX = curWindY = 0;
       return ret;
     }
@@ -72,6 +72,13 @@ namespace WeatherProcessing
 #else
     return getCurWindDirection();
 #endif
+  }
+
+  byte __attribute__ ((noinline)) atan2ToByte(float x, float y)
+  {
+    //These two are equivalent, just the implemented one has only one mult operation and only one add operation.
+    //(byte)((atan2(-curWindX, -curWindY) / (2 * PI) + 0.5) * 255 + 0.5);
+    return (byte)(atan2(-x, -y) * (255 / (2 * PI)) + (0.5* 255 + 0.5));
   }
 
   inline uint16_t getWindSpeed_x8()

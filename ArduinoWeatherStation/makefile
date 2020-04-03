@@ -15,7 +15,8 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 5: Dorji Modem
 # 6: First attempt at a printed PCB
 # 7: Second printed PCB (includes battery PWM circuitry)
-BOARD = 7
+# 8: Second printed PCB configured for ALSWind
+BOARD = 8
 include Boards.makefile
 
 #Flags, etc.
@@ -33,6 +34,7 @@ INCLUDES=-I../../ArduinoCore-avr/cores/arduino \
 		 -I../../ArduinoCore-avr/variants/standard \
 		 -I../../ArduinoCore-avr/libraries/SPI/src \
 		 -I../../ArduinoCore-avr/libraries/SoftwareSerial/src \
+		 -I../../ArduinoCore-avr/libraries/Wire/src \
 		 -Ilib/RadioLib/src \
 		 -Ilib/Low-Power \
 		 -Ilib/RadioLib/src \
@@ -54,7 +56,7 @@ ifeq ($(MODEM), 1)
 DEFINES += -DMODEM
 endif
 
-ARDUINO_LIBS=^/SPI/src/SPI.cpp
+ARDUINO_LIBS=^/SPI/src/SPI.cpp ^/Wire/src/Wire.cpp ^/Wire/src/utility/twi.c
 ARDUINO_LIBSWDIRS = \
 				$(patsubst ^/%, ../../ArduinoCore-avr/cores/arduino/%, $(ARDUINO_BASE_LIBS)) \
 				$(patsubst ^/%, ../../ArduinoCore-avr/libraries/%, $(ARDUINO_LIBS))
@@ -73,7 +75,9 @@ SRCS_C = KissModem.cpp MessagingCommon.cpp LoraMessaging.cpp KissMessaging.cpp \
 OBJFOLDER := $(OBJFOLDER)_mod
 else
 SRCS_C = ArduinoWeatherStation.cpp Commands.cpp MessageHandling.cpp \
-		 LoraMessaging.cpp WeatherProcessing.cpp MessagingCommon.cpp \
+		 WeatherProcessing/WeatherProcessing.cpp WeatherProcessing/ADWind.cpp \
+		 WeatherProcessing/DavisWind.cpp WeatherProcessing/ALSWind.cpp \
+		 LoraMessaging.cpp MessagingCommon.cpp \
 		 delay.c millis.cpp TimerTwo.cpp PermanentStorage.cpp StackCanary.cpp \
 		 RemoteProgramming.cpp PWMSolar.cpp \
 		 $(LIBRARIES)

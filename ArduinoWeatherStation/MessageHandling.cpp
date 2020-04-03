@@ -3,7 +3,7 @@
 #include "ArduinoWeatherStation.h"
 #include "LoraMessaging.h"
 #include "MessageHandling.h"
-#include "WeatherProcessing.h"
+#include "WeatherProcessing/WeatherProcessing.h"
 #include "Callsign.h"
 #include "PermanentStorage.h"
 #include <string.h>

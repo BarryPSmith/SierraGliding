@@ -5,7 +5,7 @@
 #include <avr/power.h>
 #include "lib/RadioLib/src/Radiolib.h"
 #include "ArduinoWeatherStation.h"
-#include "WeatherProcessing.h"
+#include "WeatherProcessing/WeatherProcessing.h"
 #include "MessageHandling.h"
 #include "TimerTwo.h"
 #include "PermanentStorage.h"
@@ -62,7 +62,9 @@ void savePower()
   bool pinsInUse[PinCount];
   memset(pinsInUse, 0, PinCount);
       pinsInUse[BATT_PIN] 
+#ifdef WIND_DIR_PIN
     = pinsInUse[WIND_DIR_PIN]
+#endif
     = pinsInUse[WIND_SPD_PIN]
     = pinsInUse[SX_BUSY]
     = pinsInUse[SX_DIO1]
@@ -114,13 +116,20 @@ void TestBoard()
   }
 }
 
-void setup() {
-  unsigned long seed = (unsigned long)analogRead(BATT_PIN) << 10 | 
-                       analogRead(WIND_DIR_PIN);
+void seedRandom()
+{
+  unsigned long seed = (unsigned long)analogRead(BATT_PIN); 
+#ifdef WIND_DIR_PIN
+  seed |= analogRead(WIND_DIR_PIN) << 10 ;
+#endif
 #ifdef TEMP_SENSE
   seed |= (unsigned long)analogRead(TEMP_SENSE) << 20;
 #endif
   randomSeed(seed);
+}
+
+void setup() {
+  seedRandom();
   
   //Enable the watchdog early to catch initialisation hangs (Side note: This limits initialisation to 8 seconds)
   wdt_enable(WDTO_8S);

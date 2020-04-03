@@ -3,7 +3,7 @@
 #include "MessageHandling.h"
 #include "ArduinoWeatherStation.h"
 #include "PermanentStorage.h"
-#include "WeatherProcessing.h"
+#include "WeatherProcessing/WeatherProcessing.h"
 #include "RemoteProgramming.h"
 #include "PWMSolar.h"
 

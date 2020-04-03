@@ -2,7 +2,7 @@
 #include "PermanentStorage.h"
 #include "ArduinoWeatherStation.h"
 #include "PWMSolar.h"
-#include "WeatherProcessing.h"
+#include "WeatherProcessing/WeatherProcessing.h"
 
 #define DEBUG_SOLAR
 #ifdef DEBUG_SOLAR
@@ -27,7 +27,6 @@ namespace PwmSolar
   //the battery voltage we read will be close to the actual battery voltage.
   constexpr unsigned int PwmUpdateInterval_uS = 4000;
 
-  constexpr int voltagePin = BATT_PIN;
   constexpr unsigned long mV_Ref = REF_MV;
   constexpr unsigned long BattVNumerator = BATTV_NUM;
   constexpr unsigned long BattVDenominator = BATTV_DEN;
@@ -87,7 +86,7 @@ namespace PwmSolar
 
   int getNewPwmValue()
   {
-    int batteryVoltageReading = analogRead(voltagePin);
+    int batteryVoltageReading = analogRead(BATT_PIN);
     int batteryVoltage_mV = mV_Ref * BattVNumerator * batteryVoltageReading / (BattVDenominator  * 1023);
     
     int desiredVoltage_mV = getDesiredBatteryVoltage();

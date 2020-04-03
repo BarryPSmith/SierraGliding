@@ -1,25 +1,17 @@
-#include "TimerTwo.h"
-#include "LoraMessaging.h"
+#include "../TimerTwo.h"
+#include "../LoraMessaging.h"
 #include "WeatherProcessing.h"
-#include "ArduinoWeatherStation.h"
-#include "PermanentStorage.h"
+#include "../ArduinoWeatherStation.h"
+#include "../PermanentStorage.h"
+#include "Wind.h"
 #include <avr/boot.h>
 
-//#define DEBUG_WEATHER
-#ifdef DEBUG_WEATHER
-#define WEATHER_PRINT AWS_DEBUG_PRINT
-#define WEATHER_PRINTLN AWS_DEBUG_PRINTLN
-#define WEATHER_PRINTVAR PRINT_VARIABLE
-#else
-#define WEATHER_PRINT(...)  do { } while (0)
-#define WEATHER_PRINTLN(...)  do { } while (0)
-#define WEATHER_PRINTVAR(...)  do { } while (0)
-#endif
-
-#if defined(DAVIS_WIND) && defined(ARGENTDATA_WIND)
+#if (defined(DAVIS_WIND) && defined(ARGENTDATA_WIND)) || \
+    (defined(DAVIS_WIND) && defined(ALS_WIND)) || \
+    (defined(ARGENTDATA_WIND) && defined(ALS_WIND))
 #error Multiple wind systems defined
 #endif
-#if !defined(DAVIS_WIND) && !defined(ARGENTDATA_WIND)
+#if !defined(DAVIS_WIND) && !defined(ARGENTDATA_WIND) && !defined(ALS_WIND)
 #error No wind system defined
 #endif
 
@@ -37,19 +29,11 @@ namespace WeatherProcessing
   volatile bool sampleWind = false;
   #endif
 
-  void calibrateWindDirection();
+
+
   void countWind();
   void timer2Tick();
-  void signalWindCalibration(unsigned long durationRemaining);
-  #ifdef DAVIS_WIND
-  byte getCurWindDirectionDavis();
-  #elif defined(ARGENTDATA_WIND)
-  byte getCurWindDirectionArgentData();
-  #else
-  #error No Wind System Selected
-  #endif
   void updateSendInterval(unsigned short batteryVoltage_mv, bool startup);
-  void updateCanSleep(unsigned short batteryVoltage_mV);
   void setTimerInterval();
   void setupWindCounter();
   byte getExternalTemperature();
@@ -63,9 +47,14 @@ namespace WeatherProcessing
   constexpr unsigned long BattVNumerator = BATTV_NUM;
   constexpr unsigned long BattVDenominator = BATTV_DEN;
   constexpr unsigned long MaxBatt_mV = 7500;
-  constexpr int voltagePin = BATT_PIN;
-  constexpr int windDirPin = WIND_DIR_PIN;
-  constexpr int windSpdPin = WIND_SPD_PIN;
+  
+  static byte simpleMessagesSent = 255;
+  constexpr byte complexMessageFrequency 
+  #ifdef DEBUG
+    = 3;
+  #else
+    = 10;
+  #endif
 
   byte getWindDirection()
   {
@@ -74,7 +63,7 @@ namespace WeatherProcessing
     WEATHER_PRINTVAR(curWindY);
     if (curWindX != 0 || curWindY != 0)
     {
-      auto ret = (byte)((atan2(-curWindX, -curWindY) / (2 * PI) + 0.5)* 255);
+      auto ret = (byte)((atan2(-curWindX, -curWindY) / (2 * PI) + 0.5) * 255 + 0.5);
       curWindX = curWindY = 0;
       return ret;
     }
@@ -85,184 +74,13 @@ namespace WeatherProcessing
 #endif
   }
 
-  byte getCurWindDirection()
-  {
-  #ifdef DAVIS_WIND
-#pragma message "using davis wind"
-    return getCurWindDirectionDavis();
-  #elif ARGENTDATA_WIND
-#pragma message "using ad wind"
-    return getCurWindDirectionArgentData();
-  #endif
-  }
-
-  //Get the wind direction for a davis vane.
-  //Davis vane is a potentiometer sweep. 0 and full resistance correspond to 'north'.
-  //We connect the ends of pot to +VCC and GND. So we just measure the centre pin and it linearly correlates with angle.
-  //We're going to ignore the dead zone for now. Maybe test for it later. But given we intend to replace it all with ultrasonics, probably don't waste time.
-  byte getCurWindDirectionDavis()
-  {
-    int maxVoltage = 1023;
-    int minVoltage = 0;
-    int wdCalibMin, wdCalibMax;
-    int pwrVoltage = 1023;
-    GET_PERMANENT_S(wdCalibMin);
-    GET_PERMANENT_S(wdCalibMax);
-  #ifdef WIND_PWR_PIN
-    pwrVoltage = analogRead(WIND_PWR_PIN);
-    WEATHER_PRINTVAR(pwrVoltage);
-  #endif
-    maxVoltage = ((long)wdCalibMax * pwrVoltage) / 1023;
-    minVoltage = ((long)wdCalibMin * pwrVoltage) / 1023;
-    int voltageDiff = maxVoltage - minVoltage;
-
-    int wdVoltage = analogRead(windDirPin);
-    WEATHER_PRINT(F("wdVoltage: "));
-    WEATHER_PRINTLN(wdVoltage);
-
-    int scaled = ((long)(wdVoltage - minVoltage + 2) * 255) / voltageDiff; //(The +2 is to make it do nearest rounding. Approximate voltageDiff ~1023)
-    if (scaled < 0)
-      scaled = 0;
-    if (scaled > 255)
-      scaled = 255;
-
-    return scaled;
-  }
-
-  void calibrateWindDirection()
-  {
-  #ifdef ARGENTDATA_WIND
-    return;
-  #endif
-#ifdef WIND_PWR_PIN
-    digitalWrite(WIND_PWR_PIN, HIGH);
-    delayMicroseconds(1000);
-#endif
-    //This must be long enough for an accurate calibration, but not so long that the watchdog kicks in.
-    constexpr unsigned long calibrationDuration = 6000;
-    unsigned long entryMillis = millis();
-    int minValue = 1023;
-    int maxValue = 0;
-    int pwrVoltage = 1023;
-    while (millis() - entryMillis < calibrationDuration)
-    {
-      #ifdef WIND_PWR_PIN
-        pwrVoltage = analogRead(WIND_PWR_PIN);
-        if (pwrVoltage == 0)
-        {
-          WEATHER_PRINTLN(F("Power voltage is zero!"));
-          SIGNALERROR();
-          continue;
-        }
-      #endif
-      int wdVoltageScaled = (analogRead(windDirPin) * 1023L) / pwrVoltage;
-      if (wdVoltageScaled < minValue)
-        minValue = wdVoltageScaled;
-      if (wdVoltageScaled > maxValue)
-        maxValue = wdVoltageScaled;
-
-      signalWindCalibration(calibrationDuration - (millis() - entryMillis));
-    }
-#ifdef WIND_PWR_PIN
-    digitalWrite(WIND_PWR_PIN, LOW);
-#endif
-#ifndef DEBUG
-    signalOff();
-#endif
-    if (maxValue > minValue + 100)
-    {
-      SET_PERMANENT2(&minValue, wdCalibMin);
-      SET_PERMANENT2(&maxValue, wdCalibMax);
-    }
-    else
-    {
-      SIGNALERROR();
-      WEATHER_PRINTLN(F("Calibration failed!"));
-    }
-    WEATHER_PRINTLN(F("Calibration Result: "));
-    WEATHER_PRINTVAR(minValue);
-    WEATHER_PRINTVAR(maxValue);
-  }
-
-  void signalWindCalibration(unsigned long durationRemaining)
-  {
-    WEATHER_PRINT(F("Calibration Time Remaining: "));
-    WEATHER_PRINTLN(durationRemaining);
-    if (durationRemaining < 0)
-      return;
-  #ifndef DEBUG
-    digitalWrite(LED_PIN0, durationRemaining % 2000 < 1000);
-    unsigned long flashDuration = (durationRemaining / 1000) * 250 + 250;
-    digitalWrite(LED_PIN1, durationRemaining % flashDuration > flashDuration / 2);
-  #endif
-  }
-
-  //Get the wind direction for an argent data wind vane (8 distinct directions, sometimes landing between them).
-  //This assumes a 4kOhm resistor in series to form a voltage divider
-  byte getCurWindDirectionArgentData()
-  {
-    //Ver 2: We're going to use the full range of a byte for wind. 0 = N, 255 =~ 1 degree west.
-    //N  0
-    //NNE 16
-    //NE 32
-    //ENE 48
-    //E  64
-    //ESE 80
-    //SE 96
-    //SSE 112
-    //S  128
-    //SSW 144
-    //SW 160
-    //WSW 176
-    //W  192
-    //WNW 208
-    //NW 224
-    //NNW 240
-    int wdVoltage = analogRead(windDirPin);
-#ifdef INVERSE_AD_WIND
-    wdVoltage = 1023 - wdVoltage;
-#endif
-    WEATHER_PRINTVAR(wdVoltage);
-    if (wdVoltage < 168)
-      return 80;  // 5 (ESE)
-    if (wdVoltage < 195)
-      return 48;  // 3 (ENE)
-    if (wdVoltage < 236)
-      return 64;  // 4 (E)
-    if (wdVoltage < 315)
-      return 112;  // 7 (SSE)
-    if (wdVoltage < 406)
-      return 96;  // 6 (SE)
-    if (wdVoltage < 477)
-      return 144;  // 9 (SSW)
-    if (wdVoltage < 570)
-      return 128;  // 8 (S)
-    if (wdVoltage < 662)
-      return 16;  // 1 (NNE)
-    if (wdVoltage < 742)
-      return 32;  // 2 (NE)
-    if (wdVoltage < 808)
-      return 176; // B (WSW)
-    if (wdVoltage < 842)
-      return 160; // A (SW)
-    if (wdVoltage < 889)
-      return 240; // F (NNW)
-    if (wdVoltage < 923)
-      return 0;  // 0 (N)
-    if (wdVoltage < 949)
-      return 208; // D (WNW)
-    if (wdVoltage < 977)
-      return 224; // E (NW)
-    return 192;   // C (W)
-  }
-
   inline uint16_t getWindSpeed_x8()
   {
     noInterrupts();
     int localCounts = windCounts;
     windCounts = 0;
     interrupts();
-  #ifdef ARGENTDATA_WIND
+  #if defined(ARGENTDATA_WIND) || defined(ALS_WIND)
     return (8UL * 2400 * localCounts) / weatherInterval;
   #elif defined(DAVIS_WIND)
     return (8UL * 3600 * localCounts) / weatherInterval;
@@ -282,14 +100,6 @@ namespace WeatherProcessing
       return 255;
   }
 
-  static byte simpleMessagesSent = 255;
-  constexpr byte complexMessageFrequency 
-  #ifdef DEBUG
-    = 3;
-  #else
-    = 10;
-  #endif
-
   void createWeatherData(MessageDestination& message)
   {
   #ifdef DEBUG
@@ -303,12 +113,11 @@ namespace WeatherProcessing
 
     bool isComplex = simpleMessagesSent >= complexMessageFrequency - 1;
 
-
     byte length = isComplex ? 5 : 2;
     message.appendByte(length);
 
     //Message format is W(StationID)(UniqueID)(DirHex)(Spd * 2)(Voltage)
-    int batteryVoltageReading = analogRead(voltagePin);
+    int batteryVoltageReading = analogRead(BATT_PIN);
     unsigned long batt_mV = mV_Ref * BattVNumerator * batteryVoltageReading / (BattVDenominator  * 1023);
   
     auto localCounts = windCounts;
@@ -316,7 +125,6 @@ namespace WeatherProcessing
 
     //Update the send interval only after we calculate windSpeed, because windSpeed is dependent on weatherInterval
     updateSendInterval(batt_mV, false);
-    updateCanSleep(batt_mV);
   
     byte windDirection = getWindDirection();
     message.appendByte(windDirection);
@@ -341,7 +149,7 @@ namespace WeatherProcessing
     else
       simpleMessagesSent++;
     #ifdef WIND_PWR_PIN
-    //digitalWrite(WIND_PWR_PIN, LOW);
+    digitalWrite(WIND_PWR_PIN, LOW);
     #endif
   #ifdef DEBUG
     unsigned long weatherPrepMicros = micros() - entryMicros;
@@ -367,19 +175,6 @@ namespace WeatherProcessing
     }
     WEATHER_PRINTLN(F("  ======================"));
   #endif
-  }
-
-  void updateCanSleep(unsigned short batteryVoltage_mV)
-  {
-  //#ifdef DEBUG
-    sleepEnabled = true;
-    return;
-  //#endif
-    // This is a lazy attempt at battery charge regulation:
-    // If the voltage is too high, increase current consumption by not sleeping.
-    unsigned short batteryUpperThresh_mV;
-    GET_PERMANENT_S(batteryUpperThresh_mV);
-    sleepEnabled = batteryVoltage_mV < batteryUpperThresh_mV;
   }
 
   void updateSendInterval(unsigned short batteryVoltage_mV, bool initial)
@@ -442,25 +237,37 @@ namespace WeatherProcessing
     sampleWind = false;
     sei();
     if (localSample)
-    {
+      doSampleWind();
+    #endif
+  }
+
+#ifndef ALS_WIND
+  void doSampleWind()
+  {
+      #ifdef WIND_PWR_PIN
+        digitalWrite(WIND_PWR_PIN, HIGH);
+        delayMicroseconds(1000); //use delayuS instead of standard to avoid putting the device to sleep.
+      #endif
       byte wd = getCurWindDirection();
+      #ifdef WIND_PWR_PIN
+        digitalWrite(WIND_PWR_PIN, LOW);
+      #endif
       curWindX += sin(2 * PI * wd / 255);
       curWindY += cos(2 * PI * wd / 255);
       WEATHER_PRINTVAR(windCounts);
       WEATHER_PRINTVAR(wd);
       WEATHER_PRINTVAR(curWindX);
       WEATHER_PRINTVAR(curWindY);
-    }
-    #endif
   }
+#endif // !ALS_WIND
 
   void setupWindCounter()
   {
     windCounts = 0;
     //pinMode or digitalWrite should give the same results:
-    pinMode(windSpdPin, INPUT_PULLUP);
+    pinMode(WIND_SPD_PIN, INPUT_PULLUP);
     //digitalWrite(windSpdPin, HIGH);
-    attachInterrupt(digitalPinToInterrupt(windSpdPin), countWind, RISING);
+    attachInterrupt(digitalPinToInterrupt(WIND_SPD_PIN), countWind, RISING);
   }
 
   #if DEBUG_Direction
@@ -490,7 +297,7 @@ namespace WeatherProcessing
     {
       if (millis() - lastMillis < interval)
         continue;
-      data[i++] = analogRead(windDirPin);
+      data[i++] = analogRead(WIND_DIR_PIN);
     }
     size_t messageLen = dataLen * 2 + 3;
     sendMessage(msgBuffer, messageLen, bufferSize);
@@ -500,6 +307,7 @@ namespace WeatherProcessing
 
   void setupWeatherProcessing()
   {
+    initWind();
     updateSendInterval(0, true);
     TimerTwo::attachInterrupt(&timer2Tick);
     setupWindCounter();
@@ -555,9 +363,9 @@ namespace WeatherProcessing
 
   byte getExternalTemperature()
   {
-  #ifndef TEMP_SENSE
-    return 0;
-  #else
+  #ifdef ALS_TEMP
+    T = externalTemperature;
+  #elif defined(TEMP_SENSE)
     auto tempReading = analogRead(TEMP_SENSE);
     // V = Vref * R1 / (R1 + R2)
     // V / (Vref * R1) = 1 / (R1 + R2)
@@ -571,16 +379,12 @@ namespace WeatherProcessing
     constexpr float T0 = 273.15 + 25;
     float T = 1/(1/T0 - invB * log(r2_r1));
 
-#if 0
-    WEATHER_PRINTVAR(tempReading);
-    WEATHER_PRINTVAR(r2_r1);
-    WEATHER_PRINTVAR(log(r2_r1));
-    WEATHER_PRINTVAR(T);
-#endif
-
     T -= 273.15;
     
     externalTemperature = T;
+  #else
+    return 0;
+  #endif
 
     //We send temperature as a byte, ranging from -32 to 95 C (1 LSB = half a degree)
     if (T < -32)
@@ -588,7 +392,6 @@ namespace WeatherProcessing
     if (T > 95)
       T = 95;
     return (T + 0.5 + 32) * 2;
-  #endif
   }
 
   void timer2Tick()

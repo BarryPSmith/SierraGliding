@@ -19,6 +19,10 @@ namespace WeatherProcessing
     Wire.begin();
     Wire.setClock(100000); //100kHz
 
+    // enable writing to the chip:
+    int customerAccessCode = 0x2C413534;
+    write(0x35, &customerAccessCode, 4);
+
     //Set low power mode
     byte data[4];
     read(0x27, data, 4);

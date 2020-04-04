@@ -230,16 +230,7 @@ void loop() {
   if (localWeatherRequired)
   {
     MessageHandling::sendWeatherMessage();
-    #if DEBUG_Speed
-    if (speedDebugging)
-      sendSpeedDebugMessage();
-    #endif
-    #if DEBUG_Direction
-    if (debugThisRound)
-      sendDirectionDebug();
-    debugThisRound = !debugThisRound;
-    #endif
-    AWS_DEBUG_PRINTLN(F("Weather message sent."));
+    WX_PRINTLN(F("Weather message sent."));
   }
   
   if (millis() - lastStatusMillis > millisBetweenStatus)

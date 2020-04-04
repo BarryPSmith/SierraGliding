@@ -16,15 +16,15 @@ namespace WeatherProcessing
     GET_PERMANENT_S(wdCalibMax);
   #ifdef WIND_PWR_PIN
     pwrVoltage = analogRead(WIND_PWR_PIN);
-    WEATHER_PRINTVAR(pwrVoltage);
+    WX_PRINTVAR(pwrVoltage);
   #endif
     maxVoltage = ((long)wdCalibMax * pwrVoltage) / 1023;
     minVoltage = ((long)wdCalibMin * pwrVoltage) / 1023;
     int voltageDiff = maxVoltage - minVoltage;
 
     int wdVoltage = analogRead(WIND_DIR_PIN);
-    WEATHER_PRINT(F("wdVoltage: "));
-    WEATHER_PRINTLN(wdVoltage);
+    WX_PRINT(F("wdVoltage: "));
+    WX_PRINTLN(wdVoltage);
 
     int scaled = ((long)(wdVoltage - minVoltage + 2) * 255) / voltageDiff; //(The +2 is to make it do nearest rounding. Approximate voltageDiff ~1023)
     if (scaled < 0)
@@ -53,7 +53,7 @@ namespace WeatherProcessing
         pwrVoltage = analogRead(WIND_PWR_PIN);
         if (pwrVoltage == 0)
         {
-          WEATHER_PRINTLN(F("Power voltage is zero!"));
+          WX_PRINTLN(F("Power voltage is zero!"));
           SIGNALERROR();
           continue;
         }
@@ -80,17 +80,17 @@ namespace WeatherProcessing
     else
     {
       SIGNALERROR();
-      WEATHER_PRINTLN(F("Calibration failed!"));
+      WX_PRINTLN(F("Calibration failed!"));
     }
-    WEATHER_PRINTLN(F("Calibration Result: "));
-    WEATHER_PRINTVAR(minValue);
-    WEATHER_PRINTVAR(maxValue);
+    WX_PRINTLN(F("Calibration Result: "));
+    WX_PRINTVAR(minValue);
+    WX_PRINTVAR(maxValue);
   }
 
   void signalWindCalibration(unsigned long durationRemaining)
   {
-    WEATHER_PRINT(F("Calibration Time Remaining: "));
-    WEATHER_PRINTLN(durationRemaining);
+    WX_PRINT(F("Calibration Time Remaining: "));
+    WX_PRINTLN(durationRemaining);
     if (durationRemaining < 0)
       return;
   #ifndef DEBUG

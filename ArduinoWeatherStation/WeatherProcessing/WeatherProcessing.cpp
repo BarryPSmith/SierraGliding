@@ -56,11 +56,15 @@ namespace WeatherProcessing
     = 10;
   #endif
 
+  unsigned long lastWindCountMillis;
+  constexpr byte minWindInterval = 3; //Debounce. 330 kph = broken station;
+  constexpr byte windSampleTicks = 100 / TimerTwo::MillisPerTick;
+
   byte getWindDirection()
   {
 #if WIND_DIR_AVERAGING
-    WEATHER_PRINTVAR(curWindX);
-    WEATHER_PRINTVAR(curWindY);
+    WX_PRINTVAR(curWindX);
+    WX_PRINTVAR(curWindY);
     if (curWindX != 0 || curWindY != 0)
     {
       auto ret = atan2ToByte(curWindX, curWindY);
@@ -160,27 +164,27 @@ namespace WeatherProcessing
     #endif
   #ifdef DEBUG
     unsigned long weatherPrepMicros = micros() - entryMicros;
-    //WEATHER_PRINTVAR(weatherPrepMicros);
+    //WX_PRINTVAR(weatherPrepMicros);
   #endif
   #if 1
-    WEATHER_PRINTLN(F("  ======================"));
-    WEATHER_PRINT(F("batteryVoltageReading: "));
-    WEATHER_PRINTLN(batteryVoltageReading);
-    WEATHER_PRINT(F("batt_mV: "));
-    WEATHER_PRINTLN(batt_mV);
-    WEATHER_PRINT(F("Wind Counts: "));
-    WEATHER_PRINTLN(localCounts);
-    WEATHER_PRINT(F("windDirection byte: "));
-    WEATHER_PRINTLN(windDirection);
-    WEATHER_PRINT(F("windSpeed byte: "));
-    WEATHER_PRINTLN(wsByte);
+    WX_PRINTLN(F("  ======================"));
+    WX_PRINT(F("batteryVoltageReading: "));
+    WX_PRINTLN(batteryVoltageReading);
+    WX_PRINT(F("batt_mV: "));
+    WX_PRINTLN(batt_mV);
+    WX_PRINT(F("Wind Counts: "));
+    WX_PRINTLN(localCounts);
+    WX_PRINT(F("windDirection byte: "));
+    WX_PRINTLN(windDirection);
+    WX_PRINT(F("windSpeed byte: "));
+    WX_PRINTLN(wsByte);
     if (isComplex)
     {
-      WEATHER_PRINTVAR(batteryByte);
-      WEATHER_PRINTVAR(externalTempByte);
-      WEATHER_PRINTVAR(internalTempByte);
+      WX_PRINTVAR(batteryByte);
+      WX_PRINTVAR(externalTempByte);
+      WX_PRINTVAR(internalTempByte);
     }
-    WEATHER_PRINTLN(F("  ======================"));
+    WX_PRINTLN(F("  ======================"));
   #endif
   }
 
@@ -209,21 +213,19 @@ namespace WeatherProcessing
 
   void setTimerInterval()
   {
-    WEATHER_PRINT(F("weather interval: "));
-    WEATHER_PRINTLN(weatherInterval);
+    WX_PRINT(F("weather interval: "));
+    WX_PRINTLN(weatherInterval);
     requiredTicks = weatherInterval / TimerTwo::MillisPerTick;
     if (requiredTicks < 1)
     {
-      WEATHER_PRINTLN(F("Required ticks is zero!"));
+      WX_PRINTLN(F("Required ticks is zero!"));
       requiredTicks = 1;
     }
-    WEATHER_PRINT(F("requiredTicks: "));
-    WEATHER_PRINTLN(requiredTicks);
+    WX_PRINT(F("requiredTicks: "));
+    WX_PRINTLN(requiredTicks);
     weatherInterval = requiredTicks * TimerTwo::MillisPerTick;
   }
 
-  unsigned long lastWindCountMillis;
-  constexpr unsigned long minWindInterval = 3; //Debounce. 330 kph = broken station;
   void countWind()
   {
     // debounce the signal:
@@ -261,10 +263,10 @@ namespace WeatherProcessing
       #endif
       curWindX += sin(2 * PI * wd / 255);
       curWindY += cos(2 * PI * wd / 255);
-      WEATHER_PRINTVAR(windCounts);
-      WEATHER_PRINTVAR(wd);
-      WEATHER_PRINTVAR(curWindX);
-      WEATHER_PRINTVAR(curWindY);
+      WX_PRINTVAR(windCounts);
+      WX_PRINTVAR(wd);
+      WX_PRINTVAR(curWindX);
+      WX_PRINTVAR(curWindY);
   }
 #endif // !ALS_WIND
 
@@ -276,41 +278,6 @@ namespace WeatherProcessing
     //digitalWrite(windSpdPin, HIGH);
     attachInterrupt(digitalPinToInterrupt(WIND_SPD_PIN), countWind, RISING);
   }
-
-  #if DEBUG_Direction
-  void sendDirectionDebug()
-  {
-    static unsigned long lastDirectionDebug = 0;
-    //Ensure we don't flood our messaging capabilities. We're sending 500 bytes, this should take about 5 seconds...
-    if (millis() - lastDirectionDebug < 5000)
-      return;
-    if (!directionDebugging)
-    {
-      sleepUntilNextWeather();
-      return;
-    }
-    static byte interval = 1;
-    const size_t bufferSize = 250;
-    byte msgBuffer[bufferSize];
-    byte* msg = msgBuffer + messageOffset;
-    msg[0] = 'D';
-    msg[1] = stationID;
-    msg[2] = getUniqueID();
-    int* data = (int*)(msg + 3);
-    size_t dataLen = (bufferSize - messageOffset - 3 - 15) / sizeof(int); //-15 to allow extra bytes for escaping
-    unsigned long lastMillis = millis();
-    int i = 0;
-    while (i < dataLen)
-    {
-      if (millis() - lastMillis < interval)
-        continue;
-      data[i++] = analogRead(WIND_DIR_PIN);
-    }
-    size_t messageLen = dataLen * 2 + 3;
-    sendMessage(msgBuffer, messageLen, bufferSize);
-    lastDirectionDebug = millis();
-  }
-  #endif
 
   void setupWeatherProcessing()
   {
@@ -352,10 +319,10 @@ namespace WeatherProcessing
     delay(1);
 
 #if 0
-    WEATHER_PRINT("Weather reading: ");
-    WEATHER_PRINTLN(ADC);
-    WEATHER_PRINTVAR(tsOffset);
-    WEATHER_PRINTVAR(tsGain);
+    WX_PRINT("Weather reading: ");
+    WX_PRINTLN(ADC);
+    WX_PRINTVAR(tsOffset);
+    WX_PRINTVAR(tsGain);
 #endif
 
     int temp_x2 = (((long)ADC + tsOffset - (273 + 100)) * 256) / tsGain + 100 * 2;
@@ -371,7 +338,7 @@ namespace WeatherProcessing
   byte getExternalTemperature()
   {
   #ifdef ALS_TEMP
-    T = externalTemperature;
+    float T = externalTemperature;
   #elif defined(TEMP_SENSE)
     auto tempReading = analogRead(TEMP_SENSE);
     // V = Vref * R1 / (R1 + R2)
@@ -392,13 +359,14 @@ namespace WeatherProcessing
   #else
     return 0;
   #endif
-
+#if defined(ALS_TEMP) || defined(TEMP_SENSE)
     //We send temperature as a byte, ranging from -32 to 95 C (1 LSB = half a degree)
     if (T < -32)
       T = -32;
     if (T > 95)
       T = 95;
     return (T + 0.5 + 32) * 2;
+#endif
   }
 
   void timer2Tick()
@@ -408,6 +376,8 @@ namespace WeatherProcessing
       tickCounts = 0;
       weatherRequired = true;
     }
+    if (tickCounts % windSampleTicks == 0)
+      sampleWind = true;
   }
 
   bool handleWeatherCommand(MessageSource& src)

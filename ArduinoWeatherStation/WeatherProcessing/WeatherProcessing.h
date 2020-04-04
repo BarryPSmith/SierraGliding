@@ -3,13 +3,15 @@
 
 //#define DEBUG_WEATHER
 #ifdef DEBUG_WEATHER
-#define WEATHER_PRINT AWS_DEBUG_PRINT
-#define WEATHER_PRINTLN AWS_DEBUG_PRINTLN
-#define WEATHER_PRINTVAR PRINT_VARIABLE
+#define WX_PRINT AWS_DEBUG_PRINT
+#define WX_PRINTLN AWS_DEBUG_PRINTLN
+#define WX_PRINTVAR PRINT_VARIABLE
+#define WX_DEBUG AWS_DEBUG
 #else
-#define WEATHER_PRINT(...)  do { } while (0)
-#define WEATHER_PRINTLN(...)  do { } while (0)
-#define WEATHER_PRINTVAR(...)  do { } while (0)
+#define WX_PRINT(...)  do { } while (0)
+#define WX_PRINTLN(...)  do { } while (0)
+#define WX_PRINTVAR(...)  do { } while (0)
+#define WX_DEBUG(...) do { } while (0)
 #endif
 
 namespace WeatherProcessing

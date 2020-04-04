@@ -12,10 +12,12 @@ void AwsRecordState(int i);
 #define AWS_DEBUG_PRINTLN(...) do { \
                     Serial.println(__VA_ARGS__);  \
                     } while (0)
+#define AWS_DEBUG(...) __VA_ARGS__
 #else
 #define AWS_DEBUG_PRINT(...) do { } while (0)
 #define AWS_DEBUG_PRINTLN(...) do { } while (0)
-#define AWS_RECORD_STATE(A)
+#define AWS_RECORD_STATE(A) do { } while (0)
+#define AWS_DEBUG(...) do { } while (0)
 #endif
 
 #define PRINT_VARIABLE(a) do { \
@@ -28,7 +30,7 @@ void AwsRecordState(int i);
 #define TX_PRINT AWS_DEBUG_PRINT
 #define TX_PRINTLN AWS_DEBUG_PRINTLN
 #define TX_PRINTVAR PRINT_VARIABLE
-#define TX_DEBUG(...) __VA_ARGS__
+#define TX_DEBUG AWS_DEBUG
 #else
 #define TX_PRINT(...) do { } while (0)
 #define TX_PRINTLN(...) do { } while (0)

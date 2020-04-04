@@ -49,6 +49,7 @@ void PermanentStorage::initialise()
     PermanentVariables vars
     {
     .initialised = true,
+    .stationID = stationID,
     .shortInterval = 4000,// - 90 * (stationID - '1');
     .longInterval = 4000,// - 90 * (stationID - '1'); //longInterval == shortInterval because it turns out the transmit is negligble draw.
     .batteryThreshold_mV = 4000,

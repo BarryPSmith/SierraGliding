@@ -232,7 +232,7 @@ Adjust programmer settings
                 _comminucator = comminucator;
             }
 
-            static Regex _programmerRegex = new Regex(@"P(?<id>\d*)(\.(?<method>\w+))?(\s+(?<argstring>.+))?",
+            static readonly Regex _programmerRegex = new Regex(@"P(?<id>\d*)(\.(?<method>\w+))?(\s+(?<argstring>.+))?",
                 RegexOptions.ExplicitCapture | RegexOptions.Compiled);
             public void HandleProgrammingCommand(string cmd)
             {

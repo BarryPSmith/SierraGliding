@@ -436,11 +436,11 @@ namespace core_Receiver
         {
             return crc_ccitt_update2(crc, data);
 
-            data ^= (byte)(crc & 0xFF);
+            /*data ^= (byte)(crc & 0xFF);
             data ^= (byte)(data << 4);
 
             return (UInt16)((((UInt16)data << 8) | (crc & 0xFF00)) ^ (byte)(data >> 4)
-                    ^ ((UInt16)data << 3));
+                    ^ ((UInt16)data << 3));*/
         }
 
         public static UInt16 crc_ccitt_update2(UInt16 crc, byte data)

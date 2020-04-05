@@ -28,7 +28,7 @@ namespace WeatherProcessing
 #ifdef INVERSE_AD_WIND
     wdVoltage = 1023 - wdVoltage;
 #endif
-    WX_PRINTVAR(wdVoltage);
+    //WX_PRINTVAR(wdVoltage);
     if (wdVoltage < 168)
       return 80;  // 5 (ESE)
     if (wdVoltage < 195)

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -51,9 +52,10 @@ namespace core_Receiver
                     return false;
                 case 'h':
                 case 'H':
-                    PrintHelp();
+                    PrintHelp(line);
                     break;
-                case ':': //Commands (TODO)
+                case ':': //Commands
+                    HandleCommand(line);
                     break;
                 case '/': //Simple
                     HandleSimpleLine(line, 0x00);
@@ -76,11 +78,17 @@ namespace core_Receiver
                 switch (line[1])
                 {
                     case '/':
+                        Output.WriteLine(c_slashHelp);
+                        return;
                     case '6':
+                        Output.WriteLine(c_6Help);
+                        return;
                     case ':':
-
+                        Output.WriteLine(c_cmdHelp);
+                        return;
                     case 'P':
-                        break;
+                        Output.WriteLine(ProgrammerInterpreter.Help);
+                        return;
                 }
             }
             Output.WriteLine("Command Line Interface");
@@ -131,12 +139,29 @@ Command starting characters:
  O : Outbound Preamble Length. 2 bytes
  I : Get radio stats. Modem only.";
 
-        
+
         void HandleSimpleLine(string line, byte packetType)
         {
             var reader = new SimpleLineReader(line.Substring(1));
             reader.Go();
-            var data = reader.Encoded;
+            HandleMessage(reader.Encoded, packetType);
+        }
+
+        void HandleCommand(string line)
+        {
+            var reader = new SimpleLineReader(line.Substring(1));
+            reader.Go();
+            var data = reader.Encoded.ToList();
+            if (data.Count < 1)
+                throw new InvalidOperationException("Must specify destination station ID.");
+            data.Insert(0, (byte)'C');
+            //Byte 1 of the encoded data is the destination station ID.
+            data.Insert(2, (byte)_modem.GetNextUniqueID());
+            HandleMessage(data.ToArray(), 0);
+        }
+
+        void HandleMessage(byte[] data, byte packetType)
+        {
             Output.WriteLine("Command: ");
             for (int i = 0; i < data.Length; i++)
                 Output.Write($"{Encoding.ASCII.GetChars(data, i, 1)[0]} {data[i]:X2} ");

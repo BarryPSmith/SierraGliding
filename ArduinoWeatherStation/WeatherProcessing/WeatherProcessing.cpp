@@ -263,10 +263,12 @@ namespace WeatherProcessing
       #endif
       curWindX += sin(2 * PI * wd / 255);
       curWindY += cos(2 * PI * wd / 255);
+#if 0
       WX_PRINTVAR(windCounts);
       WX_PRINTVAR(wd);
       WX_PRINTVAR(curWindX);
       WX_PRINTVAR(curWindY);
+#endif
   }
 #endif // !ALS_WIND
 
@@ -325,7 +327,9 @@ namespace WeatherProcessing
     WX_PRINTVAR(tsGain);
 #endif
 
+    //The point at which tsGain has no effect is at 100C.
     int temp_x2 = (((long)ADC + tsOffset - (273 + 100)) * 256) / tsGain + 100 * 2;
+    // T = ADC * 128 / tsGain + (tsOffset - 373) * 128 / tsGain + 100
     internalTemperature = temp_x2 / 2;
     int temp_x2_offset = temp_x2 + 64;
     if (temp_x2_offset < 0)
@@ -338,8 +342,10 @@ namespace WeatherProcessing
   byte getExternalTemperature()
   {
   #ifdef ALS_TEMP
+  #pragma message("Using ALS Temperature")
     float T = externalTemperature;
   #elif defined(TEMP_SENSE)
+  #pragma message("Using NTC Thermistor")
     auto tempReading = analogRead(TEMP_SENSE);
     // V = Vref * R1 / (R1 + R2)
     // V / (Vref * R1) = 1 / (R1 + R2)
@@ -353,10 +359,18 @@ namespace WeatherProcessing
     constexpr float T0 = 273.15 + 25;
     float T = 1/(1/T0 - invB * log(r2_r1));
 
+    //If tempReading = 1000, r2_r1 is v. small
+    //then log(r2_r1) = large negative
+    //then T = 1/(C - large negative) = 1/(C + large positive) = small!
+    //So at low temperatures we want large reading. Thermistor between sense and GND.
+
     T -= 273.15;
     
     externalTemperature = T;
+
+    //WX_PRINTVAR(tempReading);
   #else
+    #pragma message("No temperature")
     return 0;
   #endif
 #if defined(ALS_TEMP) || defined(TEMP_SENSE)
@@ -387,7 +401,7 @@ namespace WeatherProcessing
       return false;
 
     byte newValue, tsOffset, tsGain;
-    if (commandType == 'O' || commandType == 'G' &&
+    if ((commandType == 'O' || commandType == 'G') &&
         src.readByte(newValue))
       return false;
 

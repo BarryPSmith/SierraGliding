@@ -36,6 +36,8 @@ namespace Commands
 
   void handleCommandMessage(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific)
   {
+    static bool acknowledge = true;
+
     //Check if we've already handled this command:
     if (uniqueID != 0)
     {
@@ -63,6 +65,10 @@ namespace Commands
 
       switch (command)
       {
+        case 'A':
+          handled = (msg.read(acknowledge) == MESSAGE_OK);
+          break;
+
         case 'R': //Relay command
           handled = handleRelayCommand(msg);
           break;
@@ -109,7 +115,7 @@ namespace Commands
         break;
       }
     }
-    if (handled && ackRequired)
+    if (handled && ackRequired && acknowledge)
       acknowledgeMessage(uniqueID, isSpecific, demandRelay);
 
     if (!handled)

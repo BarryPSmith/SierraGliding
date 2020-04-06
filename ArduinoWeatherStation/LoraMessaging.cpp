@@ -25,7 +25,6 @@ void rxDone() { packetWaiting = true; }
 
 void updateIdleState()
 {
-#ifndef MOTEINO_96
   //If we need to relay weather from anyone, we want to listen continuously.
   //We also need to listen continuously if we're set to relay commands: Although commands are sent with a long preamble, acknowledgement is not.
   byte stationsToRelayWeather[permanentArraySize];
@@ -48,9 +47,6 @@ void updateIdleState()
 
   // TODO: We might want to put the unit to sleep entirely if the battery reaches a critical level.
   // (Although we should probably instead work on reducing current draw so it never reaches that level.)
-#else //MOTEINO_96
-  lora.startReceive();
-#endif
 }
 
 void InitMessaging()
@@ -139,6 +135,9 @@ void InitMessaging()
       0 //TCXO voltage
 #endif
     ));
+#ifdef SX_TCXO_STARTUP_US
+    LORA_CHECK(lora.setTCXO_i(SX_TCXOV_X10, SX_TCXO_STARTUP_US));
+#endif
 #endif //!USE_FP
     if (state != ERR_NONE)
     {

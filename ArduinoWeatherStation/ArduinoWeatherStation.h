@@ -25,7 +25,7 @@ void AwsRecordState(int i);
   AWS_DEBUG_PRINTLN(a); \
   } while (0)
 
-//#define DEBUG_TX
+#define DEBUG_TX
 #ifdef DEBUG_TX
 #define TX_PRINT AWS_DEBUG_PRINT
 #define TX_PRINTLN AWS_DEBUG_PRINTLN

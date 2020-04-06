@@ -20,7 +20,7 @@ BOARD = 7
 include Boards.makefile
 
 #Flags, etc.
-DEFINES=$(BOARD_DEFINES) -DARDUINO=100
+DEFINES=$(BOARD_DEFINES) -DARDUINO=100 \
 #-DRADIOLIB_DEBUG 
 #-DRADIOLIB_VERBOSE
 CFLAGS= -mcall-prologues -mmcu=$(MCU) -Os -fdata-sections -ffunction-sections -fno-exceptions -flto -std=c++17 -g

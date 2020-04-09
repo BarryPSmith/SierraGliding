@@ -95,6 +95,8 @@ namespace WeatherProcessing
     return (8UL * 2400 * localCounts) / weatherInterval;
   #elif defined(DAVIS_WIND)
     return (8UL * 3600 * localCounts) / weatherInterval;
+  #else
+    #error Cannot get Wind Speed
   #endif
   }
 
@@ -337,6 +339,13 @@ namespace WeatherProcessing
     if (temp_x2_offset > 255)
       temp_x2_offset = 255;
     return temp_x2_offset;
+
+    // To calibrate internal temperature: Place the external temperature probe in the case with the main board.
+    // Let it run for a while, measuring a variety of temperatures.
+    // Plot External Temp vs Internal Temp. Get a line of best fit in the form ET = A * IT + B
+    // New constants are:
+    // tsGain = tsGain(orig) / A
+    // tsOffset = tsOffset(orig) + tsGain(orig) / (128 * A) * (100 * (A - 1) + B)
   }
 
   byte getExternalTemperature()

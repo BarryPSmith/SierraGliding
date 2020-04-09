@@ -14,7 +14,7 @@ using System.Threading;
 
 namespace core_Receiver
 {
-    class KissCommunication
+    class KissCommunication : ICommunicator
     {
         const byte FEND = 0xC0;
         const byte FESC = 0xDB;
@@ -230,7 +230,7 @@ namespace core_Receiver
                 Console.Error.WriteLine("Unable to remove stream from write queue");
         }
 
-        public void WriteSerial(byte[] data, byte writeType = 0x00)
+        public void Write(byte[] data, byte writeType = 0x00)
         {
             if (!_writeQueue.Any())
                 throw new InvalidOperationException("Serial Stream is not present.");

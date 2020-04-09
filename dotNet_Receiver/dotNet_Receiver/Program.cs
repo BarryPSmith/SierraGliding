@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace core_Receiver
 {
-    class Program
+    static class Program
     {
         const string CallSign = "KN6DUC";
 
@@ -28,17 +28,67 @@ Arguments:
  --db <DB.sqlite>       Database to store data locally. Doesn't work until I get the SQLite stuff sorted.
  --dest <address:port>  Destionation web server. Default http://localhost:4000. Can be specified multiple times to send data to multiple servers.
  --nonPacket <file>     Record the non-packet stream in a particular file. Set to 'DISCARD' to discard the non packet stream.
+ --exposeUDP <incoming> <outgoing> Expose the serial and net streams to UDP on ports incoming and outgoing
+ --connectUDP <outgoing> <incoming> Send and receive via UDP rather than serial or TCP socket
 "
 );
         }
 
-        static readonly KissCommunication _dataReceiver = new KissCommunication();
+        static ICommunicator _dataReceiver;
 
         static public volatile TextWriter ErrorWriter = Console.Error;
         static public volatile TextWriter OutputWriter = Console.Out;
 
-        static Stream _nps = null;
         static List<DataPosting> _serverPosters;
+
+        static string _dbFn;
+        static List<string> _destUrls = new List<string>();
+        static bool _connectUDP = false;
+        static int? _incomingPort, _outgoingPort;
+        static string _srcNetworkAddress = null;
+        static string _serialAddress = null;
+        static string _npsFn = null;
+
+        static CancellationTokenSource _exitingSource = new CancellationTokenSource();
+
+        static void ParseArgs(string[] args)
+        {
+            var dbIndex = Array.FindIndex(args, arg => arg.Equals("--db", StringComparison.OrdinalIgnoreCase));
+            if (dbIndex >= 0)
+                _dbFn = args[dbIndex + 1];
+
+            for (int idx = Array.FindIndex(args, arg => arg.Equals("--dest", StringComparison.OrdinalIgnoreCase));
+                     idx >= 0;
+                     idx = Array.FindIndex(args, idx + 1, arg => arg.Equals("--dest", StringComparison.OrdinalIgnoreCase)))
+                _destUrls.Add(args[idx + 1]);
+
+            int connectUdpIndex = Array.FindIndex(args, arg => arg.Equals("--connectUDP", StringComparison.OrdinalIgnoreCase));
+            if (connectUdpIndex >= 0)
+            {
+                _connectUDP = true;
+                _incomingPort = int.Parse(args[connectUdpIndex + 1]);
+                _outgoingPort = int.Parse(args[connectUdpIndex + 2]);
+            }
+
+            var srcArgIndex = Array.FindIndex(args, arg => arg.Equals("--src", StringComparison.OrdinalIgnoreCase));
+            if (srcArgIndex >= 0)
+                _srcNetworkAddress = args[srcArgIndex + 1];
+
+            var serialArgIndex = Array.FindIndex(args, arg => arg.Equals("--serial", StringComparison.OrdinalIgnoreCase));
+            if (serialArgIndex >= 0 && args.Length > serialArgIndex + 1)
+                _serialAddress = args[serialArgIndex + 1];
+
+            var npsFnIndex = Array.FindIndex(args, arg => arg.Equals("--nonPacket", StringComparison.OrdinalIgnoreCase));
+            if (npsFnIndex >= 0)
+                _npsFn = args[npsFnIndex + 1];
+
+            int exposeUdpIndex = Array.FindIndex(args, arg => arg.Equals("--exposeUDP", StringComparison.OrdinalIgnoreCase));
+            if (exposeUdpIndex >= 0)
+            {
+                _outgoingPort = int.Parse(args[exposeUdpIndex + 1]);
+                _incomingPort = int.Parse(args[exposeUdpIndex + 2]);
+            }
+        }
 
         static void Main(string[] args)
         {
@@ -46,6 +96,7 @@ Arguments:
             for (int i = 0; i < args.Length; i++)
                 OutputWriter.WriteLine($"{i}: {args[i]}");
 #endif
+            Stream nps = null;
 
             if (!(args?.Length > 0))
             {
@@ -57,53 +108,18 @@ Arguments:
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
-#if local_storage
-            string fn = null;// @"C:\temp\data3.sqlite";
-#endif
-            List<string> destUrls = new List<string>(); // "http://localhost:4000";
-            string srcAddress = null; 
-            string serialAddress = null;
-            string npsFn = null;
 
-            var srcArgIndex = Array.FindIndex(args, arg => arg.Equals("--src", StringComparison.OrdinalIgnoreCase));
-            if (srcArgIndex >= 0)
-                srcAddress = args[srcArgIndex + 1];
-            
-            var serialArgIndex = Array.FindIndex(args, arg => arg.Equals("--serial", StringComparison.OrdinalIgnoreCase));
-            if (serialArgIndex >= 0 && args.Length > serialArgIndex + 1)
-                serialAddress = args[serialArgIndex + 1];
-            if (serialArgIndex < 0)
-                serialArgIndex = Array.FindIndex(args, arg => arg.Equals("--serialFirst", StringComparison.OrdinalIgnoreCase));
-            
-            if (srcArgIndex < 0 && serialArgIndex < 0)
-                srcAddress = "127.0.0.1:8001";
+            ParseArgs(args);
 
-            for (int idx = Array.FindIndex(args, arg => arg.Equals("--dest", StringComparison.OrdinalIgnoreCase));
-                     idx >= 0;
-                     idx = Array.FindIndex(args, idx + 1, arg => arg.Equals("--dest", StringComparison.OrdinalIgnoreCase)))
-                destUrls.Add(args[idx + 1]);
+            FileStream npsFs = null;
+            bool npsIsStandardOut = true;
 
-            var npsFnIndex = Array.FindIndex(args, arg => arg.Equals("--nonPacket", StringComparison.OrdinalIgnoreCase));
-            if (npsFnIndex >= 0)
-                npsFn = args[npsFnIndex + 1];
+            if (!string.IsNullOrEmpty(_dbFn))
+                _dataStore = new LocalDatastore(_dbFn);
 
-            string dbFn = null;
-            var dbIndex = Array.FindIndex(args, arg => arg.Equals("--db", StringComparison.OrdinalIgnoreCase));
-            if (dbIndex >= 0)
-                dbFn = args[dbIndex + 1];
+            List<Task> runTasks;
 
-            OutputWriter.WriteLine("srcAddress: " + srcAddress); 
-            
-            if (!string.IsNullOrEmpty(dbFn))
-                _dataStore = new LocalDatastore(dbFn);
-
-#if local_storage
-            var dbArgIdx = Array.FindIndex(args, arg => arg.Equals("--db", StringComparison.OrdinalIgnoreCase));
-            if (dbArgIdx >= 0)
-                fn = args[dbArgIdx + 1];
-            DataStorage storage = fn != null ? new DataStorage(fn) : null;
-#endif
-            _serverPosters = destUrls.Select(url =>
+            _serverPosters = _destUrls.Select(url =>
             {
                 var ret = new DataPosting(url);
                 ret.OnException += (sender, ex) => 
@@ -111,19 +127,43 @@ Arguments:
                 return ret;
             }).ToList();
 
-            FileStream npsFs = null;
-            bool npsIsStandardOut = string.IsNullOrEmpty(npsFn);
-            if (npsIsStandardOut)
+            if (_connectUDP)
             {
-                _nps = Console.OpenStandardOutput();
+                var udpListener = new SocketListener(_incomingPort.Value, _outgoingPort.Value);
+                _dataReceiver = udpListener;
+                runTasks = new List<Task> { udpListener.StartAsync(CancellationToken.None) };
             }
-            else if (!npsFn.Equals("DISCARD", StringComparison.OrdinalIgnoreCase))
+            else
             {
-                npsFs = new FileStream(npsFn, FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete, 4096);
-                _nps = Stream.Synchronized(npsFs);
-                FlushForever(_nps);
+                var communicator = new KissCommunication();
+                _dataReceiver = communicator;
+
+                npsIsStandardOut = string.IsNullOrEmpty(_npsFn);
+                if (npsIsStandardOut)
+                {
+                    nps = Console.OpenStandardOutput();
+                }
+                else if (!_npsFn.Equals("DISCARD", StringComparison.OrdinalIgnoreCase))
+                {
+                    npsFs = new FileStream(_npsFn, FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete, 4096);
+                    nps = Stream.Synchronized(npsFs);
+                    FlushForever(nps);
+                }
+                communicator.NonPacketStream = nps;
+
+                if (!Console.IsInputRedirected)
+                    runTasks = StartInteractive(communicator, _srcNetworkAddress, _serialAddress);
+                else
+                    runTasks = StartNonInteractive(communicator, _srcNetworkAddress, _serialAddress);
+
+                if (_outgoingPort.HasValue && _incomingPort.HasValue)
+                {
+                    var udpListener = new SocketListener(_incomingPort.Value, _outgoingPort.Value);
+                    runTasks.Add(udpListener.StartAsync(_exitingSource.Token));
+                    communicator.PacketReceived += (sender, e) => udpListener.Write(e.ToArray());
+                    udpListener.PacketReceived += (sender, e) => communicator.Write(e.ToArray());
+                }
             }
-            _dataReceiver.NonPacketStream = _nps;
 
             _dataReceiver.PacketReceived += OnPacketReceived;
 
@@ -131,12 +171,14 @@ Arguments:
             {
                 if (!Console.IsInputRedirected)
                 {
-                    RunInteractive(srcAddress, serialArgIndex, serialAddress, npsIsStandardOut, _nps);
+                    Console.WriteLine("Running Interactively...");
+                    RunInteractive(npsIsStandardOut);
                 }
                 else
                 {
-                    RunNonInteractive(srcAddress, serialAddress, serialArgIndex);
+                    Console.WriteLine("Running non-interactively");
                 }
+                Task.WaitAll(runTasks.ToArray());
             }
             finally
             {
@@ -150,28 +192,10 @@ Arguments:
 
         private static void FlushForever(Stream str)
         {
-            Task.Delay(1000)
+            Task.Delay(500)
                 .ContinueWith(notUsed => str.Flush())
                 .ContinueWith(notUsed => FlushForever(str));
         }
-
-        private static void RunNonInteractive(string srcAddress, string serialAddress, int serialArgIndex)
-        {
-            List<Task> tasks = new List<Task>();
-            if (!string.IsNullOrEmpty(srcAddress))
-                tasks.Add(TryForever(() => _dataReceiver.Connect(srcAddress)));
-            if (serialArgIndex >= 0)
-            {
-                tasks.Add(TryForever(() =>
-                {
-                    _dataReceiver.ConnectSerial(serialAddress);
-                }));
-                StartPingLoop();
-            }
-            Task.WaitAll(tasks.ToArray());
-        }
-
-
 
         private static void OnPacketReceived(object sender, IList<byte> data)
         {
@@ -185,10 +209,9 @@ Arguments:
                     Task.Run(() => _dataStore?.RecordUndecipherable(localBytes));
                     Task.Run(() =>
                     {
-                        _nps?.Write(Encoding.UTF8.GetBytes(receivedTime.ToString()));
-                        _nps?.Write(Encoding.UTF8.GetBytes("Unhandled Packet: "));
-                        _nps?.Write(localBytes);
-                        _nps?.Write(Encoding.UTF8.GetBytes("\n"));
+                        OutputWriter.Write(receivedTime.ToString());
+                        OutputWriter.Write(" Unhandled Packet: ");
+                        OutputWriter.WriteLine(OutputWriter.Encoding.GetString(localBytes));
                     });
                     return;
                 }
@@ -210,9 +233,8 @@ Arguments:
                         var localBytes = data.ToArray();
                         consoleTask.ContinueWith(notUsed =>
                         {
-                            _nps?.Write(Encoding.UTF8.GetBytes("Unhandled Packet: "));
-                            _nps?.Write(localBytes);
-                            _nps?.Write(Encoding.UTF8.GetBytes("\n"));
+                            OutputWriter?.Write($"{DateTime.Now} Unhandled Packet: ");
+                            OutputWriter?.WriteLine(OutputWriter.Encoding.GetString(localBytes));
                         });
                         break;
                 }
@@ -235,21 +257,39 @@ Arguments:
             t.Start();
         }
 
-        private static void RunInteractive(string srcAddress, int serialArgIndex, string serialAddress,
-            bool npsIsStandardOut, Stream nps)
+        private static List<Task> StartNonInteractive(KissCommunication kisser, string srcAddress, string serialAddress)
         {
             List<Task> tasks = new List<Task>();
             if (!string.IsNullOrEmpty(srcAddress))
-                tasks.Add(Task.Run(() => _dataReceiver.Connect(srcAddress)));
-            if (serialArgIndex >= 0)
+                tasks.Add(TryForever(() => kisser.Connect(srcAddress)));
+            if (!string.IsNullOrEmpty(serialAddress))
+            {
+                tasks.Add(TryForever(() =>
+                {
+                    kisser.ConnectSerial(serialAddress);
+                }));
+            }
+            StartPingLoop();
+            return tasks;
+        }
+
+        private static List<Task> StartInteractive(KissCommunication kisser, string srcAddress, string serialAddress)
+        {
+            List<Task> tasks = new List<Task>();
+            if (!string.IsNullOrEmpty(srcAddress))
+                tasks.Add(Task.Run(() => kisser.Connect(srcAddress)));
+            if (!string.IsNullOrEmpty(serialAddress))
             {
                 tasks.Add(Task.Run(() =>
                 {
-                    _dataReceiver.ConnectSerial(serialAddress);
+                    kisser.ConnectSerial(serialAddress);
                 }));
-                StartPingLoop();
             }
-
+            StartPingLoop();
+            return tasks;
+        }
+        private static void RunInteractive(bool npsIsStandardOut)
+        {
             OutputWriter.WriteLine("Reading data. Type '/' followed by a command to send. Press q key to exit.");
             CommandInterpreter interpreter = new CommandInterpreter(_dataReceiver);
             while (true)
@@ -258,14 +298,18 @@ Arguments:
                 using var ms = new MemoryStream();
                 using var safeStream = Stream.Synchronized(ms);
                 using StreamWriter sw = new StreamWriter(safeStream);
+                Stream oldNps = null;
                 try
                 {
                     var key = Console.ReadKey();
                     OutputWriter = sw;
                     //While we're doing this, 
                     ErrorWriter = sw;
-                    if (npsIsStandardOut)
-                        _dataReceiver.NonPacketStream = safeStream;
+                    if (npsIsStandardOut && _dataReceiver is KissCommunication kisser)
+                    {
+                        oldNps = kisser.NonPacketStream;
+                        kisser.NonPacketStream = safeStream;
+                    }
                     interpreter.ProgrammerOutput = sw;
                     var line2 = Console.ReadLine();
                     var line = key.KeyChar + line2;
@@ -274,7 +318,7 @@ Arguments:
                         exit = true;
                         Console.WriteLine("Shutting Down...");
                         _dataReceiver.Disconnect();
-                        Task.WaitAll(tasks.ToArray());
+                        _exitingSource.Cancel();
                         return;
                     }
                 }
@@ -289,7 +333,8 @@ Arguments:
                 {
                     OutputWriter = Console.Out;
                     ErrorWriter = Console.Error;
-                    _dataReceiver.NonPacketStream = nps;
+                    if (_dataReceiver is KissCommunication kisser)
+                        kisser.NonPacketStream = oldNps;
                     interpreter.ProgrammerOutput = Console.Out;
                     sw.Flush();
                     Console.Write(sw.Encoding.GetString(ms.ToArray()));
@@ -313,7 +358,7 @@ Arguments:
                     //ping[0] |= 0x80; // Demand relay
                     ping[1] = 0x00; //Addressed to all stations (any station which is set to relay commands will also relay the ping).
                     ping[2] = i; //This is used for relay tracking
-                    _dataReceiver.WriteSerial(ping);
+                    _dataReceiver.Write(ping);
                     OutputWriter.WriteLine($"Ping sent: {i}");
                     unchecked
                     {
@@ -351,6 +396,7 @@ Arguments:
         private static void CurrentDomain_ProcessExit(object sender, EventArgs e)
         {
             _dataReceiver.Disconnect();
+            _exitingSource.Cancel();
         }
 
         private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)

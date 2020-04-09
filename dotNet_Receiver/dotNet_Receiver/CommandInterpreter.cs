@@ -17,7 +17,7 @@ namespace core_Receiver
 
     partial class CommandInterpreter
     {
-        readonly KissCommunication _modem;
+        readonly ICommunicator _modem;
         readonly ProgrammerInterpreter _programmerInterpreter;
 
         private TextWriter _output = Console.Out;
@@ -35,7 +35,7 @@ namespace core_Receiver
             set => _programmerInterpreter.OutWriter = value;
         }
 
-        public CommandInterpreter(KissCommunication modem)
+        public CommandInterpreter(ICommunicator modem)
         {
             _modem = modem;
             _programmerInterpreter = new ProgrammerInterpreter(_modem);
@@ -171,7 +171,7 @@ Command starting characters:
                 confirmation.StartsWith("Y", StringComparison.OrdinalIgnoreCase))
             {
                 RecordSentCommand(data);
-                _modem.WriteSerial(data, packetType);
+                _modem.Write(data, packetType);
                 Output.WriteLine("Command Sent.");
             }
             else

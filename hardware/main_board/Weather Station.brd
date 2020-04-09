@@ -1941,7 +1941,7 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <wire x1="45.466" y1="42.164" x2="46.99" y2="40.64" width="0.1524" layer="1"/>
 <wire x1="32.247" y1="42.164" x2="45.466" y2="42.164" width="0.1524" layer="1"/>
 </signal>
-<signal name="WINDDIR_PWR">
+<signal name="WINDDIR_PWR_TS2">
 <contactref element="U1" pad="25"/>
 <contactref element="J2" pad="2"/>
 <wire x1="38.735" y1="13.97" x2="38.1" y2="13.97" width="0.1524" layer="1"/>
@@ -1965,7 +1965,7 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <signal name="N$5">
 <contactref element="X1" pad="GND@4"/>
 </signal>
-<signal name="WINDDIR_SENSE">
+<signal name="WINDDIR_SENSE_SCL">
 <contactref element="C4" pad="1"/>
 <contactref element="R1" pad="1"/>
 <contactref element="U1" pad="28"/>
@@ -2030,7 +2030,7 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <wire x1="2.54" y1="37.592" x2="2.678" y2="37.73" width="0.1524" layer="16"/>
 <wire x1="8.89" y1="37.73" x2="13.97" y2="37.73" width="0.1524" layer="16"/>
 </signal>
-<signal name="TEMP_SENSE">
+<signal name="TEMP_SENSE_SDA">
 <contactref element="J2" pad="1"/>
 <contactref element="U1" pad="27"/>
 <contactref element="C8" pad="1"/>

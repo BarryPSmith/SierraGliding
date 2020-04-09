@@ -26,7 +26,7 @@ namespace core_Receiver
         const int MaxImageSize = 32768 - 1024; //32768: Atmega328P flash size, 1024: bootload size.
 
         private readonly List<byte> _image;
-        private readonly KissCommunication _communicator;
+        private readonly ICommunicator _communicator;
         private readonly string _fn;
         public string Fn => _fn;
 
@@ -41,7 +41,7 @@ namespace core_Receiver
 
         public TextWriter OutWriter { get; set; } = Console.Out;
         
-        public RemoteProgrammer(string hexSourceFile, KissCommunication commuicator)
+        public RemoteProgrammer(string hexSourceFile, ICommunicator commuicator)
         {
             _fn = hexSourceFile;
             _image = ReadHex(hexSourceFile);
@@ -171,7 +171,7 @@ namespace core_Receiver
             writer.Write((byte)PacketSize);
             writer.Write((UInt16)CRC);
             writer.Flush();
-            _communicator.WriteSerial(ms.ToArray());
+            _communicator.Write(ms.ToArray());
             return unID;
         }
         
@@ -212,7 +212,7 @@ namespace core_Receiver
             writer.Write(_image.Skip(i * PacketSize).Take(PacketSize).ToArray());
             writer.Flush();
             PacketDecoder.RecentCommands[uniqueID] = "P";
-            _communicator.WriteSerial(ms.ToArray());
+            _communicator.Write(ms.ToArray());
         }
 
         /// <summary>
@@ -303,7 +303,7 @@ namespace core_Receiver
             writer.Write('Q');
             writer.Flush();
             PacketDecoder.RecentCommands[uniqueID] = "PQ";
-            _communicator.WriteSerial(ms.ToArray());
+            _communicator.Write(ms.ToArray());
             return uniqueID;
         }
 
@@ -322,7 +322,7 @@ namespace core_Receiver
             writer.Write(payloadSize);
             writer.Flush();
             PacketDecoder.RecentCommands[uniqueID] = "PFR";
-            _communicator.WriteSerial(ms.ToArray());
+            _communicator.Write(ms.ToArray());
             return uniqueID;
         }
 
@@ -341,7 +341,7 @@ namespace core_Receiver
             writer.Write('C');
             writer.Write(CRC);
             writer.Flush();
-            _communicator.WriteSerial(ms.ToArray());
+            _communicator.Write(ms.ToArray());
         }
 
         private static List<byte> ReadHex(string hexSourceFile)

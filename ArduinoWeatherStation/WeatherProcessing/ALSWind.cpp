@@ -7,8 +7,8 @@ namespace WeatherProcessing
   short SignExtendBitfield(unsigned short data, int width);
   void takeReading(short* sX, short* sY);
   constexpr byte alsAddress = 96;
-  void read(byte regAddress, byte* data, byte count);
-  void write(byte regAddress, byte* data, byte count);
+  void read(byte regAddress, void* data, byte count);
+  void write(byte regAddress, void* data, byte count);
 
 #ifdef WIND_DIR_AVERAGING
   extern float curWindX, curWindY;
@@ -20,7 +20,7 @@ namespace WeatherProcessing
     Wire.setClock(100000); //100kHz
 
     // enable writing to the chip:
-    int customerAccessCode = 0x2C413534;
+    unsigned long customerAccessCode = 0x2C413534;
     write(0x35, &customerAccessCode, 4);
 
     //Set low power mode
@@ -35,22 +35,24 @@ namespace WeatherProcessing
     write(0x02, data, 4);
   }
 
-  void read(byte regAddress, byte* data, byte count)
+  void read(byte regAddress, void* data, byte count)
   {
+    byte* dataB = (byte*)data;
     Wire.beginTransmission(alsAddress);
     Wire.write(regAddress);
     Wire.endTransmission();
     Wire.requestFrom(alsAddress, count);
     for (byte i = 0; i < count; i++)
-      data[i] = Wire.read();
+      dataB[i] = Wire.read();
   }
 
-  void write(byte regAddress, byte* data, byte count)
+  void write(byte regAddress, void* data, byte count)
   {
+    byte* dataB = (byte*)data;
     Wire.beginTransmission(alsAddress);
     Wire.write(regAddress);
     for (byte i = 0; i < count; i++)
-      Wire.write(data[i]);
+      Wire.write(dataB[i]);
     Wire.endTransmission();
   }
   
@@ -80,7 +82,7 @@ namespace WeatherProcessing
     auto x = ((unsigned short)data[0] << 4) | (data[4] & 0x0F);
     auto y = ((unsigned short)data[1] << 4) | ((data[5] & 0xF0) >> 4);
   
-    *sX = SignExtendBitfield(x, 12);
+    *sX = -SignExtendBitfield(x, 12);
     *sY = SignExtendBitfield(y, 12);
 
 #ifdef ALS_TEMP

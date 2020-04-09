@@ -6014,7 +6014,7 @@ Diode with low voltage drop</description>
 <label x="109.22" y="-27.94" size="1.778" layer="95"/>
 </segment>
 </net>
-<net name="WINDDIR_PWR" class="0">
+<net name="WINDDIR_PWR_TS2" class="0">
 <segment>
 <pinref part="U1" gate="G$1" pin="PC2(ADC2)"/>
 <label x="60.96" y="60.96" size="1.778" layer="95"/>
@@ -6053,7 +6053,7 @@ Diode with low voltage drop</description>
 <wire x1="187.96" y1="73.66" x2="187.96" y2="71.12" width="0.1524" layer="91"/>
 </segment>
 </net>
-<net name="WINDDIR_SENSE" class="0">
+<net name="WINDDIR_SENSE_SCL" class="0">
 <segment>
 <pinref part="C4" gate="G$1" pin="1"/>
 <pinref part="R1" gate="G$1" pin="1"/>
@@ -6126,7 +6126,7 @@ Diode with low voltage drop</description>
 <label x="63.5" y="20.32" size="1.778" layer="95"/>
 </segment>
 </net>
-<net name="TEMP_SENSE" class="0">
+<net name="TEMP_SENSE_SDA" class="0">
 <segment>
 <pinref part="J2" gate="G$1" pin="1"/>
 <wire x1="-48.26" y1="22.86" x2="-63.5" y2="22.86" width="0.1524" layer="91"/>

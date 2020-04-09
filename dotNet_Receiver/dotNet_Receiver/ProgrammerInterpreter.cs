@@ -42,7 +42,7 @@ Adjust programmer settings
 ";
 
             readonly Dictionary<int, ProgrammerWrapper> _programmers = new Dictionary<int, ProgrammerWrapper>();
-            readonly KissCommunication _comminucator;
+            readonly ICommunicator _comminucator;
             private TextWriter _outWriter = Console.Out;
             public TextWriter OutWriter
             {
@@ -67,7 +67,7 @@ Adjust programmer settings
                 public CancellationTokenSource TokenSource { get; private set; }
                 public Task Task { get; private set; }
                 public string LastCommand { get; private set; }
-                public ProgrammerWrapper(string fn, int id, KissCommunication comminucator)
+                public ProgrammerWrapper(string fn, int id, ICommunicator comminucator)
                 {
                     Programmer = new RemoteProgrammer(fn, comminucator);
                     File.WriteAllText(Path.ChangeExtension(Programmer.Fn, ".orig"), Programmer.DataAsSingleLineHex);
@@ -227,7 +227,7 @@ Adjust programmer settings
                 }
             }
 
-            public ProgrammerInterpreter(KissCommunication comminucator)
+            public ProgrammerInterpreter(ICommunicator comminucator)
             {
                 _comminucator = comminucator;
             }

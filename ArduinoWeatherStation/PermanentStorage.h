@@ -34,7 +34,7 @@
     SET_PERMANENT2(&member, member); \
     } while (0)
 
-const int permanentArraySize = 20;
+inline constexpr int permanentArraySize = 20;
 
 //Implements EEPROM storage of permanent setup variables.
 //In its own class so we can change processors more easily

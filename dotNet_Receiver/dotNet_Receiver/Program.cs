@@ -129,9 +129,9 @@ Arguments:
 
             if (_connectUDP)
             {
-                var udpListener = new SocketListener(_incomingPort.Value, _outgoingPort.Value);
+                var udpListener = new SocketListener(_incomingPort.Value, _outgoingPort.Value, _outgoingPort.Value + 2, false);
                 _dataReceiver = udpListener;
-                runTasks = new List<Task> { udpListener.StartAsync(CancellationToken.None) };
+                runTasks = udpListener.StartAsync(CancellationToken.None);
             }
             else
             {
@@ -158,10 +158,11 @@ Arguments:
 
                 if (_outgoingPort.HasValue && _incomingPort.HasValue)
                 {
-                    var udpListener = new SocketListener(_incomingPort.Value, _outgoingPort.Value);
-                    runTasks.Add(udpListener.StartAsync(_exitingSource.Token));
+                    var udpListener = new SocketListener(_incomingPort.Value, _outgoingPort.Value, _incomingPort.Value + 2, true);
+                    runTasks.AddRange(udpListener.StartAsync(_exitingSource.Token));
                     communicator.PacketReceived += (sender, e) => udpListener.Write(e.ToArray());
                     udpListener.PacketReceived += (sender, e) => communicator.Write(e.ToArray());
+                    udpListener.PacketReceived6 += (sender, e) => communicator.Write(e.ToArray(), 6);
                 }
             }
 

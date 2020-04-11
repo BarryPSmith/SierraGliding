@@ -1,7 +1,7 @@
 #include "PermanentStorage.h"
 #include "ArduinoWeatherStation.h"
 #include <util/crc16.h>
-#define DEBUG_PARAMETERS
+//#define DEBUG_PARAMETERS
 
 char stationID = defaultStationID;
 

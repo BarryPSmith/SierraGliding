@@ -7,6 +7,7 @@
 #include "RemoteProgramming.h"
 #include "PWMSolar.h"
 
+#define DEBUG_COMMANDS
 #ifdef DEBUG_COMMANDS
 #define COMMAND_PRINT AWS_DEBUG_PRINT
 #define COMMAND_PRINTLN AWS_DEBUG_PRINTLN
@@ -20,7 +21,7 @@
 namespace Commands
 {
   //We keep track of recently handled commands to avoid executing the same command multiple times
-  byte recentlyHandledCommands[MessageHandling::recentArraySize];
+  byte recentlyHandledCommands[permanentArraySize];
   byte curCmdIndex = 0;
 
   bool handleRelayCommand(MessageSource& msg);
@@ -41,14 +42,14 @@ namespace Commands
     //Check if we've already handled this command:
     if (uniqueID != 0)
     {
-      for (int i = 0; i < MessageHandling::recentArraySize; i++)
+      for (int i = 0; i < permanentArraySize; i++)
       {
         if (recentlyHandledCommands[i] == uniqueID)
           return;
       }
       //Remember that we've handled this command:
       recentlyHandledCommands[curCmdIndex++] = uniqueID;
-      if (curCmdIndex >= MessageHandling::recentArraySize)
+      if (curCmdIndex >= permanentArraySize)
         curCmdIndex = 0;
     }
 
@@ -134,34 +135,38 @@ namespace Commands
   //Relay command: C(ID)(UID)R(dataLength)((+|-)(C|W)(RelayID))*
   bool handleRelayCommand(MessageSource& msg)
   {
-    byte dataLength;
-    if (msg.readByte(dataLength))
-      return false;
-    if (dataLength == 0)
-      return false;
     byte stationsToRelayWeather[permanentArraySize], 
          stationsToRelayCommands[permanentArraySize];
     GET_PERMANENT(stationsToRelayWeather);
     GET_PERMANENT(stationsToRelayCommands);
-    for (int i = 0; i + 2 < dataLength; i+=3)
+    byte opByte;
+    while (msg.readByte(opByte) == MESSAGE_OK)
     {
-      byte opByte;
       byte typeByte;
-      auto obr = msg.readByte(opByte);
-      if (obr)
-        return false;
       if (msg.readByte(typeByte))
+      {
+        COMMAND_PRINTLN(F("Relay: no type"));
         return false;
+      }
       bool isAdd = opByte == '+';
       bool isWeather = typeByte == 'W';
       if ((!isAdd && opByte != '-') ||
         (!isWeather && typeByte != 'C'))
+      {
+        COMMAND_PRINTLN(F("Relay: mismatch"));
         return false;
+      }
       byte statID;
       if (msg.readByte(statID))
+      {
+        COMMAND_PRINTLN(F("Relay: no station"));
         return false;
+      }
       if (statID == 0)
+      {
+        COMMAND_PRINTLN(F("Relay: zero station"));
         return false;
+      }
 
       byte* list = isWeather ? stationsToRelayWeather : stationsToRelayCommands;
 
@@ -169,27 +174,31 @@ namespace Commands
       {
         //Check if it already exists, and check if we have space to add it
         int i;
-        for (i = 0; i < MessageHandling::recentArraySize; i++)
+        for (i = 0; i < permanentArraySize; i++)
         {
           if (!list[i] || list[i] == statID)
             break;
         }
         //If it doesn't exist and we have no room, error out:
-        if (i == MessageHandling::recentArraySize)
+        if (i == permanentArraySize)
+        {
           return false;
+          COMMAND_PRINTLN(F("Relay: no space"));
+        }
         //add it (or overwrite itself, no biggie)
         list[i] = statID;
       }
       else
       {
         bool removed = false;
-        for (int i = 0; i < MessageHandling::recentArraySize; i++)
+        for (int i = 0; i < permanentArraySize; i++)
           if (list[i] == statID)
             list[i] = 0;
       }
     }
     SET_PERMANENT(stationsToRelayWeather);
     SET_PERMANENT(stationsToRelayCommands);
+    updateIdleState();
     return true;
   }
 
@@ -337,7 +346,7 @@ namespace Commands
   
     //Recently seen stations, max 102 bytes
     response.appendByte('S');
-    for (int i = 0; i < MessageHandling::recentArraySize; i++)
+    for (int i = 0; i < permanentArraySize; i++)
     {
       response.appendT(MessageHandling::recentlySeenStations[i]);
     }
@@ -345,7 +354,7 @@ namespace Commands
 
     //recently handled commands, max 22 bytes
     response.appendByte('C');
-    for (int i = 0; i < MessageHandling::recentArraySize; i++)
+    for (int i = 0; i < permanentArraySize; i++)
     {
       response.appendByte(recentlyHandledCommands[i]);
     }
@@ -353,7 +362,7 @@ namespace Commands
 
     //recently relayed messages, max 62 bytes
     response.appendByte('R');
-    for (int i = 0; i < MessageHandling::recentArraySize; i++)
+    for (int i = 0; i < permanentArraySize; i++)
     {
       response.appendT(MessageHandling::recentlyRelayedMessages[i]);
     }
@@ -389,7 +398,7 @@ namespace Commands
       {
         duplicate = false;
         newID = random(1, 127);
-        for (int i = 0; i < MessageHandling::recentArraySize; i++)
+        for (int i = 0; i < permanentArraySize; i++)
         {
           if (MessageHandling::recentlySeenStations[i].id == newID)
           {

@@ -9,6 +9,8 @@
 
 extern inline int16_t lora_check(const int16_t result, const __FlashStringHelper* msg);
 
+bool LoraMessageDestination::delayRequired = false;
+
 //Hardware pins:
 Module mod(SX_SELECT, SX_DIO1, SX_BUSY);
 #ifndef MOTEINO_96
@@ -40,7 +42,15 @@ void updateIdleState()
 #if defined(MODEM)
   newState = IdleStates::ContinuousReceive;
 #else
-  bool mustRelay = stationsToRelayWeather[0] || stationsToRelayCommands[0];
+  bool mustRelay = false;
+  for (int i = 0; i < permanentArraySize; i++)
+  {
+    if (stationsToRelayWeather[i] || stationsToRelayCommands[i])
+    {
+      mustRelay = true;
+      break;
+    }
+  }
   newState = mustRelay ? IdleStates::ContinuousReceive : IdleStates::IntermittentReceive;
 #endif
   LORA_CHECK(csma.setIdleState(newState));
@@ -264,6 +274,7 @@ bool handleMessageCommand(MessageSource& src, byte* desc)
       {
         state = ERR_NONE;
         SET_PERMANENT_S(outboundPreambleLength);
+        csma._senderPremableLength = outboundPreambleLength;
       }
     }
     break;
@@ -325,7 +336,9 @@ MESSAGE_RESULT LoraMessageDestination::finishAndSend()
   digitalWrite(LED_PIN0, LED_ON);
 #endif //DEBUG
 
-  auto beforeTxMicros = micros();
+  TX_DEBUG(auto beforeTxMicros = micros());
+  if (delayRequired)
+    delayMicroseconds(lora._tcxoDelay * random(1,5));
   auto state = LORA_CHECK(csma.transmit(_outgoingBuffer, _currentLocation, preambleLength));
   TX_PRINTVAR(micros() - beforeTxMicros);
 

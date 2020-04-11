@@ -27,8 +27,8 @@ namespace MessageHandling
   void checkPing(MessageSource& message);
 
   //These arrays use 320 bytes.
-  RecentlySeenStation recentlySeenStations[recentArraySize]; //100
-  RecentlyRelayedMessage recentlyRelayedMessages[recentArraySize]; //60
+  RecentlySeenStation recentlySeenStations[permanentArraySize]; //100
+  RecentlyRelayedMessage recentlyRelayedMessages[permanentArraySize]; //60
   byte recentlyRelayedMessageIndex = 0;
   byte recentlySeenStationIndex = 0;
   byte curUniqueID = 0;
@@ -40,6 +40,7 @@ namespace MessageHandling
   {
     static bool ledWasOn = false;
     MESSAGE_SOURCE_SOLID msg;
+    MESSAGE_DESTINATION_SOLID::delayRequired = true;
     while (msg.beginMessage())
     {
       if (!MessageSource::s_discardCallsign)
@@ -123,6 +124,7 @@ namespace MessageHandling
         recordMessageRelay(msgType, msgStatID, msgUniqueID);
       }   
     }
+    MESSAGE_DESTINATION_SOLID::delayRequired = false;
   }
 
   bool shouldRelay(byte msgType, byte msgStatID, byte msgUniqueID)
@@ -136,7 +138,7 @@ namespace MessageHandling
       if (msgStatID == 0 && stationsToRelayCommands[0])
         return true;
 
-      for (int i = 0; i < recentArraySize; i++)
+      for (int i = 0; i < permanentArraySize; i++)
       {
         if (stationsToRelayCommands[i] == msgStatID)
         {
@@ -148,7 +150,7 @@ namespace MessageHandling
     {
       byte stationsToRelayWeather[permanentArraySize];
       GET_PERMANENT(stationsToRelayWeather);
-      for (int i = 0; i < recentArraySize; i++)
+      for (int i = 0; i < permanentArraySize; i++)
       {
         if (stationsToRelayWeather[i] == msgStatID)
         {
@@ -162,7 +164,7 @@ namespace MessageHandling
   bool haveRelayed(byte msgType, byte msgStatID, byte msgUniqueID)
   {
       //Check if we've already relayed this message (more appropriate for command relays than weather)
-    for (int i = 0; i < recentArraySize; i++)
+    for (int i = 0; i < permanentArraySize; i++)
     {
       if (recentlyRelayedMessages[i].type == msgType &&
           recentlyRelayedMessages[i].stationID == msgStatID &&
@@ -179,7 +181,7 @@ namespace MessageHandling
     recentlyRelayedMessages[recentlyRelayedMessageIndex].type = msgType;
     recentlyRelayedMessages[recentlyRelayedMessageIndex].stationID = msgStatID;
     recentlyRelayedMessages[recentlyRelayedMessageIndex].msgID = msgUniqueID;
-    if (++recentlyRelayedMessageIndex >= recentArraySize)
+    if (++recentlyRelayedMessageIndex >= permanentArraySize)
       recentlyRelayedMessageIndex = 0;
   }
 
@@ -250,7 +252,7 @@ namespace MessageHandling
   { 
     recentlySeenStations[recentlySeenStationIndex].id = msgStatID;
     recentlySeenStations[recentlySeenStationIndex].millis = millis();
-    if (++recentlySeenStationIndex > recentArraySize)
+    if (++recentlySeenStationIndex > permanentArraySize)
       recentlySeenStationIndex = 0;
   }
 

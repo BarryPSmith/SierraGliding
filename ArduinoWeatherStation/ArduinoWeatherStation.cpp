@@ -39,11 +39,10 @@ void savePower();
 
 int main()
 {
+  savePower();
   //Arduino library initialisaton:
   init();
   TimerTwo::initialise();
-  //Disabling savePower() until we can test it:
-  //savePower();
   //TestBoard();
 
   setup();
@@ -56,41 +55,48 @@ int main()
   return 0;
 }
 
+#ifdef CLOCK_DIVIDER
+constexpr byte CalcClockDividerByte()
+{
+  switch (CLOCK_DIVIDER)
+  {
+  case 1: return 0;
+  case 2: return _BV(CLKPS0);
+  case 4: return _BV(CLKPS1);
+  case 8: return _BV(CLKPS1) | _BV(CLKPS0);
+  default: return 0;
+  }
+}
+#endif
 void savePower()
 {
-  constexpr int PinCount = 20;
-  bool pinsInUse[PinCount];
-  memset(pinsInUse, 0, PinCount);
-      pinsInUse[BATT_PIN] 
-#ifdef WIND_DIR_PIN
-    = pinsInUse[WIND_DIR_PIN]
+#ifdef CLOCK_DIVIDER && CLOCK_DIVIDER != 1
+  CLKPR = _BV(CLKPCE);
+  CLKPR = CalcClockDividerByte()
 #endif
-    = pinsInUse[WIND_SPD_PIN]
-    = pinsInUse[SX_BUSY]
-    = pinsInUse[SX_DIO1]
-    = pinsInUse[SX_SELECT]
-#ifdef SX_RESET
-    = pinsInUse[SX_RESET]
-#endif
-#ifdef FLASH_SELECT
-    = pinsInUse[FLASH_SELECT]
-#endif
-    = true;
-    
-  for (int i = 0; i < PinCount; i++)
-  {
-    if (!pinsInUse[i])
-      pinMode(i, INPUT_PULLUP);
-  }
 
-  power_twi_disable();
+  pinMode(A1, INPUT_PULLUP);
+  pinMode(A3, INPUT_PULLUP);
+  pinMode(6, INPUT_PULLUP);
+  pinMode(7, INPUT_PULLUP);
+
 #ifndef DEBUG
   power_usart0_disable();
 #endif
+#ifndef ALS_WIND
+  power_twi_disable();
+#endif // !ALS_WIND
+
+#ifndef SOLAR_PWM
   power_timer0_disable();
+#endif
   power_timer1_disable();
 
-  DIDR0 = _BV(ADC0D) | _BV(ADC1D) | _BV(ADC2D) | _BV(ADC3D) | _BV(ADC4D) | _BV(ADC5D);
+  DIDR0 = _BV(ADC0D) | _BV(ADC1D) | _BV(ADC2D) | _BV(ADC3D) 
+#ifndef ALS_WIND
+    | _BV(ADC4D) | _BV(ADC5D)
+#endif
+    ;
   DIDR1 = _BV(AIN0D) | _BV(AIN1D);
 }
 
@@ -312,9 +318,9 @@ void sleep(adc_t adc_state)
   if (bit_is_set(UCSR0B, UDRIE0) || bit_is_clear(UCSR0A, TXC0))
     return;
 #endif
-  //return;
   LowPower.powerSave(SLEEP_FOREVER, //we're actually going to wake up on our next timer2 or wind tick.
                     adc_state,
                     BOD_OFF,
-                    TIMER2_ON);
+                    TIMER2_ON
+                    );
 }

@@ -50,10 +50,15 @@ namespace WeatherProcessing
   
   static byte simpleMessagesSent = 255;
   constexpr byte complexMessageFrequency 
-  #ifdef DEBUG
+  #ifdef DEBUG_PWM
+    = 1
+  #elif defined(DEBUG)
     = 3;
   #else
     = 10;
+  #endif
+  #ifdef DEBUG_PWM
+  extern byte solarPwmValue;
   #endif
 
   unsigned long lastWindCountMillis;
@@ -156,6 +161,10 @@ namespace WeatherProcessing
 
       internalTempByte = getInternalTemperature();
       message.appendByte(internalTempByte);
+
+#ifdef DEBUG_PWM
+      message.appendByte(solarPwmValue);
+#else
     
       simpleMessagesSent = 0;
     }
@@ -399,7 +408,7 @@ namespace WeatherProcessing
       tickCounts = 0;
       weatherRequired = true;
     }
-    if (tickCounts % windSampleTicks == 0)
+    if (windSampleTicks == 0 || tickCounts % windSampleTicks == 0)
       sampleWind = true;
   }
 

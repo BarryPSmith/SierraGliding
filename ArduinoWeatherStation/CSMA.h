@@ -23,7 +23,12 @@ inline int16_t lora_check(const int16_t result, const __FlashStringHelper* msg)
   }
   return result;
 }
+//#define DETAILED_LORA_CHECK
+#ifdef DETAILED_LORA_CHECK
 #define LORA_CHECK(A) lora_check(A, F("FAILED " #A ": "))
+#else
+#define LORA_CHECK(A) lora_check(A, F("LORA_CHECK FAILED: "))
+#endif
 
 enum class IdleStates {
   NotInitialised,
@@ -103,6 +108,7 @@ class CSMAWrapper
                      // Also the delay lets our MCU sleep.
           CHECK_TIMEOUT();
           readIfPossible();
+          //We use CAD in case the modem is halfway through receiving a message...
           state = _base->isChannelBusy(true, false);
         }
         if(state != CHANNEL_FREE) {

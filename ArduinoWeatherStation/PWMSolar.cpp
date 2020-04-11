@@ -120,6 +120,8 @@ namespace PwmSolar
     else if (WeatherProcessing::internalTemperature < 0 ||
              (WeatherProcessing::internalTemperature < 5 && WeatherProcessing::externalTemperature < 5)) //The battery might be colder than the MCU - thermal capacity, inaccurate measurement, etc.
       return safeFreezingPwm;
+    else if (WeatherProcessing::internalTemperature > 50)
+      return 0;
     else
       return 255;
   }

@@ -15,6 +15,14 @@
 #error No wind system defined
 #endif
 
+#define DEBUG_PWM
+#ifdef DEBUG_PWM
+namespace PwmSolar
+{
+  extern byte solarPwmValue;
+}
+#endif
+
 namespace WeatherProcessing
 {
   volatile bool weatherRequired = true;
@@ -51,14 +59,11 @@ namespace WeatherProcessing
   static byte simpleMessagesSent = 255;
   constexpr byte complexMessageFrequency 
   #ifdef DEBUG_PWM
-    = 1
+    = 1;
   #elif defined(DEBUG)
     = 3;
   #else
     = 10;
-  #endif
-  #ifdef DEBUG_PWM
-  extern byte solarPwmValue;
   #endif
 
   unsigned long lastWindCountMillis;
@@ -132,6 +137,11 @@ namespace WeatherProcessing
     bool isComplex = simpleMessagesSent >= complexMessageFrequency - 1;
 
     byte length = isComplex ? 5 : 2;
+#ifdef DEBUG_PWM
+    if (isComplex)
+      length++;
+#endif
+    
     message.appendByte(length);
 
     //Message format is W(StationID)(UniqueID)(DirHex)(Spd * 2)(Voltage)
@@ -163,8 +173,8 @@ namespace WeatherProcessing
       message.appendByte(internalTempByte);
 
 #ifdef DEBUG_PWM
-      message.appendByte(solarPwmValue);
-#else
+      message.appendByte(PwmSolar::solarPwmValue);
+#endif
     
       simpleMessagesSent = 0;
     }

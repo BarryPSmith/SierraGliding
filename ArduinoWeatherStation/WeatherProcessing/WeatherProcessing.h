@@ -1,7 +1,8 @@
 #pragma once
 #include "../LoraMessaging.h"
 #include "../ArduinoWeatherStation.h"
-//#define DEBUG_WEATHER
+
+#define DEBUG_WEATHER
 #ifdef DEBUG_WEATHER
 #define WX_PRINT AWS_DEBUG_PRINT
 #define WX_PRINTLN AWS_DEBUG_PRINTLN
@@ -20,6 +21,9 @@ namespace WeatherProcessing
   void processWeather();
   void createWeatherData(MessageDestination& message);
   bool handleWeatherCommand(MessageSource& src);
+  unsigned short readBattery();
+  void updateBatterySavings(unsigned short batteryVoltage_mV, bool initial);
+
   extern volatile bool weatherRequired;
 
   extern short internalTemperature;

@@ -88,7 +88,6 @@ namespace RemoteProgramming
     PROGRAM_PRINTLN(F("Processing flash command..."));
     byte rwe;
     uint32_t add;
-    byte count;
     if (msg.readByte(rwe) || 
         msg.read(add))
       return false;

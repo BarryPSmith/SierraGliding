@@ -51,9 +51,9 @@ void PermanentStorage::initialise()
     .initialised = true,
     .stationID = stationID,
     .shortInterval = 4000,// - 90 * (stationID - '1');
-    .longInterval = 4000,// - 90 * (stationID - '1'); //longInterval == shortInterval because it turns out the transmit is negligble draw.
-    .batteryThreshold_mV = 4000,
-    .batteryUpperThresh_mV = 4700,
+    .longInterval = 30000,// - 90 * (stationID - '1'); //longInterval == shortInterval because it turns out the transmit is negligble draw.
+    .batteryThreshold_mV = 3800,
+    .batteryEmergencyThresh_mV = 3700,
     .demandRelay = false,
     .stationsToRelayCommands = { 0 },
     .stationsToRelayWeather = { 0 },
@@ -72,10 +72,10 @@ void PermanentStorage::initialise()
     .wdCalibMin = 0,
     .wdCalibMax = 1023,
 
-    .chargeVoltage_mV = 4000,
-    .chargeResponseRate = 256,
-    .safeFreezingChargeLevel_mV = 3700,
-    .safeFreezingPwm = 255
+    .chargeVoltage_mV = 4050,
+    .chargeResponseRate = 40,
+    .safeFreezingChargeLevel_mV = 3750,
+    .safeFreezingPwm = 85
     };
     setBytes(0, sizeof(vars), &vars);
 
@@ -90,7 +90,7 @@ void PermanentStorage::initialise()
     long shortInterval;
     long longInterval;
     unsigned short batteryThreshold_mV,
-      batteryUpperThresh_mV;
+      batteryEmergencyThresh_mV;
     bool demandRelay = false;
     byte buffer[permanentArraySize] = { 0 };
     unsigned short crc;
@@ -103,7 +103,7 @@ void PermanentStorage::initialise()
     GET_PERMANENT_S(shortInterval);
     GET_PERMANENT_S(longInterval);
     GET_PERMANENT_S(batteryThreshold_mV);
-    GET_PERMANENT_S(batteryUpperThresh_mV);
+    GET_PERMANENT_S(batteryEmergencyThresh_mV);
     GET_PERMANENT_S(tsOffset);
     GET_PERMANENT_S(tsGain);
     GET_PERMANENT_S(initialised);
@@ -113,7 +113,7 @@ void PermanentStorage::initialise()
     PRINT_VARIABLE(shortInterval);
     PRINT_VARIABLE(longInterval);
     PRINT_VARIABLE(batteryThreshold_mV);
-    PRINT_VARIABLE(batteryUpperThresh_mV);
+    PRINT_VARIABLE(batteryEmergencyThresh_mV);
     PRINT_VARIABLE(tsOffset);
     PRINT_VARIABLE(tsGain);
     GET_PERMANENT2(buffer, stationsToRelayCommands);

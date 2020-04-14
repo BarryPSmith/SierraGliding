@@ -154,6 +154,8 @@ namespace core_Receiver
                 ret.externalTemp = GetTemp(data[cur++]);
             if (len > 4)
                 ret.internalTemp = GetTemp(data[cur++]);
+            if (len > 5)
+                ret.extras = data.Slice(cur).ToArray();
             return ret;
         }
 

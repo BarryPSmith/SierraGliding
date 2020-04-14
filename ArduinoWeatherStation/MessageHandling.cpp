@@ -30,7 +30,6 @@ namespace MessageHandling
   RecentlySeenStation recentlySeenStations[permanentArraySize]; //100
   RecentlyRelayedMessage recentlyRelayedMessages[permanentArraySize]; //60
   byte recentlyRelayedMessageIndex = 0;
-  byte recentlySeenStationIndex = 0;
   byte curUniqueID = 0;
 
   byte weatherRelayBuffer[weatherRelayBufferSize]; //100
@@ -250,10 +249,26 @@ namespace MessageHandling
 
   void recordHeardStation(byte msgStatID)
   { 
-    recentlySeenStations[recentlySeenStationIndex].id = msgStatID;
-    recentlySeenStations[recentlySeenStationIndex].millis = millis();
-    if (++recentlySeenStationIndex > permanentArraySize)
-      recentlySeenStationIndex = 0;
+    RecentlySeenStation* cur = recentlySeenStations;
+    RecentlySeenStation* end = recentlySeenStations + permanentArraySize;
+    uint32_t oldest = 0;
+    uint32_t curMillis = millis();
+    RecentlySeenStation* oldestRecord = recentlySeenStations;
+    for (; cur < end; cur++)
+    {
+      if (cur->id == msgStatID || cur->id == 0)
+        break;
+      uint32_t diff = curMillis - cur->millis;
+      if (diff > oldest)
+      {
+        oldest = diff;
+        oldestRecord = cur;
+      }
+    }
+    if (cur == end)
+      cur = oldestRecord;
+    cur->id = msgStatID;
+    cur->millis = curMillis;
   }
 
   void sendWeatherMessage()

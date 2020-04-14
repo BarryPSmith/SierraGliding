@@ -15,4 +15,5 @@ uint16_t StackCount(void);
 extern volatile uint16_t oldSP;
 extern volatile uint8_t oldStack[STACK_DUMP_SIZE];
 extern volatile uint8_t MCUSR_Mirror;
+extern volatile bool wdt_dontRestart;
 

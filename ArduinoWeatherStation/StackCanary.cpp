@@ -13,6 +13,7 @@ void StackPaint(void) __attribute__ ((naked)) __attribute__ ((section (".init1")
 volatile uint16_t oldSP __attribute__ ((section (".noinit")));
 volatile uint8_t oldStack[STACK_DUMP_SIZE] __attribute__ ((section (".noinit")));
 volatile uint8_t MCUSR_Mirror __attribute__ ((section (".noinit")));
+volatile bool wdt_dontRestart = false;
 
 #if defined(WATCHDOG_LOOPS) && WATCHDOG_LOOPS > 0
 unsigned volatile char watchdogLoops = 0;
@@ -92,8 +93,6 @@ ISR (WDT_vect, ISR_NAKED)
   __asm volatile(
     ""
     //We're in a naked ISR, gotta manually push/pop stuff:
-      /*
-    */
     "push r0\n\t"
     "in r0, %[sreg]\n\t"
     "push r0\n\t"
@@ -142,6 +141,26 @@ ISR (WDT_vect, ISR_NAKED)
     return;
   }*/
 #endif
+  __asm volatile(
+      "push r0\n\t"
+      "in r0, %[sreg]\n\t"
+      "push r24\n\t"
+      "lds r24, wdt_dontRestart\n\t"
+      "cpi r24, 0\n\t"
+        "breq .dumpStack\n\t"
+      "pop r24\n\t"
+      "out %[sreg], r0\n\t"
+      "pop r0\n\t"
+      "reti\n\t"
+
+      ".dumpStack:\n\t"
+      "pop r24\n\t"
+      "pop r0\n\t"
+        : //output (nothing)
+        : //input
+        [sreg] "I" (_SFR_IO_ADDR(SREG))
+        : //clobbers (none, we handle the push/pop ourselves
+  );
 
   //Dump the stack:
   oldSP = SP;

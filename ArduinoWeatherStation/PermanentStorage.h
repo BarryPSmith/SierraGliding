@@ -45,7 +45,7 @@ typedef struct PermanentVariables
   unsigned long shortInterval, //4
                 longInterval;  //4
   unsigned short batteryThreshold_mV; //2
-  unsigned short batteryUpperThresh_mV; //2
+  unsigned short batteryEmergencyThresh_mV; //2
   bool demandRelay; //1
   byte stationsToRelayCommands[permanentArraySize]; //20
   byte stationsToRelayWeather[permanentArraySize]; //20

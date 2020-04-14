@@ -111,6 +111,10 @@ namespace Commands
           handled = handleIDCommand(msg, demandRelay, uniqueID);
           break;
 
+        case 'F': // Restart
+          acknowledgeMessage(uniqueID, isSpecific, demandRelay);
+          while (1);
+
         default:
         //do nothing. handled = false, so we send "IGNORED"
         break;
@@ -248,10 +252,13 @@ namespace Commands
   //Threshold command: C(ID)(UID)B(new threshold)
   bool handleThresholdCommand(MessageSource& msg)
   {
-    unsigned short batteryThreshold_mV;
-    if (msg.read(batteryThreshold_mV))
+    unsigned short batteryThreshold_mV,
+      batteryEmergencyThresh_mV;
+    if (msg.read(batteryThreshold_mV) ||
+        msg.read(batteryEmergencyThresh_mV))
       return false;
     SET_PERMANENT_S(batteryThreshold_mV);
+    SET_PERMANENT_S(batteryEmergencyThresh_mV);
     return true;
   }
 

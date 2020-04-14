@@ -235,7 +235,7 @@ Arguments:
                         consoleTask.ContinueWith(notUsed =>
                         {
                             OutputWriter?.Write($"{DateTime.Now} Unhandled Packet: ");
-                            OutputWriter?.WriteLine(OutputWriter.Encoding.GetString(localBytes));
+                            OutputWriter?.WriteLine(Encoding.ASCII.GetString(localBytes));
                         });
                         break;
                 }

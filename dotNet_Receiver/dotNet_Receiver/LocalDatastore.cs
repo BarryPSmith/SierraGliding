@@ -98,32 +98,29 @@ namespace core_Receiver
         {
             if (_dbConn == null)
                 return;
-            switch (p.type)
+            if (p.type != PacketTypes.Weather || 
+                (p.packetData as IList<SingleWeatherData>)?.Any(pd => pd.extras?.Length > 0) == true)
             {
-                case PacketTypes.Weather:
-                    break;
-                default:
-                    using (var cmd = _dbConn.CreateCommand())
-                    {
-                        cmd.CommandText = @"INSERT INTO All_Packets
-                        (Timestamp, Station_ID, Type, Unique_ID, To_String, To_String, Data)
-                        VALUES
-                        ($Timestamp, $Station_ID, $Type, $Unique_ID, $To_String, $To_String, $Data);";
-                        cmd.Parameters.AddWithValue("$Timestamp", DateTimeOffset.Now.ToUniversalTime().ToUnixTimeSeconds());
-                        cmd.Parameters.AddWithValue("$Station_ID", p.sendingStation);
-                        cmd.Parameters.AddWithValue("$Type", (byte)p.type);
-                        cmd.Parameters.AddWithValue("$Unique_ID", p.uniqueID);
-                        var dataString = p.GetDataString?.Invoke(p.packetData) ?? p.packetData?.ToString();
-                        dataString = dataString?.Replace((char)0, ' ');
+                using (var cmd = _dbConn.CreateCommand())
+                {
+                    cmd.CommandText = @"INSERT INTO All_Packets
+                    (Timestamp, Station_ID, Type, Unique_ID, To_String, To_String, Data)
+                    VALUES
+                    ($Timestamp, $Station_ID, $Type, $Unique_ID, $To_String, $To_String, $Data);";
+                    cmd.Parameters.AddWithValue("$Timestamp", DateTimeOffset.Now.ToUniversalTime().ToUnixTimeSeconds());
+                    cmd.Parameters.AddWithValue("$Station_ID", p.sendingStation);
+                    cmd.Parameters.AddWithValue("$Type", (byte)p.type);
+                    cmd.Parameters.AddWithValue("$Unique_ID", p.uniqueID);
+                    var dataString = p.GetDataString?.Invoke(p.packetData) ?? p.packetData?.ToString();
+                    dataString = dataString?.Replace((char)0, ' ');
 
-                        cmd.Parameters.AddWithValue("$To_String", (object)dataString ?? DBNull.Value);
-                        if (p.packetData is IEnumerable<byte> data)
-                            cmd.Parameters.AddWithValue("$Data", data.ToArray());
-                        else
-                            cmd.Parameters.AddWithValue("$Data", DBNull.Value);
-                        cmd.ExecuteNonQuery();
-                    }
-                    break;
+                    cmd.Parameters.AddWithValue("$To_String", (object)dataString ?? DBNull.Value);
+                    if (p.packetData is IEnumerable<byte> data)
+                        cmd.Parameters.AddWithValue("$Data", data.ToArray());
+                    else
+                        cmd.Parameters.AddWithValue("$Data", DBNull.Value);
+                    cmd.ExecuteNonQuery();
+                }
             }
         }
     }

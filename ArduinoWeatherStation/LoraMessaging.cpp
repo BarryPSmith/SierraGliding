@@ -42,16 +42,19 @@ void updateIdleState()
 #if defined(MODEM)
   newState = IdleStates::ContinuousReceive;
 #else
-  bool mustRelay = false;
-  for (int i = 0; i < permanentArraySize; i++)
+  bool continuousReceive = !continuousReceiveEnabled;
+  if (continuousReceiveEnabled)
   {
-    if (stationsToRelayWeather[i] || stationsToRelayCommands[i])
+    for (int i = 0; i < permanentArraySize; i++)
     {
-      mustRelay = true;
-      break;
+      if (stationsToRelayWeather[i] || stationsToRelayCommands[i])
+      {
+        continuousReceive = true;
+        break;
+      }
     }
   }
-  newState = mustRelay ? IdleStates::ContinuousReceive : IdleStates::IntermittentReceive;
+  newState = continuousReceive ? IdleStates::ContinuousReceive : IdleStates::IntermittentReceive;
 #endif
   LORA_CHECK(csma.setIdleState(newState));
 

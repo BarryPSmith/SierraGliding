@@ -18,6 +18,12 @@ unsigned long overrideStartMillis;
 unsigned long overrideDuration;
 bool overrideShort;
 bool sleepEnabled = true;
+bool continuousReceiveEnabled = true;
+// deep sleep disables timer2, and allows the MCU to turn off everything.
+// That greatly drops sleep current, but the unit cannot do its weather reporting.
+// It'll still respond to messages.
+// It'll even relay messages but weather messages will only be relayed when the buffer is filled
+bool doDeepSleep = false;
 
 #ifdef DEBUG
 extern volatile bool windTicked;
@@ -70,9 +76,9 @@ constexpr byte CalcClockDividerByte()
 #endif
 void savePower()
 {
-#ifdef CLOCK_DIVIDER && CLOCK_DIVIDER != 1
+#if defined(CLOCK_DIVIDER) && CLOCK_DIVIDER != 1
   CLKPR = _BV(CLKPCE);
-  CLKPR = CalcClockDividerByte()
+  CLKPR = CalcClockDividerByte();
 #endif
 
   pinMode(A1, INPUT_PULLUP);
@@ -217,13 +223,6 @@ void loop() {
   // Generate and discard a random number. Just used to ensure that all of the RNGs out there will give different numbers.
   random();
   MessageHandling::readMessages();
-  WeatherProcessing::processWeather();
-  
-  noInterrupts();
-  bool localWeatherRequired = WeatherProcessing::weatherRequired;
-  WeatherProcessing::weatherRequired = false;
-  interrupts();
-
   
   #ifdef DEBUG
   messageDebugAction();
@@ -232,21 +231,31 @@ void loop() {
   #ifdef SOLAR_PWM
   PwmSolar::doPwmLoop();
   #endif
-  
-  if (localWeatherRequired)
-  {
-    MessageHandling::sendWeatherMessage();
-    WX_PRINTLN(F("Weather message sent."));
-  }
-  
-  if (millis() - lastStatusMillis > millisBetweenStatus)
-  {
-    MessageHandling::sendStatusMessage();
-  }
-  
-  if (millis() - lastPingMillis > maxMillisBetweenPings)
-    restart();
 
+  if (doDeepSleep)
+    WeatherProcessing::updateBatterySavings(WeatherProcessing::readBattery(), false);
+  else
+  {
+    WeatherProcessing::processWeather();
+    noInterrupts();
+    bool localWeatherRequired = WeatherProcessing::weatherRequired;
+    WeatherProcessing::weatherRequired = false;
+    interrupts();
+    if (localWeatherRequired)
+    {
+      MessageHandling::sendWeatherMessage();
+      WX_PRINTLN(F("Weather message sent."));
+    }
+
+    if (millis() - lastStatusMillis > millisBetweenStatus)
+    {
+      MessageHandling::sendStatusMessage();
+    }
+  
+    if (millis() - lastPingMillis > maxMillisBetweenPings)
+      restart();
+  }
+  
   wdt_reset();
   sleep(ADC_OFF);
 }
@@ -302,7 +311,9 @@ extern inline void signalError(byte count, unsigned long delay_ms);
 void yield()
 {
   //We leave the ADC_ON to hopefully get a less pronounced effect as the LDO goes from low current to running current.
-  sleep(ADC_ON);
+  //Only sleep if we're running fast enough that MCU power consumption might be significant.
+  if (F_CPU >= 4000000L)
+    sleep(ADC_ON);
 }
 
 void sleep(adc_t adc_state)
@@ -318,9 +329,22 @@ void sleep(adc_t adc_state)
   if (bit_is_set(UCSR0B, UDRIE0) || bit_is_clear(UCSR0A, TXC0))
     return;
 #endif
-  LowPower.powerSave(SLEEP_FOREVER, //we're actually going to wake up on our next timer2 or wind tick.
+  timer2_t timer2State = (doDeepSleep && adc_state == ADC_OFF) ? TIMER2_OFF : TIMER2_ON;
+  //
+  if (timer2State == TIMER2_OFF)
+    wdt_dontRestart = true;
+  LowPower.powerSave(SLEEP_FOREVER, //Low power library messes with our watchdog timer, so we lie and tell it to sleep forever.
                     adc_state,
                     BOD_OFF,
-                    TIMER2_ON
+                    timer2State
                     );
+  // The re-enable isn't guarded to make it harder for runaway code to disable the watchdog timer
+  wdt_dontRestart = false;
+  if (timer2State == TIMER2_OFF)
+  {
+    // If there was no wind tick or message received,
+    // then we might have been woken by the watchdog timer going off. 
+    // In that case we need to re-enable the interrupt.
+    WDTCSR |= (1 << WDIE);
+  }
 }

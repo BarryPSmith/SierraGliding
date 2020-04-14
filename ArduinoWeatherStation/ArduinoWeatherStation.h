@@ -65,7 +65,14 @@ inline constexpr char defaultStationID = 'Z';
 extern char stationID;
 
 //Global Constants
-inline constexpr unsigned long tncBaud = 38400;
+inline constexpr unsigned long tncBaud = 
+#if 1
+  4800;
+#elif defined(SERIAL_BAUD)
+  SERIAL_BAUD;
+#else
+  38400;
+#endif
 inline constexpr unsigned long millisBetweenStatus = 600000; //We send our status messages every ten minutes.
 inline constexpr unsigned long maxMillisBetweenPings = 1300000; //If we don't receive a ping in just under 20 minutes, we restart.
 inline constexpr unsigned short batteryHysterisis_mV = 50;
@@ -75,6 +82,8 @@ extern unsigned long overrideStartMillis;
 extern unsigned long overrideDuration;
 extern bool overrideShort;
 extern bool sleepEnabled;
+extern bool continuousReceiveEnabled;
+extern bool doDeepSleep;
 
 //Recent Memory
 extern unsigned long lastStatusMillis;

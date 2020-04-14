@@ -41,7 +41,7 @@ namespace WeatherProcessing
 
   void countWind();
   void timer2Tick();
-  void updateSendInterval(unsigned short batteryVoltage_mv, bool startup);
+  void updateBatterySavings(unsigned short batteryVoltage_mv, bool startup);
   void setTimerInterval();
   void setupWindCounter();
   byte getExternalTemperature();
@@ -58,7 +58,7 @@ namespace WeatherProcessing
   
   static byte simpleMessagesSent = 255;
   constexpr byte complexMessageFrequency 
-  #ifdef DEBUG_PWM
+  #if 0 //defined(DEBUG_PWM)
     = 1;
   #elif defined(DEBUG)
     = 3;
@@ -145,14 +145,13 @@ namespace WeatherProcessing
     message.appendByte(length);
 
     //Message format is W(StationID)(UniqueID)(DirHex)(Spd * 2)(Voltage)
-    int batteryVoltageReading = analogRead(BATT_PIN);
-    unsigned long batt_mV = mV_Ref * BattVNumerator * batteryVoltageReading / (BattVDenominator  * 1023);
   
     auto localCounts = windCounts;
     uint16_t windSpeed_x8 = getWindSpeed_x8();
 
     //Update the send interval only after we calculate windSpeed, because windSpeed is dependent on weatherInterval
-    updateSendInterval(batt_mV, false);
+    unsigned short batt_mV = readBattery();
+    updateBatterySavings(batt_mV, false);
   
     byte windDirection = getWindDirection();
     message.appendByte(windDirection);
@@ -189,8 +188,6 @@ namespace WeatherProcessing
   #endif
   #if 1
     WX_PRINTLN(F("  ======================"));
-    WX_PRINT(F("batteryVoltageReading: "));
-    WX_PRINTLN(batteryVoltageReading);
     WX_PRINT(F("batt_mV: "));
     WX_PRINTLN(batt_mV);
     WX_PRINT(F("Wind Counts: "));
@@ -209,21 +206,40 @@ namespace WeatherProcessing
   #endif
   }
 
-  void updateSendInterval(unsigned short batteryVoltage_mV, bool initial)
+  unsigned short readBattery()
+  {
+    int batteryVoltageReading = analogRead(BATT_PIN);
+    return mV_Ref * BattVNumerator * batteryVoltageReading / (BattVDenominator  * 1023);
+  }
+
+  void updateBatterySavings(unsigned short batteryVoltage_mV, bool initial)
   {
     unsigned long oldInterval = weatherInterval;
     bool overrideActive = millis() - overrideStartMillis < overrideDuration;
-    unsigned short batteryThreshold_mV;
+    unsigned short batteryThreshold_mV, batteryEmergencyThresh_mV;
     GET_PERMANENT_S(batteryThreshold_mV);
-    if (initial || 
-      (!overrideActive && batteryVoltage_mV > batteryThreshold_mV + batteryHysterisis_mV) ||
-      (overrideActive && overrideShort))
+    GET_PERMANENT_S(batteryEmergencyThresh_mV);
+    if (!initial && batteryVoltage_mV < batteryEmergencyThresh_mV)
     {
-      GET_PERMANENT2(&weatherInterval, shortInterval);
-    } else if ((!overrideActive && batteryVoltage_mV < batteryThreshold_mV - batteryHysterisis_mV) ||
-        (overrideActive && !overrideShort))
+      WX_PRINTLN(F("Entering Deep Sleep"));
+      doDeepSleep = true;
+    }
+    else 
     {
-      GET_PERMANENT2(&weatherInterval, longInterval);
+      WX_PRINTLN(F("No Deep Sleep"));
+      doDeepSleep = false;
+      if (initial || 
+        (!overrideActive && batteryVoltage_mV > batteryThreshold_mV + batteryHysterisis_mV) ||
+        (overrideActive && overrideShort))
+      {
+        GET_PERMANENT2(&weatherInterval, shortInterval);
+        continuousReceiveEnabled = true;
+      } else if ((!overrideActive && batteryVoltage_mV < batteryThreshold_mV - batteryHysterisis_mV) ||
+          (overrideActive && !overrideShort))
+      {
+        GET_PERMANENT2(&weatherInterval, longInterval);
+        continuousReceiveEnabled = false;
+      }
     }
     //Ensure that once we get out of override, we won't accidently go back into it due to millis wraparound.
     if (!overrideActive)
@@ -249,8 +265,8 @@ namespace WeatherProcessing
 
   void countWind()
   {
-    // debounce the signal:
-    if (millis() - lastWindCountMillis < minWindInterval)
+    // no counting in deep sleep / debounce the signal:
+    if (doDeepSleep || millis() - lastWindCountMillis < minWindInterval)
       return;
     #ifdef WIND_DIR_AVERAGING
     sampleWind = true;
@@ -305,7 +321,7 @@ namespace WeatherProcessing
   void setupWeatherProcessing()
   {
     initWind();
-    updateSendInterval(0, true);
+    updateBatterySavings(0, true);
     TimerTwo::attachInterrupt(&timer2Tick);
     setupWindCounter();
   #ifdef WIND_PWR_PIN

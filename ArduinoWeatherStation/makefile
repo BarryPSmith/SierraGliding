@@ -14,12 +14,14 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 4: Flynns Rev 2
 # 5: Dorji Modem
 # 6: First attempt at a printed PCB
-DEBUG = 1
-BOARD = 1
+# 7: Second printed PCB (includes battery PWM circuitry)
+# 8: Second printed PCB configured for ALSWind
+BOARD = 8
 include Boards.makefile
 
 #Flags, etc.
-DEFINES=$(BOARD_DEFINES) -DARDUINO=100 #-DRADIOLIB_DEBUG 
+DEFINES=$(BOARD_DEFINES) -DARDUINO=100 \
+#-DRADIOLIB_DEBUG 
 #-DRADIOLIB_VERBOSE
 CFLAGS= -mcall-prologues -mmcu=$(MCU) -Os -fdata-sections -ffunction-sections -fno-exceptions -flto -std=c++17 -g
 LDFLAGS=-Wl,--gc-sections -Wl,--relax
@@ -32,6 +34,7 @@ INCLUDES=-I../../ArduinoCore-avr/cores/arduino \
 		 -I../../ArduinoCore-avr/variants/standard \
 		 -I../../ArduinoCore-avr/libraries/SPI/src \
 		 -I../../ArduinoCore-avr/libraries/SoftwareSerial/src \
+		 -I../../ArduinoCore-avr/libraries/Wire/src \
 		 -Ilib/RadioLib/src \
 		 -Ilib/Low-Power \
 		 -Ilib/RadioLib/src \
@@ -53,7 +56,7 @@ ifeq ($(MODEM), 1)
 DEFINES += -DMODEM
 endif
 
-ARDUINO_LIBS=^/SPI/src/SPI.cpp
+ARDUINO_LIBS=^/SPI/src/SPI.cpp ^/Wire/src/Wire.cpp ^/Wire/src/utility/twi.c
 ARDUINO_LIBSWDIRS = \
 				$(patsubst ^/%, ../../ArduinoCore-avr/cores/arduino/%, $(ARDUINO_BASE_LIBS)) \
 				$(patsubst ^/%, ../../ArduinoCore-avr/libraries/%, $(ARDUINO_LIBS))
@@ -72,9 +75,11 @@ SRCS_C = KissModem.cpp MessagingCommon.cpp LoraMessaging.cpp KissMessaging.cpp \
 OBJFOLDER := $(OBJFOLDER)_mod
 else
 SRCS_C = ArduinoWeatherStation.cpp Commands.cpp MessageHandling.cpp \
-		 LoraMessaging.cpp WeatherProcessing.cpp MessagingCommon.cpp \
+		 WeatherProcessing/WeatherProcessing.cpp WeatherProcessing/ADWind.cpp \
+		 WeatherProcessing/DavisWind.cpp WeatherProcessing/ALSWind.cpp \
+		 LoraMessaging.cpp MessagingCommon.cpp \
 		 delay.c millis.cpp TimerTwo.cpp PermanentStorage.cpp StackCanary.cpp \
-		 RemoteProgramming.cpp \
+		 RemoteProgramming.cpp PWMSolar.cpp \
 		 $(LIBRARIES)
 endif
 
@@ -97,10 +102,10 @@ VPATH = $(FOLDERS)
 all: $(OBJFOLDER)/all.hex
 
 clean:
-	del /S obj/*.o obj/*.hex obj/*.obj obj/*.elf
-	del /S obj_mod/*.o obj_mod/*.hex obj_mod/*.obj obj_mod/*.elf
-	del /S obj_debug/*.o obj_debug/*.hex obj_debug/*.obj obj_debug/*.elf
-	del /S obj_mod_debug/*.o obj_mod_debug/*.hex obj_mod_debug/*.obj obj_mod_debug/*.elf
+	del /S obj\\*.o obj\\*.hex obj\\*.obj obj\\*.elf
+	del /S obj_mod\\*.o obj_mod\\*.hex obj_mod\\*.obj obj_mod\\*.elf
+	del /S obj_debug\\*.o obj_debug\\*.hex obj_debug\\*.obj obj_debug\\*.elf
+	del /S obj_mod_debug\\*.o obj_mod_debug\\*.hex obj_mod_debug\\*.obj obj_mod_debug\\*.elf
 #rm -rf *.o *.hex *.obj *.elf
 
 $(OBJFOLDER):

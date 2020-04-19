@@ -3,17 +3,31 @@
 #include "MessageHandling.h"
 #include "ArduinoWeatherStation.h"
 #include "PermanentStorage.h"
-#include "WeatherProcessing.h"
+#include "WeatherProcessing/WeatherProcessing.h"
 #include "RemoteProgramming.h"
+#include "PWMSolar.h"
+
+#define DEBUG_COMMANDS
+#ifdef DEBUG_COMMANDS
+#define COMMAND_PRINT AWS_DEBUG_PRINT
+#define COMMAND_PRINTLN AWS_DEBUG_PRINTLN
+#define COMMAND_PRINTVAR PRINT_VARIABLE
+#else
+#define COMMAND_PRINT(...)  do { } while (0)
+#define COMMAND_PRINTLN(...)  do { } while (0)
+#define COMMAND_PRINTVAR(...)  do { } while (0)
+#endif
 
 namespace Commands
 {
   //We keep track of recently handled commands to avoid executing the same command multiple times
-  byte recentlyHandledCommands[MessageHandling::recentArraySize];
+  byte recentlyHandledCommands[permanentArraySize];
+  byte curCmdIndex = 0;
 
   bool handleRelayCommand(MessageSource& msg);
   bool handleIntervalCommand(MessageSource& msg);
   bool handleThresholdCommand(MessageSource& msg);
+  bool handleChargingCommand(MessageSource& msg);
   bool handleIDCommand(MessageSource& msg, bool demandRelay, byte uniqueID);
   bool handleQueryCommand(MessageSource& msg, bool demandRelay, byte uniqueID);
   void handleQueryConfigCommand(MessageDestination& response);
@@ -23,20 +37,21 @@ namespace Commands
 
   void handleCommandMessage(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific)
   {
-    int i;
+    static bool acknowledge = true;
+
     //Check if we've already handled this command:
-    for (i = 0; i < MessageHandling::recentArraySize; i++)
+    if (uniqueID != 0)
     {
-      if (!recentlyHandledCommands[i])
-        break;
-      if (recentlyHandledCommands[i] == uniqueID)
-        return;
+      for (int i = 0; i < permanentArraySize; i++)
+      {
+        if (recentlyHandledCommands[i] == uniqueID)
+          return;
+      }
+      //Remember that we've handled this command:
+      recentlyHandledCommands[curCmdIndex++] = uniqueID;
+      if (curCmdIndex >= permanentArraySize)
+        curCmdIndex = 0;
     }
-    if (i == MessageHandling::recentArraySize)
-      i--;
-    //Remember that we've handled this command:
-    memmove(recentlyHandledCommands + 1, recentlyHandledCommands, i);
-    recentlyHandledCommands[0] = uniqueID;
 
     //Can't delay with streaming messages. Perhaps a short delay before committing our response.
 
@@ -46,11 +61,15 @@ namespace Commands
 
     if (msg.readByte(command) == MESSAGE_OK)
     {
-      AWS_DEBUG_PRINT(F("Command Received: "));
-      AWS_DEBUG_PRINTLN((char)command);
+      COMMAND_PRINT(F("Command Received: "));
+      COMMAND_PRINTLN((char)command);
 
       switch (command)
       {
+        case 'A':
+          handled = (msg.read(acknowledge) == MESSAGE_OK);
+          break;
+
         case 'R': //Relay command
           handled = handleRelayCommand(msg);
           break;
@@ -61,6 +80,10 @@ namespace Commands
 
         case 'B': //Battery threshold command
           handled = handleThresholdCommand(msg);
+        break;
+
+        case 'C':
+          handled = handleChargingCommand(msg);
         break;
 
         case 'Q': //Query
@@ -88,31 +111,16 @@ namespace Commands
           handled = handleIDCommand(msg, demandRelay, uniqueID);
           break;
 
-        #if DEBUG_Speed
-        case 'S':
-          handled = true;
-          speedDebugging = !speedDebugging;
-          acknowledgeMessage(message);
-          break;
-        case 'W':
-          handled = true;
-          countWind();
-          acknowledgeMessage(message);
-          break;
-        #endif
-        #if DEBUG_Direction
-        case 'E':
-          handled = true;
-          directionDebugging = !directionDebugging;
-          acknowledgeMessage(message);
-        #endif
+        case 'F': // Restart
+          acknowledgeMessage(uniqueID, isSpecific, demandRelay);
+          while (1);
 
         default:
         //do nothing. handled = false, so we send "IGNORED"
         break;
       }
     }
-    if (handled && ackRequired)
+    if (handled && ackRequired && acknowledge)
       acknowledgeMessage(uniqueID, isSpecific, demandRelay);
 
     if (!handled)
@@ -131,34 +139,38 @@ namespace Commands
   //Relay command: C(ID)(UID)R(dataLength)((+|-)(C|W)(RelayID))*
   bool handleRelayCommand(MessageSource& msg)
   {
-    byte dataLength;
-    if (msg.readByte(dataLength))
-      return false;
-    if (dataLength == 0)
-      return false;
     byte stationsToRelayWeather[permanentArraySize], 
          stationsToRelayCommands[permanentArraySize];
     GET_PERMANENT(stationsToRelayWeather);
     GET_PERMANENT(stationsToRelayCommands);
-    for (int i = 0; i + 2 < dataLength; i+=3)
+    byte opByte;
+    while (msg.readByte(opByte) == MESSAGE_OK)
     {
-      byte opByte;
       byte typeByte;
-      auto obr = msg.readByte(opByte);
-      if (obr)
-        return false;
       if (msg.readByte(typeByte))
+      {
+        COMMAND_PRINTLN(F("Relay: no type"));
         return false;
+      }
       bool isAdd = opByte == '+';
       bool isWeather = typeByte == 'W';
       if ((!isAdd && opByte != '-') ||
         (!isWeather && typeByte != 'C'))
+      {
+        COMMAND_PRINTLN(F("Relay: mismatch"));
         return false;
+      }
       byte statID;
       if (msg.readByte(statID))
+      {
+        COMMAND_PRINTLN(F("Relay: no station"));
         return false;
+      }
       if (statID == 0)
+      {
+        COMMAND_PRINTLN(F("Relay: zero station"));
         return false;
+      }
 
       byte* list = isWeather ? stationsToRelayWeather : stationsToRelayCommands;
 
@@ -166,79 +178,42 @@ namespace Commands
       {
         //Check if it already exists, and check if we have space to add it
         int i;
-        for (i = 0; i < MessageHandling::recentArraySize; i++)
+        for (i = 0; i < permanentArraySize; i++)
         {
           if (!list[i] || list[i] == statID)
             break;
         }
         //If it doesn't exist and we have no room, error out:
-        if (i == MessageHandling::recentArraySize)
+        if (i == permanentArraySize)
+        {
           return false;
+          COMMAND_PRINTLN(F("Relay: no space"));
+        }
         //add it (or overwrite itself, no biggie)
         list[i] = statID;
       }
       else
       {
         bool removed = false;
-        for (int i = 0; i < MessageHandling::recentArraySize; i++)
-        {
-          if (!list[i])
-            break;
+        for (int i = 0; i < permanentArraySize; i++)
           if (list[i] == statID)
-          {
-            memmove(list + i, list + i + 1, MessageHandling::recentArraySize - i - 1);
-            removed = true;
-          }
-        }
-        if (removed)
-          list[i - 1] = 0;
+            list[i] = 0;
       }
     }
     SET_PERMANENT(stationsToRelayWeather);
     SET_PERMANENT(stationsToRelayCommands);
+    updateIdleState();
     return true;
   }
 
   //Interval command: C(ID)(UID)I(length)(new short interval)(new long interval)
   bool handleIntervalCommand(MessageSource& msg)
   {
-    byte dataLength;
-    if (msg.readByte(dataLength) || dataLength == 0)
-      return false;
-
     unsigned long shortInterval, longInterval;
-    if (dataLength == 2)
-    {
-      byte tmp;
-      if (msg.readByte(tmp))
-        return false;
-      shortInterval = tmp * 1000;
-      if (msg.readByte(tmp))
-        return false;
-      longInterval = tmp * 1000;
-    }
-    else if (dataLength == 4)
-    {
-      uint16_t tmp;
-      if (msg.read(tmp))
-        return false;
-      shortInterval = tmp * 1000;
-      if (msg.read(tmp))
-        return false;
-      longInterval = tmp * 1000;
-    }
-    else if (dataLength == 8)
-    {
-      //Use a temporary variable for in case we encounter an error halfway through reading.
-      unsigned long tmp;
-      if (msg.read(tmp))
-        return false;
-      shortInterval = tmp;
-      if (msg.read(tmp))
-        return false;
-      longInterval = tmp;
-    }
-    else
+    
+    if (msg.read(shortInterval))
+      return false;
+    if (msg.read(longInterval))
       return false;
 
     SET_PERMANENT_S(shortInterval);
@@ -267,18 +242,7 @@ namespace Commands
     if (msg.read(val))
       return false;
 
-    unsigned long multiplier = 1000;
-    byte multByte;
-    if (!msg.readByte(multByte))
-    {
-      switch (multByte)
-      {
-      case 'H':
-        multiplier = 3600000;
-      case 'M':
-        multiplier = 60000;
-      }
-    }
+    constexpr unsigned long multiplier = 1000;
 
     overrideDuration = val * multiplier;
     overrideStartMillis = millis();
@@ -288,10 +252,41 @@ namespace Commands
   //Threshold command: C(ID)(UID)B(new threshold)
   bool handleThresholdCommand(MessageSource& msg)
   {
-    unsigned short batteryThreshold_mV;
-    if (msg.read(batteryThreshold_mV))
+    unsigned short batteryThreshold_mV,
+      batteryEmergencyThresh_mV;
+    if (msg.read(batteryThreshold_mV) ||
+        msg.read(batteryEmergencyThresh_mV))
       return false;
     SET_PERMANENT_S(batteryThreshold_mV);
+    SET_PERMANENT_S(batteryEmergencyThresh_mV);
+    return true;
+  }
+
+  bool handleChargingCommand(MessageSource& msg)
+  {
+    unsigned short chargeVoltage_mV;
+    unsigned short chargeResponseRate;
+    unsigned short safeFreezingChargeLevel_mV;
+    byte safeFreezingPwm;
+    if (msg.read(chargeVoltage_mV))
+      return false;
+    if (msg.read(chargeResponseRate))
+      return false;
+    if (msg.read(safeFreezingChargeLevel_mV))
+      return false;
+    if (msg.read(safeFreezingPwm))
+      return false;
+
+    SET_PERMANENT_S(chargeVoltage_mV);
+    SET_PERMANENT_S(chargeResponseRate);
+    SET_PERMANENT_S(safeFreezingChargeLevel_mV);
+    SET_PERMANENT_S(safeFreezingPwm);
+
+    PwmSolar::chargeVoltage_mV = chargeVoltage_mV;
+    PwmSolar::chargeResponseRate = chargeResponseRate;
+    PwmSolar::safeFreezingChargeLevel_mV = safeFreezingChargeLevel_mV;
+    PwmSolar::safeFreezingPwm = safeFreezingPwm;
+    
     return true;
   }
 
@@ -304,16 +299,19 @@ namespace Commands
       queryType = 'C';
   
     MESSAGE_DESTINATION_SOLID response(false);
+    byte headerStart[4];
+    
     if (responseDemandRelay)
-      response.appendByte('K' | 0x80);
+      headerStart[0] = ('K' | 0x80);
     else
-      response.appendByte('K');
-    response.appendByte(stationID);
-    response.appendByte(uniqueID);
+      headerStart[0] = ('K');
+    headerStart[1] = (stationID);
+    headerStart[2] = (uniqueID);
 
     //Version (a few bytes)
-    response.appendByte('V');
-    response.append(ver, strlen_P((const char*)ver));
+    headerStart[3] = ('V');
+    response.append(headerStart, 4);
+    response.append(ver, ver_size);
     response.appendByte(0);
 
     switch (queryType)
@@ -355,32 +353,24 @@ namespace Commands
   
     //Recently seen stations, max 102 bytes
     response.appendByte('S');
-    for (int i = 0; i < MessageHandling::recentArraySize; i++)
+    for (int i = 0; i < permanentArraySize; i++)
     {
-      if (!MessageHandling::recentlySeenStations[i].id)
-      {
-        break;
-      }
       response.appendT(MessageHandling::recentlySeenStations[i]);
     }
     response.appendByte(0);
 
     //recently handled commands, max 22 bytes
     response.appendByte('C');
-    for (int i = 0; i < MessageHandling::recentArraySize; i++)
+    for (int i = 0; i < permanentArraySize; i++)
     {
-      if (!recentlyHandledCommands[i])
-        break;
       response.appendByte(recentlyHandledCommands[i]);
     }
     response.appendByte(0);
 
     //recently relayed messages, max 62 bytes
     response.appendByte('R');
-    for (int i = 0; i < MessageHandling::recentArraySize; i++)
+    for (int i = 0; i < permanentArraySize; i++)
     {
-      if (!MessageHandling::recentlyRelayedMessages[i].type)
-        break;
       response.appendT(MessageHandling::recentlyRelayedMessages[i]);
     }
     response.appendByte(0);
@@ -414,11 +404,9 @@ namespace Commands
       do
       {
         duplicate = false;
-        newID = random(1, 255);
-        for (int i = 0; i < MessageHandling::recentArraySize; i++)
+        newID = random(1, 127);
+        for (int i = 0; i < permanentArraySize; i++)
         {
-          if (!MessageHandling::recentlySeenStations[i].id)
-            break;
           if (MessageHandling::recentlySeenStations[i].id == newID)
           {
             duplicate = true;

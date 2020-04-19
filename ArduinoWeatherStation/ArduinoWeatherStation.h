@@ -12,10 +12,12 @@ void AwsRecordState(int i);
 #define AWS_DEBUG_PRINTLN(...) do { \
                     Serial.println(__VA_ARGS__);  \
                     } while (0)
+#define AWS_DEBUG(...) __VA_ARGS__
 #else
 #define AWS_DEBUG_PRINT(...) do { } while (0)
 #define AWS_DEBUG_PRINTLN(...) do { } while (0)
-#define AWS_RECORD_STATE(A)
+#define AWS_RECORD_STATE(A) do { } while (0)
+#define AWS_DEBUG(...) do { } while (0)
 #endif
 
 #define PRINT_VARIABLE(a) do { \
@@ -23,20 +25,33 @@ void AwsRecordState(int i);
   AWS_DEBUG_PRINTLN(a); \
   } while (0)
 
+//#define DEBUG_TX
 #ifdef DEBUG_TX
 #define TX_PRINT AWS_DEBUG_PRINT
 #define TX_PRINTLN AWS_DEBUG_PRINTLN
 #define TX_PRINTVAR PRINT_VARIABLE
+#define TX_DEBUG AWS_DEBUG
 #else
-#define TX_PRINT
-#define TX_PRINTLN
-#define TX_PRINTVAR
+#define TX_PRINT(...) do { } while (0)
+#define TX_PRINTLN(...) do { } while (0)
+#define TX_PRINTVAR(...) do { } while (0)
+#define TX_DEBUG(...) do { } while (0)
 #endif
 
 #define MESSAGE_DESTINATION_SOLID LoraMessageDestination
 #define MESSAGE_SOURCE_SOLID LoraMessageSource
 
-#define ver F("2.1." REV_ID) //Wind station Version 2.0
+#define ver_str "2.2." REV_ID
+#define ver F(ver_str)
+#define ver_size (sizeof(ver_str) - 1)
+
+/*extern const PROGMEM char verPM[] = "2.2." REV_ID;
+inline constexpr byte verS = sizeof(verPM);
+#define ver reinterpret_cast<__FlashStringHelper *>(verPM);*/
+
+/*inline constexpr char verC[] = "2.2." REV_ID;
+inline constexpr byte verS = sizeof(verC);
+inline constexpr __FlashStringHelper verF = F(verC);*/
 #define STATUS_MESSAGE F(" SierraGliding Weather Station. github.com/BarryPSmith/SierraGliding for source. SierraGliding.us for location. This station identified by first three bytes=XW")
 
 //Station Specific Constants
@@ -50,7 +65,12 @@ inline constexpr char defaultStationID = 'Z';
 extern char stationID;
 
 //Global Constants
-inline constexpr unsigned long tncBaud = 38400;
+inline constexpr unsigned long serialBaud = 
+#if defined(SERIAL_BAUD)
+  SERIAL_BAUD;
+#else
+  38400;
+#endif
 inline constexpr unsigned long millisBetweenStatus = 600000; //We send our status messages every ten minutes.
 inline constexpr unsigned long maxMillisBetweenPings = 1300000; //If we don't receive a ping in just under 20 minutes, we restart.
 inline constexpr unsigned short batteryHysterisis_mV = 50;
@@ -59,7 +79,10 @@ extern unsigned long weatherInterval; //Current weather interval.
 extern unsigned long overrideStartMillis;
 extern unsigned long overrideDuration;
 extern bool overrideShort;
-extern bool sleepEnabled;
+enum SleepModes { disabled, idle, powerSave };
+extern SleepModes sleepEnabled;
+extern bool continuousReceiveEnabled;
+extern bool doDeepSleep;
 
 //Recent Memory
 extern unsigned long lastStatusMillis;

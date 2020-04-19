@@ -89,12 +89,13 @@ MODEM=1
 else ifeq ($(BOARD), 6)
 $(info Running Makefile for PCB Rev1 (6))
 BOARD_DEFINES = \
-    -DF_CPU=8000000L \
+    -DF_CPU=1000000L \
+    -DSERIAL_BAUD=7200 \
+    -DCLOCK_DIVIDER=8 \
     -DREF_MV=3300 \
     -DBATT_PIN=A0 \
     -DBATTV_NUM=101 \
     -DBATTV_DEN=33 \
-    -DARGENTDATA_WIND \
     -DWIND_DIR_PIN=A5 \
     -DWIND_SPD_PIN=2 \
     -DWIND_PWR_PIN=A2 \
@@ -104,7 +105,64 @@ BOARD_DEFINES = \
     -DSX_SELECT=10 \
     -DSX_TCXOV_X10=18 \
     -DSX_RESET=9 \
-    -DFLASH_SELECT=8
+    -DFLASH_SELECT=8 \
+    -DWIND_DIR_AVERAGING \
+    -DARGENTDATA_WIND \
+    -DINVERSE_AD_WIND \
+#   -DSTATION_ID=\'4\' \
+
+PROG_BAUD=57600
+
+else ifeq ($(BOARD), 7)
+$(info Running Makefile for PCB Rev2 (7))
+BOARD_DEFINES = \
+    -DF_CPU=1000000L \
+    -DSERIAL_BAUD=7200 \
+    -DCLOCK_DIVIDER=8 \
+    -DREF_MV=3300 \
+    -DBATT_PIN=A0 \
+    -DBATTV_NUM=2 \
+    -DBATTV_DEN=1 \
+    -DWIND_DIR_PIN=A5 \
+    -DWIND_SPD_PIN=2 \
+    -DWIND_PWR_PIN=A2 \
+    -DSX_BUSY=4 \
+    -DSX_DIO1=3 \
+    -DSX_SELECT=10 \
+    -DSX_TCXOV_X10=18 \
+    -DSX_RESET=9 \
+    -DFLASH_SELECT=8 \
+    -DWIND_DIR_AVERAGING \
+    -DARGENTDATA_WIND \
+    -DINVERSE_AD_WIND \
+    -DSOLAR_PWM \
+    -DTEMP_SENSE=A4 \
+    -DSX_TCXO_STARTUP_US=2000
+
+PROG_BAUD=57600
+
+else ifeq ($(BOARD), 8)
+$(info Running Makefile for PCB Rev2 & ALS Wind (8))
+BOARD_DEFINES = \
+    -DF_CPU=1000000L \
+    -DSERIAL_BAUD=7200 \
+    -DCLOCK_DIVIDER=8 \
+    -DREF_MV=3300 \
+    -DBATT_PIN=A0 \
+    -DBATTV_NUM=2 \
+    -DBATTV_DEN=1 \
+    -DWIND_SPD_PIN=2 \
+    -DTEMP_SENSE=A2 \
+    -DSX_BUSY=4 \
+    -DSX_DIO1=3 \
+    -DSX_SELECT=10 \
+    -DSX_TCXOV_X10=18 \
+    -DSX_RESET=9 \
+    -DFLASH_SELECT=8 \
+    -DWIND_DIR_AVERAGING \
+    -DALS_WIND \
+    -DSOLAR_PWM \
+    -DSX_TCXO_STARTUP_US=2000
 #   -DSTATION_ID=\'4\' \
 
 PROG_BAUD=57600

@@ -27,7 +27,8 @@
                 <chartWindSpd v-bind:dataManager="dataManager"
                               v-bind:duration="duration"
                               v-bind:chartEnd.sync="chartEnd"
-                              v-bind:legend="station.Wind_Speed_Legend" />
+                              v-bind:legend="station.Wind_Speed_Legend" 
+                              :id="station.id"/>
             </div>
             <div style="grid-row:1; grid-column:2; display:flex;
                     justify-content:center; align-items:center">
@@ -40,7 +41,8 @@
                               v-bind:duration="duration"
                               v-bind:chartEnd.sync="chartEnd"
                               v-bind:legend="windDirLegend"
-                              v-bind:centre="windDirCentre"/>
+                              v-bind:centre="windDirCentre"
+                              :id="station.id"/>
             </div>
             <div style="grid-row:2; grid-column:2; display:flex;
                     justify-content:center; align-items:center">
@@ -57,7 +59,8 @@
                 <chartBattery :dataManager="dataManager"
                               :duration="duration"
                               :chartEnd.sync="chartEnd"
-                              :range="station.Battery_Range" />
+                              :range="station.Battery_Range" 
+                              :id="station.id"/>
             </div>
             <div v-if="detailed">
                 <chartBattery :dataManager="dataManager"
@@ -65,7 +68,8 @@
                               :chartEnd.sync="chartEnd"
                               :range="{min:-15, max:45}"
                               :dataSource="'externalTempData'"
-                              :label="'External Temperature'"/>
+                              :label="'External Temperature'"
+                              :id="station.id"/>
             </div>
             <div v-if="detailed">
                 <chartBattery :dataManager="dataManager"
@@ -73,7 +77,8 @@
                               :chartEnd.sync="chartEnd"
                               :range="{min:-15, max:45}"
                               :dataSource="'internalTempData'"
-                              :label="'Case Temperature'"/>
+                              :label="'Case Temperature'"
+                              :id="station.id"/>
             </div>
         </div>
     </div>

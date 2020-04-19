@@ -1,6 +1,7 @@
 #include "PermanentStorage.h"
 #include "ArduinoWeatherStation.h"
 #include <util/crc16.h>
+//#define DEBUG_PARAMETERS
 
 char stationID = defaultStationID;
 
@@ -31,83 +32,88 @@ void PermanentStorage::initialise()
 {
   bool initialised;
   GET_PERMANENT_S(initialised);
+
+  // If possible we use the stored stationID regardless of initialised or CRC check - this helps keep stationID constant across upgrades..
+  GET_PERMANENT_S(stationID);
+  if (stationID < 1 || stationID & 0x80)
+  {
+    AWS_DEBUG_PRINTLN("Using default station ID");
+    stationID = defaultStationID;
+    SET_PERMANENT_S(stationID);
+  }
+
   if (!initialised || !checkCRC())
   {
     AWS_DEBUG_PRINTLN(F("Initialising Default Parameters"));
-    initialised = true;
-    const long shortInterval = 4000;// - 90 * (stationID - '1');
-    const long longInterval = 4000;// - 90 * (stationID - '1'); //longInterval == shortInterval because it turns out the transmit is negligble draw.
-    const unsigned short batteryThreshold_mV = 4000;
-    const unsigned short batteryUpperThresh_mV = 4700;
+
+    PermanentVariables vars
+    {
+    .initialised = true,
+    .stationID = stationID,
+    .shortInterval = 4000,// - 90 * (stationID - '1');
+    .longInterval = 30000,// - 90 * (stationID - '1'); //longInterval == shortInterval because it turns out the transmit is negligble draw.
+    .batteryThreshold_mV = 3800,
+    .batteryEmergencyThresh_mV = 3700,
+    .demandRelay = false,
+    .stationsToRelayCommands = { 0 },
+    .stationsToRelayWeather = { 0 },
+
+    .frequency_i = 425000000,
+    .bandwidth_i = 625,
+    .txPower = -9,
+    .spreadingFactor = 5,
+    .csmaP = 100, //40% chance to transmit
+    .csmaTimeslot = 4000, // 4ms
+    .outboundPreambleLength = 128, // allow end nodes to spend most of their time asleep.
+
     // These default tsOffset / tsGain values correspond to the datasheet example values on page 215.
-    signed char tsOffset = -75;
-    byte tsGain = 164;
-    int wdCalibMin = 0;
-    int wdCalibMax = 1023;
-    const bool demandRelay = false;
-    const byte emptyBuffer[permanentArraySize] = { 0 };
+    .tsOffset = -75,
+    .tsGain = 164,
+    .wdCalibMin = 0,
+    .wdCalibMax = 1023,
 
-    const uint32_t frequency_i = 425000000;
-    const uint16_t bandwidth_i = 625;
-    const short txPower = -9;
-    const byte spreadingFactor = 5;
-    const byte csmaP = 100; //40% chance to transmit
-    const unsigned long csmaTimeslot = 4000; // 4ms
-    const unsigned short outboundPreambleLength = 128; // allow end nodes to spend most of their time asleep.
+    .chargeVoltage_mV = 4050,
+    .chargeResponseRate = 40,
+    .safeFreezingChargeLevel_mV = 3750,
+    .safeFreezingPwm = 85
+    };
+    setBytes(0, sizeof(vars), &vars);
 
-    SET_PERMANENT_S(stationID);
-    SET_PERMANENT_S(shortInterval);
-    SET_PERMANENT_S(longInterval);
-    SET_PERMANENT_S(batteryThreshold_mV);
-    SET_PERMANENT_S(batteryUpperThresh_mV);
-    SET_PERMANENT2(emptyBuffer, stationsToRelayCommands);
-    SET_PERMANENT2(emptyBuffer, stationsToRelayWeather);
-    SET_PERMANENT_S(initialised);
-
-    SET_PERMANENT_S(frequency_i);
-    SET_PERMANENT_S(txPower);
-    SET_PERMANENT_S(bandwidth_i);
-    SET_PERMANENT_S(spreadingFactor);
-    SET_PERMANENT_S(csmaTimeslot);
-    SET_PERMANENT_S(outboundPreambleLength);
     
-    SET_PERMANENT_S(tsOffset);
-    SET_PERMANENT_S(tsGain);
-    SET_PERMANENT_S(wdCalibMin);
-    SET_PERMANENT_S(wdCalibMax);
     setCRC();
   }
   else
   {
-    GET_PERMANENT_S(stationID);
-#if DEBUG
+#if DEBUG && defined(DEBUG_PARAMETERS)
+    AWS_DEBUG_PRINTLN(F("Using saved parameters"));
+
     long shortInterval;
     long longInterval;
     unsigned short batteryThreshold_mV,
-      batteryUpperThresh_mV;
+      batteryEmergencyThresh_mV;
     bool demandRelay = false;
     byte buffer[permanentArraySize] = { 0 };
     unsigned short crc;
     signed char tsOffset;
     byte tsGain;
     int wdCalibMin, wdCalibMax;
+    unsigned short chargeVoltage_mV, chargeResponseRate, safeFreezingChargeLevel_mV;
+    byte safeFreezingPwm;
 
     GET_PERMANENT_S(shortInterval);
     GET_PERMANENT_S(longInterval);
     GET_PERMANENT_S(batteryThreshold_mV);
-    GET_PERMANENT_S(batteryUpperThresh_mV);
+    GET_PERMANENT_S(batteryEmergencyThresh_mV);
     GET_PERMANENT_S(tsOffset);
     GET_PERMANENT_S(tsGain);
-    GET_PERMANENT2(buffer, stationsToRelayWeather);
     GET_PERMANENT_S(initialised);
 
-    AWS_DEBUG_PRINTLN(F("Using saved parameters"));
     PRINT_VARIABLE(stationID);
     PRINT_VARIABLE(initialised);
     PRINT_VARIABLE(shortInterval);
     PRINT_VARIABLE(longInterval);
     PRINT_VARIABLE(batteryThreshold_mV);
-    PRINT_VARIABLE(batteryUpperThresh_mV);
+    PRINT_VARIABLE(batteryEmergencyThresh_mV);
     PRINT_VARIABLE(tsOffset);
     PRINT_VARIABLE(tsGain);
     GET_PERMANENT2(buffer, stationsToRelayCommands);
@@ -155,6 +161,15 @@ void PermanentStorage::initialise()
     GET_PERMANENT_S(wdCalibMax);
     PRINT_VARIABLE(wdCalibMin);
     PRINT_VARIABLE(wdCalibMax);
+
+    GET_PERMANENT_S(chargeVoltage_mV);
+    GET_PERMANENT_S(chargeResponseRate);
+    GET_PERMANENT_S(safeFreezingChargeLevel_mV);
+    GET_PERMANENT_S(safeFreezingPwm);
+    PRINT_VARIABLE(chargeVoltage_mV);
+    PRINT_VARIABLE(chargeResponseRate);
+    PRINT_VARIABLE(safeFreezingChargeLevel_mV);
+    PRINT_VARIABLE(safeFreezingPwm);
 #endif
   }
   _initialised = true;

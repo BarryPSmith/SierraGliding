@@ -10,9 +10,12 @@ namespace core_Receiver.Packets
      /// </summary>
     class QueryVolatileResponse : QueryResponse
     {
+        const int arraySize = 20;
+
         public QueryVolatileResponse(Span<byte> data)
             : base(data, out var consumed)
         {
+            bool constantArraySize = VersionNumber >= new Version(2, 2);
             data = data.Slice(consumed);
             using MemoryStream ms = new MemoryStream();
             ms.Write(data);
@@ -33,22 +36,36 @@ namespace core_Receiver.Packets
                 throw new InvalidDataException();
             if (br.ReadChar() != 'S')
                 throw new InvalidDataException("Did not find expected 'S' marker");
-            for (byte stationID = br.ReadByte(); stationID != 0; stationID = br.ReadByte())
+            for (int i = 0; i < arraySize; i++)
+            //for (byte stationID = br.ReadByte(); stationID != 0; stationID = br.ReadByte())
             {
+                byte stationID = br.ReadByte();
+                if (!constantArraySize && stationID == 0)
+                    break;
                 UInt32 seenMillis = br.ReadUInt32();
                 var age = Millis - seenMillis;
                 RecentlySeenStations.Add((stationID, age));
             }
+            if (constantArraySize && br.ReadByte() != 0) throw new InvalidDataException("Barry's dumb and didn't do good versioning.");
             if (br.ReadChar() != 'C')
                 throw new InvalidDataException("Did not find expected 'C' marker.");
-            for (byte commandID = br.ReadByte(); commandID != 0; commandID = br.ReadByte())
+            for (int i = 0; i < arraySize; i++)
+            //for (byte commandID = br.ReadByte(); commandID != 0; commandID = br.ReadByte())
             {
+                byte commandID = br.ReadByte();
+                if (!constantArraySize && commandID == 0)
+                    break;
                 RecentlyHandledCommands.Add(commandID);
             }
+            if (constantArraySize && br.ReadByte() != 0) throw new InvalidDataException("Barry's dumb and didn't do good versioning.");
             if (br.ReadChar() != 'R')
                 throw new InvalidDataException("Did not find expected 'R' marker.");
-            for (byte type = br.ReadByte(); type != 0; type = br.ReadByte())
+            for (int i = 0; i < arraySize; i++)
+            //for (byte type = br.ReadByte(); type != 0; type = br.ReadByte())
             {
+                byte type = br.ReadByte();
+                if (!constantArraySize && type == 0)
+                    break;
                 RecentlyRelayedPackets.Add(new Packet
                 {
                     type = (PacketTypes)type,
@@ -56,6 +73,7 @@ namespace core_Receiver.Packets
                     sendingStation = br.ReadByte()
                 });
             }
+            if (constantArraySize && br.ReadByte() != 0) throw new InvalidDataException("Barry's dumb and didn't do good versioning.");
             if (br.ReadChar() != 'M')
                 throw new InvalidDataException("Did not find expected second 'M' marker.");
 

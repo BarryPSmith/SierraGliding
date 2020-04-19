@@ -3,6 +3,8 @@ import App from './App.vue';
 
 window.onload = () => {
     Vue.filter('number1', function(value) {
+        if (value === null || value === undefined)
+            return '--';
         if (typeof(value) != 'number') {
             return value;
         }

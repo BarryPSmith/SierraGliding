@@ -2,7 +2,7 @@
   "profiles": {
     "core_Receiver": {
       "commandName": "Project",
-      "commandLineArgs": "--src 192.168.0.115:8001 --dest https://sierragliding.us --_serial COM7"
+      "commandLineArgs": "--connectUDP 15244 15344 --db data.sqlite --dest http://localhost:4000"
     }
   }
 }

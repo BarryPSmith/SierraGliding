@@ -16,7 +16,7 @@
     "@turf/turf": "^5.1.6",
     "bcrypt": "^3.0.6",
     "express": "^4.17.1",
-    "minimist": "^1.2.0",
+    "minimist": "^1.2.3",
     "moment": "^2.24.0",
     "prompt": "^1.0.0",
     "request": "^2.88.0",

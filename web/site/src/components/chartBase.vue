@@ -23,6 +23,7 @@ export default {
                 responsive: true,
                 responsiveAnimationDuration: 0,
                 maintainAspectRatio: false,
+                lastRange: new Date(),
                 scales: {
                     yAxes: [{
                         ticks: {
@@ -68,7 +69,7 @@ export default {
         };
     },
 
-    props: [ 'duration', 'chartEnd', 'dataManager' ],
+    props: [ 'duration', 'chartEnd', 'dataManager', 'id' ],
 
     computed: {
         dataSetCount: function() {
@@ -157,6 +158,7 @@ export default {
             if (this.before_update)
                 this.before_update();
             this.chart.update();
+            this.lastRange = new Date();
         },
 
         chart_panning: function ({ chart }) {
@@ -217,7 +219,10 @@ export default {
         },
 
         on_socket_message: function(msg) {
-            if (!this.chartEnd && !this.isPanning)
+            const idMatch = this.id == msg.id;
+            const canRange = !this.chartEnd && !this.isPanning;
+            const timeMatch = (+new Date() - this.lastRange) > 10000;
+            if (canRange && (idMatch || timeMatch))
                 this.chart_range();
         }
     }

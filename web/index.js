@@ -120,16 +120,16 @@ function database(dbpath, drop, cb) {
 
         db.run(`
             CREATE TABLE IF NOT EXISTS stations (
-                ID                  INTEGER PRIMARY KEY,
-                Name                TEXT UNIQUE NOT NULL,
-                Lon                 FLOAT NOT NULL,
-                Lat                 FLOAT NOT NULL,
-                Wind_Speed_Legend   TEXT NULL,
-                Wind_Dir_Legend     TEXT NULL,
-                Wind_Direction_Offset FLOAT NOT NULL DEFAULT 0, -- Used to compensate for misaligned stations. Applied when data is added to the station_data
-                Display_Level       INTEGER NOT NULL DEFAULT 1, -- If we want to have some stations that are not usually displayed. 0 = Hidden, 1 = Public, 2 = Private (TODO: Figure out admin stuff)
-				Status_Message		TEXT NULL, --If we want to temporarily display a status message when e.g. a station has a hardware fault
-                Battery_Range        TEXT NULL
+                ID                      INTEGER PRIMARY KEY,
+                Name                    TEXT UNIQUE NOT NULL,
+                Lon                     FLOAT NOT NULL,
+                Lat                     FLOAT NOT NULL,
+                Wind_Speed_Legend       TEXT NULL,
+                Wind_Dir_Legend         TEXT NULL,
+                Wind_Direction_Offset   FLOAT NOT NULL DEFAULT 0, -- Used to compensate for misaligned stations. Applied when data is added to the station_data
+                Display_Level           INTEGER NOT NULL DEFAULT 1, -- If we want to have some stations that are not usually displayed. 0 = Hidden, 1 = Public, 2 = Private (TODO: Figure out admin stuff)
+                Status_Message          TEXT NULL, --If we want to temporarily display a status message when e.g. a station has a hardware fault
+                Battery_Range           TEXT NULL
             );
         `);
 
@@ -228,7 +228,7 @@ function main(db, cb) {
                 } catch(err) {
                     console.error(err);
                 }
-                
+
                 pts.push([station.lon, station.lat]);
 
                 return turf.point([station.lon, station.lat], {
@@ -262,7 +262,8 @@ function main(db, cb) {
             FROM
                 stations
             WHERE
-                id >= 0;
+                id >= 0
+                AND Display_Level <= 1
         `, (err, stations) => {
             if (err) return (err, res);
 
@@ -282,11 +283,11 @@ function main(db, cb) {
                 } catch (err) {
                     console.error(err);
                 }
-                
+
             }
 
-            res.json(stations)
-            })
+            res.json(stations);
+        })
     });
 
     /**
@@ -336,7 +337,7 @@ function main(db, cb) {
                     };
                 }
                 const entry = req.body.windspeedlegend[idx];
-                if (entry.top === undefined 
+                if (entry.top === undefined
                     || entry.color === undefined) {
                     return res.status(400).json({
                         status: 400,
@@ -470,7 +471,7 @@ function main(db, cb) {
             }
         }
 
-        const avg_wd_String = extensionLoaded ? 
+        const avg_wd_String = extensionLoaded ?
             '(DEGREES(ATAN2(AVG(SIN(RADIANS(Wind_Direction))), AVG(COS(RADIANS(Wind_Direction))))) + 360) % 360'
             :
             'AVG(Wind_Direction)'
@@ -591,15 +592,15 @@ function main(db, cb) {
 
         try {
             const stats = await dbGet(`
-                SELECT 
-                    MIN(windspeed) as windspeed_min, 
-                    MAX(windspeed) as windspeed_max, 
+                SELECT
+                    MIN(windspeed) as windspeed_min,
+                    MAX(windspeed) as windspeed_max,
                     AVG(windspeed) as windspeed_avg
                 FROM station_data
                 WHERE
-                    Station_ID = $id 
+                    Station_ID = $id
                     AND $statStart <= Timestamp
-                    AND Timestamp <= $statEnd`, 
+                    AND Timestamp <= $statEnd`,
             {
                 $id: req.params.id,
                 $statStart: req.body.timestamp - defaultStatSize,
@@ -676,8 +677,8 @@ async function checkCullInvalidWindspeed(db, id, windspeed, timestamp, stats, ws
     const dbRun = util.promisify(sqlite3.Database.prototype.run).bind(db);
     const lastRecords = await dbAll(`
         SELECT timestamp timestamp, windspeed windspeed
-        FROM station_data 
-        WHERE station_id = $id 
+        FROM station_data
+        WHERE station_id = $id
         AND timestamp < $timestamp
         AND timestamp > $timestamp - 15
         ORDER BY timestamp DESC

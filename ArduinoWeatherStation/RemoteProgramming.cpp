@@ -4,15 +4,15 @@
 #include "LoraMessaging.h"
 #include "MessageHandling.h"
 
-#define DEBUG_PROGRAMMING
+//#define DEBUG_PROGRAMMING
 #ifdef DEBUG_PROGRAMMING
 #define PROGRAM_PRINT AWS_DEBUG_PRINT
 #define PROGRAM_PRINTLN AWS_DEBUG_PRINTLN
 #define PROGRAM_PRINTVAR PRINT_VARIABLE
 #else
-#define PROGRAM_PRINT 
-#define PROGRAM_PRINTLN 
-#define PROGRAM_PRINTVAR 
+#define PROGRAM_PRINT(...)  do { } while (0)
+#define PROGRAM_PRINTLN(...)  do { } while (0)
+#define PROGRAM_PRINTVAR(...)  do { } while (0)
 #endif
 
 // Remote programming over our home-grown protocols.
@@ -56,6 +56,7 @@ namespace RemoteProgramming
   void sendAbortMessage();
   bool handleFlashCommand(MessageSource& msg, const byte uniqueID, const bool demandRelay,
     bool* ackRequired);
+  bool handleReadCommand(MessageSource& msg, const byte uniqueID, uint32_t add, bool* ackRequired);
 
   bool handleProgrammingCommand(MessageSource& msg, byte uniqueID, bool demandRelay,
     bool* ackRequired)
@@ -87,7 +88,6 @@ namespace RemoteProgramming
     PROGRAM_PRINTLN(F("Processing flash command..."));
     byte rwe;
     uint32_t add;
-    byte count;
     if (msg.readByte(rwe) || 
         msg.read(add))
       return false;
@@ -100,7 +100,7 @@ namespace RemoteProgramming
     flash.wakeup();
     auto ret = true;
     switch (rwe)
-    {
+    { 
     case 'E':
       flash.blockErase4K(add);
       break;
@@ -110,25 +110,25 @@ namespace RemoteProgramming
         flash.writeByte(add++, b);
       break;
     case 'R':
-      ret = hanleReadCommand(msg, add, ackRequired);
+      ret = handleReadCommand(msg, uniqueID, add, ackRequired);
     }
     flash.sleep();
     return ret;
   }
 
-  bool handleReadCommand(MessageSource& msg, uint32_t add, bool* ackRequired)
+  bool handleReadCommand(MessageSource& msg, const byte uniqueID, uint32_t add, bool* ackRequired)
   {
     byte count;
     if (msg.read(count))
       return false;
 
     char internalOrExt;
-    if (msg.read(internalOrExt)
+    if (msg.read(internalOrExt))
       internalOrExt = 'E';
     bool external = internalOrExt == 'E';
     if (!external && internalOrExt != 'I')
       return false;
-    if (!external && (add >= 32768 || add + count > 32768)
+    if (!external && (add >= 32768 || add + count > 32768))
       return false;
 
     LoraMessageDestination dest(false);
@@ -296,10 +296,10 @@ namespace RemoteProgramming
     msg.finishAndSend();
 
     //Write the last little bit for Dual Optiboot to program the image:
-    unsigned int imageSize = totalExpectedPackets * bytesPerPacket;
-    flash.writeByte(0x07, imageSize >> 8);
+    unsigned int imageSize = ((unsigned int)totalExpectedPackets) * bytesPerPacket;
+    flash.writeByte(0x07, (imageSize >> 8) & 0xFF);
     flash.writeByte(0x08, imageSize & 0xFF);
-    flash.writeBytes(0x00, "FLXIMG:", sizeof("FLXIMG:"));
+    flash.writeBytes(0x00, "FLXIMG:", 7);
     flash.writeByte(0x09, ':');
     //Wait for the WDT to kick in...
     while (1);

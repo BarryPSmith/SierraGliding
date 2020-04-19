@@ -34,7 +34,7 @@
     SET_PERMANENT2(&member, member); \
     } while (0)
 
-const int permanentArraySize = 20;
+inline constexpr int permanentArraySize = 20;
 
 //Implements EEPROM storage of permanent setup variables.
 //In its own class so we can change processors more easily
@@ -45,7 +45,7 @@ typedef struct PermanentVariables
   unsigned long shortInterval, //4
                 longInterval;  //4
   unsigned short batteryThreshold_mV; //2
-  unsigned short batteryUpperThresh_mV; //2
+  unsigned short batteryEmergencyThresh_mV; //2
   bool demandRelay; //1
   byte stationsToRelayCommands[permanentArraySize]; //20
   byte stationsToRelayWeather[permanentArraySize]; //20
@@ -63,6 +63,11 @@ typedef struct PermanentVariables
   byte tsGain;
   int wdCalibMin, 
     wdCalibMax;
+
+  unsigned short chargeVoltage_mV;
+  unsigned short chargeResponseRate;
+  unsigned short safeFreezingChargeLevel_mV;
+  byte safeFreezingPwm;
 
   short crc; //2
 } PermanentVariables;

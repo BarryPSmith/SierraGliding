@@ -1,4 +1,5 @@
 import NanoEvents from 'nanoevents'
+import bs from 'binary-search' //'../../node_modules/binary-search/index.js';
 
 export default class DataManager {
     constructor(station_id) {
@@ -19,6 +20,7 @@ export default class DataManager {
         this.minResolution= 1000;
         this.maxResolution= 4000;
         this.maxDataPoints = 8000;
+        this.lastEnsureSpan = 1;
 
         this.unit = 'mph';
         
@@ -60,6 +62,7 @@ export default class DataManager {
         }
         
         const span = (actualEnd - start) / 1000;
+        this.lastEnsureSpan = span;
         const minInterval = Math.max(span / this.maxResolution, 1);
         const maxInterval = Math.max(span / this.minResolution, this.stationDataRate);
         const expectedTotalSpan = (Math.max(actualEnd, this.get_actual_end()) - Math.min(start, this.currentStart)) / 1000;
@@ -226,18 +229,9 @@ export default class DataManager {
         const jsTimestamp = dataPoint.timestamp * 1000;
         for (const arr of this.allDatasets()) {
             for (let i = arr.length - 1; i >= 0; i--) {
-                console.log("I'm a loop!");
-                console.log(i);
-                console.log(arr[i].x);
-                console.log(jsTimestamp);
-                console.log(arr[i].x == jsTimestamp);
-                console.log(+arr[i].x);
-                console.log(+jsTimestamp);
-                console.log(+arr[i].x == +jsTimestamp);
                 if (+arr[i].x < jsTimestamp)
                     break;
                 if (+arr[i].x == jsTimestamp) {
-                    console.log("!!! Removing point !!!");
                     arr.splice(i, 1);
                 }
             }
@@ -284,9 +278,21 @@ export default class DataManager {
         this.windspeedMinData.push(wsMinEntry);
         
         //Trim if necessary.
+        const viewStart = this.get_actual_end() - this.lastEnsureSpan * 1000;
+
         for (const cur of [this.stationData, ...this.allDatasets()]) {
-            if (cur.length > this.maxDataPoints) {
-                cur.splice(0, 50);
+            const startIdx = bs(cur, viewStart, (element, needle) => (element.x === undefined ? element.timestamp * 1000 : element.x) - needle);
+            if (startIdx < 0)
+                startIdx = ~startIdx;
+            // If we've got so much data that we're overloading the chart,
+            // replace our data with resampled data from the server.
+            if (cur.length - startIdx > this.maxResolution)
+                this.load_data(viewStart, this.currentEnd, this.get_actual_end());
+            else {
+                const toRemove = cur.length - this.maxDataPoints;
+                if (toRemove > 0) {
+                    cur.splice(0, toRemove + 50);
+                }
             }
         }
         this.data_updated();

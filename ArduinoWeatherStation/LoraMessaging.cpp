@@ -9,6 +9,8 @@
 
 extern inline int16_t lora_check(const int16_t result, const __FlashStringHelper* msg);
 
+bool LoraMessageDestination::delayRequired = false;
+
 //Hardware pins:
 Module mod(SX_SELECT, SX_DIO1, SX_BUSY);
 #ifndef MOTEINO_96
@@ -25,7 +27,6 @@ void rxDone() { packetWaiting = true; }
 
 void updateIdleState()
 {
-#ifndef MOTEINO_96
   //If we need to relay weather from anyone, we want to listen continuously.
   //We also need to listen continuously if we're set to relay commands: Although commands are sent with a long preamble, acknowledgement is not.
   byte stationsToRelayWeather[permanentArraySize];
@@ -41,16 +42,24 @@ void updateIdleState()
 #if defined(MODEM)
   newState = IdleStates::ContinuousReceive;
 #else
-  bool mustRelay = stationsToRelayWeather[0] || stationsToRelayCommands[0];
-  newState = mustRelay ? IdleStates::ContinuousReceive : IdleStates::IntermittentReceive;
+  bool continuousReceive = !continuousReceiveEnabled;
+  if (continuousReceiveEnabled)
+  {
+    for (int i = 0; i < permanentArraySize; i++)
+    {
+      if (stationsToRelayWeather[i] || stationsToRelayCommands[i])
+      {
+        continuousReceive = true;
+        break;
+      }
+    }
+  }
+  newState = continuousReceive ? IdleStates::ContinuousReceive : IdleStates::IntermittentReceive;
 #endif
   LORA_CHECK(csma.setIdleState(newState));
 
   // TODO: We might want to put the unit to sleep entirely if the battery reaches a critical level.
   // (Although we should probably instead work on reducing current draw so it never reaches that level.)
-#else //MOTEINO_96
-  lora.startReceive();
-#endif
 }
 
 void InitMessaging()
@@ -139,6 +148,9 @@ void InitMessaging()
       0 //TCXO voltage
 #endif
     ));
+#ifdef SX_TCXO_STARTUP_US
+    LORA_CHECK(lora.setTCXO_i(SX_TCXOV_X10, SX_TCXO_STARTUP_US));
+#endif
 #endif //!USE_FP
     if (state != ERR_NONE)
     {
@@ -265,6 +277,7 @@ bool handleMessageCommand(MessageSource& src, byte* desc)
       {
         state = ERR_NONE;
         SET_PERMANENT_S(outboundPreambleLength);
+        csma._senderPremableLength = outboundPreambleLength;
       }
     }
     break;
@@ -326,7 +339,9 @@ MESSAGE_RESULT LoraMessageDestination::finishAndSend()
   digitalWrite(LED_PIN0, LED_ON);
 #endif //DEBUG
 
-  auto beforeTxMicros = micros();
+  TX_DEBUG(auto beforeTxMicros = micros());
+  if (delayRequired)
+    delayMicroseconds(lora._tcxoDelay * random(1,5));
   auto state = LORA_CHECK(csma.transmit(_outgoingBuffer, _currentLocation, preambleLength));
   TX_PRINTVAR(micros() - beforeTxMicros);
 

@@ -224,9 +224,10 @@ export default {
                 desiredPtRadius = maxPtRadius;
             }
 
-            this.chart.data.datasets[0].pointRadius = desiredPtRadius;
-            this.chart.data.datasets[0].pointBackgroundColor = 'rgba(0, 0, 0, ' + pointOpacity + ')';
-            this.chart.data.datasets[0].pointBorderColor = 'rgba(0, 0, 0, 0.1)';
+                this.chart.data.datasets[0].pointRadius = desiredPtRadius;
+                this.chart.data.datasets[0].pointBackgroundColor = 'rgba(0, 0, 0, ' + pointOpacity + ')';
+                this.chart.data.datasets[0].pointBorderColor = 'rgba(0, 0, 0, 0.1)';
+            }
         }
     }
 }

@@ -207,23 +207,25 @@ export default {
             let pointOpacity = 1;
             
             const wdElem = this.$refs.chart;
-            const width = wdElem.clientWidth;
-            let desiredPtRadius = width * 
-                Math.max(this.dataManager.currentSampleInterval, this.dataManager.stationDataRate) / this.duration;
+            if (wdElem) {
+                const width = wdElem.clientWidth;
+                let desiredPtRadius = width * 
+                    Math.max(this.dataManager.currentSampleInterval, this.dataManager.stationDataRate) / this.duration;
 
-            if (desiredPtRadius < minPtRadius)
-            {
-                pointOpacity = 0.3 + 0.7 * desiredPtRadius / minPtRadius;
-                if (pointOpacity > 1)
-                    pointOpacity = 1;
-                desiredPtRadius = minPtRadius;
-            } else if (desiredPtRadius > maxPtRadius) {
-                desiredPtRadius = maxPtRadius;
+                if (desiredPtRadius < minPtRadius)
+                {
+                    pointOpacity = 0.3 + 0.7 * desiredPtRadius / minPtRadius;
+                    if (pointOpacity > 1)
+                        pointOpacity = 1;
+                    desiredPtRadius = minPtRadius;
+                } else if (desiredPtRadius > maxPtRadius) {
+                    desiredPtRadius = maxPtRadius;
+                }
+
+                this.chart.data.datasets[0].pointRadius = desiredPtRadius;
+                this.chart.data.datasets[0].pointBackgroundColor = 'rgba(0, 0, 0, ' + pointOpacity + ')';
+                this.chart.data.datasets[0].pointBorderColor = 'rgba(0, 0, 0, 0.1)';
             }
-
-            this.chart.data.datasets[0].pointRadius = desiredPtRadius;
-            this.chart.data.datasets[0].pointBackgroundColor = 'rgba(0, 0, 0, ' + pointOpacity + ')';
-            this.chart.data.datasets[0].pointBorderColor = 'rgba(0, 0, 0, 0.1)';
         }
     }
 }

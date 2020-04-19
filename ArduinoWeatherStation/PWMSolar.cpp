@@ -41,12 +41,12 @@ namespace PwmSolar
   unsigned long lastPwmMicros = 0;
   byte solarPwmValue = 0;
 
-  int getNewPwmValue();
+  int getNewPwmValue(bool* canIdle);
   byte getMaxPwm(unsigned short batteryVoltage_mV);
   unsigned short getDesiredBatteryVoltage();
   void turnOffSolar();
   void setSolarFull();
-  void ensurePwmActive();
+  void ensurePwmActive(bool canIdle);
 
   void setupPwm()
   {
@@ -66,7 +66,8 @@ namespace PwmSolar
 #endif
     lastPwmMicros = micros();
     
-    int newValue = getNewPwmValue();
+    bool canIdle;
+    int newValue = getNewPwmValue(&canIdle);
     if (newValue <= 0)
     {
       turnOffSolar();
@@ -79,12 +80,12 @@ namespace PwmSolar
     }
     else
     {
-      ensurePwmActive();
+      ensurePwmActive(canIdle);
       solarPwmValue = OCR0B = newValue;
     }
   }
 
-  int getNewPwmValue()
+  int getNewPwmValue(bool* canIdle)
   {
     int batteryVoltageReading = analogRead(BATT_PIN);
     int batteryVoltage_mV = mV_Ref * BattVNumerator * batteryVoltageReading / (BattVDenominator  * 1023);
@@ -101,12 +102,16 @@ namespace PwmSolar
     SOLAR_PRINTVAR(solarPwmValue);
     SOLAR_PRINTVAR(change);
 
+    *canIdle = true;
     if (newValue <= 0)
       return 0;
     else if (newValue >= maxPwm)
       return maxPwm;
     else
+    {
+      *canIdle = false;
       return newValue;
+    }
   }
 
   //In cold temperatures with lithium ion, we must perform current and voltage limitation. maxPwm limits the maximum chart current.
@@ -139,7 +144,7 @@ namespace PwmSolar
     // write it HIGH (which will turn the switch off)
     // Record that sleep is allowed
     digitalWrite(SOLAR_PWM_PIN, HIGH);
-    sleepEnabled = true;
+    sleepEnabled = SleepModes::powerSave;
   }
 
   void setSolarFull()
@@ -148,16 +153,16 @@ namespace PwmSolar
     // write it LOW (which will turn the switch on)
     // Record that sleep is allowed
     digitalWrite(SOLAR_PWM_PIN, LOW);
-    sleepEnabled = true;
+    sleepEnabled = SleepModes::powerSave;
   }
 
-  void ensurePwmActive()
+  void ensurePwmActive(bool canIdle)
   {
     // Set up the necessary registers
     // Ensure the MCU doesn't go to sleep.
     TIMSK0 = 0; //No interrupts
     TCCR0A = _BV(COM0B1) | _BV(COM0B0) | _BV(WGM01) | _BV(WGM00); //Fast PWM inverting on output B
-    TCCR0B = _BV(CS00); // No prescaler: Operate at full clock frequency (PWM at 31.25kHz)
-    sleepEnabled = false;
+    TCCR0B = _BV(CS00); // No prescaler: Operate at full clock frequency (PWM at 31.25kHz for 8MHz, 3.9kHz for 1MHz)
+    sleepEnabled = canIdle ? SleepModes::idle : SleepModes::disabled;
   }
 }

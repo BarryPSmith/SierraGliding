@@ -91,6 +91,7 @@ $(info Running Makefile for PCB Rev1 (6))
 BOARD_DEFINES = \
     -DF_CPU=1000000L \
     -DSERIAL_BAUD=7200 \
+    -DCLOCK_DIVIDER=8 \
     -DREF_MV=3300 \
     -DBATT_PIN=A0 \
     -DBATTV_NUM=101 \
@@ -108,7 +109,6 @@ BOARD_DEFINES = \
     -DWIND_DIR_AVERAGING \
     -DARGENTDATA_WIND \
     -DINVERSE_AD_WIND \
-    -DCLOCK_DIVIDER=8
 #   -DSTATION_ID=\'4\' \
 
 PROG_BAUD=57600
@@ -116,7 +116,9 @@ PROG_BAUD=57600
 else ifeq ($(BOARD), 7)
 $(info Running Makefile for PCB Rev2 (7))
 BOARD_DEFINES = \
-    -DF_CPU=8000000L \
+    -DF_CPU=1000000L \
+    -DSERIAL_BAUD=7200 \
+    -DCLOCK_DIVIDER=8 \
     -DREF_MV=3300 \
     -DBATT_PIN=A0 \
     -DBATTV_NUM=2 \
@@ -142,7 +144,9 @@ PROG_BAUD=57600
 else ifeq ($(BOARD), 8)
 $(info Running Makefile for PCB Rev2 & ALS Wind (8))
 BOARD_DEFINES = \
-    -DF_CPU=8000000L \
+    -DF_CPU=1000000L \
+    -DSERIAL_BAUD=7200 \
+    -DCLOCK_DIVIDER=8 \
     -DREF_MV=3300 \
     -DBATT_PIN=A0 \
     -DBATTV_NUM=2 \

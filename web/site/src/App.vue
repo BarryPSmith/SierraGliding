@@ -50,7 +50,13 @@ export default {
         },
 
         socket_onMessage: function(msg) {
-            EventBus.$emit('socket-message', JSON.parse(msg.data));
+            const msgData = JSON.parse(msg.data);
+            // Sometimes if we leave the site open in the background all day we come back to find it frozen.
+            // It seems it's in a rush to catch up a bunch of old socket messages.
+            // So..
+            // Only accept things from the past 30 seconds:
+            if (msgData.timestamp > (+new Date() / 1000 - 30))
+                EventBus.$emit('socket-message', msgData);
         }
     }
 }

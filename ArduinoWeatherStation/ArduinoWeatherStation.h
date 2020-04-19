@@ -65,10 +65,8 @@ inline constexpr char defaultStationID = 'Z';
 extern char stationID;
 
 //Global Constants
-inline constexpr unsigned long tncBaud = 
-#if 1
-  4800;
-#elif defined(SERIAL_BAUD)
+inline constexpr unsigned long serialBaud = 
+#if defined(SERIAL_BAUD)
   SERIAL_BAUD;
 #else
   38400;
@@ -81,7 +79,8 @@ extern unsigned long weatherInterval; //Current weather interval.
 extern unsigned long overrideStartMillis;
 extern unsigned long overrideDuration;
 extern bool overrideShort;
-extern bool sleepEnabled;
+enum SleepModes { disabled, idle, powerSave };
+extern SleepModes sleepEnabled;
 extern bool continuousReceiveEnabled;
 extern bool doDeepSleep;
 

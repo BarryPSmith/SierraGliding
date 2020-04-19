@@ -17,7 +17,7 @@ unsigned long weatherInterval = 2000; //Current weather interval.
 unsigned long overrideStartMillis;
 unsigned long overrideDuration;
 bool overrideShort;
-bool sleepEnabled = true;
+SleepModes sleepEnabled = SleepModes::powerSave;
 bool continuousReceiveEnabled = true;
 // deep sleep disables timer2, and allows the MCU to turn off everything.
 // That greatly drops sleep current, but the unit cannot do its weather reporting.
@@ -148,7 +148,7 @@ void setup() {
   WDTCSR |= (1 << WDIE);
 
 #ifdef DEBUG
-  Serial.begin(tncBaud);
+  Serial.begin(serialBaud);
 #else //Use the serial LEDs as status lights:
   pinMode(LED_PIN0, OUTPUT);
   pinMode(LED_PIN1, OUTPUT);
@@ -312,6 +312,7 @@ void yield()
 {
   //We leave the ADC_ON to hopefully get a less pronounced effect as the LDO goes from low current to running current.
   //Only sleep if we're running fast enough that MCU power consumption might be significant.
+  // (Also, if we sleep when our clock rate is low, it might be quite a while before timer2 ticks - long enough to set off the WDT)
   if (F_CPU >= 4000000L)
     sleep(ADC_ON);
 }
@@ -319,7 +320,7 @@ void yield()
 void sleep(adc_t adc_state)
 {
   //If we've disabled sleep for some reason...
-  if (!sleepEnabled)
+  if (sleepEnabled == SleepModes::disabled)
     return;
   // Or interrupts aren't enabled (= no wakeup)
   if (bit_is_clear(SREG, SREG_I))
@@ -333,11 +334,26 @@ void sleep(adc_t adc_state)
   //
   if (timer2State == TIMER2_OFF)
     wdt_dontRestart = true;
-  LowPower.powerSave(SLEEP_FOREVER, //Low power library messes with our watchdog timer, so we lie and tell it to sleep forever.
-                    adc_state,
-                    BOD_OFF,
-                    timer2State
-                    );
+  if (sleepEnabled == SleepModes::powerSave)
+    LowPower.powerSave(SLEEP_FOREVER, //Low power library messes with our watchdog timer, so we lie and tell it to sleep forever.
+                      adc_state,
+                      BOD_OFF,
+                      timer2State
+                      );
+  else if (sleepEnabled == SleepModes::idle)
+  {
+    // note that these *_ON just tell LowPower not to mess with the PRR, they don't actually turn things on. 
+    // TODO: Test what happens if we turn off SPI & TWI.
+    LowPower.idle(SLEEP_FOREVER,
+                  adc_state,
+                  timer2State,
+                  TIMER1_ON, 
+                  TIMER0_ON, 
+                  SPI_ON,
+                  USART0_ON, 
+                  TWI_ON);
+  }
+                  
   // The re-enable isn't guarded to make it harder for runaway code to disable the watchdog timer
   wdt_dontRestart = false;
   if (timer2State == TIMER2_OFF)

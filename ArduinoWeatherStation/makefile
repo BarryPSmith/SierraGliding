@@ -16,7 +16,7 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 6: First attempt at a printed PCB
 # 7: Second printed PCB (includes battery PWM circuitry)
 # 8: Second printed PCB configured for ALSWind
-BOARD = 6
+BOARD = 8
 include Boards.makefile
 
 #Flags, etc.

@@ -22,7 +22,7 @@ void TimerTwo::initialise()
   TCCR2A = _BV(WGM21);//0x02;
   // TCCR2B: 1024 prescaler:
   TCCR2B = _BV(CS20) | _BV(CS21) | _BV(CS22);
-  // Overflow exactly every 16ms (+/- clock accuracy). 32ms at 8MHz.
+  // Overflow exactly every 16ms (+/- clock accuracy). 32ms at 8MHz. 256ms at 1MHz.
   OCR2A = TIMER2_TOP; // Note: Decimal. Also note that the timer will have a value of 249 for a full 1024 cycles and only then reset to zero, so it actually counts 250 * 1024 cycles.
   // Enable OCR
   TIMSK2 = _BV(OCIE2A);

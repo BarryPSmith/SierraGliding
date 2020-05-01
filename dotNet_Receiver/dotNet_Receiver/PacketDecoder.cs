@@ -144,18 +144,18 @@ namespace core_Receiver
             {
                 sendingStation = data[0],
                 uniqueID = data[1],
-                windDirection = GetWindDirection(data[cur++]),
-                windSpeed = GetWindSpeed(data[cur++])
+                windDirection = GetWindDirection(data[cur++]), //3
+                windSpeed = GetWindSpeed(data[cur++]) //4
             };
 
             if (len > 2)
-                ret.batteryLevelH = data[cur++] / 255.0 * 7.5;
+                ret.batteryLevelH = data[cur++] / 255.0 * 7.5; //5
             if (len > 3)
-                ret.externalTemp = GetTemp(data[cur++]);
+                ret.externalTemp = GetTemp(data[cur++]); //6
             if (len > 4)
-                ret.internalTemp = GetTemp(data[cur++]);
+                ret.internalTemp = GetTemp(data[cur++]); //7
             if (len > 5)
-                ret.extras = data.Slice(cur).ToArray();
+                ret.extras = data.Slice(cur, len + 3 - cur).ToArray(); //8
             return ret;
         }
 

@@ -20,7 +20,7 @@ RF Chokes|Reduce electrical noise on sensor cables, reduce spurious RF emissions
 25ft Flag Pole|Locate wind sensors and antenna away from ground|https://www.amazon.com/gp/product/B07MM3Z4R9/
 3 x 40ft x 1/16" Wire Rope|Stays - prevent flag pole breaking in high winds|https://www.amazon.com/gp/product/B07V6C5815/
 3 x Stakes|Attach wire rope stays to ground|Local hardware store
-3 x Turbuckles|Adjust tension of stays|Local hardware store
+6 x Turnbuckles|Adjust tension of stays|Local hardware store
 Grommets|Protect aluminium flagpole from steel stays|Local hardware store
 
 Receiver

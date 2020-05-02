@@ -2,7 +2,6 @@
 
 'use strict';
 
-const stats = require('simple-statistics');
 const moment = require('moment');
 const turf = require('@turf/turf');
 const WebSocketServer = require('ws').Server;
@@ -124,6 +123,7 @@ function database(dbpath, drop, cb) {
                 Name                    TEXT UNIQUE NOT NULL,
                 Lon                     FLOAT NOT NULL,
                 Lat                     FLOAT NOT NULL,
+                Elevation               FLOAT NOT NULL,
                 Wind_Speed_Legend       TEXT NULL,
                 Wind_Dir_Legend         TEXT NULL,
                 Wind_Direction_Offset   FLOAT NOT NULL DEFAULT 0, -- Used to compensate for misaligned stations. Applied when data is added to the station_data

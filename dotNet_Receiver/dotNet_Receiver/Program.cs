@@ -106,7 +106,6 @@ Arguments:
 
             TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
-
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
 
             ParseArgs(args);

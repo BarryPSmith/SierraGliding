@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "WindyPoster": {
+      "commandName": "Project",
+      "commandLineArgs": "--keyfile C:\\Users\\Barry_Main\\windyKey --ext C:\\Users\\Barry_Main\\SierraGliding\\web\\sqlite3_ext\\extension-functions --db C:\\temp\\backup.sqlite"
+    }
+  }
+}

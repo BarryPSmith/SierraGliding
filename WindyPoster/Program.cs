@@ -20,7 +20,7 @@ namespace WindyPoster
         static string _extensionLocation;
         static readonly ManualResetEvent _shutdownEvent = new ManualResetEvent(false);
         static readonly TimeSpan _sendInterval = TimeSpan.FromMinutes(5);
-        static int[] _stationIds = new [] { 49, 50 };
+        static int[] _stationIds = new [] { 49, 50, 51 };
 
         static bool ParseArgs(string[] args)
         {
@@ -32,7 +32,7 @@ namespace WindyPoster
             var baseUrl = GetValue(args, "--url") ?? "https://stations.windy.com/pws/update/";
             var db = GetValue(args, "--db");
             var stationIds = GetValue(args, "--stations");
-            _extensionLocation = GetValue(args, "--ext") ?? "/../web/sqlite3_ext/extension-functions";
+            _extensionLocation = GetValue(args, "--ext") ?? "../web/sqlite3_ext/extension-functions";
 
             
 
@@ -77,11 +77,12 @@ namespace WindyPoster
             Console.WriteLine(
 @"Sierra Gliding Windy Poster.
 
-Usage: dotnet WindyPoster.dll [--db <DB>] [--key <KEY>] [--url <BASE_URL>] [--ext <Extension_funcs>] [--stations <LIST>]
+Usage: dotnet WindyPoster.dll [--db <DB>] [--key <KEY> | --keyfile <FILENAME>] [--url <BASE_URL>] [--ext <Extension_funcs>] [--stations <LIST>]
 
  Options:
  --db <DB>         [required] Specify the SQLite database to use
- --key <KEY>       [required] Windy API key
+ --key <KEY>       [optional] Windy API key. If not specified, then keyfile must be specified
+ --keyfile <NAME>  [optional] Location of file that contains Windy API key. If not specified then key must be specified.
  --url <BASE_URL>  [optional] send data to a different endpoint. Default https://stations.windy.com/pws/update/
  --ext <EXT>       [optional] specify where to find SQLite extension functions. Default /../web/sqlite3_ext/extension-functions
  --stations <LIST> [optional] list of station IDs to send. Must be comma separated, no spaces. Default 1,2");
@@ -128,9 +129,12 @@ Usage: dotnet WindyPoster.dll [--db <DB>] [--key <KEY>] [--url <BASE_URL>] [--ex
                     conn.EnableExtensions(true);
                     conn.LoadExtension(_extensionLocation);
                     extensionLoaded = true;
+                    Console.WriteLine("Extension function loaded successfully.");
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Console.Error.WriteLine($"Unable to load extension functions: {ex}");
+                    Console.Error.WriteLine($"Extension location: {_extensionLocation}");
                     extensionLoaded = false;
                 }
 
@@ -157,19 +161,22 @@ Usage: dotnet WindyPoster.dll [--db <DB>] [--key <KEY>] [--url <BASE_URL>] [--ex
                     JOIN
                         station_data ON station_data.station_id == stations.ID
                     WHERE 
-                        timestamp > @lastTime
+                        @lastTime <= timestamp AND timestamp < @thisTime
                     AND
                         ID IN ({_stationIds.ToCsv()})
                     GROUP BY
                         ID
                     ",
                     conn);
-                var startTs = (DateTimeOffset.Now - TimeSpan.FromHours(1)).ToUnixTimeSeconds();
-                cmd.Parameters.AddWithValue("@lastTime", startTs);
-                using var reader = cmd.ExecuteReader();
+                
                 Dictionary<long, object> stations = new Dictionary<long, object>();
-                List<object> readings = new List<object>();
-                List<Task> tasks = new List<Task>();
+                List<object> readings = new List<object>();                
+
+                DateTimeOffset thisTime = DateTimeOffset.Now;
+                var startTs = (thisTime - _sendInterval).ToUnixTimeSeconds();
+                cmd.Parameters.AddWithValue("@lastTime", startTs);
+                cmd.Parameters.AddWithValue("@thisTime", thisTime.ToUnixTimeSeconds());
+                using var reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
                     long id = reader.GetInt64(0);
@@ -192,16 +199,12 @@ Usage: dotnet WindyPoster.dll [--db <DB>] [--key <KEY>] [--url <BASE_URL>] [--ex
                     double temp = reader.GetDouble(7);
                     double winddir = reader.GetDouble(8);
                     if (id == 50)
-                        readings.Add(new { station = id, ts = DateTimeOffset.Now.ToUnixTimeSeconds(), wind, gust, winddir });
+                        readings.Add(new { station = id, ts = thisTime.ToUnixTimeSeconds(), wind, gust, winddir });
                     else
-                        readings.Add(new { station = id, ts = DateTimeOffset.Now.ToUnixTimeSeconds(), wind, gust, temp, winddir });
-                    tasks.Add(SendReadings(readings));
-                    readings = new List<object>();
+                        readings.Add(new { station = id, ts = thisTime.ToUnixTimeSeconds(), wind, gust, temp, winddir });
                 }
 
-                await Task.WhenAll(tasks);
-
-                //await SendReadings(readings);
+                await SendReadings(readings);
             }
             catch (Exception ex)
             {
@@ -211,29 +214,36 @@ Usage: dotnet WindyPoster.dll [--db <DB>] [--key <KEY>] [--url <BASE_URL>] [--ex
 
         private static async Task SendReadings(List<object> readings)
         {
-            string json = JsonConvert.SerializeObject(new
+            const int batchSize = 100;
+            for (int batch = 0; batch < readings.Count; batch += batchSize)
             {
-                //stations = stations.Values,
-                observations = readings
-            });
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
+                string json = JsonConvert.SerializeObject(new
+                {
+                    //stations = stations.Values,
+                    observations = readings.Skip(batch).Take(batchSize)
+                }, Formatting.Indented);
+                Console.WriteLine($"Posting: {json}");
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            for (int i = 0; i < 3; i++)
-            {
-                var response = await _client.PostAsync(_url, content);
-                if (response.IsSuccessStatusCode)
+                for (int i = 0; i < 3; i++)
                 {
-                    Console.WriteLine("Succesfully posted.");
-                    Console.WriteLine($"Response: {response.Content.ReadAsStringAsync().Result}");
-                    break;
+                    var response = await _client.PostAsync(_url, content);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        Console.WriteLine("Succesfully posted.");
+                        Console.WriteLine($"Response: {response.Content.ReadAsStringAsync().Result}");
+                        break;
+                    }
+                    else
+                    {
+                        Console.Error.WriteLine($"Post failed ({response.StatusCode}): {response.ReasonPhrase}");
+                        Console.Error.WriteLine($"Content: {response.Content.ReadAsStringAsync().Result}");
+                        Console.Error.WriteLine($"JSON: {json}");
+                        await Task.Delay(30000);
+                    }
                 }
-                else
-                {
-                    Console.Error.WriteLine($"Post failed ({response.StatusCode}): {response.ReasonPhrase}");
-                    Console.Error.WriteLine($"Content: {response.Content.ReadAsStringAsync().Result}");
-                    Console.Error.WriteLine($"JSON: {json}");
-                    await Task.Delay(30000);
-                }
+
+                await Task.Delay(5000);
             }
         }
 

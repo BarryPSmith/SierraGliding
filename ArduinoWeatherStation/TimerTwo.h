@@ -2,14 +2,24 @@
 
 #define MILLIS_PER_SECOND 1000UL
 #define TIMER2_RESOLUTION 256UL
-#define MAX_DIVIDER 1024UL
+#ifdef CRYSTAL_FREQ
+#define DIVIDER 32UL
+#define TIMER2_TOP 255
+#else
+#define DIVIDER 1024UL
 #define TIMER2_TOP 249
+#endif
 
-//We replace default timer2 functionality to wake up less often...
+//We replace default timer2 functionality to wake up less often, or run from an external crystal
 class TimerTwo
 {
 public:
-  static constexpr unsigned long MillisPerTick = (TIMER2_TOP + 1) * MILLIS_PER_SECOND * MAX_DIVIDER / F_CPU;
+  static constexpr unsigned long MillisPerTick = 
+#ifdef CRYSTAL_FREQ
+    (TIMER2_TOP + 1) * MILLIS_PER_SECOND * DIVIDER / CRYSTAL_FREQ
+#else
+    (TIMER2_TOP + 1) * MILLIS_PER_SECOND * DIVIDER / F_CPU;
+#endif
   static volatile unsigned long _ticks;
   static void (*_interruptAction)(void);
 

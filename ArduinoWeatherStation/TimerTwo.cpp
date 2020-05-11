@@ -11,6 +11,32 @@ ISR(TIMER2_COMPA_vect)
   TimerTwo::_interruptAction();
 }
 
+#ifdef CRYSTAL_FREQ
+void TimerTwo::initialise()
+{
+  TIMSK2 = 0;
+  ASSR = _BV(AS2); //Run it off the 32 kHz crystal
+  TCNT2 = 1;
+  OCR2A = TIMER2_TOP;
+  OCR2B = 0;
+  
+  TCCR2A = _BV(WGM21); //CTC Mode
+  TCCR2B = _BV(_CS21) | _BV(CS20); // Prescaler of 32: 4 ticks per second at 32768 / 255 top
+  
+  while (ASSR & (_BV(TCN2UB) | _BV(OCR2AUB) | _BV(OCR2BUB) | _BV(TCR2AUB) | _BV(TCR2BUB))
+  {
+    //Wait for ASSR to change to indicating these have been set.
+  }
+  
+  //Enable interrupts
+  TIFR2 = 0;
+  TIMSK2 = _BV(OCIE2A);
+
+  //Wait 1 seconds for crystal to stabilise
+  for (byte i = 0; i < 16; i++)
+    delayMicroseconds(65535);
+}
+#else
 void TimerTwo::initialise()
 {
   //PRTIM2 - Power consumption pg 36
@@ -28,6 +54,7 @@ void TimerTwo::initialise()
   TIMSK2 = _BV(OCIE2A);
   // Leave the async stuff.
 }
+#endif
 
 unsigned long TimerTwo::millis()
 {
@@ -39,7 +66,7 @@ unsigned long TimerTwo::millis()
     m++;
   SREG = sreg;
 
-  return (m * MillisPerTick) + t * MillisPerTick / 250;
+  return (m * MillisPerTick) + t * MillisPerTick / (TIMER2_TOP + 1);
 }
 
 unsigned long TimerTwo::micros()
@@ -48,11 +75,11 @@ unsigned long TimerTwo::micros()
   cli();
   unsigned long m = _ticks;
   unsigned long t = TCNT2;
-  if (TIFR2 & _BV(OCF2A) && t < 249)
+  if (TIFR2 & _BV(OCF2A) && t < TIMER2_TOP)
     m++;
   SREG = sreg;
 
-  return (m * MillisPerTick * 1000) + t * MillisPerTick * 4;
+  return (m * MillisPerTick * 1000) + t * MillisPerTick * (1000 / (TIMER2_TOP + 1));
 }
 
 void TimerTwo::attachInterrupt(void (*interruptAction)(void))

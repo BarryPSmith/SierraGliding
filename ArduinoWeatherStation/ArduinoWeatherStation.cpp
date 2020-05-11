@@ -330,10 +330,18 @@ void sleep(adc_t adc_state)
   if (bit_is_set(UCSR0B, UDRIE0) || bit_is_clear(UCSR0A, TXC0))
     return;
 #endif
+  // TODO: Check whether the RTC power consumption is low enough to leave Timer2 on.
   timer2_t timer2State = (doDeepSleep && adc_state == ADC_OFF) ? TIMER2_OFF : TIMER2_ON;
-  //
   if (timer2State == TIMER2_OFF)
     wdt_dontRestart = true;
+  else
+  {
+    // Even though we do the ASSR check after we wake up from sleep, 
+    // there is a small chance the ISR could fire while we're awake.
+    // This is just some paranoia to ensure we don't get a second interrupt.
+    while (TCNT2 == 0xFF || TCNT2 <= 0x01); 
+  }
+
   if (sleepEnabled == SleepModes::powerSave)
     LowPower.powerSave(SLEEP_FOREVER, //Low power library messes with our watchdog timer, so we lie and tell it to sleep forever.
                       adc_state,
@@ -353,7 +361,14 @@ void sleep(adc_t adc_state)
                   USART0_ON, 
                   TWI_ON);
   }
-                  
+  // Ensure that any calls to millis will work properly, 
+  // and that we won't have problems returning to sleep.
+  // OCR2B isn't used, this just ensures we wait at least one TOSC cycle.
+  #ifdef CRYSTAL_FREQ
+  OCR2B++;
+  while (ASSR & _BV(OCR2BUB));
+  #endif
+       
   // The re-enable isn't guarded to make it harder for runaway code to disable the watchdog timer
   wdt_dontRestart = false;
   if (timer2State == TIMER2_OFF)

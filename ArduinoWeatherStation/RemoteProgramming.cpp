@@ -20,7 +20,7 @@
 
 namespace RemoteProgramming
 {
-#if 1 //defined(FLASH_SELECT)
+#if defined(FLASH_SELECT)
 #define MANUFACTURER_ID 0xEF30
   SPIFlash flash(FLASH_SELECT, MANUFACTURER_ID);
   bool flashOK = false;

@@ -29,7 +29,12 @@ export default {
     },
     methods: {
         fetch_stations: function() {
-            return fetch(`${window.location.protocol}//${window.location.host}/api/stations`, {
+            const url = new URL(`${window.location.protocol}//${window.location.host}/api/stations`);
+
+            if (window.location.hash && window.location.hash.length > 1)
+                url.searchParams.append('stationID', window.location.hash.substr(1));
+
+            return fetch(url, {
                 method: 'GET',
                 credentials: 'same-origin'
             }).then((response) => {

@@ -15,7 +15,7 @@
 #error No wind system defined
 #endif
 
-#define DEBUG_PWM
+//#define DEBUG_PWM
 #ifdef DEBUG_PWM
 namespace PwmSolar
 {
@@ -58,7 +58,7 @@ namespace WeatherProcessing
   
   static byte simpleMessagesSent = 255;
   constexpr byte complexMessageFrequency 
-  #if 0 //defined(DEBUG_PWM)
+  #if 1 //defined(DEBUG_PWM)
     = 1;
   #elif defined(DEBUG)
     = 3;
@@ -221,6 +221,8 @@ namespace WeatherProcessing
     GET_PERMANENT_S(batteryEmergencyThresh_mV);
     if (!initial && batteryVoltage_mV < batteryEmergencyThresh_mV)
     {
+      WX_PRINTVAR(batteryVoltage_mV);
+      WX_PRINTVAR(batteryEmergencyThresh_mV);
       WX_PRINTLN(F("Entering Deep Sleep"));
       doDeepSleep = true;
     }
@@ -287,7 +289,7 @@ namespace WeatherProcessing
     #endif
   }
 
-#ifndef ALS_WIND
+#if !defined(ALS_WIND) && defined(WIND_DIR_AVERAGING)
   void doSampleWind()
   {
       #ifdef WIND_PWR_PIN
@@ -434,8 +436,10 @@ namespace WeatherProcessing
       tickCounts = 0;
       weatherRequired = true;
     }
+#ifdef WIND_DIR_AVERAGING
     if (windSampleTicks == 0 || tickCounts % windSampleTicks == 0)
       sampleWind = true;
+#endif
   }
 
   bool handleWeatherCommand(MessageSource& src)

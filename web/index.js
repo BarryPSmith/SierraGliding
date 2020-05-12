@@ -263,9 +263,14 @@ function main(db, cb) {
                 stations
             WHERE
                 id >= 0
-                AND Display_Level <= 1
-        `, (err, stations) => {
-            if (err) return (err, res);
+                AND (
+                    Display_Level <= 1
+                    OR
+                    id = $specificId)
+        `,
+            { $specificId: req.query.stationID }
+        , (err, stations) => {
+            if (err) return error(err, res);
 
             for (const idx in stations) {
                 try {

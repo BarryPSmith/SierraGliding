@@ -1,7 +1,7 @@
 #include "PermanentStorage.h"
 #include "ArduinoWeatherStation.h"
 #include <util/crc16.h>
-//#define DEBUG_PARAMETERS
+#define DEBUG_PARAMETERS
 
 char stationID = defaultStationID;
 
@@ -58,7 +58,7 @@ void PermanentStorage::initialise()
     .stationsToRelayCommands = { 0 },
     .stationsToRelayWeather = { 0 },
 
-    .frequency_i = 425000000,
+    .frequency_i = 424800000,
     .bandwidth_i = 625,
     .txPower = -9,
     .spreadingFactor = 5,

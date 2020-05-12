@@ -16,6 +16,9 @@ void TimerTwo::initialise()
 {
   TIMSK2 = 0;
   ASSR = _BV(AS2); //Run it off the 32 kHz crystal
+  //Wait 1 seconds for crystal to stabilise
+  for (byte i = 0; i < 16; i++)
+    delayMicroseconds(65535);
   TCNT2 = 1;
   OCR2A = TIMER2_TOP;
   OCR2B = 0;
@@ -32,9 +35,7 @@ void TimerTwo::initialise()
   TIFR2 = 0;
   TIMSK2 = _BV(OCIE2A);
 
-  //Wait 1 seconds for crystal to stabilise
-  for (byte i = 0; i < 16; i++)
-    delayMicroseconds(65535);
+
 }
 #else
 void TimerTwo::initialise()

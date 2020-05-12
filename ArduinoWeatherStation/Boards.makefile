@@ -46,7 +46,7 @@ BOARD_DEFINES = -DSTATION_ID=\'2\' \
 
 #	-DDISABLE_RFM60
 
-PROG_BAUD = 115200
+PROG_BAUD = 57600
 
 else ifeq ($(BOARD), 4)
 $(info Running Makefile for Flynns Rev2 / 8MHz AtMega328P (4))
@@ -89,9 +89,8 @@ MODEM=1
 else ifeq ($(BOARD), 6)
 $(info Running Makefile for PCB Rev1 (6))
 BOARD_DEFINES = \
-    -DF_CPU=1000000L \
-    -DSERIAL_BAUD=7200 \
-    -DCLOCK_DIVIDER=8 \
+    -DF_CPU=8000000L \
+    -DSERIAL_BAUD=9600 \
     -DREF_MV=3300 \
     -DBATT_PIN=A0 \
     -DBATTV_NUM=101 \
@@ -110,6 +109,7 @@ BOARD_DEFINES = \
     -DARGENTDATA_WIND \
     -DINVERSE_AD_WIND \
 #   -DSTATION_ID=\'4\' \
+    -DCLOCK_DIVIDER=1 \
 
 PROG_BAUD=57600
 

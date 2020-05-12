@@ -1,7 +1,9 @@
 <template>
     <!--I don't know what all this div bullshit is about.
         But it seems to be necessary so the chart doesn't grow without bounds.-->
-    <canvas ref="chart" />
+    <div style="height: 100%;" ref="chartContainer">
+        <canvas ref="chart" />
+    </div>
 </template>
 
 <script>
@@ -66,6 +68,7 @@ export default {
             isPanning: false,
             timer: null,
             annotationSets: [],
+            chartHeight: null
         };
     },
 
@@ -107,6 +110,14 @@ export default {
             this.timer = setInterval(() => {
                 if (this.chart) {
                     this.chart.options.plugins.zoom.pan.rangeMax.x = new Date();
+                }
+                if (this.$refs.chartContainer && this.chart) {
+                    const height = this.$refs.chartContainer.clientHeight;
+                    const container = this.$refs.chartContainer;
+                    const chartHeight = this.chartHeight;
+                    if (this.chartHeight != height)
+                        this.chart.resize();
+                    this.chartHeight = height;
                 }
             }, 1000);
         },

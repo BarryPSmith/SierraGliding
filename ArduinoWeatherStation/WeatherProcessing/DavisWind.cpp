@@ -1,4 +1,7 @@
 #ifdef DAVIS_WIND
+#include "WeatherProcessing.h"
+#include "../PermanentStorage.h"
+
 namespace WeatherProcessing
 {
   void signalWindCalibration(unsigned long durationRemaining);

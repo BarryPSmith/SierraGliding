@@ -420,7 +420,7 @@ export default class DataManager {
     }
     
     fetch_station_data(start, end, sample) {
-        let url = new URL(this.fetchUrl);
+        const url = new URL(this.fetchUrl);
 
         url.searchParams.append('start', start / 1000);
         url.searchParams.append('end', end / 1000);

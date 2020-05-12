@@ -173,11 +173,14 @@ void setup() {
   AWS_DEBUG_PRINTLN(F("Starting..."));
 
   pinMode(SX_SELECT, OUTPUT);
-  pinMode(FLASH_SELECT, OUTPUT);
   digitalWrite(SX_SELECT, HIGH);
+#ifdef FLASH_SELECT
+  pinMode(FLASH_SELECT, OUTPUT);
   digitalWrite(FLASH_SELECT, HIGH);
+#endif
 
   PermanentStorage::initialise();
+
   #ifdef SOLAR_PWM
   PwmSolar::setupPwm();
   #endif
@@ -368,7 +371,7 @@ void sleep(adc_t adc_state)
   OCR2B++;
   while (ASSR & _BV(OCR2BUB));
   #endif
-       
+
   // The re-enable isn't guarded to make it harder for runaway code to disable the watchdog timer
   wdt_dontRestart = false;
   if (timer2State == TIMER2_OFF)

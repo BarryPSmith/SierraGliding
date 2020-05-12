@@ -62,7 +62,8 @@
                               :range="station.Battery_Range" 
                               :id="station.id"/>
             </div>
-            <div v-if="detailed">
+            <div v-if="detailed" :style="{ height: tempHeight }"
+                 v-on:click="temp_click">
                 <chartBattery :dataManager="dataManager"
                               :duration="duration"
                               :chartEnd.sync="chartEnd"
@@ -106,6 +107,7 @@ export default {
             dataManager: null,
             collapsed: true,
             detailed: false,
+            tempLarge: false
         };
     },
 
@@ -170,6 +172,13 @@ export default {
             else
                 return 180;
         },
+
+        tempHeight: function() {
+            if (this.tempLarge)
+                return "500px";
+            else
+                return "150px";
+        }
     },
 
     methods: {
@@ -182,6 +191,10 @@ export default {
 
         detailed_click: function() {
             this.detailed = !this.detailed;
+        },
+
+        temp_click: function() {
+            this.tempLarge = !this.tempLarge;
         },
 
         init_dataManager() {

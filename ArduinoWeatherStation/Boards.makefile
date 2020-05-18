@@ -145,7 +145,7 @@ else ifeq ($(BOARD), 8)
 $(info Running Makefile for PCB Rev2 & ALS Wind (8))
 BOARD_DEFINES = \
     -DF_CPU=1000000L \
-    -DSERIAL_BAUD=7200 \
+    -DSERIAL_BAUD=9600 \
     -DCLOCK_DIVIDER=8 \
     -DREF_MV=3300 \
     -DBATT_PIN=A0 \
@@ -164,6 +164,34 @@ BOARD_DEFINES = \
     -DSOLAR_PWM \
     -DSX_TCXO_STARTUP_US=2000
 #   -DSTATION_ID=\'4\' \
+
+PROG_BAUD=57600
+
+else ifeq ($(BOARD), 9)
+$(info Running Makefile for Single Board (9))
+BOARD_DEFINES = \
+    -DF_CPU=1000000L \
+    -DSERIAL_BAUD=9600 \
+    -DREF_MV=3300 \
+    -DBATT_PIN=A0 \
+    -DBATTV_NUM=2 \
+    -DBATTV_DEN=1 \
+    -DWIND_SPD_PIN=2 \
+    -DTEMP_SENSE=A2 \
+    -DSX_BUSY=4 \
+    -DSX_DIO1=3 \
+    -DSX_SELECT=10 \
+    -DSX_TCXOV_X10=18 \
+    -DSX_RESET=9 \
+    -DFLASH_SELECT=8 \
+    -DWIND_DIR_AVERAGING \
+    -DALS_WIND \
+    -DSOLAR_PWM \
+    -DSX_TCXO_STARTUP_US=2000 \
+    -DATMEGA328PB \
+    -DCRYSTAL_FREQ=32768 \
+    -DCLOCK_DIVIDER=8 \
+    #
 
 PROG_BAUD=57600
 

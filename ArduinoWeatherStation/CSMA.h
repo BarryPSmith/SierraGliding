@@ -23,7 +23,7 @@ inline int16_t lora_check(const int16_t result, const __FlashStringHelper* msg)
   }
   return result;
 }
-//#define DETAILED_LORA_CHECK
+#define DETAILED_LORA_CHECK
 #ifdef DETAILED_LORA_CHECK
 #define LORA_CHECK(A) lora_check(A, F("FAILED " #A ": "))
 #else
@@ -214,7 +214,9 @@ class CSMAWrapper
     {
       if (newState == _idleState)
         return ERR_NONE;
+
       _idleState = newState;
+
       if (newState == IdleStates::Sleep 
         || _base->_curStatus != SX126X_STATUS_MODE_RX
         || _base->isChannelBusy(false) == CHANNEL_FREE)

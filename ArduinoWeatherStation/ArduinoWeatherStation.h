@@ -25,6 +25,12 @@ void AwsRecordState(int i);
   AWS_DEBUG_PRINTLN(a); \
   } while (0)
 
+#define PRINT_VARIABLE_HEX(a) do { \
+  AWS_DEBUG_PRINT(F(#a ": ")); \
+  AWS_DEBUG_PRINTLN(a, HEX); \
+  } while (0)
+
+
 //#define DEBUG_TX
 #ifdef DEBUG_TX
 #define TX_PRINT AWS_DEBUG_PRINT
@@ -125,3 +131,15 @@ inline void signalError(const byte count = 5, const unsigned long delay_ms = 70)
 #else
 #define SIGNALERROR(...) do {} while (0)
 #endif // !DEBUG
+
+#ifdef ATMEGA328PB
+  const byte PRUSART1 = 4;
+  extern volatile byte* PRR1;
+  const byte PRTWI1 = 5;
+  const byte PRPTC = 4;
+  const byte PRTIM4 = 3;
+  const byte PRSPI1 = 2;
+  const byte PRTIM3 = 0;
+  const byte ADC6D = 6;
+  const byte ADC7D = 7;
+#endif

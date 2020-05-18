@@ -14,25 +14,68 @@ namespace WeatherProcessing
   extern float curWindX, curWindY;
 #endif
 
+  constexpr byte GetWireClock(long desiredSpeed)
+  {
+    //FClock = F_CPU / (16 + 2 * TWBR * Prescaler)
+    //TWBR = (F_CPU / FClock - 16) / 2
+    auto test = (long)F_CPU / desiredSpeed - 16;
+    if (test < 2)
+      return 1;
+    else if (test < 512)
+      return test / 2;
+    else
+      return 255;
+  }
+
   void initWind()
   {
-    Wire.begin();
-    Wire.setClock(100000); //100kHz
+    byte data[4];
+    bool writeEeprom = false;
 
-    // enable writing to the chip:
-    unsigned long customerAccessCode = 0x2C413534;
-    write(0x35, &customerAccessCode, 4);
+    Wire.begin();
+    TWBR = GetWireClock(100000);
+    
+    PRINT_VARIABLE(TWBR);
+    PRINT_VARIABLE(TWSR);
+   
+    if (writeEeprom)
+    {     
+      // enable writing to the chip: 
+      unsigned long customerAccessCode = 0x2C413534;
+      write(0x35, &customerAccessCode, 4);
+      read(0x02, data, 4);
+      data[2] = 0x02; // Disable Z axis, 3V I2C
+      data[1] = 0xC0; // Enable X and Y axes
+      write(0x02, data, 4);
+    }
 
     //Set low power mode
-    byte data[4];
     read(0x27, data, 4);
-    data[3] = (data[3] & (~0x73)) | 0x42; //Low Power / 20 samples/sec
+    data[3] = (data[3] & (~0x7F)) | 0x52; //Low Power / 10 samples/sec
     write(0x27, data, 4);
-    
-    //Disable Z axis:
-    read(0x02, data, 4);
-    data[2] = (data[2] & (~0x01));
-    write(0x02, data, 4);
+
+#if 0
+    delay(100);
+
+    while(1)
+    {
+    byte addresses[] = {2, 3, 0xD, 0xE, 0xF, 0x27, 0x28, 0x29};
+    for (int i = 0; i < sizeof(addresses); i++)
+    {
+      auto address = addresses[i];
+      PRINT_VARIABLE_HEX(address);
+      read(address, data, 4);
+      for (int i = 0; i < 4; i++)
+      {
+        AWS_DEBUG_PRINT(data[i], HEX);
+        AWS_DEBUG_PRINT(' ');
+      }
+      AWS_DEBUG_PRINTLN();
+    }
+    AWS_DEBUG_PRINTLN();
+    AWS_DEBUG_PRINTLN();
+    }
+#endif
   }
 
   void read(byte regAddress, void* data, byte count)
@@ -40,7 +83,7 @@ namespace WeatherProcessing
     byte* dataB = (byte*)data;
     Wire.beginTransmission(alsAddress);
     Wire.write(regAddress);
-    Wire.endTransmission();
+    Wire.endTransmission(false);
     Wire.requestFrom(alsAddress, count);
     for (byte i = 0; i < count; i++)
       dataB[i] = Wire.read();
@@ -67,9 +110,14 @@ namespace WeatherProcessing
   {
 #ifdef WIND_DIR_AVERAGING
     short sX, sY;
+    //AWS_DEBUG(auto entryMicros = micros());
     takeReading(&sX, &sY);
+    //AWS_DEBUG(auto postRead = micros());
     curWindX += sX;
     curWindY += sY;
+    //AWS_DEBUG(auto endMicros = micros());
+    //PRINT_VARIABLE(postRead - entryMicros);
+    //PRINT_VARIABLE(endMicros - postRead);
 #endif
   }
 
@@ -82,7 +130,7 @@ namespace WeatherProcessing
     auto x = ((unsigned short)data[0] << 4) | (data[4] & 0x0F);
     auto y = ((unsigned short)data[1] << 4) | ((data[5] & 0xF0) >> 4);
   
-    *sX = -SignExtendBitfield(x, 12);
+    *sX = SignExtendBitfield(x, 12);
     *sY = SignExtendBitfield(y, 12);
 
 #ifdef ALS_TEMP

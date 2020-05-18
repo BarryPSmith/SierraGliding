@@ -42,7 +42,7 @@ void updateIdleState()
 #if defined(MODEM)
   newState = IdleStates::ContinuousReceive;
 #else
-  bool continuousReceive = !continuousReceiveEnabled;
+  bool continuousReceive = false;
   if (continuousReceiveEnabled)
   {
     for (int i = 0; i < permanentArraySize; i++)

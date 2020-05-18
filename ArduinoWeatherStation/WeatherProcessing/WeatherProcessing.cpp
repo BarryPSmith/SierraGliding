@@ -6,6 +6,7 @@
 #include "Wind.h"
 #include <avr/boot.h>
 
+
 #if (defined(DAVIS_WIND) && defined(ARGENTDATA_WIND)) || \
     (defined(DAVIS_WIND) && defined(ALS_WIND)) || \
     (defined(ARGENTDATA_WIND) && defined(ALS_WIND))
@@ -15,7 +16,9 @@
 #error No wind system defined
 #endif
 
+#define DEBUG_IT
 //#define DEBUG_PWM
+
 #ifdef DEBUG_PWM
 namespace PwmSolar
 {
@@ -45,7 +48,7 @@ namespace WeatherProcessing
   void setTimerInterval();
   void setupWindCounter();
   byte getExternalTemperature();
-  byte getInternalTemperature();
+  byte getInternalTemperature(short& reading);
   byte getCurWindDirection();
 
   volatile int windCounts = 0;
@@ -92,7 +95,11 @@ namespace WeatherProcessing
   {
     //These two are equivalent, just the implemented one has only one mult operation and only one add operation.
     //(byte)((atan2(-curWindX, -curWindY) / (2 * PI) + 0.5) * 255 + 0.5);
-    return (byte)(atan2(-x, -y) * (255 / (2 * PI)) + (0.5* 255 + 0.5));
+    auto ret = (byte)(atan2(-x, -y) * (255 / (2 * PI)) + (0.5* 255 + 0.5));
+#ifdef ALS_WIND
+    ret -= 96; //Account for the fact that we put the sensor in 135 degree out.
+#endif
+    return ret;
   }
 
   inline uint16_t getWindSpeed_x8()
@@ -141,6 +148,11 @@ namespace WeatherProcessing
     if (isComplex)
       length++;
 #endif
+#ifdef DEBUG_IT
+    if (isComplex)
+      length += 2;
+#endif
+    
     
     message.appendByte(length);
 
@@ -168,11 +180,15 @@ namespace WeatherProcessing
       externalTempByte = getExternalTemperature();
       message.appendByte(externalTempByte);
 
-      internalTempByte = getInternalTemperature();
+      short iTReading;
+      internalTempByte = getInternalTemperature(iTReading);
       message.appendByte(internalTempByte);
 
 #ifdef DEBUG_PWM
       message.appendByte(PwmSolar::solarPwmValue);
+#endif
+#ifdef DEBUG_IT
+      message.appendT(iTReading);
 #endif
     
       simpleMessagesSent = 0;
@@ -285,7 +301,9 @@ namespace WeatherProcessing
     sampleWind = false;
     sei();
     if (localSample)
+    {
       doSampleWind();
+    }
     #endif
   }
 
@@ -332,7 +350,7 @@ namespace WeatherProcessing
   #endif
   }
 
-  byte getInternalTemperature()
+  byte getInternalTemperature(short& reading)
   {
   #ifdef NO_INTERNAL_TEMP
     return 0;
@@ -367,7 +385,9 @@ namespace WeatherProcessing
 #endif
 
     //The point at which tsGain has no effect is at 100C.
-    int temp_x2 = (((long)ADC + tsOffset - (273 + 100)) * 256) / tsGain + 100 * 2;
+    // (ADC + Offset - 173) * 128 / gain + 100
+    reading = ADC;
+    int temp_x2 = (((long)reading + tsOffset - (273 + 100)) * 256) / tsGain + 100 * 2;
     // T = ADC * 128 / tsGain + (tsOffset - 373) * 128 / tsGain + 100
     internalTemperature = temp_x2 / 2;
     int temp_x2_offset = temp_x2 + 64;

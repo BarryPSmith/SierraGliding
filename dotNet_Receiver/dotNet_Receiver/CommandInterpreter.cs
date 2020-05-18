@@ -119,8 +119,8 @@ Standard message format is (MsgType)(StationID)(MessageID)[Message...]";
 A C type message with the next MessageID will be sent to (StationID) with contents [Command...].
 Command starting characters:
  R : Change relay settings.     : ((+|-)(W|C)(?<StationID>.))+
- I : Change reporting interval. : (datalength)(shortInterval)(longInterval)
- B : Change battery thresholds. : (2 byte new threshold in mV)
+ I : Change reporting interval. : (shortInterval:4)(longInterval:4)
+ B : Change battery thresholds. : (new threshold in mV:2)(new emergency threshold mV:2)
  Q : Query station.             : QV for volatile data. QC for config data.
  O : Set Override interval.     : (L|S)(4 byte new interval)(H|M)
  M : Change radio settings.     : Same as modem. H6 for more info. (P|C|T|F|B|S|O)

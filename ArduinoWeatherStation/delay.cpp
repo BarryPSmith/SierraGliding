@@ -20,6 +20,7 @@
 */
 
 #include <wiring_private.h>
+#include "TimerTwo.h"
 
 unsigned long micros();
 void yield();
@@ -30,7 +31,8 @@ void delay(unsigned long ms)
 	unsigned long start = micros();
 
 	while (ms > 0) {
-		yield();
+		if (ms * 4 >= TimerTwo::MillisPerTick * 3)
+			yield();
 		while ( ms > 0 && (micros() - start) >= 1000) {
 			ms--;
 			start += 1000;

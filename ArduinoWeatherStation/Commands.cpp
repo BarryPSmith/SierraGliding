@@ -7,7 +7,7 @@
 #include "RemoteProgramming.h"
 #include "PWMSolar.h"
 
-#define DEBUG_COMMANDS
+//#define DEBUG_COMMANDS
 #ifdef DEBUG_COMMANDS
 #define COMMAND_PRINT AWS_DEBUG_PRINT
 #define COMMAND_PRINTLN AWS_DEBUG_PRINTLN

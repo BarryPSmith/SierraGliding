@@ -24,9 +24,9 @@ void TimerTwo::initialise()
   OCR2B = 0;
   
   TCCR2A = _BV(WGM21); //CTC Mode
-  TCCR2B = _BV(_CS21) | _BV(CS20); // Prescaler of 32: 4 ticks per second at 32768 / 255 top
+  TCCR2B = _BV(CS21) | _BV(CS20); // Prescaler of 32: 4 ticks per second at 32768 / 255 top
   
-  while (ASSR & (_BV(TCN2UB) | _BV(OCR2AUB) | _BV(OCR2BUB) | _BV(TCR2AUB) | _BV(TCR2BUB))
+  while (ASSR & (_BV(TCN2UB) | _BV(OCR2AUB) | _BV(OCR2BUB) | _BV(TCR2AUB) | _BV(TCR2BUB)))
   {
     //Wait for ASSR to change to indicating these have been set.
   }
@@ -80,7 +80,7 @@ unsigned long TimerTwo::micros()
     m++;
   SREG = sreg;
 
-  return (m * MillisPerTick * 1000) + t * MillisPerTick * (1000 / (TIMER2_TOP + 1));
+  return (m * MillisPerTick * 1000) + t * MillisPerTick * 1000 / (TIMER2_TOP + 1);
 }
 
 void TimerTwo::attachInterrupt(void (*interruptAction)(void))

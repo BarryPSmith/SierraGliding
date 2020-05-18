@@ -1,7 +1,7 @@
 #include "PermanentStorage.h"
 #include "ArduinoWeatherStation.h"
 #include <util/crc16.h>
-#define DEBUG_PARAMETERS
+//#define DEBUG_PARAMETERS
 
 char stationID = defaultStationID;
 
@@ -67,8 +67,13 @@ void PermanentStorage::initialise()
     .outboundPreambleLength = 128, // allow end nodes to spend most of their time asleep.
 
     // These default tsOffset / tsGain values correspond to the datasheet example values on page 215.
-    .tsOffset = -75,
+#ifdef ATMEGA328PB
+    .tsGain = 128,
+    .tsOffset = 32,
+#else
     .tsGain = 164,
+    .tsOffset = -75,
+#endif
     .wdCalibMin = 0,
     .wdCalibMax = 1023,
 
@@ -87,89 +92,30 @@ void PermanentStorage::initialise()
 #if DEBUG && defined(DEBUG_PARAMETERS)
     AWS_DEBUG_PRINTLN(F("Using saved parameters"));
 
-    long shortInterval;
-    long longInterval;
-    unsigned short batteryThreshold_mV,
-      batteryEmergencyThresh_mV;
-    bool demandRelay = false;
-    byte buffer[permanentArraySize] = { 0 };
-    unsigned short crc;
-    signed char tsOffset;
-    byte tsGain;
-    int wdCalibMin, wdCalibMax;
-    unsigned short chargeVoltage_mV, chargeResponseRate, safeFreezingChargeLevel_mV;
-    byte safeFreezingPwm;
+    PermanentVariables vars;
+    getBytes(0, sizeof(vars), &vars);
+    PRINT_VARIABLE(vars.frequency_i);
+    PRINT_VARIABLE(vars.bandwidth_i);
+    PRINT_VARIABLE(vars.txPower);
+    PRINT_VARIABLE(vars.spreadingFactor);
+    PRINT_VARIABLE(vars.csmaP);
+    PRINT_VARIABLE(vars.csmaTimeslot);
+    PRINT_VARIABLE(vars.outboundPreambleLength);
+    PRINT_VARIABLE(vars.wdCalibMin);
+    PRINT_VARIABLE(vars.wdCalibMax);
+    PRINT_VARIABLE(vars.chargeVoltage_mV);
+    PRINT_VARIABLE(vars.chargeResponseRate);
+    PRINT_VARIABLE(vars.safeFreezingChargeLevel_mV);
+    PRINT_VARIABLE(vars.safeFreezingPwm);
 
-    GET_PERMANENT_S(shortInterval);
-    GET_PERMANENT_S(longInterval);
-    GET_PERMANENT_S(batteryThreshold_mV);
-    GET_PERMANENT_S(batteryEmergencyThresh_mV);
-    GET_PERMANENT_S(tsOffset);
-    GET_PERMANENT_S(tsGain);
-    GET_PERMANENT_S(initialised);
-
-    PRINT_VARIABLE(stationID);
-    PRINT_VARIABLE(initialised);
-    PRINT_VARIABLE(shortInterval);
-    PRINT_VARIABLE(longInterval);
-    PRINT_VARIABLE(batteryThreshold_mV);
-    PRINT_VARIABLE(batteryEmergencyThresh_mV);
-    PRINT_VARIABLE(tsOffset);
-    PRINT_VARIABLE(tsGain);
-    GET_PERMANENT2(buffer, stationsToRelayCommands);
-    AWS_DEBUG_PRINT(F("stationsToRelayCommands:"));
-    for (int i = 0; i < permanentArraySize; i++)
-    {
-      AWS_DEBUG_PRINT(buffer[i]);
-      AWS_DEBUG_PRINT(F(", "));
-    }
-    AWS_DEBUG_PRINTLN();
-    GET_PERMANENT2(buffer, stationsToRelayWeather);
-    AWS_DEBUG_PRINT(F("stationsToRelayWeather:"));
-    for (int i = 0; i < permanentArraySize; i++)
-    {
-      AWS_DEBUG_PRINT(buffer[i]);
-      AWS_DEBUG_PRINT(F(", "));
-    }
-    AWS_DEBUG_PRINTLN();
-    GET_PERMANENT_S(crc);
-    AWS_DEBUG_PRINT(F("crc: "));
-    AWS_DEBUG_PRINTLN(crc, HEX);
-
-    uint32_t frequency_i;
-    uint16_t bandwidth_i;
-    short txPower;
-    byte spreadingFactor, csmaP;
-    unsigned long csmaTimeslot;
-    unsigned short outboundPreambleLength;
-    GET_PERMANENT_S(frequency_i);
-    GET_PERMANENT_S(bandwidth_i);
-    GET_PERMANENT_S(txPower);
-    GET_PERMANENT_S(spreadingFactor);
-    GET_PERMANENT_S(csmaP);
-    GET_PERMANENT_S(csmaTimeslot);
-    GET_PERMANENT_S(outboundPreambleLength);
-    PRINT_VARIABLE(frequency_i);
-    PRINT_VARIABLE(bandwidth_i);
-    PRINT_VARIABLE(txPower);
-    PRINT_VARIABLE(spreadingFactor);
-    PRINT_VARIABLE(csmaP);
-    PRINT_VARIABLE(csmaTimeslot);
-    PRINT_VARIABLE(outboundPreambleLength);
-
-    GET_PERMANENT_S(wdCalibMin);
-    GET_PERMANENT_S(wdCalibMax);
-    PRINT_VARIABLE(wdCalibMin);
-    PRINT_VARIABLE(wdCalibMax);
-
-    GET_PERMANENT_S(chargeVoltage_mV);
-    GET_PERMANENT_S(chargeResponseRate);
-    GET_PERMANENT_S(safeFreezingChargeLevel_mV);
-    GET_PERMANENT_S(safeFreezingPwm);
-    PRINT_VARIABLE(chargeVoltage_mV);
-    PRINT_VARIABLE(chargeResponseRate);
-    PRINT_VARIABLE(safeFreezingChargeLevel_mV);
-    PRINT_VARIABLE(safeFreezingPwm);
+    PRINT_VARIABLE(vars.stationID);
+    PRINT_VARIABLE(vars.initialised);
+    PRINT_VARIABLE(vars.shortInterval);
+    PRINT_VARIABLE(vars.longInterval);
+    PRINT_VARIABLE(vars.batteryThreshold_mV);
+    PRINT_VARIABLE(vars.batteryEmergencyThresh_mV);
+    PRINT_VARIABLE(vars.tsOffset);
+    PRINT_VARIABLE(vars.tsGain);
 #endif
   }
   _initialised = true;

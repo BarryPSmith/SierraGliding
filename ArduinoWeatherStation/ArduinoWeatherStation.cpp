@@ -3,6 +3,7 @@
 //#include <TimerOne.h>
 #include <LowPower.h>
 #include <avr/power.h>
+#include <avr/sleep.h>
 #include "lib/RadioLib/src/Radiolib.h"
 #include "ArduinoWeatherStation.h"
 #include "WeatherProcessing/WeatherProcessing.h"
@@ -43,9 +44,14 @@ void restart();
 void TestBoard();
 void savePower();
 
+#ifdef ATMEGA328PB
+volatile byte* PRR1 = (byte*)0x65;
+#endif
+
 int main()
-{
+{ 
   savePower();
+
   //Arduino library initialisaton:
   init();
   TimerTwo::initialise();
@@ -56,7 +62,6 @@ int main()
   while (1)
   {
     loop();
-    if (serialEventRun) serialEventRun();
   }
   return 0;
 }
@@ -86,8 +91,16 @@ void savePower()
   pinMode(6, INPUT_PULLUP);
   pinMode(7, INPUT_PULLUP);
 
+
 #ifndef DEBUG
   power_usart0_disable();
+#endif
+#ifdef ATMEGA328PB
+  *PRR1 = _BV(PRTWI1) | _BV(PRPTC) | _BV(PRTIM4) | _BV(PRSPI1) | _BV(PRTIM3);
+  
+  PRR |= _BV(PRUSART1);
+
+  //TODO: Port E pullup.
 #endif
 #ifndef ALS_WIND
   power_twi_disable();
@@ -99,6 +112,9 @@ void savePower()
   power_timer1_disable();
 
   DIDR0 = _BV(ADC0D) | _BV(ADC1D) | _BV(ADC2D) | _BV(ADC3D) 
+#ifdef ATMEGA328PB
+    | _BV(ADC6D) | _BV(ADC7D)
+#endif
 #ifndef ALS_WIND
     | _BV(ADC4D) | _BV(ADC5D)
 #endif
@@ -106,26 +122,10 @@ void savePower()
   DIDR1 = _BV(AIN0D) | _BV(AIN1D);
 }
 
-extern SX1262 lora;
-#include "CSMA.h"
-extern CSMAWrapper<SX1262> csma;
+
 void TestBoard()
 {
-  //sleep the radio:
-  InitMessaging();
-  csma.setIdleState(IdleStates::IntermittentReceive);
-  //lora.sleep();
 
-  while (1)
-  {
-    //32 ms per loop. This should give us about 2 seconds of sleep:
-    for (int i = 0; i < 60; i++)
-      LowPower.powerSave(SLEEP_FOREVER, //we're actually going to wake up on our next timer2 or wind tick.
-                       ADC_OFF,
-                       BOD_OFF,
-                       TIMER2_ON);
-    delay(1000);
-  }
 }
 
 void seedRandom()
@@ -154,7 +154,7 @@ void setup() {
   pinMode(LED_PIN1, OUTPUT);
   signalOff();
 #endif // DEBUG
-  delay(50);
+  //delay(50);
   
 #ifdef DEBUG_STACK
   if (oldSP >= 0x100)
@@ -192,17 +192,10 @@ void setup() {
     SIGNALERROR();
   }
   
-#if 0 //Useful to be able to output a state with pins. However, it looks like we might use them.
-  pinMode(5, OUTPUT);
-  pinMode(6, OUTPUT);
-  pinMode(7, OUTPUT);
-  pinMode(8, OUTPUT);
-#endif
 
 #ifdef DISABLE_RFM69
   disableRFM69();
 #endif
-  
   InitMessaging();
 
   if (oldSP > 0x100)
@@ -223,6 +216,7 @@ void setup() {
 }
 
 void loop() {
+  //AWS_DEBUG(auto loopMicros = micros());
   // Generate and discard a random number. Just used to ensure that all of the RNGs out there will give different numbers.
   random();
   MessageHandling::readMessages();
@@ -231,9 +225,7 @@ void loop() {
   messageDebugAction();
   #endif
 
-  #ifdef SOLAR_PWM
-  PwmSolar::doPwmLoop();
-  #endif
+
 
   if (doDeepSleep)
     WeatherProcessing::updateBatterySavings(WeatherProcessing::readBattery(), false);
@@ -258,8 +250,16 @@ void loop() {
     if (millis() - lastPingMillis > maxMillisBetweenPings)
       restart();
   }
-  
+
+  #ifdef SOLAR_PWM
+  PwmSolar::doPwmLoop();
+  #endif
   wdt_reset();
+  #if 0 //DEBUG
+  loopMicros = micros() - loopMicros;
+  if (loopMicros > 20000)
+    PRINT_VARIABLE(loopMicros);
+  #endif
   sleep(ADC_OFF);
 }
 
@@ -316,8 +316,7 @@ void yield()
   //We leave the ADC_ON to hopefully get a less pronounced effect as the LDO goes from low current to running current.
   //Only sleep if we're running fast enough that MCU power consumption might be significant.
   // (Also, if we sleep when our clock rate is low, it might be quite a while before timer2 ticks - long enough to set off the WDT)
-  if (F_CPU >= 4000000L)
-    sleep(ADC_ON);
+  //sleep(ADC_ON);
 }
 
 void sleep(adc_t adc_state)
@@ -333,8 +332,11 @@ void sleep(adc_t adc_state)
   if (bit_is_set(UCSR0B, UDRIE0) || bit_is_clear(UCSR0A, TXC0))
     return;
 #endif
-  // TODO: Check whether the RTC power consumption is low enough to leave Timer2 on.
+#ifdef CRYSTAL_FREQ
+  timer2_t timer2State = TIMER2_ON;
+#else
   timer2_t timer2State = (doDeepSleep && adc_state == ADC_OFF) ? TIMER2_OFF : TIMER2_ON;
+#endif
   if (timer2State == TIMER2_OFF)
     wdt_dontRestart = true;
   else
@@ -348,7 +350,7 @@ void sleep(adc_t adc_state)
   if (sleepEnabled == SleepModes::powerSave)
     LowPower.powerSave(SLEEP_FOREVER, //Low power library messes with our watchdog timer, so we lie and tell it to sleep forever.
                       adc_state,
-                      BOD_OFF,
+                      BOD_ON,
                       timer2State
                       );
   else if (sleepEnabled == SleepModes::idle)
@@ -360,9 +362,9 @@ void sleep(adc_t adc_state)
                   timer2State,
                   TIMER1_ON, 
                   TIMER0_ON, 
-                  SPI_ON,
+                  SPI_OFF,
                   USART0_ON, 
-                  TWI_ON);
+                  TWI_OFF);
   }
   // Ensure that any calls to millis will work properly, 
   // and that we won't have problems returning to sleep.

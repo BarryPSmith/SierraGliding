@@ -123,7 +123,7 @@ namespace PwmSolar
     if (batteryVoltage_mV < safeFreezingChargeLevel_mV) //If the battery voltage is less than 3.7V, we're unlikely to damage it with any current we throw at it.
       return 255;
     else if (WeatherProcessing::internalTemperature < 0 ||
-             (WeatherProcessing::internalTemperature < 5 && WeatherProcessing::externalTemperature < 5)) //The battery might be colder than the MCU - thermal capacity, inaccurate measurement, etc.
+             (WeatherProcessing::internalTemperature < 2 && WeatherProcessing::externalTemperature < 2)) //The battery might be colder than the MCU - thermal capacity, inaccurate measurement, etc.
       return safeFreezingPwm;
     else if (WeatherProcessing::internalTemperature > 50)
       return 0;

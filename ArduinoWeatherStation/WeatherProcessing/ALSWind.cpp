@@ -30,7 +30,7 @@ namespace WeatherProcessing
   void initWind()
   {
     byte data[4];
-    bool writeEeprom = false;
+    bool doWriteEeprom = false;
 
     Wire.begin();
     TWBR = GetWireClock(100000);
@@ -38,15 +38,9 @@ namespace WeatherProcessing
     PRINT_VARIABLE(TWBR);
     PRINT_VARIABLE(TWSR);
    
-    if (writeEeprom)
+    if (doWriteEeprom)
     {     
-      // enable writing to the chip: 
-      unsigned long customerAccessCode = 0x2C413534;
-      write(0x35, &customerAccessCode, 4);
-      read(0x02, data, 4);
-      data[2] = 0x02; // Disable Z axis, 3V I2C
-      data[1] = 0xC0; // Enable X and Y axes
-      write(0x02, data, 4);
+      writeAlsEeprom();
     }
 
     //Set low power mode
@@ -76,6 +70,19 @@ namespace WeatherProcessing
     AWS_DEBUG_PRINTLN();
     }
 #endif
+  }
+
+  bool writeAlsEeprom()
+  {
+    byte data[4];
+    // enable writing to the chip: 
+    unsigned long customerAccessCode = 0x2C413534;
+    write(0x35, &customerAccessCode, 4);
+    read(0x02, data, 4);
+    data[2] = 0x02; // Disable Z axis, 3V I2C
+    data[1] = 0xC0; // Enable X and Y axes
+    write(0x02, data, 4);
+    return true;
   }
 
   void read(byte regAddress, void* data, byte count)

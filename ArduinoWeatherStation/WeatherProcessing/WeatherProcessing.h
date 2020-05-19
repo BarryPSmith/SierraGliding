@@ -23,6 +23,10 @@ namespace WeatherProcessing
   bool handleWeatherCommand(MessageSource& src);
   unsigned short readBattery();
   void updateBatterySavings(unsigned short batteryVoltage_mV, bool initial);
+  //ALS only:
+#ifdef ALS_WIND
+  bool writeAlsEeprom();
+#endif
 
   extern volatile bool weatherRequired;
 

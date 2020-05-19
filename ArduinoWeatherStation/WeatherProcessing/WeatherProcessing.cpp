@@ -486,6 +486,10 @@ namespace WeatherProcessing
       tsGain = newValue;
       SET_PERMANENT(tsGain);
       return true;
+#ifdef ALS_WIND
+    case 'E':
+      writeAlsEeprom();
+#endif
     default:
       return false;
     }

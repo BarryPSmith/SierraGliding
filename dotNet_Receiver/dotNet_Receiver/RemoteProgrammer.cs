@@ -37,7 +37,7 @@ namespace core_Receiver
 
         public TimeSpan PacketInterval { get; set; } = TimeSpan.FromSeconds(1);
 
-        public TimeSpan ResponseTimeout { get; set; } = TimeSpan.FromSeconds(4);
+        public TimeSpan ResponseTimeout { get; set; } = TimeSpan.FromSeconds(60);
 
         public TextWriter OutWriter { get; set; } = Console.Out;
         

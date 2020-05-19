@@ -1,4 +1,5 @@
 #include "lib/SPIFlash/SPIFlash.h"
+#include <avr/wdt.h>
 #include <util/crc16.h>
 #include "ArduinoWeatherStation.h"
 #include "LoraMessaging.h"
@@ -311,8 +312,19 @@ namespace RemoteProgramming
 
     size_t max = totalExpectedPackets * bytesPerPacket + imageOffset;
 
-    for (size_t i = imageOffset; i < max; i++)
-      crc = _crc_ccitt_update(crc, flash.readByte(i));
+    for (size_t i = imageOffset; i < max; /*incremented inner loop*/)
+    {
+      size_t toRead = max - i;
+      if (toRead > 64)
+        toRead = 64;
+      byte buffer[64];
+      flash.readBytes(i, buffer, toRead);
+      for (byte j = 0; j < (byte)toRead; j++)
+        crc = _crc_ccitt_update(crc, buffer[j]);
+      i += toRead;
+      //This can take longer than the watchdog time, so we need to reset internally:
+      wdt_reset();
+    }
 
     return crc;
   }

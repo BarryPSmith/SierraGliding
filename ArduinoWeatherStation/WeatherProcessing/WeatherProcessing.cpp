@@ -61,7 +61,7 @@ namespace WeatherProcessing
   
   static byte simpleMessagesSent = 255;
   constexpr byte complexMessageFrequency 
-  #if 1 //defined(DEBUG_PWM)
+  #if defined(DEBUG_PWM)
     = 1;
   #elif defined(DEBUG)
     = 3;

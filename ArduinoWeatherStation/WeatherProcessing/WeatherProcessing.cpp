@@ -287,7 +287,8 @@ namespace WeatherProcessing
     if (doDeepSleep || millis() - lastWindCountMillis < minWindInterval)
       return;
     #ifdef WIND_DIR_AVERAGING
-    sampleWind = true;
+    //Turns out this burns a bunch of power to sample so often:
+    //sampleWind = true;
     #endif
     lastWindCountMillis = millis();
     windCounts++;
@@ -367,7 +368,8 @@ namespace WeatherProcessing
     // Wait a short while to ensure the ADC reference capacitor is stable:
     // We can reduce this to 5us, see the last post in https://forum.arduino.cc/index.php?topic=22922.0
     // (We only have a 10nF capacitor on Aref, not 100nF like the arduino, so we're probably OK with just 1ms delay here.)
-    delay(10);
+    // use DelayMicroseconds here rather than delay because we don't want to yield(), which might do Solar PWM processing.
+    delayMicroseconds(10000);
     // Start the conversion
     ADCSRA = ADCSRA | _BV(ADSC);
     // Wait for conversion

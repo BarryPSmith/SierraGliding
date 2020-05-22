@@ -317,6 +317,12 @@ void yield()
   //Only sleep if we're running fast enough that MCU power consumption might be significant.
   // (Also, if we sleep when our clock rate is low, it might be quite a while before timer2 ticks - long enough to set off the WDT)
   //sleep(ADC_ON);
+
+  #ifdef SOLAR_PWM
+  if (sleepEnabled == SleepModes::disabled)
+    PwmSolar::doPwmLoop();
+  #endif
+
 }
 
 void sleep(adc_t adc_state)

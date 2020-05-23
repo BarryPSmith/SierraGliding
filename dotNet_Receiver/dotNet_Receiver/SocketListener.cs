@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -17,6 +19,7 @@ namespace core_Receiver
         int _sendPort;
         int _sendPort6;
         volatile bool _connected = true;
+        ConcurrentQueue<Guid> _receivedGuids = new ConcurrentQueue<Guid>();
 
         public TextWriter OutputWriter => throw new NotImplementedException();
 
@@ -58,10 +61,23 @@ namespace core_Receiver
                 try
                 {
                     var result = await client.ReceiveAsync();
+                    
+                    if (result.Buffer.Length < 16)
+                    {
+                        Console.Error.WriteLine("Received packet with length too short for GUID");
+                        continue;
+                    }
+                    var guid = new Guid(result.Buffer.AsSpan(0, 16));
+                    if (_receivedGuids.Contains(guid))
+                        continue;
+                    _receivedGuids.Enqueue(guid);
+                    while (_receivedGuids.Count > 100)
+                        _receivedGuids.TryDequeue(out var notUsed);
+
                     if (is6)
-                        PacketReceived6?.Invoke(this, result.Buffer);
+                        PacketReceived6?.Invoke(this, result.Buffer.AsSpan(16).ToArray());
                     else
-                        PacketReceived?.Invoke(this, result.Buffer);
+                        PacketReceived?.Invoke(this, result.Buffer.AsSpan(16).ToArray());
                 }
                 catch (ObjectDisposedException) { }
                 catch (Exception ex)
@@ -93,7 +109,8 @@ namespace core_Receiver
             }
             if (!_connected)
                 throw new ObjectDisposedException("SocketListener is already closed!");
-            _client.Send(data, data.Length, new IPEndPoint(IPAddress.Broadcast, port));
+            var dataToSend = Guid.NewGuid().ToByteArray().Concat(data).ToArray();
+            _client.Send(dataToSend, dataToSend.Length, new IPEndPoint(IPAddress.Broadcast, port));
         }
 
         public event EventHandler<IList<Byte>> PacketReceived;

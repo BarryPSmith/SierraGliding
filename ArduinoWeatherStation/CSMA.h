@@ -158,6 +158,12 @@ class CSMAWrapper
       *length = _messageLengths[_readBufferLenIdx];
 
       _readBufferLenIdx++;
+      if (_readBufferLenIdx == _writeBufferLenIdx) {
+        clearBuffer();
+      }
+      else if (_readBufferLenIdx > _writeBufferLenIdx) {
+        RX_PRINTLN(F("ERROR: Read buffer ahead of write buffer!"));
+      }
       
       return(state);
     }
@@ -172,13 +178,13 @@ class CSMAWrapper
       if (_writeBufferLenIdx == maxQueue) {
         return(NOT_ENOUGH_SPACE);
       }
-      uint8_t bufferEnd = getEndOfBuffer();
+      uint8_t bufferWriteOffset = getBufferWriteOffset();
       uint8_t packetSize = _base->getPacketLength(false);
-      if (bufferSize - bufferEnd < packetSize) {
+      if (bufferSize - bufferWriteOffset < packetSize) {
         return(NOT_ENOUGH_SPACE);
       }
 
-      int16_t state = _base->readData(_buffer + bufferEnd, packetSize);
+      int16_t state = _base->readData(_buffer + bufferWriteOffset, packetSize);
       s_packetWaiting = false;
       LORA_CHECK(enterIdleState());
 
@@ -208,6 +214,7 @@ class CSMAWrapper
     }
 
     void clearBuffer() {
+      RX_PRINTLN(F("Buffer Cleared"));
       _readBufferLenIdx = 0;
       _writeBufferLenIdx = 0;
     }
@@ -245,9 +252,9 @@ class CSMAWrapper
 
     uint16_t _senderPremableLength = 0xFFFF;
 
-    uint16_t _crcErrorRate;
-    uint16_t _droppedPacketRate;
-    uint32_t _averageDelayTime;
+    uint16_t _crcErrorRate = 0;
+    uint16_t _droppedPacketRate = 0;
+    uint32_t _averageDelayTime = 0;
   private:
     uint8_t _buffer[bufferSize];
     uint8_t _messageLengths[maxQueue];
@@ -256,9 +263,13 @@ class CSMAWrapper
     uint8_t _lastPacketCounter = 0;
     IdleStates _idleState = IdleStates::NotInitialised;
     
-    uint8_t getEndOfBuffer() {
-      if (_readBufferLenIdx == _writeBufferLenIdx) {
+    uint8_t getBufferWriteOffset() {
+      if (_readBufferLenIdx == _writeBufferLenIdx && _readBufferLenIdx != 0) {
+        RX_PRINTLN(F("ERR: Uncleared buffer on write"));
         clearBuffer();
+      }
+      else if (_readBufferLenIdx > _writeBufferLenIdx) {
+        RX_PRINTLN(F("ERROR: Read buffer ahead of write buffer!"));
       }
       uint8_t ret = 0;
       for (int i = 0; i < _writeBufferLenIdx; i++)
@@ -267,9 +278,6 @@ class CSMAWrapper
     }
 
     uint8_t getStartOfBuffer() {
-      if (_readBufferLenIdx == _writeBufferLenIdx) {
-        clearBuffer();
-      }
       uint8_t ret = 0;
       for (int i = 0; i < _readBufferLenIdx; i++)
         ret += _messageLengths[i];

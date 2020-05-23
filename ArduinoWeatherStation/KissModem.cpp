@@ -134,7 +134,7 @@ int main()
   while (1)
   {
     LoraMessageSource loraSrc;
-    if (loraSrc.beginMessage())
+    while (loraSrc.beginMessage())
     {
       KissMessageDestination dst;
       dst.appendData(loraSrc, maxPacketSize);

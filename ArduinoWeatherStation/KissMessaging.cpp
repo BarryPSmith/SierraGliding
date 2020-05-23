@@ -72,6 +72,7 @@ bool KissMessageSource::readByteRaw(byte& dest)
       _currentLocation = -1;
       return false;
     }
+    yield();
     data = STREAM.read();
   }
   dest = data;

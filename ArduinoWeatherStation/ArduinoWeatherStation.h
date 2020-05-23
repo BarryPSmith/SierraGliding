@@ -44,6 +44,19 @@ void AwsRecordState(int i);
 #define TX_DEBUG(...) do { } while (0)
 #endif
 
+#define DEBUG_RX
+#ifdef DEBUG_RX
+#define RX_PRINT AWS_DEBUG_PRINT
+#define RX_PRINTLN AWS_DEBUG_PRINTLN
+#define RX_PRINTVAR PRINT_VARIABLE
+#define RX_DEBUG AWS_DEBUG
+#else
+#define RX_PRINT(...) do { } while (0)
+#define RX_PRINTLN(...) do { } while (0)
+#define RX_PRINTVAR(...) do { } while (0)
+#define RX_DEBUG(...) do { } while (0)
+#endif
+
 #define MESSAGE_DESTINATION_SOLID LoraMessageDestination
 #define MESSAGE_SOURCE_SOLID LoraMessageSource
 
@@ -95,7 +108,7 @@ extern unsigned long lastStatusMillis;
 
 extern unsigned long lastPingMillis;
 
-#ifndef DEBUG
+#if !defined(DEBUG) && !defined(MODEM)
 #define LED_PIN0 0
 #define LED_PIN1 1
 #define LED_OFF HIGH

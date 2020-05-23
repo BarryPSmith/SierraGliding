@@ -147,7 +147,7 @@ class CSMAWrapper
       // (this function also resets the buffer pointers to zero if it is empty).
       int16_t state = readIfPossible();
 
-      if (_writeBufferLenPointer == 0) {
+      if (_writeBufferLenIdx == 0) {
         *buffer = 0;
         *length = 0;
         
@@ -155,9 +155,9 @@ class CSMAWrapper
       }
 
       *buffer = _buffer + getStartOfBuffer();
-      *length = _messageLengths[_readBufferLenPointer];
+      *length = _messageLengths[_readBufferLenIdx];
 
-      _readBufferLenPointer++;
+      _readBufferLenIdx++;
       
       return(state);
     }
@@ -169,7 +169,7 @@ class CSMAWrapper
         return(NO_PACKET_AVAILABLE);
       }
       
-      if (_writeBufferLenPointer == maxQueue) {
+      if (_writeBufferLenIdx == maxQueue) {
         return(NOT_ENOUGH_SPACE);
       }
       uint8_t bufferEnd = getEndOfBuffer();
@@ -200,14 +200,16 @@ class CSMAWrapper
         return(state);
       }
 
-      _messageLengths[_writeBufferLenPointer] = packetSize;
-      _writeBufferLenPointer++;
+      RX_PRINTVAR(_writeBufferLenIdx);
+      RX_PRINTVAR(packetSize);
+      _messageLengths[_writeBufferLenIdx] = packetSize;
+      _writeBufferLenIdx++;
       return(ERR_NONE);
     }
 
     void clearBuffer() {
-      _readBufferLenPointer = 0;
-      _writeBufferLenPointer = 0;
+      _readBufferLenIdx = 0;
+      _writeBufferLenIdx = 0;
     }
 
     int16_t setIdleState(IdleStates newState)
@@ -249,27 +251,27 @@ class CSMAWrapper
   private:
     uint8_t _buffer[bufferSize];
     uint8_t _messageLengths[maxQueue];
-    uint8_t _readBufferLenPointer = 0;
-    uint8_t _writeBufferLenPointer = 0;
+    uint8_t _readBufferLenIdx = 0;
+    uint8_t _writeBufferLenIdx = 0;
     uint8_t _lastPacketCounter = 0;
     IdleStates _idleState = IdleStates::NotInitialised;
     
     uint8_t getEndOfBuffer() {
-      if (_readBufferLenPointer == _writeBufferLenPointer) {
+      if (_readBufferLenIdx == _writeBufferLenIdx) {
         clearBuffer();
       }
       uint8_t ret = 0;
-      for (int i = 0; i < _writeBufferLenPointer; i++)
+      for (int i = 0; i < _writeBufferLenIdx; i++)
         ret += _messageLengths[i];
       return ret;
     }
 
     uint8_t getStartOfBuffer() {
-      if (_readBufferLenPointer = _writeBufferLenPointer) {
+      if (_readBufferLenIdx == _writeBufferLenIdx) {
         clearBuffer();
       }
       uint8_t ret = 0;
-      for (int i = 0; i < _readBufferLenPointer; i++)
+      for (int i = 0; i < _readBufferLenIdx; i++)
         ret += _messageLengths[i];
       return ret;
     }

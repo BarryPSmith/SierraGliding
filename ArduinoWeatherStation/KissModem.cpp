@@ -184,3 +184,13 @@ int main()
 
   return 0;
 }
+
+void yield()
+{
+  static bool preventRecursion = false;
+  if (preventRecursion)
+    return;
+  preventRecursion = true;
+  LORA_CHECK(csma.readIfPossible());
+  preventRecursion = false;
+}

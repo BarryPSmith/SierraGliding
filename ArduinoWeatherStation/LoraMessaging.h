@@ -1,6 +1,8 @@
 #pragma once
 #include <Arduino.h>
 #include "MessagingCommon.h"
+#include "lib/RadioLib/src/Radiolib.h"
+#include "CSMA.h"
 
 #define outputPower 10
 
@@ -11,6 +13,9 @@ void InitMessaging();
 bool handleMessageCommand(MessageSource& src, byte* desc = nullptr);
 void appendMessageStatistics(MessageDestination& msg);
 void updateIdleState();
+
+extern SX1262 lora;
+extern CSMAWrapper<SX1262> csma;
 
 #ifdef DEBUG
 void messageDebugAction();

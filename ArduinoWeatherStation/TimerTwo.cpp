@@ -72,6 +72,8 @@ unsigned long TimerTwo::millis()
 
 unsigned long TimerTwo::micros()
 {
+  return millis() * 1000;
+
   auto sreg = SREG;
   cli();
   unsigned long m = _ticks;

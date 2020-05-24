@@ -311,7 +311,7 @@ namespace Commands
     //Version (a few bytes)
     headerStart[3] = ('V');
     response.append(headerStart, 4);
-    response.append(ver, ver_size);
+    response.append(ASW_VER, ver_size);
     response.appendByte(0);
 
     switch (queryType)

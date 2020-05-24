@@ -24,10 +24,10 @@ class MessageSource;
 class MessageDestination
 {  
   protected:
-    int _currentLocation = 0;
+    byte _currentLocation = 0;
   
   public:
-    static bool s_prependCallsign;
+    const static bool s_prependCallsign;
 
     MessageDestination();
     
@@ -54,11 +54,11 @@ class MessageDestination
 class MessageSource
 {
   protected:
-    int _currentLocation = -1;
+    byte _currentLocation = 255;
     byte _length;
 
   public:
-    static bool s_discardCallsign;
+    const static bool s_discardCallsign;
 
     MessageSource();
 
@@ -84,5 +84,5 @@ class MessageSource
     MESSAGE_RESULT readBytes(byte* dest, size_t dataLen);
     
     byte getMessageLength();
-    int getCurrentLocation();
+    byte getCurrentLocation();
 };

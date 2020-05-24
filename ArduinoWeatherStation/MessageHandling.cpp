@@ -76,7 +76,7 @@ namespace MessageHandling
         continue;
       }
 
-      int afterHeader = msg.getCurrentLocation();
+      byte afterHeader = msg.getCurrentLocation();
 
       AWS_DEBUG_PRINT(F("Message Received. Type: "));
       AWS_DEBUG_PRINT((char)msgType);
@@ -291,14 +291,15 @@ namespace MessageHandling
 
   void sendStatusMessage()
   {
-    bool wasPrependCallsign = MessageDestination::s_prependCallsign;
-    MessageDestination::s_prependCallsign = true;
+    //bool wasPrependCallsign = MessageDestination::s_prependCallsign;
+    //MessageDestination::s_prependCallsign = true;
     MESSAGE_DESTINATION_SOLID msg(false);
-    //msg.append(callSign, strlen(callSign));
+    if (!MESSAGE_DESTINATION_SOLID::s_prependCallsign)
+      msg.append((byte*)callSign, 6);
     msg.append(STATUS_MESSAGE, strlen_P((const char*)STATUS_MESSAGE));
     msg.appendByte(stationID);
     msg.finishAndSend();
-    MessageDestination::s_prependCallsign = wasPrependCallsign;
+    //MessageDestination::s_prependCallsign = wasPrependCallsign;
     lastStatusMillis = millis();
   }
 

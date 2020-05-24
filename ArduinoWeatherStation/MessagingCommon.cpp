@@ -1,7 +1,7 @@
 #include "LoraMessaging.h"
 
-bool MessageSource::s_discardCallsign = true;
-bool MessageDestination::s_prependCallsign = true;
+const bool MessageSource::s_discardCallsign = false;
+const bool MessageDestination::s_prependCallsign = false;
 
 MessageDestination::MessageDestination() {}
 
@@ -63,7 +63,7 @@ MESSAGE_RESULT MessageSource::readBytes(byte* dest, size_t dataLen)
   return MESSAGE_OK;
 }
 
-int MessageSource::getCurrentLocation()
+byte MessageSource::getCurrentLocation()
 {
   return _currentLocation;
 }

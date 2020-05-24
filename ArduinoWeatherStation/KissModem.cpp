@@ -127,9 +127,6 @@ int main()
   Serial.println(LORA_CR);
   Serial.println();
   Serial.println(F("Starting..."));
-   
-  MessageDestination::s_prependCallsign = false;
-  MessageSource::s_discardCallsign = false;
 
   while (1)
   {

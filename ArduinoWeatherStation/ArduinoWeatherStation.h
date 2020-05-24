@@ -61,7 +61,7 @@ void AwsRecordState(int i);
 #define MESSAGE_SOURCE_SOLID LoraMessageSource
 
 #define ver_str "2.2." REV_ID
-#define ver F(ver_str)
+#define ASW_VER F(ver_str)
 #define ver_size (sizeof(ver_str) - 1)
 
 /*extern const PROGMEM char verPM[] = "2.2." REV_ID;

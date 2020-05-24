@@ -77,11 +77,6 @@ void InitMessaging()
   // But the datasheet suggests the switch draws 20uA. We're a long way from that being important.
 #endif
 
-  
-  MessageDestination::s_prependCallsign = false;
-  MessageSource::s_discardCallsign = false;
-
-
   SPI.usingInterrupt(digitalPinToInterrupt(SX_DIO1));
   
   unsigned long frequency_i;
@@ -316,12 +311,12 @@ LoraMessageDestination::LoraMessageDestination(bool isOutbound)
 
 void LoraMessageDestination::abort()
 {
-  _currentLocation = -1;
+  _currentLocation = 255;
 }
 
 MESSAGE_RESULT LoraMessageDestination::finishAndSend()
 {
-  if (_currentLocation < 0)
+  if (_currentLocation == 255)
     return MESSAGE_NOT_IN_MESSAGE;
 
   uint16_t preambleLength = 8;
@@ -333,7 +328,7 @@ MESSAGE_RESULT LoraMessageDestination::finishAndSend()
   }
 
 
-#ifndef DEBUG 
+#if !defined(DEBUG) && !defined(MODEM)
   //If we're not in debug there is no visual indication of a message being sent at the station
   //So we light up the TX light on the board:
   digitalWrite(LED_PIN0, LED_ON);
@@ -345,23 +340,24 @@ MESSAGE_RESULT LoraMessageDestination::finishAndSend()
   auto state = LORA_CHECK(csma.transmit(_outgoingBuffer, _currentLocation, preambleLength));
   TX_PRINTVAR(micros() - beforeTxMicros);
 
-#ifndef DEBUG
   if (state == ERR_NONE)
   {
+#if !defined(DEBUG) && !defined(MODEM)
     digitalWrite(LED_PIN0, LED_OFF);
+#endif
   }
   else //Flash the TX/RX LEDs to indicate an error condition:
   {
+#if !defined(DEBUG) && !defined(MODEM)
     signalError();
-
+#endif
     //If a message failed to send, try to re-initialise:
     InitMessaging();
   }
-#endif //DEBUG
 
   bool ret = state == ERR_NONE;
 
-  _currentLocation = -1;
+  _currentLocation = 255;
   if (ret)
     return MESSAGE_OK;
   else
@@ -371,7 +367,7 @@ MESSAGE_RESULT LoraMessageDestination::finishAndSend()
 
 MESSAGE_RESULT LoraMessageDestination::appendByte(const byte data)
 {
-  if (_currentLocation < 0)
+  if (_currentLocation == 255)
     return MESSAGE_NOT_IN_MESSAGE;
   else if (_currentLocation >= maxPacketSize)
   {
@@ -385,22 +381,20 @@ MESSAGE_RESULT LoraMessageDestination::appendByte(const byte data)
 
 bool LoraMessageSource::beginMessage()
 {
-  LORA_CHECK(csma.dequeueMessage(&_incomingBuffer, &_incomingMessageSize));
+  LORA_CHECK(csma.dequeueMessage(&_incomingBuffer, &_length));
   //we don't use state to determine whether to handle the message
-  if (_incomingBuffer == 0)
+  if (_length == 0)
     return false;
   
   if (s_discardCallsign)
   {
-    if (_incomingMessageSize <= 6)
+    if (_length <= 6)
       return false;
     _currentLocation = 6;
-    _length = _incomingMessageSize - 6;
   }
   else
   {
     _currentLocation = 0;
-    _length = _incomingMessageSize;
   }
 
   return true;
@@ -408,19 +402,19 @@ bool LoraMessageSource::beginMessage()
 
 MESSAGE_RESULT LoraMessageSource::endMessage()
 {
-  if (_currentLocation < 0)
+  if (_currentLocation == 255)
     return MESSAGE_NOT_IN_MESSAGE;
-  _currentLocation = -1;
+  _currentLocation = 255;
   return MESSAGE_END;
 }
 
 MESSAGE_RESULT LoraMessageSource::readByte(byte& dest)
 {
-  if (_currentLocation < 0)
+  if (_currentLocation == 255)
     return MESSAGE_NOT_IN_MESSAGE;
-  if (_currentLocation >= _incomingMessageSize)
+  if (_currentLocation >= _length)
   {
-    _currentLocation = -1;
+    _currentLocation = 255;
     return MESSAGE_END;
   }
   else
@@ -432,9 +426,9 @@ MESSAGE_RESULT LoraMessageSource::readByte(byte& dest)
 
 MESSAGE_RESULT LoraMessageSource::seek(const byte newPosition)
 {
-  if (newPosition >= _incomingMessageSize)
+  if (newPosition >= _length)
   {
-    _currentLocation == -1;
+    _currentLocation = 255;
     return MESSAGE_END;
   } 
   else

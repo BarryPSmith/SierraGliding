@@ -34,7 +34,7 @@ class LoraMessageSource : public MessageSource
 
   private:
     byte* _incomingBuffer;
-    byte _incomingMessageSize;
+    //byte _incomingMessageSize;
 };
 
 class LoraMessageDestination : public MessageDestination

@@ -28,6 +28,43 @@ void PermanentStorage::setCRC()
   eeprom_write_block(&crc, (void*)offsetof(PermanentVariables, crc), sizeof(short));
 }
 
+const PermanentVariables defaultVars PROGMEM =
+{
+  .initialised = true,
+  .stationID = defaultStationID,
+  .shortInterval = 4000,// - 90 * (stationID - '1');
+  .longInterval = 30000,// - 90 * (stationID - '1'); //longInterval == shortInterval because it turns out the transmit is negligble draw.
+  .batteryThreshold_mV = 3800,
+  .batteryEmergencyThresh_mV = 3700,
+  .demandRelay = false,
+  //.stationsToRelayCommands = { 0 },
+  //.stationsToRelayWeather = { 0 },
+
+  .frequency_i = 424800000,
+  .bandwidth_i = 625,
+  .txPower = -9,
+  .spreadingFactor = 5,
+  .csmaP = 100, //40% chance to transmit
+  .csmaTimeslot = 4000, // 4ms
+  .outboundPreambleLength = 128, // allow end nodes to spend most of their time asleep.
+
+  // These default tsOffset / tsGain values correspond to the datasheet example values on page 215.
+#ifdef ATMEGA328PB
+  .tsOffset = 32,
+  .tsGain = 128,
+#else
+  .tsOffset = -75,
+  .tsGain = 164,
+#endif
+  .wdCalibMin = 0,
+  .wdCalibMax = 1023,
+
+  .chargeVoltage_mV = 4050,
+  .chargeResponseRate = 40,
+  .safeFreezingChargeLevel_mV = 3750,
+  .safeFreezingPwm = 85
+};
+
 void PermanentStorage::initialise()
 {
   bool initialised;
@@ -46,44 +83,10 @@ void PermanentStorage::initialise()
   {
     AWS_DEBUG_PRINTLN(F("Initialising Default Parameters"));
 
-    PermanentVariables vars
-    {
-    .initialised = true,
-    .stationID = stationID,
-    .shortInterval = 4000,// - 90 * (stationID - '1');
-    .longInterval = 30000,// - 90 * (stationID - '1'); //longInterval == shortInterval because it turns out the transmit is negligble draw.
-    .batteryThreshold_mV = 3800,
-    .batteryEmergencyThresh_mV = 3700,
-    .demandRelay = false,
-    .stationsToRelayCommands = { 0 },
-    .stationsToRelayWeather = { 0 },
-
-    .frequency_i = 424800000,
-    .bandwidth_i = 625,
-    .txPower = -9,
-    .spreadingFactor = 5,
-    .csmaP = 100, //40% chance to transmit
-    .csmaTimeslot = 4000, // 4ms
-    .outboundPreambleLength = 128, // allow end nodes to spend most of their time asleep.
-
-    // These default tsOffset / tsGain values correspond to the datasheet example values on page 215.
-#ifdef ATMEGA328PB
-    .tsOffset = 32,
-    .tsGain = 128,
-#else
-    .tsOffset = -75,
-    .tsGain = 164,
-#endif
-    .wdCalibMin = 0,
-    .wdCalibMax = 1023,
-
-    .chargeVoltage_mV = 4050,
-    .chargeResponseRate = 40,
-    .safeFreezingChargeLevel_mV = 3750,
-    .safeFreezingPwm = 85
-    };
+    PermanentVariables vars;
+    memcpy_P(&vars, &defaultVars, sizeof(vars));
+    vars.stationID = stationID;
     setBytes(0, sizeof(vars), &vars);
-
     
     setCRC();
   }

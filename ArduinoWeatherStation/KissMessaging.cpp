@@ -24,20 +24,20 @@ KissMessageDestination::~KissMessageDestination()
 
 MESSAGE_RESULT KissMessageDestination::finishAndSend()
 {
-  if (_currentLocation < 0)
+  if (_currentLocation == 255)
     return MESSAGE_NOT_IN_MESSAGE;
 
   while(_currentLocation < minPacketSize)
     appendByte(0);
     
   STREAM.write(FEND);
-  _currentLocation = -1;
+  _currentLocation = 255;
   return MESSAGE_END;
 }
     
 MESSAGE_RESULT KissMessageDestination::appendByte(const byte data)
 {
-  if (_currentLocation < 0)
+  if (_currentLocation == 255)
     return MESSAGE_NOT_IN_MESSAGE;
   if (data == FEND)
   {
@@ -69,7 +69,7 @@ bool KissMessageSource::readByteRaw(byte& dest)
   {
     if (millis() - startMillis > timeout)
     {
-      _currentLocation = -1;
+      _currentLocation = 255;
       return false;
     }
     yield();
@@ -113,7 +113,7 @@ bool KissMessageSource::beginMessage()
 
 MESSAGE_RESULT KissMessageSource::endMessage()
 {
-  if (_currentLocation < 0)
+  if (_currentLocation == 255)
     return MESSAGE_NOT_IN_MESSAGE;
   byte data;
   while (true)
@@ -128,13 +128,13 @@ MESSAGE_RESULT KissMessageSource::endMessage()
 MESSAGE_RESULT KissMessageSource::readByte(byte& dest)
 {
   {
-    if (_currentLocation < 0)
+    if (_currentLocation == 255)
       return MESSAGE_NOT_IN_MESSAGE;
     if (!readByteRaw(dest))
       return MESSAGE_TIMEOUT;
     if (dest == FEND)
     {
-      _currentLocation = -1;
+      _currentLocation = 255;
       return MESSAGE_END;
     }
 
@@ -148,7 +148,7 @@ MESSAGE_RESULT KissMessageSource::readByte(byte& dest)
     case TFEND: dest = FEND; break;
     case TFESC: dest = FESC; break;
     case FEND:
-      _currentLocation = -1;
+      _currentLocation = 255;
       return MESSAGE_END;
     }
 

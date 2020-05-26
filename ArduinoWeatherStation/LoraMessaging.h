@@ -40,7 +40,7 @@ class LoraMessageSource : public MessageSource
 class LoraMessageDestination : public MessageDestination
 {
   public:
-    LoraMessageDestination(bool isOutbound);
+    LoraMessageDestination(bool isOutbound, bool prependX = true);
     ~LoraMessageDestination();
     LoraMessageDestination& operator=(const LoraMessageDestination) =delete;
     MESSAGE_RESULT appendByte(const byte data) override;

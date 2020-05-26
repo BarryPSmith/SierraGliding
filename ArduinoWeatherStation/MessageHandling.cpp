@@ -293,7 +293,7 @@ namespace MessageHandling
   {
     //bool wasPrependCallsign = MessageDestination::s_prependCallsign;
     //MessageDestination::s_prependCallsign = true;
-    MESSAGE_DESTINATION_SOLID msg(false);
+    MESSAGE_DESTINATION_SOLID msg(false, false);
     if (!MESSAGE_DESTINATION_SOLID::s_prependCallsign)
       msg.append((byte*)callSign, 6);
     msg.append(STATUS_MESSAGE, strlen_P((const char*)STATUS_MESSAGE));

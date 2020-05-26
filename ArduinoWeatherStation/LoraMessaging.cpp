@@ -299,11 +299,11 @@ LoraMessageDestination::~LoraMessageDestination()
   finishAndSend();
 }
 
-LoraMessageDestination::LoraMessageDestination(bool isOutbound)
+LoraMessageDestination::LoraMessageDestination(bool isOutbound, bool prependX)
 {
   if (s_prependCallsign)
     append((byte*)callSign, 6);
-  else
+  else if (prependX)
     appendByte('X');
   
   _isOutbound = isOutbound;

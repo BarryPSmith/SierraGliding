@@ -1,8 +1,6 @@
 #COM port for upload
 PORT=COM4
-#Hardware spects
 MCU=atmega328p
-#115200
 
 uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 
@@ -17,7 +15,7 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 7: Second printed PCB (includes battery PWM circuitry)
 # 8: Second printed PCB configured for ALSWind
 # 9: Single board or second PCB with a Atmega328PB and 32768Hz crystal
-BOARD = 8
+BOARD = 9
 include Boards.makefile
 
 #Flags, etc.
@@ -29,18 +27,15 @@ LDFLAGS=-Wl,--gc-sections -Wl,--relax
 CC=avr-gcc
 
 # External libraries
-#ARDUINO_DIR=../../ArduinoCore-avr/cores/arduino
-#/Program Files (x86)/Arduino/hardware/arduino/avr/cores/arduino
-INCLUDES=-I../../ArduinoCore-avr/cores/arduino \
-		 -I../../ArduinoCore-avr/variants/standard \
-		 -I../../ArduinoCore-avr/libraries/SPI/src \
-		 -I../../ArduinoCore-avr/libraries/SoftwareSerial/src \
-		 -I../../ArduinoCore-avr/libraries/Wire/src \
+INCLUDES=-Ilib/ArduinoCore-avr/cores/arduino \
+		 -Ilib/ArduinoCore-avr/variants/standard \
+		 -Ilib/ArduinoCore-avr/libraries/SPI/src \
+		 -Ilib/ArduinoCore-avr/libraries/SoftwareSerial/src \
+		 -Ilib/ArduinoCore-avr/libraries/Wire/src \
 		 -Ilib/RadioLib/src \
 		 -Ilib/Low-Power \
 		 -Ilib/RadioLib/src \
 		 -Ilib/SPIFlash
-#		 -Ilib/TimerOne 
 ARDUINO_BASE_LIBS=^/wiring_analog.c \
 			^/wiring_digital.c ^/WInterrupts.c ^/hooks.c \
 			^/Print.cpp ^/WMath.cpp
@@ -59,8 +54,8 @@ endif
 
 ARDUINO_LIBS=^/SPI/src/SPI.cpp ^/Wire/src/Wire.cpp ^/Wire/src/utility/twi.c
 ARDUINO_LIBSWDIRS = \
-				$(patsubst ^/%, ../../ArduinoCore-avr/cores/arduino/%, $(ARDUINO_BASE_LIBS)) \
-				$(patsubst ^/%, ../../ArduinoCore-avr/libraries/%, $(ARDUINO_LIBS))
+				$(patsubst ^/%, lib/ArduinoCore-avr/cores/arduino/%, $(ARDUINO_BASE_LIBS)) \
+				$(patsubst ^/%, lib/ArduinoCore-avr/libraries/%, $(ARDUINO_LIBS))
 
 RADIO_LIB=lib/RadioLib/src/Module.cpp lib/RadioLib/src/modules/SX126x/SX126x.cpp \
 		lib/RadioLib/src/modules/SX126x/SX1262.cpp lib/RadioLib/src/modules/RF69/RF69.cpp \

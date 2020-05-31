@@ -10,3 +10,6 @@
 [submodule "ArduinoWeatherStation/lib/SPIFlash"]
 	path = RemoteStation/lib/SPIFlash
 	url = https://github.com/LowPowerLab/SPIFlash.git
+[submodule "RemoteStation/lib/ArduinoCore-avr"]
+	path = RemoteStation/lib/ArduinoCore-avr
+	url = https://github.com/BarryPSmith/ArduinoCore-avr.git

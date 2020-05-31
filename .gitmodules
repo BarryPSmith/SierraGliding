@@ -1,12 +1,12 @@
 [submodule "ArduinoWeatherStation/lib/RadioLib"]
-	path = ArduinoWeatherStation/lib/RadioLib
+	path = RemoteStation/lib/RadioLib
 	url = https://github.com/BarryPSmith/RadioLib.git
 [submodule "ArduinoWeatherStation/lib/Low-Power"]
-	path = ArduinoWeatherStation/lib/Low-Power
+	path = RemoteStation/lib/Low-Power
 	url = https://github.com/BarryPSmith/Low-Power.git
 [submodule "ArduinoWeatherStation/lib/TimerOne"]
-	path = ArduinoWeatherStation/lib/TimerOne
+	path = RemoteStation/lib/TimerOne
 	url = https://github.com/BarryPSmith/TimerOne.git
 [submodule "ArduinoWeatherStation/lib/SPIFlash"]
-	path = ArduinoWeatherStation/lib/SPIFlash
+	path = RemoteStation/lib/SPIFlash
 	url = https://github.com/LowPowerLab/SPIFlash.git

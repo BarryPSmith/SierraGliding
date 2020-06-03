@@ -23,6 +23,7 @@ const router = new express.Router();
 app.disable('x-powered-by');
 
 app.use(express.static(path.resolve(__dirname, 'site/dist')));
+app.use('/all', express.static(path.resolve(__dirname, 'site/dist')));
 app.use(express.json());
 
 app.use('/api/', router);
@@ -266,9 +267,14 @@ function main(db, cb) {
                 AND (
                     Display_Level <= 1
                     OR
-                    id = $specificId)
+                    id = $specificId
+                    OR
+                    1 = $showAll)
         `,
-            { $specificId: req.query.stationID }
+            { 
+                $specificId: req.query.stationID,
+                $showAll: req.query.all == "true" ? 1 : 0
+            }
         , (err, stations) => {
             if (err) return error(err, res);
 

@@ -31,6 +31,9 @@ export default {
         fetch_stations: function() {
             const url = new URL(`${window.location.protocol}//${window.location.host}/api/stations`);
 
+            if (window.location.pathname.toLowerCase().indexOf("all") >= 0)
+                url.searchParams.append('all', true);
+
             if (window.location.hash && window.location.hash.length > 1)
                 url.searchParams.append('stationID', window.location.hash.substr(1));
 

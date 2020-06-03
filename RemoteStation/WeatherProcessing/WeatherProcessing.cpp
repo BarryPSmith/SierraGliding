@@ -405,6 +405,14 @@ namespace WeatherProcessing
     // New constants are:
     // tsGain = tsGain(orig) / A
     // tsOffset = tsOffset(orig) + tsGain(orig) / (128 * A) * (100 * (A - 1) + B)
+
+    // If calibrating using DEBUG_IT:
+    // temp = (ADC + tsOffset - 373) * 128 / gain + 100
+    // temp = [100 + (tsOffset - 373) * 128 / gain] + ADC * 128 / gain
+    // Find linear relationship between temp and ADC, then:
+    // For a rationship T = intersect + slope * ADC
+    // gain = 128 / slope
+    // offset = (intersect - 100) / slope + 373
   }
 
   byte getExternalTemperature()

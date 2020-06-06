@@ -76,10 +76,11 @@ void PermanentStorage::initialise()
   {
     AWS_DEBUG_PRINTLN("Using default station ID");
     stationID = defaultStationID;
-    SET_PERMANENT_S(stationID);
+    initialised = false;
+    //SET_PERMANENT_S(stationID);
   }
 
-  if (!initialised || !checkCRC())
+  if (true || !initialised || !checkCRC())
   {
     AWS_DEBUG_PRINTLN(F("Initialising Default Parameters"));
 

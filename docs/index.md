@@ -145,13 +145,13 @@ Many other parameters can be set by the stations. Battery management parameters,
 # Web server
 If you're running these stations for paragliding and would like to use the SierraGliding web server, contact me to arrange something. If you want to run your own web server, read on...
 
-![Web Site](img/Web_Site.png)
+![Web Site](img/Web_Site.PNG)
 
 The web server is the final tool necessary to visualise the data from the stations. You'll need Node installed to run the server. The web server is contained in the /web folder of the repository. Run ```./index.js --db <DATABASE NAME>``` to run the server. This will create a sqlite3 database with the desired database name. Use the SQLite3 shell to create the necessary entries in the "stations" table of that database.
 
 To build the web site, run ```npm run build``` in the /web/site folder of the repository. You'll probably have to do something with the NPM package restore before it'll build.
 
-It's not a bad idea to run an instance of NGINX or something, rahter than exposing the Node server directly to the internet. Also useful if you want HTTPS.
+It's not a bad idea to run an instance of NGINX or something, rather than exposing the Node server directly to the internet. Also useful if you want HTTPS.
 
 # Addendum: Station Mounting
 For vehicle accessible installations, I use three ten foot sections of one inch water pipe with threaded couplings to join them. I use 1/16 stainless steel cable as guy lines, each 10.5m (35ft) long. The three guys are connected 5ft below the top of the pole. Throw some good stakes into the ground, and connect them with turnbuckles. I have yet to find out what strength wind this can withstand.

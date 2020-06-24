@@ -1,7 +1,7 @@
 #include "PermanentStorage.h"
 #include "ArduinoWeatherStation.h"
 #include <util/crc16.h>
-//#define DEBUG_PARAMETERS
+#define DEBUG_PARAMETERS
 
 char stationID = defaultStationID;
 
@@ -46,7 +46,7 @@ const PermanentVariables defaultVars PROGMEM =
   .spreadingFactor = 5,
   .csmaP = 100, //40% chance to transmit
   .csmaTimeslot = 4000, // 4ms
-  .outboundPreambleLength = 128, // allow end nodes to spend most of their time asleep.
+  .outboundPreambleLength = 384, // allow end nodes to spend most of their time asleep.
 
   // These default tsOffset / tsGain values correspond to the datasheet example values on page 215.
 #ifdef ATMEGA328PB
@@ -80,7 +80,7 @@ void PermanentStorage::initialise()
     //SET_PERMANENT_S(stationID);
   }
 
-  if (true || !initialised || !checkCRC())
+  if (!initialised || !checkCRC())
   {
     AWS_DEBUG_PRINTLN(F("Initialising Default Parameters"));
 

@@ -13,7 +13,7 @@ This document is a work-in-progress describing how to combine the various parts 
 
 To build and operate these stations, one should be a licensed amatuer radio (ham) operator. It might be legal to run the stations in the unlicensed ISM bands, I don't know nor do I want to go looking through the FCC regulations. Even if it is legal, operating in such bands will likely result in drastically worse performance: Lower range and more dropped packets.
 
-All up component cost is around $75 per station, depending on how many stations one orders at the same time. This does not include the mounting pole.
+All up component cost is around $75 (+ mounting hardware) per station, depending on how many stations one orders at the same time. This does not include the mounting pole.
 My website to display the stations is hosted on Digital Ocean for $5/month, this is the only ongoing cost.
 
 The weather stations consist of a custom circuit board installed in an off-the-shelf wind vane / anemometer combo.

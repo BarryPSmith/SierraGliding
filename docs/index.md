@@ -13,7 +13,7 @@ This document is a work-in-progress describing how to combine the various parts 
 
 To build and operate these stations, one should be a licensed amatuer radio (ham) operator. It might be legal to run the stations in the unlicensed ISM bands, I don't know nor do I want to go looking through the FCC regulations. Even if it is legal, operating in such bands will likely result in drastically worse performance: Lower range and more dropped packets.
 
-All up component cost is around $75 per station, depending on how many stations one orders at the same time. This does not include the mounting pole.
+All up component cost is around $75 (+ mounting hardware) per station, depending on how many stations one orders at the same time. This does not include the mounting pole.
 My website to display the stations is hosted on Digital Ocean for $5/month, this is the only ongoing cost.
 
 The weather stations consist of a custom circuit board installed in an off-the-shelf wind vane / anemometer combo.
@@ -28,18 +28,24 @@ The weather station circuitry consists of:
  - LoRa SX1268 module: that acts as a radio modem
  - ALS13131: 3 axis hall effect sensor to measure the orientation of the wind vane
  - battery charge control circuit (controlled by the atmega)
+ - misc stuff
+ 
 This is all mounted on a single board that fits inside of the wind vane housing (described below). I have had JLPCB make my circuit boards, and use their pick-and-place service to solder the components on the bottom side of the board. Sadly with the current design one must still hand solder all of the top components onto the board as well as the through hole components
 
 I like to extend the solar panel connectors (the 2mm JST connector) with some 5cm leads so that can be routed outside of the main housing. This makes it easier to disconnect and remove the main part of the station from the rest of it.
+
+The main circuit board is described by the following files in the repository: 'hardware/main_board/Single_Board.*"
 
 TODO: A shopping list for all components, more instructions on getting a board made.
 
 ### Programming the board
 The main circuit board has two programming headers: one for the SPI interface and one for the serial interface. The SPI interface is the 3x2 header, the Serial interface is the straight 6 header.
 
-The first step in programming the board is to use the SPI header to set the fuses appropriately and install the bootloader. I use an arduino with a modified sketch from Gammon to install a copy of DualOptiBoot. TODO: Link that sketch. The weather station is not tolerant of 5V inputs, and all of the arduinos I have laying about are 5V. However, you can load the sketch onto the arduino, then disconnect it from your computer and connect it to the weather station board. Connect the weather station board to a battery and everything will run at the 3.3V the weather station is happy with. Alternatively, buy an arduino or programmer that works at 3.3V.
+The first step in programming the board is to use the SPI header to set the fuses appropriately and install the bootloader. I use an arduino with a modified sketch from Gammon to install a copy of DualOptiBoot. This is contained in the repository https://github.com/BarryPSmith/arduino_sketches. The weather station is not tolerant of 5V inputs, and all of the arduinos I have laying about are 5V. However, you can load the sketch onto the arduino, then disconnect it from your computer and connect it to the weather station board. Connect the weather station board to a battery and everything will run at the 3.3V the weather station is happy with. Alternatively, buy an arduino or programmer that works at 3.3V.
 
-After installing the bootloader, upload the main weather station code using the serial interface. (TODO: Provide binaries).
+After installing the bootloader, upload the main weather station code using the serial interface. This requires a modified version of avrdude to have proper reset behaviour. The patch is included in ```RemoteStation/avrdude.patch```
+
+The code for the board is contained in the 'RemoteWeatherStation' folder. TODO: Provide binaries
 
 A future TODO is to program the entire board through the SPI interface.
 
@@ -91,7 +97,7 @@ Connect the u.FL to SMA connector and the battery to the main board. Put some do
 <img src="img/Under_vane.jpg" width="400">
 
 ### Antenna
-You can buy an antenna for the frequency you are going to use. Given an antenna is just a piece of metal with the correct dimensions for your signal, I believe them to be ridiculously overpriced and cannot bring myself to pay for them. I operate my stations at 424.8MHz. I make a simple dipole antenna with two 13.5cm lengths of aluminimum bar, mounted 17cm from the weather station mast, effectively creating a 2 element yagi antenna. I strip some coax cable and attach the core to one element of the antenna and the shield to the other element. In theory you should have some sort of balun on the cable - like a ferrite choke - but I find performance is just fine without it.
+You can buy an antenna for the frequency you are going to use. Given an antenna is just a piece of metal with the correct dimensions for your signal, I believe them to be ridiculously overpriced and cannot bring myself to pay for them. I operate my stations at 424.8MHz. I make a simple dipole antenna with two 13.5cm lengths of aluminimum bar, mounted 17cm from the weather station mast, effectively creating a 2 element yagi antenna. I strip some coax cable and attach the core to one element of the antenna and the shield to the other element. In theory there should be some sort of balun on the cable - like a ferrite choke - but I find performance is just fine without it.
 <img src="img/Antenna.jpg" width="400">
 
 # Receiver
@@ -100,9 +106,10 @@ The receiver is responsible for receiving the messages over the radio and transm
  - An Arduino Uno to interface with the SX1268
  - A Raspberry Pi to interface with the arduino and send the updates to the web server.
  
-The arduino modem software can be found here: TODO: Make a binary
-The software for the Raspberry Pi is written in dotNet Core. Install dotnet on the pi. TODO: Remember how to do this.
-TODO: receiver binaries & instructions
+The arduino modem software is found in the 'RemoteStation' folder. The BOARDS value in the makefile must be adjusted accordingly. TODO: Make a binary
+
+The software for the Raspberry can be found at 'dotNet_Receiver'. It is written in dotNet Core. TODO: Binaries, dotnet install instructions
+
 Once the receiver is installed, and the arduino modem connected, run the receiver software with the following command: ```dotnet core_Receiver.dll --serial /dev/ttyUSB0 --dest https://<your webserver address> --db sierraGlidingReceiver.sqlite```
 
 If you have any stations running, you should see packets coming up on the screen. It's best to run the receiver as a system service on the device, so that it automatically (re)starts when the Pi is started. TODO: Service instructions & file.
@@ -145,13 +152,13 @@ Many other parameters can be set by the stations. Battery management parameters,
 # Web server
 If you're running these stations for paragliding and would like to use the SierraGliding web server, contact me to arrange something. If you want to run your own web server, read on...
 
-![Web Site](img/Web_Site.png)
+![Web Site](img/Web_Site.PNG)
 
 The web server is the final tool necessary to visualise the data from the stations. You'll need Node installed to run the server. The web server is contained in the /web folder of the repository. Run ```./index.js --db <DATABASE NAME>``` to run the server. This will create a sqlite3 database with the desired database name. Use the SQLite3 shell to create the necessary entries in the "stations" table of that database.
 
 To build the web site, run ```npm run build``` in the /web/site folder of the repository. You'll probably have to do something with the NPM package restore before it'll build.
 
-It's not a bad idea to run an instance of NGINX or something, rahter than exposing the Node server directly to the internet. Also useful if you want HTTPS.
+It's not a bad idea to run an instance of NGINX or something, rather than exposing the Node server directly to the internet. Also useful if you want HTTPS.
 
 # Addendum: Station Mounting
 For vehicle accessible installations, I use three ten foot sections of one inch water pipe with threaded couplings to join them. I use 1/16 stainless steel cable as guy lines, each 10.5m (35ft) long. The three guys are connected 5ft below the top of the pole. Throw some good stakes into the ground, and connect them with turnbuckles. I have yet to find out what strength wind this can withstand.

@@ -143,6 +143,7 @@ function database(dbpath, drop, cb) {
                 Battery_Level       Float NULL,
                 Internal_Temp       FLOAT NULL,
                 External_Temp       FLOAT NULL,
+                Wind_Gust           FLOAT NULL,
                 PRIMARY KEY(Station_ID, Timestamp)
             );
         `);
@@ -507,7 +508,7 @@ function main(db, cb) {
                         timestamp,
                         AVG(Windspeed) as windspeed,
                         MIN(Windspeed) as windspeed_sample_min,
-                        MAX(Windspeed) as windspeed_sample_max,
+                        MAX(COALESCE(wind_gust, windspeed)) as windspeed_sample_max,
                         ` + avg_wd_String + ` AS wind_direction,
                         AVG(Battery_Level) AS battery_level,
                         AVG(Internal_Temp) as internal_temp,
@@ -576,7 +577,8 @@ function main(db, cb) {
                     Wind_Direction,
                     Battery_Level,
                     Internal_Temp,
-                    External_Temp
+                    External_Temp,
+                    Wind_Gust
                 ) VALUES (
                     $id,
                     $timestamp,
@@ -584,7 +586,8 @@ function main(db, cb) {
                     $winddir,
                     $battery,
                     $internal_temp,
-                    $external_temp
+                    $external_temp,
+                    $wind_gust
                 )
             `, {
                 $id: req.params.id,
@@ -593,7 +596,8 @@ function main(db, cb) {
                 $winddir: req.body.wind_direction,
                 $battery: typeof(req.body.battery) == 'number' ? req.body.battery : null,
                 $internal_temp: typeof(req.body.internal_temp) == 'number' ? req.body.internal_temp : null,
-                $external_temp: typeof(req.body.external_temp) == 'number' ? req.body.external_temp : null
+                $external_temp: typeof(req.body.external_temp) == 'number' ? req.body.external_temp : null,
+                $wind_gust: typeof(req.body.wind_gust) == 'number' ? req.body.wind_gust : req.body.wind_speed
             });
 
             res.json("success");
@@ -605,7 +609,7 @@ function main(db, cb) {
             const stats = await dbGet(`
                 SELECT
                     MIN(windspeed) as windspeed_min,
-                    MAX(windspeed) as windspeed_max,
+                    MAX(COALESCE(wind_gust, windspeed)) as windspeed_max,
                     AVG(windspeed) as windspeed_avg
                 FROM station_data
                 WHERE

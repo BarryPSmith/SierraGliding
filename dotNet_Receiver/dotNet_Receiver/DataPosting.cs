@@ -52,7 +52,8 @@ namespace core_Receiver
                     wind_direction = subPacket.windDirection,
                     battery = subPacket.batteryLevelH,
                     external_temp = subPacket.externalTemp,
-                    internal_temp = subPacket.internalTemp
+                    internal_temp = subPacket.internalTemp,
+                    wind_gust = subPacket.gust
                 };
                 var json = JsonConvert.SerializeObject(toSerialize);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");

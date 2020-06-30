@@ -37,7 +37,7 @@ namespace core_Receiver
 
         public TimeSpan PacketInterval { get; set; } = TimeSpan.FromSeconds(1);
 
-        public TimeSpan ResponseTimeout { get; set; } = TimeSpan.FromSeconds(60);
+        public TimeSpan ResponseTimeout { get; set; } = TimeSpan.FromSeconds(20);
 
         public TextWriter OutWriter { get; set; } = Console.Out;
         
@@ -254,6 +254,7 @@ namespace core_Receiver
                     {
                         token.ThrowIfCancellationRequested();
                         // Get the station status:
+                        OutWriter.WriteLine($"Programmer: Query status of {destinationStationID}");
                         lastUniqueID = QueryStationProgramming(destinationStationID);
                         if (WaitHandle.WaitAny(new WaitHandle[] { replyReceived, token.WaitHandle }, ResponseTimeout) == WaitHandle.WaitTimeout ||
                             lastResponse == null)

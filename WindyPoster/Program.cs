@@ -153,7 +153,7 @@ Usage: dotnet WindyPoster.dll [--db <DB>] [--key <KEY> | --keyfile <FILENAME>] [
                         Elevation,
 
                         AVG(Windspeed) AS windspeed,
-                        MAX(Windspeed) AS gust,
+                        MAX(COALESCE(wind_gust, windspeed)) AS gust,
                         AVG(external_temp) AS temp,
                         {avgWdStr} as windDir
                     FROM

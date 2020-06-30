@@ -126,6 +126,8 @@ namespace core_Receiver
             return wdByte * 360 / 256.0;
         }
 
+        static HashSet<int> _gustStationIDs = new HashSet<int>() { 48 + 3 };
+
         private static SingleWeatherData DecodeWeatherPacket(Span<byte> data, out int packetLen)
         {
             if (data.Length < 3)
@@ -144,18 +146,22 @@ namespace core_Receiver
             {
                 sendingStation = data[0],
                 uniqueID = data[1],
+                //data[2] is length - already recorded.
                 windDirection = GetWindDirection(data[cur++]), //3
                 windSpeed = GetWindSpeed(data[cur++]) //4
             };
 
-            if (len > 2)
-                ret.batteryLevelH = data[cur++] / 255.0 * 7.5; //5
-            if (len > 3)
-                ret.externalTemp = GetTemp(data[cur++]); //6
-            if (len > 4)
-                ret.internalTemp = GetTemp(data[cur++]); //7
-            if (len > 5)
-                ret.extras = data.Slice(cur, len + 3 - cur).ToArray(); //8
+            if (_gustStationIDs.Contains(data[0]))
+                ret.gust = GetWindSpeed(data[cur++]); //5
+
+            if (packetLen > cur)
+                ret.batteryLevelH = data[cur++] / 255.0 * 7.5; //5 (^6)
+            if (packetLen > cur)
+                ret.externalTemp = GetTemp(data[cur++]); //6 (^7)
+            if (packetLen > cur)
+                ret.internalTemp = GetTemp(data[cur++]); //7 (^8)
+            if (packetLen > cur)
+                ret.extras = data.Slice(cur, packetLen - cur).ToArray(); //8 (^9)
             return ret;
         }
 

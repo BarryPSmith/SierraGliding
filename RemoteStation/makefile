@@ -11,11 +11,11 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 3: Flynns Rev 1
 # 4: Flynns Rev 2
 # 5: Dorji Modem
-# 6: First attempt at a printed PCB
+# 6: First attempt at a printed PCB (installed at Flynns and Mt Tom)
 # 7: Second printed PCB (includes battery PWM circuitry)
 # 8: Second printed PCB configured for ALSWind
 # 9: Single board or second PCB with a Atmega328PB and 32768Hz crystal
-BOARD = 6
+BOARD = 8
 include Boards.makefile
 
 #Flags, etc.

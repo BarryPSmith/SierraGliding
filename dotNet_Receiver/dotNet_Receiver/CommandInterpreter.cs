@@ -126,7 +126,8 @@ Command starting characters:
  M : Change radio settings.     : Same as modem. H6 for more info. (P|C|T|F|B|S|O)
  W : Change weather settings    : (C|O|G)(newValue) C: calibrate wind O: set temp offset G: set temp gain
  P : Reprogram station          : (Use programmer interface instead. )
- U : Change station ID          : UR for random. US(newID) to specify.";
+ U : Change station ID          : UR for random. US(newID) to specify.
+ C : Set charging parameters    : (charge voltage:2)(response rate:2)(freezing voltage:2)(freezing PWM:1)";
         const string c_6Help =
 @" 6 : Enter data to be sent to the modem.
 Command starting characters:

@@ -16,7 +16,7 @@
 #error No wind system defined
 #endif
 
-#define DEBUG_IT
+//#define DEBUG_IT
 //#define DEBUG_PWM
 
 #ifdef DEBUG_PWM
@@ -51,7 +51,8 @@ namespace WeatherProcessing
   byte getInternalTemperature(short& reading);
   byte getCurWindDirection();
 
-  volatile int windCounts = 0;
+  volatile unsigned short windCounts = 0;
+  volatile unsigned short minInterval = 0xFFFF;
 
   //We use unsigned long for these because they are involved in 32-bit calculations.
   constexpr unsigned long mV_Ref = REF_MV;
@@ -70,7 +71,7 @@ namespace WeatherProcessing
   #endif
 
   unsigned long lastWindCountMillis;
-  constexpr byte minWindInterval = 3; //Debounce. 330 kph = broken station;
+  constexpr byte minWindIntervalTest = 3; //Debounce. 330 kph = broken station;
   constexpr byte windSampleTicks = 100 / TimerTwo::MillisPerTick;
 
   byte getWindDirection()
@@ -105,7 +106,7 @@ namespace WeatherProcessing
   inline uint16_t getWindSpeed_x8()
   {
     noInterrupts();
-    int localCounts = windCounts;
+    short localCounts = windCounts;
     windCounts = 0;
     interrupts();
   #if defined(ARGENTDATA_WIND) || defined(ALS_WIND)
@@ -114,6 +115,21 @@ namespace WeatherProcessing
     return (8UL * 3600 * localCounts) / weatherInterval;
   #else
     #error Cannot get Wind Speed
+  #endif
+  }
+
+  inline uint16_t getWindGust_x8()
+  {
+    noInterrupts();
+    unsigned short localInterval = minInterval;
+    minInterval = 0xFFFF;
+    interrupts();
+  #if defined (ARGENTDATA_WIND) || defined(ALS_WIND)
+    return ((unsigned short)8 * 2400) / localInterval;
+  #elif defined (DAVIS_WIND)
+    return ((unsigned short)8 * 3600) / localInterval;
+  #else
+    #error Cannot get wind gust
   #endif
   }
 
@@ -143,7 +159,7 @@ namespace WeatherProcessing
 
     bool isComplex = simpleMessagesSent >= complexMessageFrequency - 1;
 
-    byte length = isComplex ? 5 : 2;
+    byte length = isComplex ? 6 : 3;
 #ifdef DEBUG_PWM
     if (isComplex)
       length++;
@@ -153,13 +169,18 @@ namespace WeatherProcessing
       length += 2;
 #endif
     
-    
     message.appendByte(length);
 
     //Message format is W(StationID)(UniqueID)(DirHex)(Spd * 2)(Voltage)
   
-    auto localCounts = windCounts;
+    WX_DEBUG(auto localCounts = windCounts);
     uint16_t windSpeed_x8 = getWindSpeed_x8();
+    byte wsByte = getWindSpeedByte(windSpeed_x8);
+
+    auto localInterval = minInterval;
+
+    uint16_t windGust_x8 = getWindGust_x8();
+    byte wgByte = getWindSpeedByte(windGust_x8);
 
     //Update the send interval only after we calculate windSpeed, because windSpeed is dependent on weatherInterval
     unsigned short batt_mV = readBattery();
@@ -167,9 +188,9 @@ namespace WeatherProcessing
   
     byte windDirection = getWindDirection();
     message.appendByte(windDirection);
-    byte wsByte = getWindSpeedByte(windSpeed_x8);
 
     message.appendByte(wsByte);
+    message.appendByte(wgByte);
     
     byte batteryByte, externalTempByte, internalTempByte;
     if (isComplex)
@@ -212,6 +233,7 @@ namespace WeatherProcessing
     WX_PRINTLN(windDirection);
     WX_PRINT(F("windSpeed byte: "));
     WX_PRINTLN(wsByte);
+    WX_PRINTVAR(wgByte);
     if (isComplex)
     {
       WX_PRINTVAR(batteryByte);
@@ -283,14 +305,13 @@ namespace WeatherProcessing
 
   void countWind()
   {
+    unsigned long thisInterval = millis() - lastWindCountMillis;
     // no counting in deep sleep / debounce the signal:
-    if (doDeepSleep || millis() - lastWindCountMillis < minWindInterval)
+    if (doDeepSleep || thisInterval < minWindIntervalTest)
       return;
-    #ifdef WIND_DIR_AVERAGING
-    //Turns out this burns a bunch of power to sample so often:
-    //sampleWind = true;
-    #endif
     lastWindCountMillis = millis();
+    if (thisInterval < minInterval)
+      minInterval = thisInterval;
     windCounts++;
   }
 

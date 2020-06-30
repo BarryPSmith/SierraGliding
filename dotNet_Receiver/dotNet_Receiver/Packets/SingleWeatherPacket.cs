@@ -13,11 +13,14 @@ namespace core_Receiver.Packets
         public double? batteryLevelH;
         public double? internalTemp;
         public double? externalTemp;
+        public double? gust;
         public byte[] extras;
 
         public override string ToString()
         {
-            var ret = $"WD:{windDirection:F1} WS:{windSpeed:F2}";
+            var ret = $"ID:{sendingStation} WD:{windDirection:F1} WS:{windSpeed:F2}";
+            if (gust.HasValue)
+                ret += $" G: {gust}";
             if (batteryLevelH.HasValue)
                 ret += $" B:{batteryLevelH:F2}";
             if (externalTemp.HasValue)

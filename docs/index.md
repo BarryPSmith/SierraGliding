@@ -75,7 +75,7 @@ The battery connects to the main board by a 2.5mm JST connector.
 The small battery fits inside of the wind vane for a very clean self contained unit. Larger LiPos or lead acid batteries must be housed in a separate container.
 
 ### Wind Vane and Anemometer
-The wind vane and anemometer used in these stations are some generic design from China. In the United States, the best source I have found is ArgentData, item: https://www.argentdata.com/catalog/product_info.php?products_id=145 .
+The best source for the wind vane and anemometer that I have found is Argent Data, item: https://www.argentdata.com/catalog/product_info.php?products_id=145 . (I'm not sure if this is their own design or whether they resell a generic product)
 One can contact the owner of that business to request to buy only the windvane and anemometer, not the rain guage, for $12 cheaper per unit.
 
 ### Wind vane modification

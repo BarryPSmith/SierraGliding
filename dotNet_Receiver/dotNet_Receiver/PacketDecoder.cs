@@ -126,8 +126,6 @@ namespace core_Receiver
             return wdByte * 360 / 256.0;
         }
 
-        static HashSet<int> _gustStationIDs = new HashSet<int>() { 48 + 3 };
-
         private static SingleWeatherData DecodeWeatherPacket(Span<byte> data, out int packetLen)
         {
             if (data.Length < 3)
@@ -148,11 +146,13 @@ namespace core_Receiver
                 uniqueID = data[1],
                 //data[2] is length - already recorded.
                 windDirection = GetWindDirection(data[cur++]), //3
-                windSpeed = GetWindSpeed(data[cur++]) //4
+                windSpeed = GetWindSpeed(data[cur++]), //4
+                gust = GetWindSpeed(data[cur++]) //5
             };
 
-            if (_gustStationIDs.Contains(data[0]))
-                ret.gust = GetWindSpeed(data[cur++]); //5
+            //Temporary fix for stations reporting very high gusts after a restart:
+            if (ret.gust > ret.windSpeed * 2.5 && ret.gust > 15)
+                ret.gust = null;
 
             if (packetLen > cur)
                 ret.batteryLevelH = data[cur++] / 255.0 * 7.5; //5 (^6)

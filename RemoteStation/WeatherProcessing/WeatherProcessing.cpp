@@ -53,6 +53,7 @@ namespace WeatherProcessing
 
   volatile unsigned short windCounts = 0;
   volatile unsigned short minInterval = 0xFFFF;
+  bool hasTicked = false;
 
   //We use unsigned long for these because they are involved in 32-bit calculations.
   constexpr unsigned long mV_Ref = REF_MV;
@@ -310,8 +311,9 @@ namespace WeatherProcessing
     if (doDeepSleep || thisInterval < minWindIntervalTest)
       return;
     lastWindCountMillis = millis();
-    if (thisInterval < minInterval)
+    if (hasTicked && thisInterval < minInterval)
       minInterval = thisInterval;
+    hasTicked = true;
     windCounts++;
   }
 

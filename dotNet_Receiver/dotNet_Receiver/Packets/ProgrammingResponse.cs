@@ -36,7 +36,7 @@ namespace core_Receiver.Packets
         {
             double percent = (double)receivedPackets.Count(p => p) / receivedPackets.Count();
             return $"CRC: {expectedCRC:X}, Packet Count: {totalExpectedPackets}, All there: {allThere}, CRC match {crcMatch}, Complete: {percent:P0}, Missing: " +
-                $"({receivedPackets.Select((b, i) => (b, i)).Where(tpl => !tpl.b).ToCsv()})";
+                $"({receivedPackets.Select((b, i) => (b, i)).Where(tpl => !tpl.b).Select(tpl => tpl.i).ToCsv()})";
         }
     }
 }

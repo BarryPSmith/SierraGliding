@@ -87,7 +87,33 @@ PROG_BAUD=115200
 MODEM=1
 
 else ifeq ($(BOARD), 6)
-$(info Running Makefile for PCB Rev1 (6))
+$(info Running Makefile for PCB Rev1 - Flynns (6))
+BOARD_DEFINES = \
+    -DF_CPU=8000000L \
+    -DSERIAL_BAUD=9600 \
+    -DREF_MV=3300 \
+    -DBATT_PIN=A0 \
+    -DBATTV_NUM=101 \
+    -DBATTV_DEN=33 \
+    -DWIND_DIR_PIN=A5 \
+    -DWIND_SPD_PIN=2 \
+    -DWIND_PWR_PIN=A2 \
+    -DTEMP_SENSE=A4 \
+    -DSX_BUSY=4 \
+    -DSX_DIO1=3 \
+    -DSX_SELECT=10 \
+    -DSX_TCXOV_X10=18 \
+    -DSX_RESET=9 \
+    -DFLASH_SELECT=8 \
+    -DWIND_DIR_AVERAGING \
+    -DDAVIS_WIND \
+#   -DSTATION_ID=\'4\' \
+    -DCLOCK_DIVIDER=1 \
+
+PROG_BAUD=57600
+
+else ifeq ($(BOARD), 601)
+$(info Running Makefile for PCB Rev1 - Mt Tom (601))
 BOARD_DEFINES = \
     -DF_CPU=8000000L \
     -DSERIAL_BAUD=9600 \
@@ -107,11 +133,12 @@ BOARD_DEFINES = \
     -DFLASH_SELECT=8 \
     -DWIND_DIR_AVERAGING \
     -DARGENTDATA_WIND \
-    -DINVERSE_AD_WIND \
+#   -DINVERSE_AD_WIND \
 #   -DSTATION_ID=\'4\' \
     -DCLOCK_DIVIDER=1 \
 
 PROG_BAUD=57600
+
 
 else ifeq ($(BOARD), 7)
 $(info Running Makefile for PCB Rev2 (7))

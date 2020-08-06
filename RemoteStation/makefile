@@ -1,5 +1,5 @@
 #COM port for upload
-PORT=COM4
+PORT=COM7
 MCU=atmega328p
 
 uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
@@ -11,11 +11,12 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 3: Flynns Rev 1
 # 4: Flynns Rev 2
 # 5: Dorji Modem
-# 6: First attempt at a printed PCB (installed at Flynns and Mt Tom)
+# 6: First attempt at a printed PCB configured for DavisWind (Flynns)
+# 601: First attempt at a printed PCB configured for ADWind (Mt Tom)
 # 7: Second printed PCB (includes battery PWM circuitry)
 # 8: Second printed PCB configured for ALSWind
 # 9: Single board or second PCB with a Atmega328PB and 32768Hz crystal
-BOARD = 8
+BOARD = 2
 include Boards.makefile
 
 #Flags, etc.

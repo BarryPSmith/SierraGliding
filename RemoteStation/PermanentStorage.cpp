@@ -45,7 +45,7 @@ const PermanentVariables defaultVars PROGMEM =
   .txPower = -9,
   .spreadingFactor = 5,
   .csmaP = 100, //40% chance to transmit
-  .csmaTimeslot = 4000, // 4ms
+  .csmaTimeslot = 10000, // 10ms
   .outboundPreambleLength = 384, // allow end nodes to spend most of their time asleep.
 
   // These default tsOffset / tsGain values correspond to the datasheet example values on page 215.

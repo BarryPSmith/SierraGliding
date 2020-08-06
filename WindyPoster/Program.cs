@@ -100,6 +100,10 @@ Usage: dotnet WindyPoster.dll [--db <DB>] [--key <KEY> | --keyfile <FILENAME>] [
                 return;
             }
 
+            /*PostStation(48 + 9, "Bria Dog Ridge", 37.7042, -118.6642,
+                9, 9, 2666).Wait();
+            return;*/
+
             while (true)
             {
                 TimerLoopAsync();
@@ -210,6 +214,29 @@ Usage: dotnet WindyPoster.dll [--db <DB>] [--key <KEY> | --keyfile <FILENAME>] [
             {
                 Console.Error.WriteLine($"Loop exception: {ex}");
             }
+        }
+
+        private static async Task PostStation(int stationID, string Name, double lat, double lon,
+            double windheight, double tempheight, double elevation)
+        {
+            var obj = new
+            {
+                stations = new[] 
+                { new 
+                    {
+                    station = stationID,
+                    name = Name,
+                    lat,
+                    lon,
+                    windheight, tempheight, elevation
+                    } 
+                }
+            };
+            var json = JsonConvert.SerializeObject(obj);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var response = await _client.PostAsync(_url, content);
+            Console.WriteLine($"Status Code: {response.StatusCode}");
+            Console.WriteLine(await response.Content.ReadAsStringAsync());
         }
 
         private static async Task SendReadings(List<object> readings)

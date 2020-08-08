@@ -54,6 +54,10 @@ export default {
                 battOpts.plugins.zoom.pan.onPan = this.chart_panning;
                 battOpts.plugins.zoom.pan.onPanComplete = this.chart_panComplete;
                 battOpts.title.text = this.label;
+
+                battOpts.scales.xAxes[0].afterFit = this.xAxis_afterFit;
+                battOpts.scales.xAxes[0].afterUpdate = this.xAxis_afterUpdate;
+
                 this.chart = new Chart(battElem, {
                     type: 'line',
                     data: {

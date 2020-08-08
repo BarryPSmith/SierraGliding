@@ -161,6 +161,11 @@ export default {
                     }
                     scale.ticks = ticks;
                 };
+                wdOpts.scales.xAxes[0].afterFit = this.xAxis_afterFit;
+                wdOpts.scales.xAxes[0].afterUpdate = this.xAxis_afterUpdate;
+                /*wdOpts.scales.xAxes[0].beforeBuildTicks = scale => {
+                    console.error(scale);
+                };*/
                 wdOpts.scales.yAxes[0].ticks.callback = value => {
                     const ret = windNames[(value + 360) % 360];
                     if (ret !== undefined)

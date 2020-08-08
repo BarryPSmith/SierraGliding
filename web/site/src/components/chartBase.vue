@@ -39,10 +39,14 @@ export default {
                         ticks: {
                             maxRotation: 0,
                             min: this.cur_start(),
-                            max: this.cur_end()
+                            max: this.cur_end(),
+                            autoSkip: false
                         },
                         time: {
-                            minUnit: 'minute'
+                            minUnit: 'minute',
+                            displayFormats: {
+                                hour: 'MMM D hA'
+                            }
                         }
                     }]
                 },
@@ -165,11 +169,63 @@ export default {
                 this.chart_range_derived();
             this.chart.options.scales.xAxes[0].ticks.min = this.cur_start();
             this.chart.options.scales.xAxes[0].ticks.max = this.cur_end();
-            
+
             if (this.before_update)
                 this.before_update();
             this.chart.update();
             this.lastRange = new Date();
+        },
+
+        filter_x_ticks: function(scale, ticks) {
+            const hours = 3600;
+            const days = 24 * hours;
+            const timeSteps = [
+                {
+                    min: 0,
+                    unit: false,
+                    stepSize: 1,
+                    max: 12 * hours
+                },
+                {
+                    unit: 'hour',
+                    stepSize: 1,
+                    max: 1 * days
+                },
+                {
+                    unit: 'hour',
+                    stepSize: 3,
+                    max: 2 * days
+                },
+                {
+                    unit: 'hour',
+                    stepSize: 6,
+                    max: 4 * days
+                },
+                {
+                    unit: 'hour',
+                    stepSize: 12,
+                    max: 7 * days
+                },
+                {
+                    unit: 'day',
+                    stepSize: 1,
+                    max: 31 * days
+                },
+                {
+                    unit: false,
+                    stepSize: 1,
+                    max: Infinity
+                }
+            ]
+
+            for (let i = 0; i <= timeSteps.length; i++) {
+                const step = timeSteps[i];
+                if (this.duration < step.max) {
+                    this.chart.options.scales.xAxes[0].time.unit = step.unit;
+                    this.chart.options.scales.xAxes[0].time.stepSize = step.stepSize;
+                    break;
+                }
+            }
         },
 
         chart_panning: function ({ chart }) {
@@ -235,6 +291,59 @@ export default {
             const timeMatch = (+new Date() - this.lastRange) > 10000;
             if (canRange && (idMatch || timeMatch))
                 this.chart_range();
+        },
+
+        // ============ Functions to get decent datetime behaviour from chartjs
+        // These are highly dependent on the internals of the chartjs library
+        // But they work in the version we build against
+        // and it's easier than trying to actually fix it in that library.
+        xAxis_afterFit: function(scale) {
+            scale.originalTicks = scale._ticks;
+            const increase = scale.margins.left + scale.margins.right - 6;
+            scale.margins.right = scale.margins.left = 3;
+            scale.paddingRight = scale.paddingLeft = 3;
+            scale.width += increase;
+            scale._length += increase;
+        },
+
+        xAxis_afterUpdate: function(scale) {
+            const sizes = scale._getLabelSizes();
+            const widest = sizes.widest;
+            const amtPerPx = (scale.max - scale.min) / scale._length;
+            const amtPerLAbel = amtPerPx * widest.width;
+            const hr = 3600 * 1000;
+            const allowedSpacings = [
+                //1, 5, 30 seconds
+                1000, 5000, 30000,
+                //1, 2, 3, 5 minutes
+                60000, 120000, 180000, 300000,
+                //10, 20, 30 minutes
+                600000, 1200000, 1800000,
+                //1, 3, 6, 12, 24 hours
+                hr, 3 * hr, 6 * hr, 12 * hr, 24 * hr
+            ]
+            if (amtPerLAbel > allowedSpacings[allowedSpacings.length - 1]) {
+                return;
+            }
+            let filterAmt = null;
+            for (let i = 0; i < allowedSpacings.length; i++) {
+                if (allowedSpacings[i] >= amtPerLAbel) {
+                    filterAmt = allowedSpacings[i];
+                    break;
+                }
+            }
+            if (filterAmt) {
+                for (let i = 0; i < scale.originalTicks.length; i++) {
+                    let tick = scale.originalTicks[i];
+                    if ((tick.value - new Date().getTimezoneOffset() * 60000) % filterAmt == 0) {
+                        tick._index = i;
+                    }
+                }
+                scale._ticksToDraw = scale.originalTicks.filter(t => {
+                    return (t.value - new Date().getTimezoneOffset() * 60000) % filterAmt == 0;
+                });
+                scale.ticks = scale._convertTicksToLabels(scale._ticksToDraw);
+            }
         }
     }
 }

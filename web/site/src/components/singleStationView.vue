@@ -55,14 +55,14 @@
                class="cursor-pointer txt-xs">[[ Show Details ]]</p>
             <p v-if="detailed" v-on:click="detailed_click"
                class="cursor-pointer txt-xs">[[ Hide Details ]]</p>
-            <div v-if="detailed">
+            <div v-if="detailed" style="margin-right:150px">
                 <chartBattery :dataManager="dataManager"
                               :duration="duration"
                               :chartEnd.sync="chartEnd"
                               :range="station.Battery_Range" 
                               :id="station.id"/>
             </div>
-            <div v-if="detailed" :style="{ height: tempHeight }"
+            <div v-if="detailed" :style="{ height: tempHeight, marginRight: '150px' }"
                  v-on:click="temp_click">
                 <chartBattery :dataManager="dataManager"
                               :duration="duration"
@@ -72,7 +72,7 @@
                               :label="'External Temperature'"
                               :id="station.id"/>
             </div>
-            <div v-if="detailed">
+            <div v-if="detailed" style="margin-right:150px">
                 <chartBattery :dataManager="dataManager"
                               :duration="duration"
                               :chartEnd.sync="chartEnd"

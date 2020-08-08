@@ -148,6 +148,10 @@ export default {
                 wsOpts.plugins.zoom.pan.onPan = this.chart_panning;
                 wsOpts.plugins.zoom.pan.onPanComplete = this.chart_panComplete;
                 wsOpts.scales.yAxes[0].ticks.stepSize = 5;
+
+                wsOpts.scales.xAxes[0].afterFit = this.xAxis_afterFit;
+                wsOpts.scales.xAxes[0].afterUpdate = this.xAxis_afterUpdate;
+
                 if (this.dataManager)
                     wsOpts.title.text = 'Wind Speed (' + this.dataManager.unit + ')';
                 else
@@ -198,6 +202,8 @@ export default {
                     data: wsData,
                     options: wsOpts
                 });
+
+
             }
         }
     }

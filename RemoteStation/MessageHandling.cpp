@@ -129,7 +129,7 @@ namespace MessageHandling
   bool shouldRelay(byte msgType, byte msgStatID, byte msgUniqueID)
   {
     //Check if the source or destination is in our relay list:
-    if (msgType == 'C' || msgType == 'K' || msgType == 'R' || msgType == 'P')
+    if (msgType == 'C' || msgType == 'K' || msgType == 'R' || msgType == 'P' || msgType == 'S')
     {
       byte stationsToRelayCommands[permanentArraySize];
       GET_PERMANENT(stationsToRelayCommands);

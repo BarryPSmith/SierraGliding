@@ -58,7 +58,7 @@ namespace MessageHandling
       byte msgStatID;
       byte msgUniqueID;
       if (msgType == 'C' || msgType == 'K' || msgType == 'W' || msgType == 'R'
-        || msgType == 'P')
+        || msgType == 'P' || msgType == 'S')
       {
         if (msg.readByte(msgStatID) ||
           msg.readByte(msgUniqueID))

@@ -14,6 +14,7 @@ export default {
 
     data: function() {
         return {
+            lastRange: new Date(),
             commonOptions: {
                 animation: {
                     duration: 0,
@@ -25,7 +26,6 @@ export default {
                 responsive: true,
                 responsiveAnimationDuration: 0,
                 maintainAspectRatio: false,
-                lastRange: new Date(),
                 scales: {
                     yAxes: [{
                         ticks: {

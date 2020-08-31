@@ -10,7 +10,7 @@ namespace core_Receiver.Packets
     /// </summary>
     class QueryConfigResponse : QueryResponse
     {
-        const int ArraySize = 20;
+        const int TypeArraySize = 7;
         public QueryConfigResponse(Span<byte> inputData)
             : base(inputData, out var consumed)
         {
@@ -29,10 +29,18 @@ namespace core_Receiver.Packets
             DemandRelay = br.ReadBoolean();
             StationsToRelayCommands = new List<byte>();
             for (int i = 0; i < ArraySize; i++)
-                StationsToRelayCommands.Add(br.ReadByte());
+            {
+                var stationID = br.ReadByte();
+                if (stationID != 0)
+                    StationsToRelayCommands.Add(stationID);
+            }
             StationsToRelayWeather = new List<byte>();
             for (int i = 0; i < ArraySize; i++)
-                StationsToRelayWeather.Add(br.ReadByte());
+            {
+                var stationID = br.ReadByte();
+                if (stationID != 0)
+                    StationsToRelayWeather.Add(stationID);
+            }
             Frequency_Hz = br.ReadUInt32();
             Bandwidth_Hz = br.ReadUInt16() * 100;
             TxPower = br.ReadInt16();
@@ -50,6 +58,16 @@ namespace core_Receiver.Packets
                 ChargeResponseRate = br.ReadUInt16();
                 SafeFreezingChargeLevel_mV = br.ReadUInt16();
                 SafeFreezingPwm = br.ReadByte();
+            }
+            if (VersionNumber >= new Version(2, 3))
+            {
+                for (int i = 0; i < TypeArraySize; i++)
+                {
+                    var recordType = br.ReadByte();
+                    if (recordType != 0)
+                        MessageRecordTypes.Add((char)recordType);
+                }
+                NonRelayRecording = br.ReadBoolean();
             }
         }
 
@@ -78,17 +96,20 @@ namespace core_Receiver.Packets
         public UInt16 ChargeResponseRate { get; set; }
         public UInt16 SafeFreezingChargeLevel_mV { get; set; }
         public byte SafeFreezingPwm { get; set; }
-
+        public List<char> MessageRecordTypes { get; set; } = new List<char>();
+        public bool NonRelayRecording { get; set; }
+             
         public override string ToString()
         {
             return $"CONFIG Version:{Version}" + Environment.NewLine +
                 $" S Interval:{ShortInterval}, L Interval:{LongInterval}, Batt Thresh:{BatteryThreshold_mV} " +
                 $"Batt E Thresh:{BatteryEmergencyThres_mV}, Demand Relay:{DemandRelay}" + Environment.NewLine +
-                $" Relay Commands:({StationsToRelayCommands.ToCsv(b => Packet.GetChar(b).ToString())}) " + Environment.NewLine +
-                $" Relay Weather:({StationsToRelayWeather.ToCsv(b => Packet.GetChar(b).ToString())})" + Environment.NewLine +
+                $" Relay Commands:({StationsToRelayCommands.ToCsv(b => ((char)b).ToString())}) " + Environment.NewLine +
+                $" Relay Weather:({StationsToRelayWeather.ToCsv(b => ((char)b).ToString())})" + Environment.NewLine +
                 $" Freq:{Frequency_Hz / 1.0E6:F3} Hz, BW:{Bandwidth_Hz/1.0E3:F3} kHz, TxPower:{TxPower}, SF:{SpreadingFactor}, CSMA_P:{CSMA_P}, CSMA_Slot:{CSMA_Timeslot} uS, OB_Preamble:{OutboundPreambleLength}" + Environment.NewLine +
                 $" TsOffset:{TsOffset}, TSGain:{TsGain}, WdCalibMin:{WdCalibMin}, WdCalibMax:{WdCalibMax}" + Environment.NewLine +
-                $" ChargeV: {ChargeVoltage_mV} mV, ChargeResponsitivity: {ChargeResponseRate}, FreezingChargeV: {SafeFreezingChargeLevel_mV} mV, FreezingPwm: {SafeFreezingPwm}";
+                $" ChargeV: {ChargeVoltage_mV} mV, ChargeResponsitivity: {ChargeResponseRate}, FreezingChargeV: {SafeFreezingChargeLevel_mV} mV, FreezingPwm: {SafeFreezingPwm}" + Environment.NewLine +
+                $" Record Types: ({MessageRecordTypes.ToCsv()}) Non Relay Records: {NonRelayRecording}";
         }
     }
 }

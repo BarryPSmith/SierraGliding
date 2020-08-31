@@ -60,7 +60,7 @@ void AwsRecordState(int i);
 #define MESSAGE_DESTINATION_SOLID LoraMessageDestination
 #define MESSAGE_SOURCE_SOLID LoraMessageSource
 
-#define ver_str "2.2." REV_ID
+#define ver_str "2.3." REV_ID
 #define ASW_VER F(ver_str)
 #define ver_size (sizeof(ver_str) - 1)
 
@@ -98,8 +98,9 @@ extern unsigned long weatherInterval; //Current weather interval.
 extern unsigned long overrideStartMillis;
 extern unsigned long overrideDuration;
 extern bool overrideShort;
-enum SleepModes { disabled, idle, powerSave };
-extern SleepModes sleepEnabled;
+enum SleepModes { disabled = 0, idle = 1, powerSave = 2 };
+extern SleepModes solarSleepEnabled;
+extern SleepModes dbSleepEnabled;
 extern bool continuousReceiveEnabled;
 extern bool doDeepSleep;
 

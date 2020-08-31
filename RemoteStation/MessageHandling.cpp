@@ -8,7 +8,8 @@
 #include "PermanentStorage.h"
 #include <string.h>
 #include "Commands.h"
-
+#include "TimerTwo.h"
+#include "Database.h"
 
 //Placement new operator.
 void* operator new(size_t size, void* ptr)
@@ -21,6 +22,7 @@ namespace MessageHandling
   bool haveRelayed(byte msgType, byte msgStatID, byte msgUniqueID);
   void recordHeardStation(byte msgStatID);
   bool shouldRelay(byte msgType, byte msgStatID, byte msgUniqueID);
+  bool shouldRecord(byte msgType, bool relayRequired);
   void recordWeatherForRelay(MessageSource& message, byte msgStatID, byte msgUniqueID);
   void relayMessage(MessageSource& message, byte msgType, byte msgFirstByte, byte msgStatID, byte msgUniqueID);
   void recordMessageRelay(byte msgType, byte msgStatID, byte msgUniqueID);
@@ -52,7 +54,6 @@ namespace MessageHandling
       byte msgFirstByte;
       if (msg.readByte(msgFirstByte))
         continue; //= incomingBuffer[0] & 0x7F;
-      bool relayDemanded = msgFirstByte & 0x80;
       //Determine the originating or destination station:
       byte msgType = msgFirstByte & 0x7F;
       byte msgStatID;
@@ -94,7 +95,7 @@ namespace MessageHandling
 
       //If it's a command addressed to us (or global), handle it:
       if (msgType == 'C' && (msgStatID == stationID || msgStatID == 0))
-        Commands::handleCommandMessage(msg, relayDemanded, msgUniqueID, msgStatID != 0);
+        Commands::handleCommandMessage(msg, msgUniqueID, msgStatID != 0);
 
       //Record the weather stations we hear:
       if (msgType == 'W')
@@ -104,9 +105,7 @@ namespace MessageHandling
       bool relayRequired = 
         msgStatID != stationID 
         &&
-        (relayDemanded
-          ||
-          shouldRelay(msgType, msgStatID, msgUniqueID));
+        (shouldRelay(msgType, msgStatID, msgUniqueID));
       if (relayRequired && !haveRelayed(msgType, msgStatID, msgUniqueID))
       {
         if (msg.seek(afterHeader))
@@ -121,9 +120,33 @@ namespace MessageHandling
           relayMessage(msg, msgType, msgFirstByte, msgStatID, msgUniqueID);
 
         recordMessageRelay(msgType, msgStatID, msgUniqueID);
-      }   
+      }
+#ifndef NO_STORAGE
+      if (shouldRecord(msgType, relayRequired))
+      {
+        msg.seek(afterHeader);
+        Database::storeMessage(msgType, msgStatID, msg);
+      }
+#endif // !NO_STORAGE
     }
     MESSAGE_DESTINATION_SOLID::delayRequired = false;
+  }
+
+  bool shouldRecord(byte msgType, bool relayRequired)
+  {
+    if (!relayRequired)
+    {
+      bool recordNonRelayedMessages;
+      GET_PERMANENT_S(recordNonRelayedMessages);
+      if (!recordNonRelayedMessages)
+        return false;
+    }
+    byte messageTypesToRecord[messageTypeArraySize];
+    GET_PERMANENT(messageTypesToRecord);
+    for (int i = 0; i < messageTypeArraySize; i++)
+      if (messageTypesToRecord[i] == msgType)
+        return true;
+    return false;
   }
 
   bool shouldRelay(byte msgType, byte msgStatID, byte msgUniqueID)
@@ -322,6 +345,16 @@ namespace MessageHandling
     {
       AWS_DEBUG_PRINTLN(F("Ping Successful"));
       lastPingMillis = millis();
+      unsigned long seconds;
+      if (msg.read(seconds) == MESSAGE_OK)
+      {
+        AWS_DEBUG_PRINTLN(F("Time set"));
+        TimerTwo::setSeconds(seconds);
+        PRINT_VARIABLE(seconds);
+        PRINT_VARIABLE(TimerTwo::_ticks);
+        PRINT_VARIABLE(TimerTwo::_ofTicks);
+        PRINT_VARIABLE(TimerTwo::MillisPerTick);
+      }
     }
   }
 }

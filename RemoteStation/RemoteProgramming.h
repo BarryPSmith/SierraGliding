@@ -3,7 +3,6 @@
 
 namespace RemoteProgramming
 {
-  bool handleProgrammingCommand(MessageSource& msg, byte uniqueID, bool demandRelay,
+  bool handleProgrammingCommand(MessageSource& msg, byte uniqueID,
     bool* ackRequired);
-  bool remoteProgrammingInit();
 }

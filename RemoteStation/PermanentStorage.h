@@ -34,7 +34,8 @@
     SET_PERMANENT2(&member, member); \
     } while (0)
 
-inline constexpr int permanentArraySize = 20;
+inline constexpr int permanentArraySize = 15;
+inline constexpr int messageTypeArraySize = 7;
 
 //Implements EEPROM storage of permanent setup variables.
 //In its own class so we can change processors more easily
@@ -69,7 +70,9 @@ typedef struct PermanentVariables
   unsigned short safeFreezingChargeLevel_mV;
   byte safeFreezingPwm;
 
-  short crc; //2
+  byte messageTypesToRecord[messageTypeArraySize]; // V2.2 had a CRC here
+  bool recordNonRelayedMessages;
+  short crc;
 } PermanentVariables;
 
 class PermanentStorage
@@ -77,10 +80,10 @@ class PermanentStorage
 public:
   static void initialise();
 
-  static unsigned short calcCRC(bool includeCRC);
-  static inline bool checkCRC()
+  static unsigned short calcCRC(size_t max);
+  static inline bool checkCRC(size_t max)
   {
-    auto crc = calcCRC(true);
+    auto crc = calcCRC(max);
     return crc == 0;
   }
   static void setCRC();

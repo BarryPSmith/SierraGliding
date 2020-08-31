@@ -7,7 +7,7 @@
 #define outputPower 10
 
 constexpr auto LORA_CR = 5;
-constexpr auto maxPacketSize = 255;
+constexpr auto maxPacketSize = 254;
 
 void InitMessaging();
 bool handleMessageCommand(MessageSource& src, byte* desc = nullptr);
@@ -29,6 +29,7 @@ class LoraMessageSource : public MessageSource
     bool beginMessage() override;
     MESSAGE_RESULT endMessage() override;
     MESSAGE_RESULT readByte(byte& dest) override;
+    MESSAGE_RESULT readBytes(byte** dest, byte bytesToRead) override;
 
     MESSAGE_RESULT seek(const byte newPosition);
 
@@ -46,12 +47,13 @@ class LoraMessageDestination : public MessageDestination
     MESSAGE_RESULT appendByte(const byte data) override;
     MESSAGE_RESULT finishAndSend() override;
     void abort();
+    MESSAGE_RESULT getBuffer(byte** buffer, byte bytesToAdd);
     
-    static constexpr byte outgoingBufferSize = 255;
+    static constexpr byte outgoingBufferSize = 254;
     // delayRequired is used when we respond to messages.
     // It allows the sender to get back into receive mode (but then again that's already taken care of by delayCSMA)
     // and to avoid collisions if multiple stations try to transmit simultaneously (although multi-addressed messages generally aren't replied to).
-    static bool delayRequired; 
+    static bool delayRequired;
   private:
     byte _outgoingBuffer[outgoingBufferSize];
     bool _isOutbound;

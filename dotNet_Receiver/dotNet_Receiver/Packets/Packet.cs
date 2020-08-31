@@ -13,7 +13,6 @@ namespace core_Receiver.Packets
 
         public object packetData;
 
-        public static char GetChar(byte b) => Encoding.ASCII.GetChars(new[] { b })[0];
         public override string ToString()
         {
             string dataString;
@@ -23,7 +22,7 @@ namespace core_Receiver.Packets
                 dataString = $" {packetData}";
             else
                 dataString = "";
-            return $"{CallSign} {GetChar(sendingStation)} {uniqueID:X2} {GetChar((byte)type)}{dataString}";
+            return $"{CallSign} {(char)sendingStation} {uniqueID:X2} {(char)type}{dataString}";
         }
 
         internal Func<object, string> GetDataString;

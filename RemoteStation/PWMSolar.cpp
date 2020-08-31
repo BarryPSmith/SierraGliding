@@ -144,7 +144,7 @@ namespace PwmSolar
     // write it HIGH (which will turn the switch off)
     // Record that sleep is allowed
     digitalWrite(SOLAR_PWM_PIN, HIGH);
-    sleepEnabled = SleepModes::powerSave;
+    solarSleepEnabled = SleepModes::powerSave;
   }
 
   void setSolarFull()
@@ -153,7 +153,7 @@ namespace PwmSolar
     // write it LOW (which will turn the switch on)
     // Record that sleep is allowed
     digitalWrite(SOLAR_PWM_PIN, LOW);
-    sleepEnabled = SleepModes::powerSave;
+    solarSleepEnabled = SleepModes::powerSave;
   }
 
   void ensurePwmActive(bool canIdle)
@@ -163,6 +163,6 @@ namespace PwmSolar
     TIMSK0 = 0; //No interrupts
     TCCR0A = _BV(COM0B1) | _BV(COM0B0) | _BV(WGM01) | _BV(WGM00); //Fast PWM inverting on output B
     TCCR0B = _BV(CS00); // No prescaler: Operate at full clock frequency (PWM at 31.25kHz for 8MHz, 3.9kHz for 1MHz)
-    sleepEnabled = canIdle ? SleepModes::idle : SleepModes::disabled;
+    solarSleepEnabled = canIdle ? SleepModes::idle : SleepModes::disabled;
   }
 }

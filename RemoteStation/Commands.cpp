@@ -6,6 +6,8 @@
 #include "WeatherProcessing/WeatherProcessing.h"
 #include "RemoteProgramming.h"
 #include "PWMSolar.h"
+#include "Flash.h"
+#include "Database.h"
 
 //#define DEBUG_COMMANDS
 #ifdef DEBUG_COMMANDS
@@ -18,6 +20,8 @@
 #define COMMAND_PRINTVAR(...)  do { } while (0)
 #endif
 
+extern uint8_t _end;
+
 namespace Commands
 {
   //We keep track of recently handled commands to avoid executing the same command multiple times
@@ -28,14 +32,14 @@ namespace Commands
   bool handleIntervalCommand(MessageSource& msg);
   bool handleThresholdCommand(MessageSource& msg);
   bool handleChargingCommand(MessageSource& msg);
-  bool handleIDCommand(MessageSource& msg, bool demandRelay, byte uniqueID);
-  bool handleQueryCommand(MessageSource& msg, bool demandRelay, byte uniqueID);
+  bool handleIDCommand(MessageSource& msg, byte uniqueID);
+  bool handleQueryCommand(MessageSource& msg, byte uniqueID);
   void handleQueryConfigCommand(MessageDestination& response);
   void handleQueryVolatileCommand(MessageDestination& response);
   bool handleOverrideCommand(MessageSource& msg);
-  void acknowledgeMessage(byte uniqueID, bool isSpecific, bool demandRelay);
+  void acknowledgeMessage(byte uniqueID, bool isSpecific, byte msgType);
 
-  void handleCommandMessage(MessageSource& msg, bool demandRelay, byte uniqueID, bool isSpecific)
+  void handleCommandMessage(MessageSource& msg, byte uniqueID, bool isSpecific)
   {
     static bool acknowledge = true;
 
@@ -87,7 +91,7 @@ namespace Commands
         break;
 
         case 'Q': //Query
-          handled = handleQueryCommand(msg, demandRelay, uniqueID);
+          handled = handleQueryCommand(msg, uniqueID);
           ackRequired = false;
         break;
 
@@ -104,16 +108,26 @@ namespace Commands
           break;
 
         case 'P':
-          handled = RemoteProgramming::handleProgrammingCommand(msg, uniqueID, demandRelay, &ackRequired);
+          handled = RemoteProgramming::handleProgrammingCommand(msg, uniqueID, &ackRequired);
           break;
 
         case 'U': // Change ID
-          handled = handleIDCommand(msg, demandRelay, uniqueID);
+          handled = handleIDCommand(msg, uniqueID);
           break;
 
         case 'F': // Restart
-          acknowledgeMessage(uniqueID, isSpecific, demandRelay);
+          acknowledgeMessage(uniqueID, isSpecific, command);
           while (1);
+
+        case 'G': // Flash (Gordon)
+          handled = Flash::handleFlashCommand(msg, uniqueID, &ackRequired);
+          break;
+
+#ifndef  NO_STORAGE
+        case 'D':
+          handled = Database::handleDatabaseCommand(msg, uniqueID, &ackRequired);
+          break;
+#endif // ! NO_STORAGE
 
         default:
         //do nothing. handled = false, so we send "IGNORED"
@@ -121,17 +135,15 @@ namespace Commands
       }
     }
     if (handled && ackRequired && acknowledge)
-      acknowledgeMessage(uniqueID, isSpecific, demandRelay);
+      acknowledgeMessage(uniqueID, isSpecific, command);
 
     if (!handled)
     {
       MESSAGE_DESTINATION_SOLID response(false);
-      if (demandRelay)
-        response.appendByte('K' | 0x80);
-      else
-        response.appendByte('K');
+      response.appendByte('K');
       response.appendByte(stationID);
       response.appendByte(uniqueID);
+      response.appendByte(command);
       response.append(F("IGNORED"), 7);
     }
   }
@@ -139,69 +151,100 @@ namespace Commands
   //Relay command: C(ID)(UID)R(dataLength)((+|-)(C|W)(RelayID))*
   bool handleRelayCommand(MessageSource& msg)
   {
-    byte stationsToRelayWeather[permanentArraySize], 
-         stationsToRelayCommands[permanentArraySize];
-    GET_PERMANENT(stationsToRelayWeather);
-    GET_PERMANENT(stationsToRelayCommands);
-    byte opByte;
-    while (msg.readByte(opByte) == MESSAGE_OK)
+    byte types[] = { 'W', 'C', 'R' };
+    for (byte curType : types)
     {
-      byte typeByte;
-      if (msg.readByte(typeByte))
+      byte list[permanentArraySize];
+      byte max;
+      switch (curType)
       {
-        COMMAND_PRINTLN(F("Relay: no type"));
-        return false;
+      case 'W':
+        PermanentStorage::getBytes((void*)offsetof(PermanentVariables, stationsToRelayWeather), permanentArraySize, list);
+        max = permanentArraySize;
+        break;
+      case 'C':
+        PermanentStorage::getBytes((void*)offsetof(PermanentVariables, stationsToRelayCommands), permanentArraySize, list);
+        max = permanentArraySize;
+        break;
+      case 'R':
+        PermanentStorage::getBytes((void*)offsetof(PermanentVariables, messageTypesToRecord), messageTypeArraySize, list);
+        max = messageTypeArraySize;
+        break;
       }
-      bool isAdd = opByte == '+';
-      bool isWeather = typeByte == 'W';
-      if ((!isAdd && opByte != '-') ||
-        (!isWeather && typeByte != 'C'))
+      byte opByte;
+      bool changed = false;
+      while (msg.readByte(opByte) == MESSAGE_OK)
       {
-        COMMAND_PRINTLN(F("Relay: mismatch"));
-        return false;
-      }
-      byte statID;
-      if (msg.readByte(statID))
-      {
-        COMMAND_PRINTLN(F("Relay: no station"));
-        return false;
-      }
-      if (statID == 0)
-      {
-        COMMAND_PRINTLN(F("Relay: zero station"));
-        return false;
-      }
-
-      byte* list = isWeather ? stationsToRelayWeather : stationsToRelayCommands;
-
-      if (isAdd)
-      {
-        //Check if it already exists, and check if we have space to add it
-        int i;
-        for (i = 0; i < permanentArraySize; i++)
+        byte typeByte;
+        if (msg.readByte(typeByte))
         {
-          if (!list[i] || list[i] == statID)
-            break;
-        }
-        //If it doesn't exist and we have no room, error out:
-        if (i == permanentArraySize)
-        {
+          COMMAND_PRINTLN(F("Relay: no type"));
           return false;
-          COMMAND_PRINTLN(F("Relay: no space"));
         }
-        //add it (or overwrite itself, no biggie)
-        list[i] = statID;
+        bool isAdd = opByte == '+';
+        if (!isAdd && opByte != '-')
+        {
+          COMMAND_PRINTLN(F("Relay: mismatch"));
+          return false;
+        }
+        byte statID;
+        if (msg.readByte(statID))
+        {
+          COMMAND_PRINTLN(F("Relay: no station"));
+          return false;
+        }
+        if (statID == 0)
+        {
+          COMMAND_PRINTLN(F("Relay: zero station"));
+          return false;
+        }
+
+        if (typeByte != curType)
+          continue;
+        changed = true;
+
+        if (isAdd)
+        {
+          //Check if it already exists, and check if we have space to add it
+          int i;
+          for (i = 0; i < permanentArraySize; i++)
+          {
+            if (!list[i] || list[i] == statID)
+              break;
+          }
+          //If it doesn't exist and we have no room, error out:
+          if (i == permanentArraySize)
+          {
+            return false;
+            COMMAND_PRINTLN(F("Relay: no space"));
+          }
+          //add it (or overwrite itself, no biggie)
+          list[i] = statID;
+        }
+        else
+        {
+          for (int i = 0; i < permanentArraySize; i++)
+            if (list[i] == statID)
+              list[i] = 0;
+        }
       }
-      else
-      {
-        bool removed = false;
-        for (int i = 0; i < permanentArraySize; i++)
-          if (list[i] == statID)
-            list[i] = 0;
-      }
+      if (changed)
+        switch (curType)
+        {
+        case 'W':
+          PermanentStorage::setBytes((void*)offsetof(PermanentVariables, stationsToRelayWeather), permanentArraySize, list);
+          max = permanentArraySize;
+          break;
+        case 'C':
+          PermanentStorage::setBytes((void*)offsetof(PermanentVariables, stationsToRelayCommands), permanentArraySize, list);
+          max = permanentArraySize;
+          break;
+        case 'R':
+          PermanentStorage::setBytes((void*)offsetof(PermanentVariables, messageTypesToRecord), messageTypeArraySize, list);
+          max = messageTypeArraySize;
+          break;
+        }
     }
-    SET_PERMANENT(stationsToRelayWeather);
-    SET_PERMANENT(stationsToRelayCommands);
     updateIdleState();
     return true;
   }
@@ -291,7 +334,7 @@ namespace Commands
   }
 
   //Query command: C(ID)(UID)Q
-  bool handleQueryCommand(MessageSource& msg, bool responseDemandRelay, byte uniqueID)
+  bool handleQueryCommand(MessageSource& msg, byte uniqueID)
   {
     //Reponse is limited to 255 bytes. Beware buffer overrun.
     byte queryType;
@@ -299,19 +342,19 @@ namespace Commands
       queryType = 'C';
   
     MESSAGE_DESTINATION_SOLID response(false);
-    byte headerStart[4];
+    byte headerStart[6];
     
-    if (responseDemandRelay)
-      headerStart[0] = ('K' | 0x80);
-    else
+
       headerStart[0] = ('K');
     headerStart[1] = (stationID);
     headerStart[2] = (uniqueID);
+    headerStart[3] = 'Q';
+    headerStart[4] = queryType;
 
     //Version (a few bytes)
-    headerStart[3] = ('V');
-    response.append(headerStart, 4);
-    response.append(ASW_VER, ver_size);
+    headerStart[5] = ('V');
+    response.append(headerStart, sizeof(headerStart)); //+6 = 6
+    response.append(ASW_VER, ver_size); //+11 = 17
     response.appendByte(0);
 
     switch (queryType)
@@ -332,26 +375,36 @@ namespace Commands
   void handleQueryConfigCommand(MessageDestination& response)
   {
     // Just throw the whole config at them.
+#if 0 //This takes too much memory
     PermanentVariables variables;
     PermanentStorage::getBytes(0, sizeof(PermanentVariables), &variables);
     response.appendT(variables);
+#else
+    for (byte i = 0; i < sizeof(PermanentVariables); i++)
+    {
+      byte b;
+      PermanentStorage::getBytes((void*)(int)i, 1, &b);
+      response.appendByte(b);
+    }
+#endif
   }
 
   void handleQueryVolatileCommand(MessageDestination& response)
   { 
-    response.appendByte('M');
+    //So far used 17 bytes. 237 bytes remain
+    response.appendByte('M'); //+1 = 1
     unsigned long curMillis = millis();
-    response.appendT(curMillis);
-    response.appendT(lastPingMillis);
-    response.appendT(overrideDuration);
+    response.appendT(curMillis); //+4 = 5
+    response.appendT(lastPingMillis); //+4 = 9
+    response.appendT(overrideDuration); //+4 = 13
     if (overrideDuration)
     {
-      response.appendT(overrideStartMillis);
-      response.appendT(overrideShort);
+      response.appendT(overrideStartMillis); //+4 = 17
+      response.appendT(overrideShort); //1 = 18
     }
-    response.appendByte(0);
+    response.appendByte(0); //+1 = 19
   
-    //Recently seen stations, max 102 bytes
+    //Recently seen stations, +102 bytes = 121
     response.appendByte('S');
     for (int i = 0; i < permanentArraySize; i++)
     {
@@ -359,7 +412,7 @@ namespace Commands
     }
     response.appendByte(0);
 
-    //recently handled commands, max 22 bytes
+    //recently handled commands, +22 bytes = 143
     response.appendByte('C');
     for (int i = 0; i < permanentArraySize; i++)
     {
@@ -367,7 +420,7 @@ namespace Commands
     }
     response.appendByte(0);
 
-    //recently relayed messages, max 62 bytes
+    //recently relayed messages, +62 bytes = 205
     response.appendByte('R');
     for (int i = 0; i < permanentArraySize; i++)
     {
@@ -376,22 +429,27 @@ namespace Commands
     response.appendByte(0);
 
     //message statistics:
-    response.appendByte('M');
-    appendMessageStatistics(response);
+    response.appendByte('M'); //+1 = 206
+    appendMessageStatistics(response); //+8 = 214
+    response.appendByte('S'); //+1 = 215
+    response.appendT(TimerTwo::seconds()); //+4 = 219
+    response.appendT(StackCount()); //+2 = 221
+    const uint8_t *p = &_end;
+    response.appendT(SP - (unsigned short)p); //+2 = 223
   }
 
-  void notifyNewID(bool demandRelay, byte uniqueID, byte newID)
+  void notifyNewID(byte uniqueID, byte newID)
   {
     MESSAGE_DESTINATION_SOLID reply(false);
-      reply.appendByte('K' | (demandRelay ? 0x80 : 0));
+      reply.appendByte('K');
       reply.appendByte(stationID);
       reply.appendByte(uniqueID);
-      reply.append(F("NewID"), 5);
+      reply.append(F("UNewID"), 6);
       reply.appendByte(newID);
       reply.finishAndSend();
   }
 
-  bool handleIDCommand(MessageSource& msg, bool demandRelay, byte uniqueID)
+  bool handleIDCommand(MessageSource& msg, byte uniqueID)
   {
     byte subCommand;
     if (msg.readByte(subCommand))
@@ -425,26 +483,25 @@ namespace Commands
     // Reply with the new ID before we change our station ID
     // that should automatically get routed back to the base station
     // (which the new ID might not)
-    notifyNewID(demandRelay, uniqueID, newID);
+    notifyNewID(uniqueID, newID);
     stationID = newID;
     SET_PERMANENT_S(stationID);
     return true;
   }
 
-  void acknowledgeMessage(byte uniqueID, bool isSpecific, bool demandRelay)
+  void acknowledgeMessage(byte uniqueID, bool isSpecific, byte commandType)
   {
+    //Demand relay has been removed.
     //We won't acknowledge relayed commands with destination station = 0. If destination station = 0, we execute every time we receive it. We're likely to see multiple copies of these commands.
     //We'd flood the network if we acknowledge all of them, particularly because we need to demand relay on the response.
-    if (demandRelay && !isSpecific)
-      return;
+    //if (!isSpecific)
+      //return;
   
     MESSAGE_DESTINATION_SOLID response(false);
-    if (demandRelay)
-      response.appendByte('K' | 0x80);
-    else
-      response.appendByte('K');
+    response.appendByte('K');
     response.appendByte(stationID);
     response.appendByte(uniqueID);
+    response.appendByte(commandType);
     response.append(F("OK"), 2);
   }
 }

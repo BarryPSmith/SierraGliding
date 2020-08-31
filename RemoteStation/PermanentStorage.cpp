@@ -2,19 +2,22 @@
 #include "ArduinoWeatherStation.h"
 #include <util/crc16.h>
 #define DEBUG_PARAMETERS
+#ifdef DEBUG_PARAMETERS
+#define PARAMETER_PRINTLN AWS_DEBUG_PRINTLN
+#define PARAMETER_PRINTVAR PRINT_VARIABLE
+#else
+#define PARAMETER_PRINTLN do {} while (0)
+#define PARAMETER_PRINTVAR do {} while (0)
+#endif
 
 char stationID = defaultStationID;
 
 bool PermanentStorage::_initialised = false;
 
 //Just copied this out of the example documentation 
-unsigned short PermanentStorage::calcCRC(bool includeCRC)
+unsigned short PermanentStorage::calcCRC(size_t max)
 {
   unsigned short crc = 0xffff;
-
-  size_t max = sizeof(PermanentVariables);
-  if (!includeCRC)
-    max -= 2;
 
 	for (size_t i = 0; i < max; i++)
 	  crc = _crc_ccitt_update(crc, eeprom_read_byte((byte*)i));
@@ -24,7 +27,7 @@ unsigned short PermanentStorage::calcCRC(bool includeCRC)
 
 void PermanentStorage::setCRC()
 {
-  short crc = calcCRC(false);
+  short crc = calcCRC(sizeof(PermanentVariables) - 2);
   eeprom_write_block(&crc, (void*)offsetof(PermanentVariables, crc), sizeof(short));
 }
 
@@ -62,7 +65,8 @@ const PermanentVariables defaultVars PROGMEM =
   .chargeVoltage_mV = 4050,
   .chargeResponseRate = 40,
   .safeFreezingChargeLevel_mV = 3750,
-  .safeFreezingPwm = 85
+  .safeFreezingPwm = 85,
+  .recordNonRelayedMessages = false
 };
 
 void PermanentStorage::initialise()
@@ -80,20 +84,15 @@ void PermanentStorage::initialise()
     //SET_PERMANENT_S(stationID);
   }
 
-  if (!initialised || !checkCRC())
-  {
-    AWS_DEBUG_PRINTLN(F("Initialising Default Parameters"));
+  bool completeCrc = initialised 
+    && checkCRC(sizeof(PermanentVariables));
+  bool v2_2CRC = initialised
+    && !completeCrc
+    && checkCRC(offsetof(PermanentVariables, safeFreezingPwm) + 3);
 
-    PermanentVariables vars;
-    memcpy_P(&vars, &defaultVars, sizeof(vars));
-    vars.stationID = stationID;
-    setBytes(0, sizeof(vars), &vars);
-    
-    setCRC();
-  }
-  else
+  if (completeCrc)
   {
-#if DEBUG && defined(DEBUG_PARAMETERS)
+    #if DEBUG && defined(DEBUG_PARAMETERS)
     AWS_DEBUG_PRINTLN(F("Using saved parameters"));
 
     PermanentVariables vars;
@@ -120,7 +119,27 @@ void PermanentStorage::initialise()
     PRINT_VARIABLE(vars.batteryEmergencyThresh_mV);
     PRINT_VARIABLE(vars.tsOffset);
     PRINT_VARIABLE(vars.tsGain);
-#endif
+    #endif
   }
+  else if (!v2_2CRC)
+  {
+    PARAMETER_PRINTLN(F("Initialising Default Parameters"));
+
+    PermanentVariables vars;
+    memcpy_P(&vars, &defaultVars, sizeof(vars));
+    vars.stationID = stationID;
+    setBytes(0, sizeof(vars), &vars);
+  }
+  if (!completeCrc)
+  {
+    PARAMETER_PRINTLN("Adding V2.3 params");
+
+    byte messageTypesToRecord[messageTypeArraySize] = { 'S', 'K', 0 };
+    SET_PERMANENT(messageTypesToRecord);
+    bool recordNonRelayedMessages = false;
+    SET_PERMANENT_S(recordNonRelayedMessages);
+    setCRC();
+  }
+
   _initialised = true;
 }

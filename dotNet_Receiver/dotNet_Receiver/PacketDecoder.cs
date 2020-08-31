@@ -16,7 +16,7 @@ namespace core_Receiver
     {
         public static Dictionary<byte, string> RecentCommands { get; } = new Dictionary<byte, string>();
 
-        public static Packet DecodeBytes(byte[] inBytes)
+        public static Packet DecodeBytes(byte[] inBytes, bool checkX = true)
         {
             if (inBytes.Length < 4)
                 return null;
@@ -27,9 +27,12 @@ namespace core_Receiver
             var callSign = Encoding.ASCII.GetString(bytes, cur, 6);
             cur += 6;
 #else
-            var x = Encoding.ASCII.GetChars(bytes, cur++, 1)[0];
-            if (x != 'X')
-                return null;
+            if (checkX)
+            {
+                var x = Encoding.ASCII.GetChars(bytes, cur++, 1)[0];
+                if (x != 'X')
+                    return null;
+            }
 #endif
             bool wasRelayDemanded = (bytes[cur] & 0x80) != 0;
             var type = (byte)(bytes[cur++] & 0x7F);
@@ -46,6 +49,11 @@ namespace core_Receiver
                 uniqueID = uniqueID
             };
 
+            HashSet<char> v2_3Stations = new HashSet<char>
+            {
+                'T'
+            };
+
             switch (ret.type)
             {
                 case PacketTypes.Modem:
@@ -57,33 +65,83 @@ namespace core_Receiver
                         data => (data as IList<SingleWeatherData>)?.ToCsv();
                     break;
                 case PacketTypes.Response:
-                    bool knownCommand = RecentCommands.TryGetValue(uniqueID, out var cmdType);
-                    if (knownCommand)
+                    if (v2_3Stations.Contains((char)sendingStationID))
                     {
-                        switch (cmdType)
+                        var responseType = bytes[dataStart++];
+                        byte subType;
+                        try
                         {
-                            case "QC":
-                                ret.packetData = new QueryConfigResponse(bytes.AsSpan(dataStart));
-                                break;
-                            case "QV":
-                                ret.packetData = new QueryVolatileResponse(bytes.AsSpan(dataStart));
-                                break;
-                            case "PQ":
-                                ret.packetData = new ProgrammingResponse(bytes.AsSpan(dataStart));
-                                break;
-                            case "U":
-                                ret.packetData = ChangeIdResponse.ParseChangeIdResponse(bytes.AsSpan(dataStart), out knownCommand);
-                                break;
-                            case "PFR":
-                                ret.packetData = bytes.AsSpan(dataStart).ToArray();
-                                ret.GetDataString = Data => ((byte[])Data).ToCsv(b => b.ToString("X2"), " ");
-                                break;
-                            default:
-                                knownCommand = false;
-                                break;
+                            subType = bytes[dataStart];
+                            switch ((char)responseType)
+                            {
+                                case 'Q':
+                                    if (subType == 'C')
+                                        ret.packetData = new QueryConfigResponse(bytes.AsSpan(dataStart + 1));
+                                    else if (subType == 'V')
+                                        ret.packetData = new QueryVolatileResponse(bytes.AsSpan(dataStart + 1));
+                                    break;
+                                case 'P':
+                                    if (subType == 'C')
+                                        ret.packetData = Encoding.ASCII.GetString(bytes.AsSpan(dataStart + 1));
+                                    else if (subType == 'Q')
+                                        ret.packetData = new ProgrammingResponse(bytes.AsSpan(dataStart + 1));
+                                    else if (subType == 'A')
+                                        ret.packetData = Encoding.ASCII.GetString(bytes.AsSpan(dataStart));
+                                    break;
+                                case 'U':
+                                    ret.packetData = ChangeIdResponse.ParseChangeIdResponse(bytes.AsSpan(dataStart));
+                                    break;
+                                case 'F':
+                                    if (subType == 'R')
+                                    {
+                                        ret.packetData = bytes.AsSpan(dataStart + 1).ToArray();
+                                        ret.GetDataString = Data => ((byte[])Data).ToCsv(b => b.ToString("X2"), " ");
+                                    }
+                                    break;
+                                case 'D':
+                                    if (subType == 'L')
+                                        ret.packetData = new MessageListResponse(bytes.AsSpan(dataStart + 1));
+                                    else if (subType == 'R')
+                                        ret.packetData = DecodeBytes(bytes.Skip(dataStart + 1).ToArray(), false);
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+                        catch
+                        {
+                            Console.Error.WriteLine("Unable to parse 'K' packet");
                         }
                     }
-                    if (!knownCommand)
+                    else
+                    {
+                        bool knownCommand = RecentCommands.TryGetValue(uniqueID, out var cmdType);
+                        if (knownCommand)
+                        {
+                            switch (cmdType)
+                            {
+                                case "QC":
+                                    ret.packetData = new QueryConfigResponse(bytes.AsSpan(dataStart));
+                                    break;
+                                case "QV":
+                                    ret.packetData = new QueryVolatileResponse(bytes.AsSpan(dataStart));
+                                    break;
+                                case "PQ":
+                                    ret.packetData = new ProgrammingResponse(bytes.AsSpan(dataStart));
+                                    break;
+                                case "U":
+                                    ret.packetData = ChangeIdResponse.ParseChangeIdResponse(bytes.AsSpan(dataStart));
+                                    break;
+                                case "PFR":
+                                    ret.packetData = bytes.AsSpan(dataStart).ToArray();
+                                    ret.GetDataString = Data => ((byte[])Data).ToCsv(b => b.ToString("X2"), " ");
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+                    }
+                    if (ret.packetData == null)
                     {
                         if (bytes.Length >= dataStart + "OK".Length &&
                                     Encoding.ASCII.GetString(bytes, dataStart, "OK".Length) == "OK")
@@ -92,7 +150,7 @@ namespace core_Receiver
                             Encoding.ASCII.GetString(bytes, dataStart, "IGNORED".Length) == "IGNORED")
                             ret.packetData = BasicResponse.Ignored;
                         else
-                            ret.packetData = bytes.Skip(dataStart).ToCsv(b => $"{Packet.GetChar(b)}:{b:X}");
+                            ret.packetData = bytes.Skip(dataStart).ToCsv(b => $"{(char)b}:{b:X}");
                     }
                     break;
                 default:
@@ -161,7 +219,7 @@ namespace core_Receiver
             if (packetLen > cur)
                 ret.internalTemp = GetTemp(data[cur++]); //7 (^8)
             if (packetLen > cur)
-                ret.extras = data.Slice(cur, packetLen - cur).ToArray(); //8 (^9)
+                ret.extras = data[cur..packetLen].ToArray(); //8 (^9)
             return ret;
         }
 

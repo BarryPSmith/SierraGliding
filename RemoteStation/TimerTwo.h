@@ -25,6 +25,7 @@ public:
     (TIMER2_TOP + 1) * MILLIS_PER_SECOND * DIVIDER / F_CPU;
 #endif
   static volatile unsigned long _ticks;
+  static volatile unsigned char _ofTicks;
   static void (*_interruptAction)(void);
 
   static void initialise();
@@ -32,6 +33,9 @@ public:
   static unsigned long millis();
 
   static unsigned long micros();
+
+  static unsigned long seconds();
+  static void setSeconds(unsigned long seconds);
 
   static void attachInterrupt(void (*interruptAction)(void));
 };

@@ -13,12 +13,15 @@
 #include "StackCanary.h"
 #include "RemoteProgramming.h"
 #include "PWMSolar.h"
+#include "Flash.h"
+#include "Database.h"
 
 unsigned long weatherInterval = 2000; //Current weather interval.
 unsigned long overrideStartMillis;
 unsigned long overrideDuration;
 bool overrideShort;
-SleepModes sleepEnabled = SleepModes::powerSave;
+SleepModes solarSleepEnabled = SleepModes::powerSave;
+SleepModes dbSleepEnabled = SleepModes::powerSave;
 bool continuousReceiveEnabled = true;
 // deep sleep disables timer2, and allows the MCU to turn off everything.
 // That greatly drops sleep current, but the unit cannot do its weather reporting.
@@ -179,6 +182,7 @@ void setup() {
   digitalWrite(FLASH_SELECT, HIGH);
 #endif
 
+  lastPingMillis = lastStatusMillis = millis();
   PermanentStorage::initialise();
 
   #ifdef SOLAR_PWM
@@ -186,11 +190,12 @@ void setup() {
   #endif
 
   WeatherProcessing::setupWeatherProcessing();
-  if (!RemoteProgramming::remoteProgrammingInit())
+  if (!Flash::flashInit())
   {
     AWS_DEBUG_PRINTLN(F("!! Remote programming failed to initialise !!"));
     SIGNALERROR();
   }
+  Database::initDatabase();
   
 
 #ifdef DISABLE_RFM69
@@ -220,6 +225,10 @@ void loop() {
   // Generate and discard a random number. Just used to ensure that all of the RNGs out there will give different numbers.
   random();
   MessageHandling::readMessages();
+
+#ifndef NO_STORAGE
+  Database::doProcessing();
+#endif
   
   #ifdef DEBUG
   messageDebugAction();
@@ -319,7 +328,7 @@ void yield()
   //sleep(ADC_ON);
 
   #ifdef SOLAR_PWM
-  if (sleepEnabled == SleepModes::disabled)
+  if (solarSleepEnabled == SleepModes::disabled)
     PwmSolar::doPwmLoop();
   #endif
 
@@ -327,8 +336,9 @@ void yield()
 
 void sleep(adc_t adc_state)
 {
+  SleepModes sleepMode = min(solarSleepEnabled, dbSleepEnabled);
   //If we've disabled sleep for some reason...
-  if (sleepEnabled == SleepModes::disabled)
+  if (sleepMode == SleepModes::disabled)
     return;
   // Or interrupts aren't enabled (= no wakeup)
   if (bit_is_clear(SREG, SREG_I))
@@ -353,13 +363,13 @@ void sleep(adc_t adc_state)
     while (TCNT2 == 0xFF || TCNT2 <= 0x01); 
   }
 
-  if (sleepEnabled == SleepModes::powerSave)
+  if (sleepMode == SleepModes::powerSave)
     LowPower.powerSave(SLEEP_FOREVER, //Low power library messes with our watchdog timer, so we lie and tell it to sleep forever.
                       adc_state,
                       BOD_ON,
                       timer2State
                       );
-  else if (sleepEnabled == SleepModes::idle)
+  else if (sleepMode == SleepModes::idle)
   {
     // note that these *_ON just tell LowPower not to mess with the PRR, they don't actually turn things on. 
     // TODO: Test what happens if we turn off SPI & TWI.

@@ -3,5 +3,5 @@
 
 namespace Commands
 {
-  void handleCommandMessage(MessageSource& message, bool demandRelay, byte uniqueID, bool isSpecific);
+  void handleCommandMessage(MessageSource& message, byte uniqueID, bool isSpecific);
 }

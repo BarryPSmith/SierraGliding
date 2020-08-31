@@ -1,6 +1,7 @@
 #include "TimerTwo.h"
 
-volatile unsigned long TimerTwo::_ticks = 0;
+volatile unsigned long TimerTwo::_ticks __attribute__ ((section (".noinit")));
+volatile unsigned char TimerTwo::_ofTicks __attribute__ ((section (".noinit")));
 
 void timerTwo_defaultInterrupt() {}
 void (*TimerTwo::_interruptAction)() = &timerTwo_defaultInterrupt;
@@ -8,6 +9,8 @@ void (*TimerTwo::_interruptAction)() = &timerTwo_defaultInterrupt;
 ISR(TIMER2_COMPA_vect)
 {
   TimerTwo::_ticks++;
+  if (bit_is_set(SREG, SREG_C))
+    TimerTwo::_ofTicks++;
   TimerTwo::_interruptAction();
 }
 
@@ -56,6 +59,45 @@ void TimerTwo::initialise()
   // Leave the async stuff.
 }
 #endif
+
+unsigned long TimerTwo::seconds()
+{
+  long ret;
+  auto sreg = SREG;
+  cli();
+#ifdef CRYSTAL_FREQ
+  static_assert(MILLIS_PER_SECOND / MillisPerTick == 4);
+  static_assert(MILLIS_PER_SECOND % MillisPerTick == 0);
+  *(((byte*)&ret) + 3) = _ofTicks << 6;
+  ret |= _ticks >> 2;
+#else
+  unsigned long long ticks = _ticks;
+  *(((unsigned long*)&ticks) + 1) = _ofTicks;
+  ret = ticks * (short)MillisPerTick / 1000;
+#endif
+  SREG = sreg;
+  return ret;
+}
+
+extern unsigned long lastStatusMillis;
+extern unsigned long lastPingMillis;
+void TimerTwo::setSeconds(unsigned long seconds)
+{
+  auto sreg = SREG;
+  cli();
+#ifdef CRYSTAL_FREQ
+  static_assert(MILLIS_PER_SECOND / MillisPerTick == 4);
+  static_assert(MILLIS_PER_SECOND % MillisPerTick == 0);
+  _ofTicks = (seconds >> 30) & 0b11;
+  _ticks = seconds * (MILLIS_PER_SECOND / MillisPerTick);
+#else
+  unsigned long long ticks = (unsigned long long)seconds * 1000 / (short)MillisPerTick;
+  _ofTicks = ticks >> 32;
+  _ticks = ticks;
+#endif
+  SREG = sreg;
+  lastPingMillis = lastStatusMillis = millis();
+}
 
 unsigned long TimerTwo::millis()
 {

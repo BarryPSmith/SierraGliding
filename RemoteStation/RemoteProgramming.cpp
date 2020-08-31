@@ -1,9 +1,9 @@
-#include "lib/SPIFlash/SPIFlash.h"
-#include <avr/wdt.h>
+//#include <avr/wdt.h>
 #include <util/crc16.h>
 #include "ArduinoWeatherStation.h"
 #include "LoraMessaging.h"
 #include "MessageHandling.h"
+#include "Flash.h"
 
 //#define DEBUG_PROGRAMMING
 #ifdef DEBUG_PROGRAMMING
@@ -21,19 +21,7 @@
 
 namespace RemoteProgramming
 {
-#if defined(FLASH_SELECT)
-#define MANUFACTURER_ID 0xEF30
-  SPIFlash flash(FLASH_SELECT, MANUFACTURER_ID);
-  bool flashOK = false;
-
-  bool remoteProgrammingInit()
-  {
-    flashOK = flash.initialize();
-    if (flashOK)
-      flash.sleep();
-    return flashOK;
-  }
-  
+#if 1 // FLASH_AVAILABLE
   //Dual Optiboot expects a header like:
   //0123456789<10+>
   //FLXIMG:SS:<Image>
@@ -50,19 +38,16 @@ namespace RemoteProgramming
   bool handleBeginUpdateInternal(MessageSource& msg);
   bool handleBeginUpdateInternal(MessageSource& msg);
   bool handleImagePacket(MessageSource& msg);
-  void handleDownloadQuery(int uniqueID, bool demandRelay);
-  bool handleProgramConfirm(MessageSource& src, byte uniqueID, bool demandRelay);
+  void handleDownloadQuery(int uniqueID);
+  bool handleProgramConfirm(MessageSource& src, byte uniqueID);
   uint16_t getImageCRC();
   bool isItAllHere();
   void sendAbortMessage();
-  bool handleFlashCommand(MessageSource& msg, const byte uniqueID, const bool demandRelay,
-    bool* ackRequired);
-  bool handleReadCommand(MessageSource& msg, const byte uniqueID, uint32_t add, bool* ackRequired);
 
-  bool handleProgrammingCommand(MessageSource& msg, byte uniqueID, bool demandRelay,
+  bool handleProgrammingCommand(MessageSource& msg, byte uniqueID,
     bool* ackRequired)
   {
-    if (!flashOK)
+    if (!Flash::flashOK)
       return false;
 
     PROGRAM_PRINTLN(F("Processing program command..."));
@@ -74,83 +59,12 @@ namespace RemoteProgramming
     {
     case 'B': return handleBeginUpdate(msg);
     case 'I': return handleImagePacket(msg);
-    case 'Q': handleDownloadQuery(uniqueID, demandRelay);
+    case 'Q': handleDownloadQuery(uniqueID);
       *ackRequired = false;
       return true;
-    case 'C': return handleProgramConfirm(msg, uniqueID, demandRelay);
-    case 'F': return handleFlashCommand(msg, uniqueID, demandRelay, ackRequired);
+    case 'C': return handleProgramConfirm(msg, uniqueID);
     default: return false;
     }
-  }
-
-  bool handleFlashCommand(MessageSource& msg, const byte uniqueID, const bool demandRelay,
-    bool* ackRequired)
-  {
-    PROGRAM_PRINTLN(F("Processing flash command..."));
-    byte rwe;
-    uint32_t add;
-    if (msg.readByte(rwe) || 
-        msg.read(add))
-      return false;
-
-#ifndef DEBUG
-    if (rwe == 'W' || rwe == 'E' && add < 32768)
-      return false;
-#endif
-
-    flash.wakeup();
-    auto ret = true;
-    switch (rwe)
-    { 
-    case 'E':
-      flash.blockErase4K(add);
-      break;
-    case 'W':
-      byte b;
-      while (!msg.readByte(b))
-        flash.writeByte(add++, b);
-      break;
-    case 'R':
-      ret = handleReadCommand(msg, uniqueID, add, ackRequired);
-    }
-    flash.sleep();
-    return ret;
-  }
-
-  bool handleReadCommand(MessageSource& msg, const byte uniqueID, uint32_t add, bool* ackRequired)
-  {
-    byte count;
-    if (msg.read(count))
-      return false;
-
-    char internalOrExt;
-    if (msg.read(internalOrExt))
-      internalOrExt = 'E';
-    bool external = internalOrExt == 'E';
-    if (!external && internalOrExt != 'I')
-      return false;
-    if (!external && (add >= 32768 || add + count > 32768))
-      return false;
-
-    LoraMessageDestination dest(false);
-    dest.appendByte('K');
-    dest.appendByte(stationID);
-    dest.appendByte(uniqueID);
-    PROGRAM_PRINTVAR(add);
-    for (int i = 0; i < count; i++)
-    {
-      byte b;
-      if (external)
-        b = flash.readByte(add++);
-      else
-        b = pgm_read_byte(add++);
-      PROGRAM_PRINT(b, HEX);
-      PROGRAM_PRINT(' ');
-      dest.appendByte(b);
-    }
-    PROGRAM_PRINTLN();
-    *ackRequired = false;
-    return true;
   }
 
   bool handleBeginUpdate(MessageSource& msg)
@@ -182,9 +96,9 @@ namespace RemoteProgramming
       return false;
     if (msg.read(expectedCRC))
       return false;
-    flash.wakeup();
-    flash.blockErase32K(0x00);
-    flash.sleep();
+    Flash::flash.wakeup();
+    Flash::flash.blockErase32K(0x00);
+    Flash::flash.sleep();
     return true;
   }
 
@@ -227,7 +141,7 @@ namespace RemoteProgramming
     }
     unsigned int packetStart = packetIndex * bytesPerPacket + imageOffset;
     unsigned int packetEnd = packetStart + bytesPerPacket;
-    flash.wakeup();
+    Flash::flash.wakeup();
     for (unsigned int i = packetStart; i < packetEnd; i++)
     {
       byte b;
@@ -235,36 +149,35 @@ namespace RemoteProgramming
       {
         resetDownload();
         sendAbortMessage();
-        flash.sleep();
+        Flash::flash.sleep();
         PROGRAM_PRINTLN(F("RP: read failed"));
         return false;
       }
-      flash.writeByte(i, b);
+      Flash::flash.writeByte(i, b);
     }
-    flash.sleep();
+    Flash::flash.sleep();
     *packetIdentifier |= testBit;
 
     return true;
   }
 
-  void handleDownloadQuery(int uniqueID, bool demandRelay)
+  void handleDownloadQuery(int uniqueID)
   {
     LoraMessageDestination msg(false);
-    if (demandRelay)
-      msg.appendByte('K' & 0x80);
-    else
       msg.appendByte('K');
     msg.appendByte(stationID);
     msg.appendByte(uniqueID);
+    msg.appendByte('P');
+    msg.appendByte('Q');
     msg.appendT(expectedCRC);
     msg.appendT(totalExpectedPackets);
     bool allHere = isItAllHere();
     msg.appendT(allHere);
     if (allHere)
     {
-      flash.wakeup();
+      Flash::flash.wakeup();
       msg.appendT(getImageCRC() == expectedCRC);
-      flash.sleep();
+      Flash::flash.sleep();
     }
     else
       msg.appendT(false);
@@ -272,7 +185,7 @@ namespace RemoteProgramming
     msg.finishAndSend();
   }
 
-  bool handleProgramConfirm(MessageSource& src, byte uniqueID, bool demandRelay)
+  bool handleProgramConfirm(MessageSource& src, byte uniqueID)
   {
     uint16_t commandCRC;
     if (src.read(commandCRC) || commandCRC != expectedCRC)
@@ -281,27 +194,27 @@ namespace RemoteProgramming
       return false;
     if (!isItAllHere())
       return false;
-    flash.wakeup();
+    Flash::flash.wakeup();
     if (getImageCRC() != expectedCRC)
       return false;
 
     LoraMessageDestination msg(false);
-    if (demandRelay)
-      msg.appendByte('K' & 0x80);
-    else
+
       msg.appendByte('K');
     msg.appendByte(stationID);
     msg.appendByte(uniqueID);
+    msg.appendByte('P');
+    msg.appendByte('C');
     msg.appendT(commandCRC);
     msg.append(F("Programming!"), 12);
     msg.finishAndSend();
 
     //Write the last little bit for Dual Optiboot to program the image:
     unsigned int imageSize = ((unsigned int)totalExpectedPackets) * bytesPerPacket;
-    flash.writeByte(0x07, (imageSize >> 8) & 0xFF);
-    flash.writeByte(0x08, imageSize & 0xFF);
-    flash.writeBytes(0x00, "FLXIMG:", 7);
-    flash.writeByte(0x09, ':');
+    Flash::flash.writeByte(0x07, (imageSize >> 8) & 0xFF);
+    Flash::flash.writeByte(0x08, imageSize & 0xFF);
+    Flash::flash.writeBytes(0x00, "FLXIMG:", 7);
+    Flash::flash.writeByte(0x09, ':');
     //Wait for the WDT to kick in...
     while (1);
   }
@@ -318,12 +231,12 @@ namespace RemoteProgramming
       if (toRead > 64)
         toRead = 64;
       byte buffer[64];
-      flash.readBytes(i, buffer, toRead);
+      Flash::flash.readBytes(i, buffer, toRead);
       for (byte j = 0; j < (byte)toRead; j++)
         crc = _crc_ccitt_update(crc, buffer[j]);
       i += toRead;
-      //This can take longer than the watchdog time, so we need to reset internally:
-      wdt_reset();
+      //This _used to_ be able to take longer than 8 seconds, but we fixed that.
+      //wdt_reset();
     }
 
     return crc;
@@ -350,12 +263,13 @@ namespace RemoteProgramming
     msg.appendByte('K');
     msg.appendByte(stationID);
     msg.appendByte(MessageHandling::getUniqueID());
+    msg.appendByte('P');
     msg.append(F("Abort"), 5);
     msg.appendT(expectedCRC);
   }
 #else
   bool remoteProgrammingInit() { return false; }
-  bool handleProgrammingCommand(MessageSource& msg, byte uniqueID, bool demandRelay,
+  bool handleProgrammingCommand(MessageSource& msg, byte uniqueID,
     bool* ackRequired)
   {
     return false; 

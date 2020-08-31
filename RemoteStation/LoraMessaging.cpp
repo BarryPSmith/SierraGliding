@@ -284,11 +284,12 @@ bool handleMessageCommand(MessageSource& src, byte* desc)
   return state == ERR_NONE;
 }
 
+//Appends 8 bytes 
 void appendMessageStatistics(MessageDestination& msg)
 {
-  msg.appendT(csma._crcErrorRate);
-  msg.appendT(csma._droppedPacketRate);
-  msg.appendT(csma._averageDelayTime);
+  msg.appendT(csma._crcErrorRate); //2 bytes
+  msg.appendT(csma._droppedPacketRate); //2 bytes
+  msg.appendT(csma._averageDelayTime); //4 bytes
 }
 
 LoraMessageSource::LoraMessageSource() : MessageSource()
@@ -312,6 +313,14 @@ LoraMessageDestination::LoraMessageDestination(bool isOutbound, bool prependX)
 void LoraMessageDestination::abort()
 {
   _currentLocation = 255;
+}
+
+MESSAGE_RESULT LoraMessageDestination::getBuffer(byte** buffer, byte bytesToAdd)
+{
+  if (bytesToAdd + _currentLocation >= maxPacketSize)
+    return MESSAGE_BUFFER_OVERRUN;
+  *buffer = _outgoingBuffer + _currentLocation;
+  return MESSAGE_OK;
 }
 
 MESSAGE_RESULT LoraMessageDestination::finishAndSend()
@@ -422,6 +431,25 @@ MESSAGE_RESULT LoraMessageSource::readByte(byte& dest)
     dest = _incomingBuffer[_currentLocation++];
     return MESSAGE_OK;
   }
+}
+
+MESSAGE_RESULT LoraMessageSource::readBytes(byte** dest, byte bytesToRead)
+{
+  if (_currentLocation == 255)
+    return MESSAGE_NOT_IN_MESSAGE;
+  if (_currentLocation >= _length)
+  {
+    _currentLocation = 255;
+    return MESSAGE_END;
+  }
+  byte endLocation = _currentLocation + bytesToRead;
+  if (endLocation < _currentLocation || endLocation > _length)
+  {
+    return MESSAGE_BUFFER_OVERRUN;
+  }
+  *dest = _incomingBuffer + _currentLocation;
+  _currentLocation += bytesToRead;
+  return MESSAGE_OK;
 }
 
 MESSAGE_RESULT LoraMessageSource::seek(const byte newPosition)

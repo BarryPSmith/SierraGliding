@@ -9,6 +9,8 @@ namespace core_Receiver.Packets
     {
         public string Version { get; set; }
 
+        protected int ArraySize => VersionNumber >= new Version(2, 3) ? 15 : 20;
+
         public QueryResponse(Span<byte> inputData, out int consumed)
         {
             int i = 0;

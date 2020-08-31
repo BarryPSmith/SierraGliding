@@ -2,7 +2,7 @@
 #include "../LoraMessaging.h"
 #include "../ArduinoWeatherStation.h"
 
-#define DEBUG_WEATHER
+//#define DEBUG_WEATHER
 #ifdef DEBUG_WEATHER
 #define WX_PRINT AWS_DEBUG_PRINT
 #define WX_PRINTLN AWS_DEBUG_PRINTLN

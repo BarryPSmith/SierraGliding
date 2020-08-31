@@ -10,8 +10,6 @@ namespace core_Receiver.Packets
      /// </summary>
     class QueryVolatileResponse : QueryResponse
     {
-        const int arraySize = 20;
-
         public QueryVolatileResponse(Span<byte> data)
             : base(data, out var consumed)
         {
@@ -37,50 +35,61 @@ namespace core_Receiver.Packets
                 throw new InvalidDataException();
             if (br.ReadChar() != 'S')
                 throw new InvalidDataException("Did not find expected 'S' marker");
-            for (i = 0; i < arraySize; i++)
-            //for (byte stationID = br.ReadByte(); stationID != 0; stationID = br.ReadByte())
+            for (i = 0; i < ArraySize; i++)
             {
                 byte stationID = br.ReadByte();
                 if (!constantArraySize && stationID == 0)
                     break;
                 UInt32 seenMillis = br.ReadUInt32();
                 var age = Millis - seenMillis;
-                RecentlySeenStations.Add((stationID, age));
+                if (stationID != 0)
+                    RecentlySeenStations.Add((stationID, age, DateTimeOffset.Now - TimeSpan.FromMilliseconds(age)));
             }
-            if ((constantArraySize || i == arraySize) && br.ReadByte() != 0) throw new InvalidDataException("Barry's dumb and didn't do good versioning.");
+            if ((constantArraySize || i == ArraySize) && br.ReadByte() != 0) throw new InvalidDataException("Barry's dumb and didn't do good versioning.");
             if (br.ReadChar() != 'C')
                 throw new InvalidDataException("Did not find expected 'C' marker.");
-            for (i = 0; i < arraySize; i++)
-            //for (byte commandID = br.ReadByte(); commandID != 0; commandID = br.ReadByte())
+            for (i = 0; i < ArraySize; i++)
             {
                 byte commandID = br.ReadByte();
                 if (!constantArraySize && commandID == 0)
                     break;
-                RecentlyHandledCommands.Add(commandID);
+                if (commandID != 0)
+                    RecentlyHandledCommands.Add(commandID);
             }
-            if ((constantArraySize || i == arraySize) && br.ReadByte() != 0) throw new InvalidDataException("Barry's dumb and didn't do good versioning.");
+            if ((constantArraySize || i == ArraySize) && br.ReadByte() != 0) throw new InvalidDataException("Barry's dumb and didn't do good versioning.");
             if (br.ReadChar() != 'R')
                 throw new InvalidDataException("Did not find expected 'R' marker.");
-            for (i = 0; i < arraySize; i++)
-            //for (byte type = br.ReadByte(); type != 0; type = br.ReadByte())
+            for (i = 0; i < ArraySize; i++)
             {
                 byte type = br.ReadByte();
                 if (!constantArraySize && type == 0)
                     break;
-                RecentlyRelayedPackets.Add(new Packet
+                var packet = new Packet
                 {
                     type = (PacketTypes)type,
                     uniqueID = br.ReadByte(),
                     sendingStation = br.ReadByte()
-                });
+                };
+                if (type != 0)
+                    RecentlyRelayedPackets.Add(packet);
             }
-            if ((constantArraySize || i == arraySize) && br.ReadByte() != 0) throw new InvalidDataException("Barry's dumb and didn't do good versioning.");
+            if ((constantArraySize || i == ArraySize) && br.ReadByte() != 0) throw new InvalidDataException("Barry's dumb and didn't do good versioning.");
             if (br.ReadChar() != 'M')
                 throw new InvalidDataException("Did not find expected second 'M' marker.");
 
             CRCErrorRate = br.ReadUInt16() / (double)0xFFFF;
             DroppedPacketRate = br.ReadUInt16() / (double)0xFFFF;
             AverageDelayTime = br.ReadUInt32();
+
+            if (VersionNumber >= new Version(2, 3))
+            {
+                if (br.ReadChar() != 'S')
+                    throw new InvalidDataException("Did not find expected 'S' marker.");
+                uint timestamp = br.ReadUInt32();
+                Time = DateTimeOffset.FromUnixTimeSeconds(timestamp).ToLocalTime();
+                MemoryLowWater = br.ReadUInt16();
+                FreeMemory = br.ReadUInt16();
+            }
         }
 
         public UInt32 Millis { get; set; }
@@ -89,7 +98,7 @@ namespace core_Receiver.Packets
         public UInt32 OverrideDuration { get; set; }
         public UInt32? OverrideStart { get; set; }
         public bool OverrideShort { get; set; }
-        public List<(byte ID, UInt32 age)> RecentlySeenStations { get; set; } = new List<(byte ID, uint age)>();
+        public List<(byte ID, UInt32 age, DateTimeOffset date)> RecentlySeenStations { get; set; } = new List<(byte ID, uint age, DateTimeOffset date)>();
 
         public List<byte> RecentlyHandledCommands { get; set; } = new List<byte>();
         public List<Packet> RecentlyRelayedPackets { get; set; } = new List<Packet>();
@@ -98,15 +107,20 @@ namespace core_Receiver.Packets
         public double DroppedPacketRate { get; set; }
         public UInt32 AverageDelayTime { get; set; }
 
+        public DateTimeOffset? Time { get; set; }
+        public UInt16? MemoryLowWater { get; set; }
+        public UInt16? FreeMemory { get; set; }
+
         public override string ToString()
         {
             var overrideString = OverrideDuration > 0 ? $"Override (Remaining:{OverrideDuration - (Millis - OverrideStart)}, short:{OverrideShort}), " : "";
             var pingString = LastPingAge.HasValue ? $"Ping Age:{LastPingAge}, " : "";
-            return $"VOLATILE Version:{Version} Clock:{Millis}, {pingString}{overrideString}" +
-                $"Recently Seen:({RecentlySeenStations.ToCsv(rss => $"{(char)rss.ID}:{rss.age}")}), " +
-                $"Recent Commands:({RecentlyHandledCommands.ToCsv(b => $"{b}:{(char)b}")}), " +
-                $"Recently Relayed:({RecentlyRelayedPackets.ToCsv()}), " +
-                $"CRC Error Rate:{CRCErrorRate:P1}, Dropped Packet Rate:{DroppedPacketRate:P1}, Average Delay:{AverageDelayTime} us";
+            return $"VOLATILE Version:{Version} Millis:{Millis}, {pingString}{overrideString}" + Environment.NewLine +
+                $" Recently Seen:({RecentlySeenStations.ToCsv(rss => $"{(char)rss.ID}:{rss.age}")})" + Environment.NewLine +
+                $" Recent Commands:({RecentlyHandledCommands.ToCsv(b => $"{b}:{(char)b}")})" + Environment.NewLine +
+                $" Recently Relayed:({RecentlyRelayedPackets.ToCsv()})" + Environment.NewLine +
+                $" CRC Error Rate:{CRCErrorRate:P1}, Dropped Packet Rate:{DroppedPacketRate:P1}, Average Delay:{AverageDelayTime} us" + Environment.NewLine +
+                $" Station Time: {Time?.LocalDateTime}, Memory Low Water: {MemoryLowWater}, Free Memory: {FreeMemory}";
         }
     }
 }

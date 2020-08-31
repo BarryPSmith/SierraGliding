@@ -1,5 +1,5 @@
 #COM port for upload
-PORT=COM7
+PORT=COM4
 MCU=atmega328p
 
 uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
@@ -20,7 +20,7 @@ BOARD = 601
 include Boards.makefile
 
 #Flags, etc.
-DEFINES=$(BOARD_DEFINES) -DARDUINO=100 \
+DEFINES=$(BOARD_DEFINES) -DARDUINO=100 -DNO_STORAGE \
 #-DRADIOLIB_DEBUG 
 #-DRADIOLIB_VERBOSE
 CFLAGS= -mcall-prologues -mmcu=$(MCU) -Os -fdata-sections -ffunction-sections -fno-exceptions -flto -std=c++17 -g
@@ -77,6 +77,7 @@ SRCS_C = ArduinoWeatherStation.cpp Commands.cpp MessageHandling.cpp \
 		 LoraMessaging.cpp MessagingCommon.cpp \
 		 delay.c millis.cpp TimerTwo.cpp PermanentStorage.cpp StackCanary.cpp \
 		 RemoteProgramming.cpp PWMSolar.cpp \
+		 Flash.cpp Database.cpp \
 		 $(LIBRARIES)
 endif
 

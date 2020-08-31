@@ -75,13 +75,14 @@ class MessageSource
     //Reads the next byte
     virtual MESSAGE_RESULT readByte(byte& dest) = 0;
 
-
     template<class T>
     MESSAGE_RESULT read(T& dest)
     {
       return readBytes((byte*)&dest, sizeof(T));
     }
     MESSAGE_RESULT readBytes(byte* dest, size_t dataLen);
+
+    virtual MESSAGE_RESULT readBytes(byte** dest, byte dataLen) = 0;
     
     byte getMessageLength();
     byte getCurrentLocation();

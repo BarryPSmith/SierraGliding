@@ -11,7 +11,7 @@ extern uint8_t __stack;
 void StackPaint(void) __attribute__ ((naked)) __attribute__ ((section (".init1"))) __attribute__ ((used));
 
 volatile uint16_t oldSP __attribute__ ((section (".noinit")));
-volatile uint8_t oldStack[STACK_DUMP_SIZE] __attribute__ ((section (".noinit")));
+volatile uint8_t& oldStack = _end; // [STACK_DUMP_SIZE] __attribute__ ((section (".noinit")));
 volatile uint8_t MCUSR_Mirror __attribute__ ((section (".noinit")));
 volatile bool wdt_dontRestart = false;
 
@@ -164,11 +164,18 @@ ISR (WDT_vect, ISR_NAKED)
 
   //Dump the stack:
   oldSP = SP;
-  auto stackSize = (uint16_t)(&__stack) - oldSP;
-  if (stackSize > STACK_DUMP_SIZE)
-    stackSize = STACK_DUMP_SIZE;
-  memcpy((void*)oldStack,(void*) (oldSP + 1), stackSize);
-   
+  //auto stackSize = (uint16_t)(&__stack) - oldSP;
+  //if (stackSize > STACK_DUMP_SIZE)
+  //  stackSize = STACK_DUMP_SIZE;
+  //Don't use memcpy because we could blitz the stack here:
+  //memcpy((void*)&oldStack,(void*) (oldSP + 1), stackSize);
+  uint8_t* writePtr = (uint8_t*) &oldStack;
+  uint8_t* readPtr = (uint8_t*)(oldSP + 1);
+  uint8_t* end = writePtr + STACK_DUMP_SIZE;
+  if (end > &__stack)
+    end = &__stack;
+  while (writePtr < end)
+    *writePtr++ = *readPtr++;
 
 
 #ifdef SOFT_WDT

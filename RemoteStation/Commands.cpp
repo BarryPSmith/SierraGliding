@@ -139,7 +139,7 @@ namespace Commands
 
     if (!handled)
     {
-      MESSAGE_DESTINATION_SOLID response(false);
+      MESSAGE_DESTINATION_SOLID<20> response(false);
       response.appendByte('K');
       response.appendByte(stationID);
       response.appendByte(uniqueID);
@@ -341,7 +341,7 @@ namespace Commands
     if (msg.readByte(queryType) != MESSAGE_OK)
       queryType = 'C';
   
-    MESSAGE_DESTINATION_SOLID response(false);
+    MESSAGE_DESTINATION_SOLID<254> response(false);
     byte headerStart[6];
     
 
@@ -440,7 +440,7 @@ namespace Commands
 
   void notifyNewID(byte uniqueID, byte newID)
   {
-    MESSAGE_DESTINATION_SOLID reply(false);
+    MESSAGE_DESTINATION_SOLID<20> reply(false);
       reply.appendByte('K');
       reply.appendByte(stationID);
       reply.appendByte(uniqueID);
@@ -497,7 +497,7 @@ namespace Commands
     //if (!isSpecific)
       //return;
   
-    MESSAGE_DESTINATION_SOLID response(false);
+    MESSAGE_DESTINATION_SOLID<20> response(false);
     response.appendByte('K');
     response.appendByte(stationID);
     response.appendByte(uniqueID);

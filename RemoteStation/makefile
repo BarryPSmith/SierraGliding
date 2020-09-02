@@ -21,9 +21,10 @@ include Boards.makefile
 
 #Flags, etc.
 DEFINES=$(BOARD_DEFINES) -DARDUINO=100 -DNO_STORAGE \
+    -DTWI_BUFFER_LENGTH=10 \
 #-DRADIOLIB_DEBUG 
 #-DRADIOLIB_VERBOSE
-CFLAGS= -mcall-prologues -mmcu=$(MCU) -Os -fdata-sections -ffunction-sections -fno-exceptions -flto -std=c++17 -g
+CFLAGS= -mcall-prologues -mmcu=$(MCU) -Os -fdata-sections -ffunction-sections -fno-exceptions -std=c++17 -g -flto
 LDFLAGS=-Wl,--gc-sections -Wl,--relax
 CC=avr-gcc
 
@@ -51,6 +52,8 @@ endif
 
 ifeq ($(MODEM), 1)
 DEFINES += -DMODEM
+else
+DEFINES += -DSERIAL_TX_BUFFER_SIZE=16 -DSERIAL_RX_BUFFER_SIZE=8
 endif
 
 ARDUINO_LIBS=^/SPI/src/SPI.cpp ^/Wire/src/Wire.cpp ^/Wire/src/utility/twi.c
@@ -75,7 +78,7 @@ SRCS_C = ArduinoWeatherStation.cpp Commands.cpp MessageHandling.cpp \
 		 WeatherProcessing/WeatherProcessing.cpp WeatherProcessing/ADWind.cpp \
 		 WeatherProcessing/DavisWind.cpp WeatherProcessing/ALSWind.cpp \
 		 LoraMessaging.cpp MessagingCommon.cpp \
-		 delay.c millis.cpp TimerTwo.cpp PermanentStorage.cpp StackCanary.cpp \
+		 delay.c millis.cpp PermanentStorage.cpp StackCanary.cpp TimerTwo.cpp \
 		 RemoteProgramming.cpp PWMSolar.cpp \
 		 Flash.cpp Database.cpp \
 		 $(LIBRARIES)

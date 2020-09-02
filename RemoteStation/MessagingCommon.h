@@ -42,11 +42,11 @@ class MessageDestination
       return append((byte*)&data, sizeof(T));
     }
 
-    MESSAGE_RESULT append(const byte* data, size_t dataLen);
-    MESSAGE_RESULT append(const __FlashStringHelper* data, size_t dataLen);
-    MESSAGE_RESULT append(const char* data, size_t dataLen);
+    MESSAGE_RESULT append(const byte* data, byte dataLen);
+    MESSAGE_RESULT append(const __FlashStringHelper* data, byte dataLen);
+    MESSAGE_RESULT append(const char* data, byte dataLen);
 
-    MESSAGE_RESULT appendData(MessageSource& source, size_t maxBytes);
+    MESSAGE_RESULT appendData(MessageSource& source, byte maxBytes);
     
     size_t getCurrentLocation();
 };
@@ -80,7 +80,7 @@ class MessageSource
     {
       return readBytes((byte*)&dest, sizeof(T));
     }
-    MESSAGE_RESULT readBytes(byte* dest, size_t dataLen);
+    MESSAGE_RESULT readBytes(byte* dest, byte dataLen);
 
     virtual MESSAGE_RESULT readBytes(byte** dest, byte dataLen) = 0;
     

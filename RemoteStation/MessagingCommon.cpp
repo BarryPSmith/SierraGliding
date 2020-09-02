@@ -5,7 +5,7 @@ const bool MessageDestination::s_prependCallsign = false;
 
 MessageDestination::MessageDestination() {}
 
-MESSAGE_RESULT MessageDestination::appendData(MessageSource& source, size_t maxBytes)
+MESSAGE_RESULT MessageDestination::appendData(MessageSource& source, byte maxBytes)
 {
   for (int i = 0; i < maxBytes; i++)
   {
@@ -25,7 +25,7 @@ size_t MessageDestination::getCurrentLocation()
   return _currentLocation;
 }
 
-MESSAGE_RESULT MessageDestination::append(const byte* data, size_t dataLen)
+MESSAGE_RESULT MessageDestination::append(const byte* data, byte dataLen)
 {
   for (int i = 0; i < dataLen; i++)
   {
@@ -35,11 +35,11 @@ MESSAGE_RESULT MessageDestination::append(const byte* data, size_t dataLen)
   }
   return MESSAGE_OK;
 }
-MESSAGE_RESULT MessageDestination::append(const char* data, size_t dataLen)
+MESSAGE_RESULT MessageDestination::append(const char* data, byte dataLen)
 {
   return append((byte*)data, dataLen);
 }
-MESSAGE_RESULT MessageDestination::append(const __FlashStringHelper* data, size_t dataLen)
+MESSAGE_RESULT MessageDestination::append(const __FlashStringHelper* data, byte dataLen)
 {
   auto str = reinterpret_cast<const char*>(data);
   for (int i = 0; i < dataLen; i++)
@@ -52,7 +52,7 @@ MESSAGE_RESULT MessageDestination::append(const __FlashStringHelper* data, size_
   return MESSAGE_OK;
 }
 
-MESSAGE_RESULT MessageSource::readBytes(byte* dest, size_t dataLen)
+MESSAGE_RESULT MessageSource::readBytes(byte* dest, byte dataLen)
 {
   for (int i = 0; i < dataLen; i++)
   {

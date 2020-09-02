@@ -104,7 +104,7 @@ unsigned long TimerTwo::millis()
   auto sreg = SREG;
   cli();
   unsigned long m = _ticks;
-  unsigned long t = TCNT2;
+  byte t = TCNT2;
   if (TIFR2 & _BV(OCF2A) && t < 249)
     m++;
   SREG = sreg;

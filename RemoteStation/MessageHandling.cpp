@@ -41,9 +41,13 @@ namespace MessageHandling
   {
     static bool ledWasOn = false;
     MESSAGE_SOURCE_SOLID msg;
-    MESSAGE_DESTINATION_SOLID::delayRequired = true;
+    /*MESSAGE_DESTINATION_SOLID::*/delayRequired = true;
+    AWS_DEBUG_PRINT(F("PreBeginMessage "));
+    PRINT_VARIABLE(StackCount());
     while (msg.beginMessage())
     {
+      AWS_DEBUG_PRINT(F("PostBeginMessage "));
+      PRINT_VARIABLE(StackCount());
       if (!MessageSource::s_discardCallsign)
       {
         byte zerothByte;
@@ -129,7 +133,7 @@ namespace MessageHandling
       }
 #endif // !NO_STORAGE
     }
-    MESSAGE_DESTINATION_SOLID::delayRequired = false;
+    /*MESSAGE_DESTINATION_SOLID::*/delayRequired = false;
   }
 
   bool shouldRecord(byte msgType, bool relayRequired)
@@ -215,11 +219,11 @@ namespace MessageHandling
   void relayMessage(MessageSource& msg, byte msgType, byte msgFirstByte, byte msgStatID, byte msgUniqueID)
   {
     //Outbound messages are 'C' or 'P'
-    MESSAGE_DESTINATION_SOLID relay(msgType == 'C' || msgType == 'P');
+    MESSAGE_DESTINATION_SOLID<254> relay(msgType == 'C' || msgType == 'P');
     relay.appendByte(msgFirstByte);
     relay.appendByte(msgStatID);
     relay.appendByte(msgUniqueID);
-    relay.appendData(msg, 5000);
+    relay.appendData(msg, 254);
   }
 
   void recordWeatherForRelay(MessageSource& msg, byte msgStatID, byte msgUniqueID)
@@ -235,8 +239,8 @@ namespace MessageHandling
     //we have to make sure to read the incomming message as we're sending out bytes,
     //or our buffers might overflow.
     bool overflow = weatherRelayLength + dataSize + 2 > weatherRelayBufferSize;
-    byte buffer[sizeof(MESSAGE_DESTINATION_SOLID)];
-    MESSAGE_DESTINATION_SOLID* msgDump = overflow ? new (buffer) MESSAGE_DESTINATION_SOLID(false) : 0;
+    byte buffer[sizeof(MESSAGE_DESTINATION_SOLID<254>)];
+    MESSAGE_DESTINATION_SOLID<254>* msgDump = overflow ? new (buffer) MESSAGE_DESTINATION_SOLID<254>(false) : 0;
     size_t offset = overflow ? 0 : weatherRelayLength;
     bool sourceFaulted = false;
       
@@ -302,7 +306,7 @@ namespace MessageHandling
     //W (Station ID) (Unique ID) (8) (WS) (WD) (Batt) : (StationR) (UidR) (WsR) (WdR) (BattR)
     //If there are multiple relay messages included, each has an extra 5 bytes.
   
-    MESSAGE_DESTINATION_SOLID message(false);
+    MESSAGE_DESTINATION_SOLID<254> message(false);
     message.appendByte('W');
     message.appendByte(stationID);
     message.appendByte(getUniqueID());
@@ -316,8 +320,8 @@ namespace MessageHandling
   {
     //bool wasPrependCallsign = MessageDestination::s_prependCallsign;
     //MessageDestination::s_prependCallsign = true;
-    MESSAGE_DESTINATION_SOLID msg(false, false);
-    if (!MESSAGE_DESTINATION_SOLID::s_prependCallsign)
+    MESSAGE_DESTINATION_SOLID<254> msg(false, false);
+    if (!MESSAGE_DESTINATION_SOLID<254>::s_prependCallsign)
       msg.append((byte*)callSign, 6);
     msg.append(STATUS_MESSAGE, strlen_P((const char*)STATUS_MESSAGE));
     msg.appendByte(stationID);

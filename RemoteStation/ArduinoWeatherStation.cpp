@@ -43,6 +43,7 @@ void loop();
 void disableRFM69();
 void sleep(adc_t adc_state);
 void restart();
+void SendStackTrace();
 
 void TestBoard();
 void savePower();
@@ -182,12 +183,14 @@ void setup() {
   digitalWrite(FLASH_SELECT, HIGH);
 #endif
 
-  lastPingMillis = lastStatusMillis = millis();
+  lastPingMillis = millis();
   PermanentStorage::initialise();
 
   #ifdef SOLAR_PWM
   PwmSolar::setupPwm();
   #endif
+  AWS_DEBUG_PRINT(F("PostPermStorage "));
+  PRINT_VARIABLE(StackCount());
 
   WeatherProcessing::setupWeatherProcessing();
   if (!Flash::flashInit())
@@ -196,36 +199,56 @@ void setup() {
     SIGNALERROR();
   }
   Database::initDatabase();
-  
+  AWS_DEBUG_PRINT(F("PostInitDb "));
+  PRINT_VARIABLE(StackCount());
 
 #ifdef DISABLE_RFM69
   disableRFM69();
 #endif
   InitMessaging();
+  updateIdleState();
+  AWS_DEBUG_PRINT(F("PostInitMessaging "));
+  PRINT_VARIABLE(StackCount());
 
   if (oldSP > 0x100)
   {
-    MESSAGE_DESTINATION_SOLID msg(false);
-    msg.appendByte('S');
-    msg.appendByte(stationID);
-    msg.appendByte(0x00);
-	  msg.appendT(oldSP);
-    msg.append((byte*)oldStack, STACK_DUMP_SIZE);
+    SendStackTrace();
   }
+
+  AWS_DEBUG_PRINT(F("PostSendStack "));
+  PRINT_VARIABLE(StackCount());
 
   AWS_DEBUG_PRINTLN(F("Messaging Initialised"));
   
-  MessageHandling::sendStatusMessage();
+  //MessageHandling::sendStatusMessage();
 
-  lastStatusMillis = millis();
+  lastStatusMillis = 0;// millis();
+}
+
+void SendStackTrace()
+{
+  MESSAGE_DESTINATION_SOLID<254> msg(false);
+  msg.appendByte('S');
+  msg.appendByte(stationID);
+  msg.appendByte(0x00);
+	msg.appendT(oldSP);
+  msg.append((byte*)&oldStack, STACK_DUMP_SIZE);
 }
 
 void loop() {
   //AWS_DEBUG(auto loopMicros = micros());
   // Generate and discard a random number. Just used to ensure that all of the RNGs out there will give different numbers.
   random();
-  MessageHandling::readMessages();
 
+  if (initMessagingRequired)
+  {
+    InitMessaging();
+    updateIdleState();
+  }
+
+  MessageHandling::readMessages();
+  AWS_DEBUG_PRINT(F("PostReadMessages "));
+  PRINT_VARIABLE(StackCount());
 #ifndef NO_STORAGE
   Database::doProcessing();
 #endif
@@ -241,6 +264,8 @@ void loop() {
   else
   {
     WeatherProcessing::processWeather();
+    AWS_DEBUG_PRINT(F("PostProcessWeather "));
+    PRINT_VARIABLE(StackCount());
     noInterrupts();
     bool localWeatherRequired = WeatherProcessing::weatherRequired;
     WeatherProcessing::weatherRequired = false;
@@ -256,7 +281,8 @@ void loop() {
       MessageHandling::sendStatusMessage();
     }
   
-    if (millis() - lastPingMillis > maxMillisBetweenPings)
+    if (millis() - lastPingMillis > maxMillisBetweenPings
+      || StackCount() == 0)
       restart();
   }
 

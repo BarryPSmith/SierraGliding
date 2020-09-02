@@ -119,6 +119,7 @@ int main()
   PermanentStorage::initialise();
 
   InitMessaging();
+  updateIdleState();
   
   Serial.print(F("Arduino LoRa modem. Version "));
   Serial.println(REV_ID);
@@ -149,7 +150,7 @@ int main()
     {
       if (kissSrc.getMessageType() == 0x00)
       {
-        LoraMessageDestination dst(true);
+        LoraMessageDestination<254> dst(true);
         auto result = dst.appendData(kissSrc, maxPacketSize);
         if (result != MESSAGE_END)
           dst.abort();

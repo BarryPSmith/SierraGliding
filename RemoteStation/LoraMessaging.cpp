@@ -9,7 +9,8 @@
 
 extern inline int16_t lora_check(const int16_t result, const __FlashStringHelper* msg);
 
-bool LoraMessageDestination::delayRequired = false;
+bool delayRequired = false;
+bool initMessagingRequired = false;
 
 //Hardware pins:
 Module mod(SX_SELECT, SX_DIO1, SX_BUSY);
@@ -29,12 +30,7 @@ void updateIdleState()
 {
   //If we need to relay weather from anyone, we want to listen continuously.
   //We also need to listen continuously if we're set to relay commands: Although commands are sent with a long preamble, acknowledgement is not.
-  byte stationsToRelayWeather[permanentArraySize];
-  GET_PERMANENT(stationsToRelayWeather);
 
-  byte stationsToRelayCommands[permanentArraySize];
-  GET_PERMANENT(stationsToRelayCommands);
-  
   uint16_t outboundPreambleLength;
   GET_PERMANENT_S(outboundPreambleLength);
   csma._senderPremableLength = outboundPreambleLength;
@@ -47,7 +43,11 @@ void updateIdleState()
   {
     for (int i = 0; i < permanentArraySize; i++)
     {
-      if (stationsToRelayWeather[i] || stationsToRelayCommands[i])
+      byte b;
+      PermanentStorage::getBytes((void*)(offsetof(PermanentVariables, stationsToRelayWeather) + i), 1, &b);
+      if (!b)
+        PermanentStorage::getBytes((void*)(offsetof(PermanentVariables, stationsToRelayCommands) + i), 1, &b);
+      if (b)
       {
         continuousReceive = true;
         break;
@@ -158,7 +158,6 @@ void InitMessaging()
   csma.initBuffer();
   csma.setPByte(csmaP);
   csma.setTimeSlot(csmaTimeslot);
-  updateIdleState();
 }
 
 bool handleMessageCommand(MessageSource& src, byte* desc)
@@ -295,98 +294,20 @@ void appendMessageStatistics(MessageDestination& msg)
 LoraMessageSource::LoraMessageSource() : MessageSource()
 {}
 
-LoraMessageDestination::~LoraMessageDestination()
-{
-  finishAndSend();
-}
+//LoraMessageDestination::~LoraMessageDestination()
 
-LoraMessageDestination::LoraMessageDestination(bool isOutbound, bool prependX)
-{
-  if (s_prependCallsign)
-    append((byte*)callSign, 6);
-  else if (prependX)
-    appendByte('X');
-  
-  _isOutbound = isOutbound;
-}
-
-void LoraMessageDestination::abort()
-{
-  _currentLocation = 255;
-}
-
-MESSAGE_RESULT LoraMessageDestination::getBuffer(byte** buffer, byte bytesToAdd)
-{
-  if (bytesToAdd + _currentLocation >= maxPacketSize)
-    return MESSAGE_BUFFER_OVERRUN;
-  *buffer = _outgoingBuffer + _currentLocation;
-  return MESSAGE_OK;
-}
-
-MESSAGE_RESULT LoraMessageDestination::finishAndSend()
-{
-  if (_currentLocation == 255)
-    return MESSAGE_NOT_IN_MESSAGE;
-
-  uint16_t preambleLength = 8;
-  if (_isOutbound)
-  {
-    uint16_t outboundPreambleLength;
-    GET_PERMANENT_S(outboundPreambleLength);
-    preambleLength = outboundPreambleLength;
-  }
+//LoraMessageDestination::LoraMessageDestination(bool isOutbound, bool prependX)
 
 
-#if !defined(DEBUG) && !defined(MODEM)
-  //If we're not in debug there is no visual indication of a message being sent at the station
-  //So we light up the TX light on the board:
-  digitalWrite(LED_PIN0, LED_ON);
-#endif //DEBUG
+//void LoraMessageDestination::abort()
 
-  TX_DEBUG(auto beforeTxMicros = micros());
-  if (delayRequired)
-    delayMicroseconds(lora._tcxoDelay * random(1,5));
-  auto state = LORA_CHECK(csma.transmit(_outgoingBuffer, _currentLocation, preambleLength));
-  TX_PRINTVAR(micros() - beforeTxMicros);
+//MESSAGE_RESULT LoraMessageDestination::getBuffer(byte** buffer, byte bytesToAdd)
 
-  if (state == ERR_NONE)
-  {
-#if !defined(DEBUG) && !defined(MODEM)
-    digitalWrite(LED_PIN0, LED_OFF);
-#endif
-  }
-  else //Flash the TX/RX LEDs to indicate an error condition:
-  {
-#if !defined(DEBUG) && !defined(MODEM)
-    signalError();
-#endif
-    //If a message failed to send, try to re-initialise:
-    InitMessaging();
-  }
+//MESSAGE_RESULT LoraMessageDestination::finishAndSend()
 
-  bool ret = state == ERR_NONE;
 
-  _currentLocation = 255;
-  if (ret)
-    return MESSAGE_OK;
-  else
-    return MESSAGE_ERROR;
-  
-}
+//MESSAGE_RESULT LoraMessageDestination::appendByte(const byte data)
 
-MESSAGE_RESULT LoraMessageDestination::appendByte(const byte data)
-{
-  if (_currentLocation == 255)
-    return MESSAGE_NOT_IN_MESSAGE;
-  else if (_currentLocation >= maxPacketSize)
-  {
-    return MESSAGE_BUFFER_OVERRUN;
-  }
-
-  _outgoingBuffer[_currentLocation++] = data;
-
-  return MESSAGE_OK;
-}
 
 bool LoraMessageSource::beginMessage()
 {

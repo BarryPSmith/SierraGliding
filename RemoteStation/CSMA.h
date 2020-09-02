@@ -30,7 +30,7 @@ inline int16_t lora_check(const int16_t result, const __FlashStringHelper* msg)
 #define LORA_CHECK(A) lora_check(A, F("LORA_CHECK FAILED: "))
 #endif
 
-enum class IdleStates {
+enum class IdleStates : byte {
   NotInitialised,
   ContinuousReceive,
   IntermittentReceive,
@@ -60,19 +60,24 @@ class CSMAWrapper
       _base->setRxDoneAction(rxDoneActionStatic);
     }
 
-    int16_t transmit(uint8_t* data, size_t len, uint16_t preambleLength, uint8_t addr = 0) {
+    int16_t transmit(uint8_t* data, byte len, uint16_t preambleLength) {
       TX_DEBUG(auto entryMicros = micros());
       LORA_CHECK(delayCSMA());
       TX_DEBUG(auto delayMicros = micros() - entryMicros);
-      
+      auto ret = transmit2(data, len, preambleLength);
+      enterIdleState();
+      return ret;
+    }
+
+    int16_t __attribute__ ((noinline)) transmit2(uint8_t* data, byte len, uint16_t preambleLength)
+    { 
       auto ret = _base->setPreambleLength(preambleLength);
       TX_DEBUG(auto preambleMicros = micros() - entryMicros);
       if (ret != ERR_NONE)
         return ret;
-      ret = _base->transmit(data, len, addr);
+      ret = _base->transmit(data, len, 0);
       
       TX_DEBUG(auto txMicros = micros() - entryMicros);
-      enterIdleState();
       TX_DEBUG(auto idleMicros = micros() - entryMicros);
       TX_PRINTVAR(delayMicros);
       TX_PRINTVAR(preambleMicros);
@@ -83,13 +88,21 @@ class CSMAWrapper
       return ret;
     }
 
+    void __attribute__ ((noinline)) updateAverageDelay(uint32_t entryMicros)
+    {
+      uint32_t delayTime = micros() - entryMicros;
+      _averageDelayTime = _averageDelayTime * (averagingPeriod - 1) / (averagingPeriod)
+        +
+        delayTime / averagingPeriod;
+    }
+
     #define CHECK_TIMEOUT() do { if(micros() - entryMicros > MaxDelay) return(ERR_RX_TIMEOUT); } while (0)
     // see http://www.ax25.net/kiss.aspx section 6 for CSMA implementation.
     // this is a blocking function that will queue any messages received while it waits.
     int16_t delayCSMA()
     {
       uint32_t entryMicros = micros();
-      uint32_t beforeIsChannelBusy, afterIsChannelBusy;
+      //uint32_t beforeIsChannelBusy, afterIsChannelBusy;
       bool wasBusy = false;
       do
       {
@@ -116,10 +129,7 @@ class CSMAWrapper
         }
       } while(wasBusy);
 
-      uint32_t delayTime = micros() - entryMicros;
-      _averageDelayTime = _averageDelayTime * (averagingPeriod - 1) / (averagingPeriod)
-        +
-        delayTime / averagingPeriod;
+      updateAverageDelay(entryMicros);
 
       return ERR_NONE;
     }
@@ -168,9 +178,17 @@ class CSMAWrapper
       return(state);
     }
 
-    int16_t readIfPossible() {
-      LORA_CHECK(_base->processLoop());
+    int16_t readIfPossible()
+    {
+      bool reenterRequired = false;
+      auto ret = readIfPossibleInt(reenterRequired);
+      if (reenterRequired)
+        LORA_CHECK(enterIdleState());
+      return ret;
+    }
 
+    int16_t __attribute__ ((noinline)) readIfPossibleInt(bool& reenterRequired) {
+      LORA_CHECK(_base->processLoop());
       if (!s_packetWaiting) {
         return(NO_PACKET_AVAILABLE);
       }
@@ -185,22 +203,10 @@ class CSMAWrapper
       }
 
       int16_t state = _base->readData(_buffer + bufferWriteOffset, packetSize);
+      reenterRequired = true;
       s_packetWaiting = false;
-      LORA_CHECK(enterIdleState());
 
-      //calculate some statistics:
-      //crc error?
-      uint16_t crcError = state == ERR_CRC_MISMATCH ? 0xFFFF / averagingPeriod : 0;
-      _crcErrorRate = (uint32_t)_crcErrorRate * (averagingPeriod - 1) / averagingPeriod
-        +
-        crcError;
-
-      //Did we drop any packets? This only counts packets dropped due to out of memory, not CRC or other errors.
-      uint32_t droppedPackets = (uint32_t)(s_packetCounter - _lastPacketCounter - 1) * (0xFFFF / averagingPeriod);
-      _lastPacketCounter = s_packetCounter;
-      _droppedPacketRate = _droppedPacketRate * (averagingPeriod - 1) / averagingPeriod
-        +
-        droppedPackets;
+      updateReadStats(state);
 
       if (state != ERR_NONE) {
         return(state);
@@ -211,6 +217,23 @@ class CSMAWrapper
       _messageLengths[_writeBufferLenIdx] = packetSize;
       _writeBufferLenIdx++;
       return(ERR_NONE);
+    }
+
+    void __attribute__ ((noinline)) updateReadStats(uint16_t state)
+    {
+      //calculate some statistics:
+    //crc error?
+    uint16_t crcError = state == ERR_CRC_MISMATCH ? 0xFFFF / averagingPeriod : 0;
+    _crcErrorRate = (uint32_t)_crcErrorRate * (averagingPeriod - 1) / averagingPeriod
+      +
+      crcError;
+
+    //Did we drop any packets? This only counts packets dropped due to out of memory, not CRC or other errors.
+    uint32_t droppedPackets = (uint32_t)(s_packetCounter - _lastPacketCounter - 1) * (0xFFFF / averagingPeriod);
+    _lastPacketCounter = s_packetCounter;
+    _droppedPacketRate = _droppedPacketRate * (averagingPeriod - 1) / averagingPeriod
+      +
+      droppedPackets;
     }
 
     void clearBuffer() {

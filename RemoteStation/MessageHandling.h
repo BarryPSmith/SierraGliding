@@ -28,7 +28,7 @@ namespace MessageHandling
   //Every message is given a unique ID. This is so other stations can keep track of them
   extern byte curUniqueID;
 
-  const int weatherRelayBufferSize = 100;
+  constexpr int weatherRelayBufferSize = 100;
   extern byte weatherRelayBuffer[weatherRelayBufferSize];
   extern byte weatherRelayLength;
 }

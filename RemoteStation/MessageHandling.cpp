@@ -11,7 +11,7 @@
 #include "TimerTwo.h"
 #include "Database.h"
 
-#define DEBUG_MSGPROC
+//#define DEBUG_MSGPROC
 #ifdef DEBUG_MSGPROC
 #define MSGPROC_PRINT AWS_DEBUG_PRINT
 #define MSGPROC_PRINTLN AWS_DEBUG_PRINTLN

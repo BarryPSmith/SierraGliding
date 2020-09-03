@@ -9,7 +9,7 @@
 #include "Flash.h"
 #include "Database.h"
 
-//#define DEBUG_COMMANDS
+#define DEBUG_COMMANDS
 #ifdef DEBUG_COMMANDS
 #define COMMAND_PRINT AWS_DEBUG_PRINT
 #define COMMAND_PRINTLN AWS_DEBUG_PRINTLN
@@ -152,8 +152,10 @@ namespace Commands
   bool handleRelayCommand(MessageSource& msg)
   {
     byte types[] = { 'W', 'C', 'R' };
+    byte loc = msg.getCurrentLocation();
     for (byte curType : types)
     {
+      COMMAND_PRINTVAR(curType);
       byte list[permanentArraySize];
       byte max;
       switch (curType)
@@ -173,6 +175,7 @@ namespace Commands
       }
       byte opByte;
       bool changed = false;
+      msg.seek(loc);
       while (msg.readByte(opByte) == MESSAGE_OK)
       {
         byte typeByte;
@@ -228,18 +231,22 @@ namespace Commands
               list[i] = 0;
         }
       }
+      COMMAND_PRINTVAR(changed);
       if (changed)
         switch (curType)
         {
         case 'W':
+          COMMAND_PRINTLN("UPDATE W");
           PermanentStorage::setBytes((void*)offsetof(PermanentVariables, stationsToRelayWeather), permanentArraySize, list);
           max = permanentArraySize;
           break;
         case 'C':
+          COMMAND_PRINTLN("UPDATE C");
           PermanentStorage::setBytes((void*)offsetof(PermanentVariables, stationsToRelayCommands), permanentArraySize, list);
           max = permanentArraySize;
           break;
         case 'R':
+          COMMAND_PRINTLN("UPDATE R");
           PermanentStorage::setBytes((void*)offsetof(PermanentVariables, messageTypesToRecord), messageTypeArraySize, list);
           max = messageTypeArraySize;
           break;

@@ -19,6 +19,8 @@ volatile bool wdt_dontRestart = false;
 unsigned volatile char watchdogLoops = 0;
 #endif
 
+#define STR(A) #A
+#define XSTR(A) STR(A)
 
 void StackPaint(void)
 {
@@ -52,11 +54,12 @@ void StackPaint(void)
     if (!(MCUSR_Mirror & _BV(WDRF)))
       oldSP = 0xAA;
 #endif
-
-
+    
+    //constexpr uint8_t afterDumpLo = (uint8_t)(int)(&_end + STACK_DUMP_SIZE);
+    //constexpr uint8_t afterDumpHi = (uint8_t)((int)(&_end + STACK_DUMP_SIZE) >> 8);
     __asm volatile (".stackPaintStart:\n"
-                    "    ldi r30,lo8(_end)\n"
-                    "    ldi r31,hi8(_end)\n"
+                    "    ldi r30,lo8(_end + " XSTR(STACK_DUMP_SIZE) ")\n"
+                    "    ldi r31,hi8(_end + " XSTR(STACK_DUMP_SIZE) ")\n"
                     "    ldi r24,lo8(0xc5)\n" /* STACK_CANARY = 0xc5 */
                     "    ldi r25,hi8(__stack)\n"
                     "    rjmp .cmp\n"
@@ -66,7 +69,10 @@ void StackPaint(void)
                     "    cpi r30,lo8(__stack)\n"
                     "    cpc r31,r25\n"
                     "    brlo .loop\n"
-                    "    breq .loop"::);
+                    "    breq .loop"
+                    : //output (nothing)
+                    : //input
+                      );
 #endif
 }
 
@@ -189,4 +195,14 @@ ISR (WDT_vect, ISR_NAKED)
   //sei();
   while (1);
 #endif
+}
+
+void canarifyStackDump()
+{
+  uint8_t* end = (uint8_t*)&oldStack + STACK_DUMP_SIZE;
+  if (end < (uint8_t*)SP)
+    end = (uint8_t*)SP;
+  uint8_t* writePtr = (uint8_t*)&oldStack;
+  while (writePtr < end)
+    *writePtr++ = STACK_CANARY;
 }

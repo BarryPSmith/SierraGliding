@@ -2,16 +2,15 @@
 #include "ArduinoWeatherStation.h"
 #include <util/crc16.h>
 
-
-#define DEBUG_PARAMETERS
+//#define DEBUG_PARAMETERS
 #ifdef DEBUG_PARAMETERS
 #define PARAMETER_PRINTLN AWS_DEBUG_PRINTLN
 #define PARAMETER_PRINTVAR PRINT_VARIABLE
 #define PARAMETER_DEBUG AWS_DEBUG
 #else
-#define PARAMETER_PRINTLN do {} while (0)
-#define PARAMETER_PRINTVAR do {} while (0)
-#define PARAMETER_DEBUG do {} while (0)
+#define PARAMETER_PRINTLN(...) do {} while (0)
+#define PARAMETER_PRINTVAR(...) do {} while (0)
+#define PARAMETER_DEBUG(...) do {} while (0)
 #endif
 
 char stationID = defaultStationID;

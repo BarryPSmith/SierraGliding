@@ -209,6 +209,7 @@ void setup() {
   {
     sendStackTrace();
   }
+  canarifyStackDump();
 
   AWS_DEBUG_PRINTLN(F("Messaging Initialised"));
   

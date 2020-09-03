@@ -84,6 +84,8 @@ class MessageSource
 
     virtual MESSAGE_RESULT readBytes(byte** dest, byte dataLen) = 0;
     
+    virtual MESSAGE_RESULT seek(const byte newPosition) = 0;
+    
     byte getMessageLength();
     byte getCurrentLocation();
 };

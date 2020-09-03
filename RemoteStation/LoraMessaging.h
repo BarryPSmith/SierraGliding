@@ -34,7 +34,7 @@ class LoraMessageSource : public MessageSource
     MESSAGE_RESULT readByte(byte& dest) override;
     MESSAGE_RESULT readBytes(byte** dest, byte bytesToRead) override;
 
-    MESSAGE_RESULT seek(const byte newPosition);
+    MESSAGE_RESULT seek(const byte newPosition) override;
 
   private:
     byte* _incomingBuffer;

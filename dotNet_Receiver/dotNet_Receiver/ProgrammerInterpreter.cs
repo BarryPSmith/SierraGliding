@@ -244,6 +244,7 @@ Adjust programmer settings
                 if (idStr.Length > 0)
                     id = int.Parse(idStr);
                 bool isConstruct = !match.Groups["method"].Success && match.Groups["argstring"].Success;
+                bool isDelete = match.Groups["method"].Value.Equals("Delete", StringComparison.OrdinalIgnoreCase);
                 if (isConstruct)
                 {
                     if (_programmers.ContainsKey(id))
@@ -261,9 +262,12 @@ Adjust programmer settings
                 }
                 else
                 {
-                    if (!_programmers.TryGetValue(id, out var programmerTpl))
+                    if (!_programmers.TryGetValue(id, out var programmer))
                         throw new CommandException($"Programmer with ID {id} doesn't exist.");
-                    programmerTpl.HandleCommand(cmd, match.Groups["method"].Value, match.Groups["argstring"].Value);
+                    if (isDelete)
+                        _programmers.Remove(id);
+                    else
+                        programmer.HandleCommand(cmd, match.Groups["method"].Value, match.Groups["argstring"].Value);
                 }
             }
         }

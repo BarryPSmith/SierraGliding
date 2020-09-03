@@ -11,6 +11,7 @@ extern unsigned volatile char watchdogLoops;
 #endif
 
 uint16_t StackCount(void);
+void canarifyStackDump();
 
 extern volatile uint16_t oldSP;
 extern volatile uint8_t& oldStack; //[STACK_DUMP_SIZE];

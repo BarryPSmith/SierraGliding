@@ -88,6 +88,9 @@ Arguments:
                 _outgoingPort = int.Parse(args[exposeUdpIndex + 1]);
                 _incomingPort = int.Parse(args[exposeUdpIndex + 2]);
             }
+
+            if (args.Contains("--noPing", StringComparer.OrdinalIgnoreCase))
+                _sendPing = false;
         }
 
         static void Main(string[] args)
@@ -342,6 +345,7 @@ Arguments:
             }
         }
 
+        private static bool _sendPing = true;
         private static void PingLoop()
         {
             // Give the serial port time to connect:
@@ -354,18 +358,21 @@ Arguments:
             {
                 try
                 {
-                    uint timestamp = (uint)DateTimeOffset.Now.ToUnixTimeSeconds();
-                    byte[] ping = Encoding.ASCII.GetBytes("P0#" + CallSign)
-                        .Concat(BitConverter.GetBytes(timestamp))
-                        .ToArray();
-                    //ping[0] |= 0x80; // Demand relay
-                    ping[1] = 0x00; //Addressed to all stations (any station which is set to relay commands will also relay the ping).
-                    ping[2] = i; //This is used for relay tracking
-                    _dataReceiver.Write(ping);
-                    OutputWriter.WriteLine($"Ping sent: {i}");
-                    unchecked
+                    if (_sendPing)
                     {
-                        i++;
+                        uint timestamp = (uint)DateTimeOffset.Now.ToUnixTimeSeconds();
+                        byte[] ping = Encoding.ASCII.GetBytes("P0#" + CallSign)
+                            .Concat(BitConverter.GetBytes(timestamp))
+                            .ToArray();
+                        //ping[0] |= 0x80; // Demand relay
+                        ping[1] = 0x00; //Addressed to all stations (any station which is set to relay commands will also relay the ping).
+                        ping[2] = i; //This is used for relay tracking
+                        _dataReceiver.Write(ping);
+                        OutputWriter.WriteLine($"Ping sent: {i}");
+                        unchecked
+                        {
+                            i++;
+                        }
                     }
                     Thread.Sleep(TimeSpan.FromMinutes(5));
                 }

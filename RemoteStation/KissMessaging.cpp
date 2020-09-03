@@ -130,6 +130,11 @@ MESSAGE_RESULT KissMessageSource::endMessage()
   }
 }
 
+MESSAGE_RESULT KissMessageSource::seek(byte dest)
+{
+  return MESSAGE_ERROR;
+}
+
 MESSAGE_RESULT KissMessageSource::readByte(byte& dest)
 {
   {

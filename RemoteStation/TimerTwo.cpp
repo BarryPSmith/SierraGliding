@@ -79,8 +79,6 @@ unsigned long TimerTwo::seconds()
   return ret;
 }
 
-extern unsigned long lastStatusMillis;
-extern unsigned long lastPingMillis;
 void TimerTwo::setSeconds(unsigned long seconds)
 {
   auto sreg = SREG;
@@ -96,7 +94,6 @@ void TimerTwo::setSeconds(unsigned long seconds)
   _ticks = ticks;
 #endif
   SREG = sreg;
-  lastPingMillis = lastStatusMillis = millis();
 }
 
 unsigned long TimerTwo::millis()

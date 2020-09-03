@@ -11,6 +11,17 @@
 #include "TimerTwo.h"
 #include "Database.h"
 
+#define DEBUG_MSGPROC
+#ifdef DEBUG_MSGPROC
+#define MSGPROC_PRINT AWS_DEBUG_PRINT
+#define MSGPROC_PRINTLN AWS_DEBUG_PRINTLN
+#define MSGPROC_PRINTVAR PRINT_VARIABLE
+#else
+#define MSGPROC_PRINT(...)  do { } while (0)
+#define MSGPROC_PRINTLN(...)  do { } while (0)
+#define MSGPROC_PRINTVAR(...)  do { } while (0)
+#endif
+
 //Placement new operator.
 void* operator new(size_t size, void* ptr)
 {
@@ -42,12 +53,8 @@ namespace MessageHandling
     static bool ledWasOn = false;
     MESSAGE_SOURCE_SOLID msg;
     /*MESSAGE_DESTINATION_SOLID::*/delayRequired = true;
-    AWS_DEBUG_PRINT(F("PreBeginMessage "));
-    PRINT_VARIABLE(StackCount());
     while (msg.beginMessage())
     {
-      AWS_DEBUG_PRINT(F("PostBeginMessage "));
-      PRINT_VARIABLE(StackCount());
       if (!MessageSource::s_discardCallsign)
       {
         byte zerothByte;
@@ -68,27 +75,27 @@ namespace MessageHandling
         if (msg.readByte(msgStatID) ||
           msg.readByte(msgUniqueID))
         {
-          AWS_DEBUG_PRINTLN(F("Unable to read message header."));
+          MSGPROC_PRINTLN(F("Unable to read message header."));
           SIGNALERROR();
           continue;
         }
       }
       else
       {
-        AWS_DEBUG_PRINT(F("Unknown message type: "));
-        AWS_DEBUG_PRINTLN(msgType);
+        MSGPROC_PRINT(F("Unknown message type: "));
+        MSGPROC_PRINTLN(msgType);
         SIGNALERROR();
         continue;
       }
 
       byte afterHeader = msg.getCurrentLocation();
 
-      AWS_DEBUG_PRINT(F("Message Received. Type: "));
-      AWS_DEBUG_PRINT((char)msgType);
-      AWS_DEBUG_PRINT(F(", stationID: "));
-      AWS_DEBUG_PRINT((char)msgStatID);
-      AWS_DEBUG_PRINT(F(", ID: "));
-      AWS_DEBUG_PRINTLN(msgUniqueID);
+      MSGPROC_PRINT(F("Message Received. Type: "));
+      MSGPROC_PRINT((char)msgType);
+      MSGPROC_PRINT(F(", stationID: "));
+      MSGPROC_PRINT((char)msgStatID);
+      MSGPROC_PRINT(F(", ID: "));
+      MSGPROC_PRINTLN(msgUniqueID);
 
       if (msgType == 'P')
         checkPing(msg);
@@ -114,7 +121,7 @@ namespace MessageHandling
       {
         if (msg.seek(afterHeader))
         {
-          AWS_DEBUG_PRINTLN(F("Unable to seek to afterHeader"));
+          MSGPROC_PRINTLN(F("Unable to seek to afterHeader"));
           continue;
         }
 
@@ -160,13 +167,10 @@ namespace MessageHandling
     {
       byte stationsToRelayCommands[permanentArraySize];
       GET_PERMANENT(stationsToRelayCommands);
-      //If we have a zero-station command (addressed to all stations) and we are set to relay commands for any station, then relay it:
-      if (msgStatID == 0 && stationsToRelayCommands[0])
-        return true;
-
+      
       for (int i = 0; i < permanentArraySize; i++)
       {
-        if (stationsToRelayCommands[i] == msgStatID)
+        if ((msgStatID == 0) != (stationsToRelayCommands[i] == msgStatID))
         {
           return true;
         }
@@ -178,7 +182,7 @@ namespace MessageHandling
       GET_PERMANENT(stationsToRelayWeather);
       for (int i = 0; i < permanentArraySize; i++)
       {
-        if (stationsToRelayWeather[i] == msgStatID)
+        if ((msgStatID == 0) != (stationsToRelayWeather[i] == msgStatID))
         {
           return true;
         }
@@ -335,30 +339,30 @@ namespace MessageHandling
     byte callSignBuffer[sizeof(callSign) - 1];
     if (msg.readBytes(callSignBuffer, sizeof(callSignBuffer)) != MESSAGE_OK)
     {
-      AWS_DEBUG_PRINTLN(F("Ping: can't read callsign"));
+      MSGPROC_PRINTLN(F("Ping: can't read callsign"));
       SIGNALERROR();
     }
     else if (memcmp(callSignBuffer, callSign, sizeof(callSignBuffer)) != 0)
     {
-      AWS_DEBUG_PRINT(F("Ping: callsign mismatch: "));
+      MSGPROC_PRINT(F("Ping: callsign mismatch: "));
       for (int i = 0; i < sizeof(callSignBuffer); i++)
-        AWS_DEBUG_PRINTLN((char)callSignBuffer[i]);
+        MSGPROC_PRINTLN((char)callSignBuffer[i]);
       SIGNALERROR();
     }
     else
     {
-      AWS_DEBUG_PRINTLN(F("Ping Successful"));
-      lastPingMillis = millis();
+      MSGPROC_PRINTLN(F("Ping Successful"));
       unsigned long seconds;
       if (msg.read(seconds) == MESSAGE_OK)
       {
-        AWS_DEBUG_PRINTLN(F("Time set"));
+        MSGPROC_PRINTLN(F("Time set"));
         TimerTwo::setSeconds(seconds);
-        PRINT_VARIABLE(seconds);
-        PRINT_VARIABLE(TimerTwo::_ticks);
-        PRINT_VARIABLE(TimerTwo::_ofTicks);
-        PRINT_VARIABLE(TimerTwo::MillisPerTick);
+        MSGPROC_PRINTVAR(seconds);
+        MSGPROC_PRINTVAR(TimerTwo::_ticks);
+        MSGPROC_PRINTVAR(TimerTwo::_ofTicks);
+        MSGPROC_PRINTVAR(TimerTwo::MillisPerTick);
       }
+      lastPingMillis = millis();
     }
   }
 }

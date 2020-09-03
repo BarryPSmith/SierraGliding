@@ -1,13 +1,17 @@
 #include "PermanentStorage.h"
 #include "ArduinoWeatherStation.h"
 #include <util/crc16.h>
+
+
 #define DEBUG_PARAMETERS
 #ifdef DEBUG_PARAMETERS
 #define PARAMETER_PRINTLN AWS_DEBUG_PRINTLN
 #define PARAMETER_PRINTVAR PRINT_VARIABLE
+#define PARAMETER_DEBUG AWS_DEBUG
 #else
 #define PARAMETER_PRINTLN do {} while (0)
 #define PARAMETER_PRINTVAR do {} while (0)
+#define PARAMETER_DEBUG do {} while (0)
 #endif
 
 char stationID = defaultStationID;
@@ -86,10 +90,6 @@ void PermanentStorage::initialise()
 
   bool completeCrc = initialised 
     && checkCRC(sizeof(PermanentVariables));
-  bool v2_2CRC = initialised
-    && !completeCrc
-    && checkCRC(offsetof(PermanentVariables, safeFreezingPwm) + 3);
-
   if (completeCrc)
   {
     #if DEBUG && defined(DEBUG_PARAMETERS)
@@ -121,23 +121,16 @@ void PermanentStorage::initialise()
     PRINT_VARIABLE(vars.tsGain);
     #endif
   }
-  else if (!v2_2CRC)
+  else
   {
     PARAMETER_PRINTLN(F("Initialising Default Parameters"));
-
+    PARAMETER_DEBUG(while(1));
     PermanentVariables vars;
     memcpy_P(&vars, &defaultVars, sizeof(vars));
     vars.stationID = stationID;
     setBytes(0, sizeof(vars), &vars);
-  }
-  if (!completeCrc)
-  {
-    PARAMETER_PRINTLN("Adding V2.3 params");
-
     byte messageTypesToRecord[messageTypeArraySize] = { 'S', 'K', 0 };
     SET_PERMANENT(messageTypesToRecord);
-    bool recordNonRelayedMessages = false;
-    SET_PERMANENT_S(recordNonRelayedMessages);
     setCRC();
   }
 

@@ -43,7 +43,8 @@ void loop();
 void disableRFM69();
 void sleep(adc_t adc_state);
 void restart();
-void SendStackTrace();
+void sendStackTrace();
+void sendNoPingMessage();
 
 void TestBoard();
 void savePower();
@@ -189,8 +190,6 @@ void setup() {
   #ifdef SOLAR_PWM
   PwmSolar::setupPwm();
   #endif
-  AWS_DEBUG_PRINT(F("PostPermStorage "));
-  PRINT_VARIABLE(StackCount());
 
   WeatherProcessing::setupWeatherProcessing();
   if (!Flash::flashInit())
@@ -199,24 +198,17 @@ void setup() {
     SIGNALERROR();
   }
   Database::initDatabase();
-  AWS_DEBUG_PRINT(F("PostInitDb "));
-  PRINT_VARIABLE(StackCount());
 
 #ifdef DISABLE_RFM69
   disableRFM69();
 #endif
   InitMessaging();
   updateIdleState();
-  AWS_DEBUG_PRINT(F("PostInitMessaging "));
-  PRINT_VARIABLE(StackCount());
 
   if (oldSP > 0x100)
   {
-    SendStackTrace();
+    sendStackTrace();
   }
-
-  AWS_DEBUG_PRINT(F("PostSendStack "));
-  PRINT_VARIABLE(StackCount());
 
   AWS_DEBUG_PRINTLN(F("Messaging Initialised"));
   
@@ -225,7 +217,7 @@ void setup() {
   lastStatusMillis = 0;// millis();
 }
 
-void SendStackTrace()
+void sendStackTrace()
 {
   MESSAGE_DESTINATION_SOLID<254> msg(false);
   msg.appendByte('S');
@@ -235,10 +227,20 @@ void SendStackTrace()
   msg.append((byte*)&oldStack, STACK_DUMP_SIZE);
 }
 
+void sendNoPingMessage()
+{
+  MESSAGE_DESTINATION_SOLID<20> msg(false);
+  msg.appendByte('K');
+  msg.appendByte(stationID);
+  msg.appendByte(MessageHandling::getUniqueID());
+	msg.append(F("PTimeout"), 8);
+}
+
 void loop() {
   //AWS_DEBUG(auto loopMicros = micros());
   // Generate and discard a random number. Just used to ensure that all of the RNGs out there will give different numbers.
   random();
+  static bool noPingSent = false;
 
   if (initMessagingRequired)
   {
@@ -247,8 +249,6 @@ void loop() {
   }
 
   MessageHandling::readMessages();
-  AWS_DEBUG_PRINT(F("PostReadMessages "));
-  PRINT_VARIABLE(StackCount());
 #ifndef NO_STORAGE
   Database::doProcessing();
 #endif
@@ -264,8 +264,6 @@ void loop() {
   else
   {
     WeatherProcessing::processWeather();
-    AWS_DEBUG_PRINT(F("PostProcessWeather "));
-    PRINT_VARIABLE(StackCount());
     noInterrupts();
     bool localWeatherRequired = WeatherProcessing::weatherRequired;
     WeatherProcessing::weatherRequired = false;
@@ -280,16 +278,23 @@ void loop() {
     {
       MessageHandling::sendStatusMessage();
     }
-  
-    if (millis() - lastPingMillis > maxMillisBetweenPings
-      || StackCount() == 0)
-      restart();
   }
 
   #ifdef SOLAR_PWM
   PwmSolar::doPwmLoop();
   #endif
-  wdt_reset();
+  if (millis() - lastPingMillis < maxMillisBetweenPings)
+  {
+    noPingSent = false;
+    wdt_reset();
+  }
+  else if (!noPingSent)
+  {
+    sendNoPingMessage();
+    noPingSent = true;
+  }
+  if (StackCount() == 0)
+    while(1);  
   #if 0 //DEBUG
   loopMicros = micros() - loopMicros;
   if (loopMicros > 20000)

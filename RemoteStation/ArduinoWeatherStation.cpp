@@ -218,6 +218,7 @@ void setup() {
   lastStatusMillis = 0;// millis();
 }
 
+extern uint8_t __stack;
 void sendStackTrace()
 {
   MESSAGE_DESTINATION_SOLID<254> msg(false);
@@ -225,11 +226,16 @@ void sendStackTrace()
   msg.appendByte(stationID);
   msg.appendByte(0x00);
 	msg.appendT(oldSP);
-  msg.append((byte*)&oldStack, STACK_DUMP_SIZE);
+  byte size = STACK_DUMP_SIZE;
+  unsigned short oldStackSize = (unsigned short)&__stack - oldSP;
+  if (size > oldStackSize)
+    size = oldStackSize;
+  msg.append((byte*)&oldStack, size);
 }
 
 void sendNoPingMessage()
 {
+  AWS_DEBUG_PRINTLN(F("Ping timeout message!"));
   MESSAGE_DESTINATION_SOLID<20> msg(false);
   msg.appendByte('K');
   msg.appendByte(stationID);

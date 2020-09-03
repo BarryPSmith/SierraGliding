@@ -236,17 +236,17 @@ namespace Commands
         switch (curType)
         {
         case 'W':
-          COMMAND_PRINTLN("UPDATE W");
+          COMMAND_PRINTLN(F("UPDATE W"));
           PermanentStorage::setBytes((void*)offsetof(PermanentVariables, stationsToRelayWeather), permanentArraySize, list);
           max = permanentArraySize;
           break;
         case 'C':
-          COMMAND_PRINTLN("UPDATE C");
+          COMMAND_PRINTLN(F("UPDATE C"));
           PermanentStorage::setBytes((void*)offsetof(PermanentVariables, stationsToRelayCommands), permanentArraySize, list);
           max = permanentArraySize;
           break;
         case 'R':
-          COMMAND_PRINTLN("UPDATE R");
+          COMMAND_PRINTLN(F("UPDATE R"));
           PermanentStorage::setBytes((void*)offsetof(PermanentVariables, messageTypesToRecord), messageTypeArraySize, list);
           max = messageTypeArraySize;
           break;

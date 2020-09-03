@@ -66,7 +66,7 @@ RADIO_LIB=lib/RadioLib/src/Module.cpp lib/RadioLib/src/modules/SX126x/SX126x.cpp
 
 LIBRARIES=lib/Low-Power/LowPower.cpp lib/SPIFlash/SPIFlash.cpp $(RADIO_LIB) $(ARDUINO_LIBSWDIRS)
 
-OBJFOLDER := $(OBJFOLDER)obj
+OBJFOLDER := $(OBJFOLDER)obj_$(BOARD)
 ifeq ($(MODEM), 1)
 SRCS_C = KissModem.cpp MessagingCommon.cpp LoraMessaging.cpp KissMessaging.cpp \
 			../../ArduinoCore-avr/cores/arduino/wiring.c \

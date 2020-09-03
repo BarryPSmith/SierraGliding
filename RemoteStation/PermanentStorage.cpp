@@ -81,7 +81,7 @@ void PermanentStorage::initialise()
   GET_PERMANENT_S(stationID);
   if (stationID < 1 || stationID & 0x80)
   {
-    AWS_DEBUG_PRINTLN("Using default station ID");
+    AWS_DEBUG_PRINTLN(F("Using default station ID"));
     stationID = defaultStationID;
     initialised = false;
     //SET_PERMANENT_S(stationID);

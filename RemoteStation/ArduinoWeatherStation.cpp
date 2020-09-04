@@ -258,6 +258,7 @@ void loop() {
   {
     InitMessaging();
     updateIdleState();
+    initMessagingRequired = false;
   }
 
   MessageHandling::readMessages();

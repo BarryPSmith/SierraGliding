@@ -113,7 +113,9 @@ class LoraMessageDestination : public MessageDestination
     #if !defined(DEBUG) && !defined(MODEM)
         signalError();
     #endif
-        //If a message failed to send, try to re-initialise:
+        // If a message failed to send, try to re-initialise:
+        // We use a global flag to do this on the next loop rather than immediately,
+        // to keep the stack usage down
         initMessagingRequired = true;
       }
 

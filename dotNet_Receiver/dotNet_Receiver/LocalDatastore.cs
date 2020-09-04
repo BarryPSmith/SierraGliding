@@ -30,6 +30,8 @@ namespace core_Receiver
                     Data BLOB NULL
                 );
 
+                CREATE INDEX idx_packet_timestamp ON All_Packets(Timestamp);
+
                 CREATE TABLE IF NOT EXISTS Undecipherable (
                     Timestamp INTEGER NOT NULL,
                     Data BLOB NOT NULL
@@ -40,8 +42,9 @@ namespace core_Receiver
                     Message TEXT NOT NULL
                 );
 
-                CREATE VIEW IF NOT EXISTS View_All_Packets AS 
-                SELECT 
+                CREATE VIEW View_All_Packets AS
+                SELECT
+                    Timestamp AS TS_Num,
                     DateTime(Timestamp, 'unixepoch', 'localtime')       AS Timestamp,
 
                     CASE WHEN (Station_ID BETWEEN 32 AND 126) THEN
@@ -49,7 +52,7 @@ namespace core_Receiver
                     ELSE
                         NULL
                     END                                                 AS Station_ID_Char,
-                        
+
                     Station_ID,
 
                     CASE WHEN (Type BETWEEN 32 AND 126) THEN

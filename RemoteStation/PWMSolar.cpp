@@ -4,7 +4,6 @@
 #include "PWMSolar.h"
 #include "WeatherProcessing/WeatherProcessing.h"
 
-//#define DEBUG_SOLAR
 #ifdef DEBUG_SOLAR
 byte loopCount;
 constexpr byte printFreq = 1;

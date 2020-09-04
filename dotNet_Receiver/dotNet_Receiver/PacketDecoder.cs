@@ -51,7 +51,7 @@ namespace core_Receiver
 
             HashSet<char> v2_3Stations = new HashSet<char>
             {
-                'T', '3', '6', '5'
+                'T', '3', '6', '5', '1', '2', '9'
             };
 
             switch (ret.type)

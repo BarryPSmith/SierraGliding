@@ -23,7 +23,6 @@ inline int16_t lora_check(const int16_t result, const __FlashStringHelper* msg)
   }
   return result;
 }
-#define DETAILED_LORA_CHECK
 #ifdef DETAILED_LORA_CHECK
 #define LORA_CHECK(A) lora_check(A, F("FAILED " #A ": "))
 #else

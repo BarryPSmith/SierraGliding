@@ -3,6 +3,17 @@
 #include "TimerTwo.h"
 #include "LoraMessaging.h"
 #include "MessageHandling.h"
+#include "ArduinoWeatherStation.h"
+
+#ifdef DEBUG_DATABASE
+#define DATABASE_PRINTLN AWS_DEBUG_PRINTLN
+#define DATABASE_PRINTVAR PRINT_VARIABLE
+#define DATABASE_DEBUG AWS_DEBUG
+#else
+#define DATABASE_PRINTLN(...) do {} while (0)
+#define DATABASE_PRINTVAR(...) do {} while (0)
+#define DATABASE_DEBUG(...) do {} while (0)
+#endif
 
 // Total available memory is 512kB
 // At 256 bytes per message, could store 2k messages
@@ -73,12 +84,14 @@ namespace Database
 
   void initDatabase()
   {
+    Flash::flash.wakeup();
     MessageRecord buffer[maxMesagesToRead];
     unsigned long blockStart = findCurrentBlock();
     unsigned long curAddress = blockStart + (sizeof(MSG) + 1);
     unsigned long blockEnd = blockStart + blockSize;
-    for (; curAddress += sizeof(buffer); curAddress < blockEnd)
+    for (; curAddress < blockEnd; curAddress += sizeof(buffer))
     {
+      //DATABASE_PRINTVAR(curAddress);
       byte readSize = sizeof(buffer);
       unsigned long endAddress = curAddress + readSize;
       if (endAddress > blockEnd)
@@ -86,15 +99,16 @@ namespace Database
       Flash::flash.readBytes(curAddress, buffer, readSize);
       MessageRecord* record = buffer;
       bool endFound = false;
-      for (; record++; record < buffer + readSize / sizeof(MessageRecord)) 
+      for (; record < buffer + readSize / sizeof(MessageRecord); record++) 
       {
-        if (record->messageType == 0)
+        if (record->messageType == 0xFF)
         {
           endFound = true;
           break;
         }
       }
       byte recordsRead = record - buffer;
+      DATABASE_PRINTVAR(recordsRead);
       if (recordsRead > 0)
       {
         record--;
@@ -105,6 +119,10 @@ namespace Database
         break;
     }
     _databaseOK = true;
+    DATABASE_PRINTVAR(blockStart);
+    DATABASE_PRINTVAR(_curWriteAddress);
+    DATABASE_PRINTVAR(_curHeaderAddress);
+    Flash::flash.sleep();
   }
 
   unsigned long findCurrentBlock()
@@ -130,10 +148,12 @@ namespace Database
       else
         _curCycle = blockCycle;
     }
+    //DATABASE_PRINTVAR(lastBlockInitialised);
     if (blockStart > messageFatStart)
       blockStart -= blockSize;
     else if (!lastBlockInitialised) // initialise the first block
     {
+      Flash::flash.blockErase4K(blockStart);
       byte initBuffer[] = {'M', 'S', 'G', 0 };
       Flash::flash.writeBytes(blockStart, initBuffer, sizeof(initBuffer));
     }
@@ -143,10 +163,15 @@ namespace Database
   void storeMessage(byte messageType, byte stationID,
     MessageSource& msg)
   {
+    DATABASE_PRINTLN(F("StoreMessage: Enter"));
     byte byteCount = msg.getMessageLength() - msg.getCurrentLocation();
 
+    Flash::flash.wakeup();
     if (!checkEndsOfBlocks(byteCount))
+    {
+      Flash::flash.sleep();
       return;
+    }
 
     MessageRecord headerRecord = {
       .messageType = messageType,
@@ -157,13 +182,20 @@ namespace Database
       .overwritten = false
     };
 
+    DATABASE_PRINTVAR(_curHeaderAddress);
+    //DATABASE_PRINTVAR(sizeof(headerRecord));
+    //DATABASE_PRINTVAR((int)&headerRecord);
+    //DATABASE_PRINTLN(F("StoreMessage: pre-write header"));
     Flash::flash.writeBytes(_curHeaderAddress, &headerRecord, sizeof(headerRecord));
     _curHeaderAddress += sizeof(headerRecord);
 
     byte* buffer;
+    DATABASE_PRINTLN(F("pre msg.readBytes"));
     msg.readBytes(&buffer, byteCount);
+    //DATABASE_PRINTLN(F("StoreMessage: pre-write data"));
     Flash::flash.writeBytes(_curWriteAddress, buffer, byteCount);
     _curWriteAddress += byteCount;
+    Flash::flash.sleep();
   }
 
   bool checkEndsOfBlocks(byte messageSize)
@@ -218,6 +250,7 @@ namespace Database
     if (!_searchMessage)
       return;
 
+    Flash::flash.wakeup();
     unsigned long entryMillis = millis();
     MessageRecord buffer[maxMesagesToRead];
     while (1)
@@ -262,6 +295,7 @@ namespace Database
         }
       }
     }
+    Flash::flash.sleep();
   }
 
   MESSAGE_RESULT appendRecord(const MessageRecord& record, const unsigned short address)
@@ -377,6 +411,7 @@ namespace Database
   bool retrieveMessage(const unsigned short headerAddress,
     byte uniqueID)
   {
+    Flash::flash.wakeup();
     unsigned long hAddress = messageFatStart + headerAddress;
     if (hAddress > messageFatEnd)
       return false;
@@ -402,5 +437,6 @@ namespace Database
       return false;
     Flash::flash.readBytes(record.address, buffer, maxSize);
     return true;
+    Flash::flash.sleep();
   }
 }

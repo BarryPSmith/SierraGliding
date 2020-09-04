@@ -16,9 +16,6 @@
 #error No wind system defined
 #endif
 
-//#define DEBUG_IT
-//#define DEBUG_PWM
-
 #ifdef DEBUG_PWM
 namespace PwmSolar
 {

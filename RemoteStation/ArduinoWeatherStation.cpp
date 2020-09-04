@@ -37,10 +37,8 @@ extern volatile bool windTicked;
 unsigned long lastStatusMillis = 0;
 unsigned long lastPingMillis = 0;
 
-
 void setup();
 void loop();
-void disableRFM69();
 void sleep(adc_t adc_state);
 void restart();
 void sendStackTrace();
@@ -48,6 +46,16 @@ void sendNoPingMessage();
 
 void TestBoard();
 void savePower();
+
+#ifdef DEBUG_BASE
+#define BASE_PRINT AWS_DEBUG_PRINT
+#define BASE_PRINTLN AWS_DEBUG_PRINTLN
+#define BASE_PRINTVAR PRINT_VARIABLE
+#else
+#define BASE_PRINT(...)  do { } while (0)
+#define BASE_PRINTLN(...)  do { } while (0)
+#define BASE_PRINTVAR(...)  do { } while (0)
+#endif
 
 #ifdef ATMEGA328PB
 volatile byte* PRR1 = (byte*)0x65;
@@ -164,18 +172,18 @@ void setup() {
 #ifdef DEBUG_STACK
   if (oldSP >= 0x100)
   {
-    AWS_DEBUG_PRINT(F("Previous Stack Pointer: "));
-    AWS_DEBUG_PRINTLN(oldSP, HEX);
-    AWS_DEBUG_PRINT(F("Previous Stack: "));
+    BASE_PRINT(F("Previous Stack Pointer: "));
+    BASE_PRINTLN(oldSP, HEX);
+    BASE_PRINT(F("Previous Stack: "));
     for (int i = 0; i < STACK_DUMP_SIZE; i++)
     {
-      AWS_DEBUG_PRINT(oldStack[i], HEX);
-      AWS_DEBUG_PRINT(' ');
+      BASE_PRINT(oldStack[i], HEX);
+      BASE_PRINT(' ');
     }
-    AWS_DEBUG_PRINTLN();
+    BASE_PRINTLN();
   }
 #endif
-  AWS_DEBUG_PRINTLN(F("Starting..."));
+  BASE_PRINTLN(F("Starting..."));
 
   pinMode(SX_SELECT, OUTPUT);
   digitalWrite(SX_SELECT, HIGH);
@@ -194,14 +202,11 @@ void setup() {
   WeatherProcessing::setupWeatherProcessing();
   if (!Flash::flashInit())
   {
-    AWS_DEBUG_PRINTLN(F("!! Remote programming failed to initialise !!"));
+    BASE_PRINTLN(F("!! Remote programming failed to initialise !!"));
     SIGNALERROR();
   }
   Database::initDatabase();
 
-#ifdef DISABLE_RFM69
-  disableRFM69();
-#endif
   InitMessaging();
   updateIdleState();
 
@@ -211,7 +216,7 @@ void setup() {
   }
   canarifyStackDump();
 
-  AWS_DEBUG_PRINTLN(F("Messaging Initialised"));
+  BASE_PRINTLN(F("Messaging Initialised"));
   
   //MessageHandling::sendStatusMessage();
 
@@ -235,7 +240,7 @@ void sendStackTrace()
 
 void sendNoPingMessage()
 {
-  AWS_DEBUG_PRINTLN(F("Ping timeout message!"));
+  BASE_PRINTLN(F("Ping timeout message!"));
   MESSAGE_DESTINATION_SOLID<20> msg(false);
   msg.appendByte('K');
   msg.appendByte(stationID);
@@ -244,7 +249,7 @@ void sendNoPingMessage()
 }
 
 void loop() {
-  //AWS_DEBUG(auto loopMicros = micros());
+  //BASE(auto loopMicros = micros());
   // Generate and discard a random number. Just used to ensure that all of the RNGs out there will give different numbers.
   random();
   static bool noPingSent = false;
@@ -308,28 +313,6 @@ void loop() {
     PRINT_VARIABLE(loopMicros);
   #endif
   sleep(ADC_OFF);
-}
-
-//A test board has a RFM69 on it for reading Davis weather stations.
-// But some testing revealed the davis station was faulty.
-//So we put it to sleep.
-void disableRFM69()
-{
-  SPI.begin();
-#if 1
-  {
-    Module rfmMod(10, -1, -1);
-    RF69 rf69 = &rfmMod;
-    auto rfmSleep = rf69.sleep();
-    if (rfmSleep != ERR_NONE)
-    {
-      AWS_DEBUG_PRINT(F("Unable to sleep RFM69: "));
-      AWS_DEBUG_PRINTLN(rfmSleep);
-    }
-    else
-      AWS_DEBUG_PRINTLN(F("RFM Asleep."));
-  }
-#endif
 }
 
 void restart()

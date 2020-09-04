@@ -30,8 +30,22 @@ void AwsRecordState(int i);
   AWS_DEBUG_PRINTLN(a, HEX); \
   } while (0)
 
-
+//#define DEBUG_COMMANDS
 //#define DEBUG_TX
+//#define DEBUG_RX
+#define DEBUG_DATABASE
+//#define DEBUG_MSGPROC
+//#define DEBUG_PARAMETERS
+//#define DEBUG_SOLAR
+//#define DEBUG_PROGRAMMING
+//#define DEBUG_IT
+//#define DEBUG_PWM
+//#define DEBUG_WEATHER
+//#define DETAILED_LORA_CHECK
+//#define DEBUG_STACK
+//#define DEBUG_BASE
+//#define DEBUG_FLASH
+
 #ifdef DEBUG_TX
 #define TX_PRINT AWS_DEBUG_PRINT
 #define TX_PRINTLN AWS_DEBUG_PRINTLN
@@ -44,7 +58,6 @@ void AwsRecordState(int i);
 #define TX_DEBUG(...) do { } while (0)
 #endif
 
-//#define DEBUG_RX
 #ifdef DEBUG_RX
 #define RX_PRINT AWS_DEBUG_PRINT
 #define RX_PRINTLN AWS_DEBUG_PRINTLN

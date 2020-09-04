@@ -106,8 +106,10 @@ void InitMessaging()
     {
       uint8_t status;
       lora.getStatus(&status);
+#ifdef DETAILED_LORA_CHECK
       AWS_DEBUG_PRINT(F("Status: "));
       AWS_DEBUG_PRINTLN(status);
+#endif
       state = LORA_CHECK(lora.standby(SX126X_STANDBY_RC));
       delay(1000);
     }
@@ -150,7 +152,9 @@ void InitMessaging()
     if (state != ERR_NONE)
     {
       SIGNALERROR(4, 150);
+#ifdef DETAILED_LORA_CHECK
       AWS_DEBUG_PRINTLN(F("==========="));
+#endif
       delay(500);
     }
   }

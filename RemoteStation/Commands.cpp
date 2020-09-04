@@ -9,7 +9,6 @@
 #include "Flash.h"
 #include "Database.h"
 
-#define DEBUG_COMMANDS
 #ifdef DEBUG_COMMANDS
 #define COMMAND_PRINT AWS_DEBUG_PRINT
 #define COMMAND_PRINTLN AWS_DEBUG_PRINTLN

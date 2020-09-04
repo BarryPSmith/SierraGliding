@@ -16,11 +16,11 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 7: Second printed PCB (includes battery PWM circuitry)
 # 8: Second printed PCB configured for ALSWind
 # 9: Single board or second PCB with a Atmega328PB and 32768Hz crystal
-BOARD = 9
+BOARD = 601
 include Boards.makefile
 
 #Flags, etc.
-DEFINES=$(BOARD_DEFINES) -DARDUINO=100 -DNO_STORAGE \
+DEFINES=$(BOARD_DEFINES) -DARDUINO=100 \
     -DTWI_BUFFER_LENGTH=10 \
 #-DRADIOLIB_DEBUG 
 #-DRADIOLIB_VERBOSE
@@ -103,10 +103,12 @@ VPATH = $(FOLDERS)
 all: $(OBJFOLDER)/all.hex
 
 clean:
-	del /S obj\\*.o obj\\*.hex obj\\*.obj obj\\*.elf
-	del /S obj_mod\\*.o obj_mod\\*.hex obj_mod\\*.obj obj_mod\\*.elf
-	del /S obj_debug\\*.o obj_debug\\*.hex obj_debug\\*.obj obj_debug\\*.elf
-	del /S obj_mod_debug\\*.o obj_mod_debug\\*.hex obj_mod_debug\\*.obj obj_mod_debug\\*.elf
+	del /S $(OBJFOLDER)\\*.o $(OBJFOLDER)\\*.obj $(OBJFOLDER)\\*.elf $(OBJFOLDER)\\*.hex
+	del /S $(OBJFOLDER)_debug\\*.o $(OBJFOLDER)_debug\\*.obj $(OBJFOLDER)_debug\\*.elf $(OBJFOLDER)_debug\\*.hex
+#	del /S obj\\*.o obj\\*.hex obj\\*.obj obj\\*.elf
+#	del /S obj_mod\\*.o obj_mod\\*.hex obj_mod\\*.obj obj_mod\\*.elf
+#	del /S obj_debug\\*.o obj_debug\\*.hex obj_debug\\*.obj obj_debug\\*.elf
+#	del /S obj_mod_debug\\*.o obj_mod_debug\\*.hex obj_mod_debug\\*.obj obj_mod_debug\\*.elf
 #rm -rf *.o *.hex *.obj *.elf
 
 $(OBJFOLDER):

@@ -5,7 +5,6 @@
 #include "MessageHandling.h"
 #include "Flash.h"
 
-//#define DEBUG_PROGRAMMING
 #ifdef DEBUG_PROGRAMMING
 #define PROGRAM_PRINT AWS_DEBUG_PRINT
 #define PROGRAM_PRINTLN AWS_DEBUG_PRINTLN

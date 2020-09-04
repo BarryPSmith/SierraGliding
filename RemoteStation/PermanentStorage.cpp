@@ -2,7 +2,6 @@
 #include "ArduinoWeatherStation.h"
 #include <util/crc16.h>
 
-//#define DEBUG_PARAMETERS
 #ifdef DEBUG_PARAMETERS
 #define PARAMETER_PRINTLN AWS_DEBUG_PRINTLN
 #define PARAMETER_PRINTVAR PRINT_VARIABLE
@@ -81,7 +80,7 @@ void PermanentStorage::initialise()
   GET_PERMANENT_S(stationID);
   if (stationID < 1 || stationID & 0x80)
   {
-    AWS_DEBUG_PRINTLN(F("Using default station ID"));
+    PARAMETER_PRINTLN(F("Using default station ID"));
     stationID = defaultStationID;
     initialised = false;
     //SET_PERMANENT_S(stationID);

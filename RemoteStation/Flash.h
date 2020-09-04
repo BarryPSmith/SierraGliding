@@ -1,5 +1,6 @@
 #include "lib/SPIFlash/SPIFlash.h"
 #include "MessagingCommon.h"
+#include "ArduinoWeatherStation.h"
 
 #pragma once
 #define FLASH_AVAILABLE defined(FLASH_SELECT)

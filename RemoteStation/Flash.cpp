@@ -53,6 +53,7 @@ namespace Flash
   
   bool handleReadCommand(MessageSource& msg, const byte uniqueID, uint32_t add, bool* ackRequired)
   {
+    //FLASH_PRINTLN(F("Flash Read"));
     byte count;
     if (msg.read(count))
       return false;
@@ -72,7 +73,7 @@ namespace Flash
     dest.appendByte(uniqueID);
     dest.appendByte('F');
     dest.appendByte('R');
-    FLASH_PRINTVAR(add);
+    //FLASH_PRINTVAR(add);
     if (external)
     {
       byte* buffer;

@@ -134,6 +134,7 @@ class LoraMessageDestination : public MessageDestination
       if (bytesToAdd + _currentLocation >= maxPacketSize)
         return MESSAGE_BUFFER_OVERRUN;
       *buffer = _outgoingBuffer + _currentLocation;
+      _currentLocation += bytesToAdd;
       return MESSAGE_OK;
     }
     

@@ -30,7 +30,7 @@ namespace core_Receiver
                     Data BLOB NULL
                 );
 
-                CREATE INDEX idx_packet_timestamp ON All_Packets(Timestamp);
+                CREATE INDEX IF NOT EXISTS idx_packet_timestamp ON All_Packets(Timestamp);
 
                 CREATE TABLE IF NOT EXISTS Undecipherable (
                     Timestamp INTEGER NOT NULL,
@@ -42,7 +42,7 @@ namespace core_Receiver
                     Message TEXT NOT NULL
                 );
 
-                CREATE VIEW View_All_Packets AS
+                CREATE VIEW IF NOT EXISTS View_All_Packets AS
                 SELECT
                     Timestamp AS TS_Num,
                     DateTime(Timestamp, 'unixepoch', 'localtime')       AS Timestamp,

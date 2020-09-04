@@ -7,6 +7,9 @@ namespace Database
   void storeMessage(byte messageType, byte stationID,
     MessageSource& msg);
 
+  void storeData(byte messageType, byte stationID,
+    byte* buffer, byte byteCount);
+
   void doProcessing();
 
   bool handleDatabaseCommand(MessageSource& msg, const byte uniqueID,

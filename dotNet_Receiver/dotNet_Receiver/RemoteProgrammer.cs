@@ -414,9 +414,9 @@ namespace core_Receiver
             throw new Exception("Unexpected code flow.");
         }
 
-        public static UInt16 CalculateCRC(IList<byte> data)
+        public static UInt16 CalculateCRC(IList<byte> data, UInt16 seed = 0xFFFF)
         {
-            UInt16 crc = 0xFFFF;
+            UInt16 crc = seed;
             foreach (var singleByte in data)
                 crc = crc_ccitt_update(crc, singleByte);
             return crc;

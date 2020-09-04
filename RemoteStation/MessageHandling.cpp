@@ -32,7 +32,8 @@ namespace MessageHandling
   bool haveRelayed(byte msgType, byte msgStatID, byte msgUniqueID);
   void recordHeardStation(byte msgStatID);
   bool shouldRelay(byte msgType, byte msgStatID, byte msgUniqueID);
-  bool shouldRecord(byte msgType, bool relayRequired);
+  bool shouldRecord(byte msgType, bool relayRequired,
+    MessageSource& msg);
   void recordWeatherForRelay(MessageSource& message, byte msgStatID, byte msgUniqueID);
   void relayMessage(MessageSource& message, byte msgType, byte msgFirstByte, byte msgStatID, byte msgUniqueID);
   void recordMessageRelay(byte msgType, byte msgStatID, byte msgUniqueID);
@@ -132,7 +133,7 @@ namespace MessageHandling
         recordMessageRelay(msgType, msgStatID, msgUniqueID);
       }
 #ifndef NO_STORAGE
-      if (shouldRecord(msgType, relayRequired))
+      if (shouldRecord(msgType, relayRequired, msg))
       {
         msg.seek(afterHeader);
         Database::storeMessage(msgType, msgStatID, msg);
@@ -142,7 +143,8 @@ namespace MessageHandling
     /*MESSAGE_DESTINATION_SOLID::*/delayRequired = false;
   }
 
-  bool shouldRecord(byte msgType, bool relayRequired)
+  bool shouldRecord(byte msgType, bool relayRequired,
+    MessageSource& msg)
   {
     if (!relayRequired)
     {
@@ -152,6 +154,24 @@ namespace MessageHandling
         return false;
     }
     byte messageTypesToRecord[messageTypeArraySize];
+#ifdef DONT_RECORD_ACKS
+    if (msgType == 'K' && msg.getMessageLength() <= 20)
+    {
+      byte* buffer;
+      msg.seek(msg.getMessageLength() - 2);
+      msg.accessBytes(&buffer, 2);
+      if (buffer[0] == 'O' && buffer[1] == 'K')
+        return false;
+      if (msg.getMessageLength >= 7)
+      {
+        byte comp[] = {'I', 'G', 'N', 'O', 'R', 'E', 'D'};
+        msg.seek(msg.getMessageLength() - sizeof(comp));
+        msg.accessBytes(&buffer, sizeof(comp));
+        if (memcmp(buffer, comp, sizeof(comp)) == 0)
+          return false;
+      }
+    }
+#endif
     GET_PERMANENT(messageTypesToRecord);
     for (int i = 0; i < messageTypeArraySize; i++)
       if (messageTypesToRecord[i] == msgType)

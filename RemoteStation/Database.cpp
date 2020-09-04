@@ -163,8 +163,17 @@ namespace Database
   void storeMessage(byte messageType, byte stationID,
     MessageSource& msg)
   {
-    DATABASE_PRINTLN(F("StoreMessage: Enter"));
     byte byteCount = msg.getMessageLength() - msg.getCurrentLocation();
+    byte* buffer;
+    if (msg.accessBytes(&buffer, byteCount))
+      return;
+    storeData(messageType, stationID, buffer, byteCount);
+  }
+
+  void storeData(byte messageType, byte stationID,
+    byte* buffer, byte byteCount)
+  {
+    DATABASE_PRINTLN(F("StoreMessage: Enter"));
 
     Flash::flash.wakeup();
     if (!checkEndsOfBlocks(byteCount))
@@ -189,9 +198,6 @@ namespace Database
     Flash::flash.writeBytes(_curHeaderAddress, &headerRecord, sizeof(headerRecord));
     _curHeaderAddress += sizeof(headerRecord);
 
-    byte* buffer;
-    DATABASE_PRINTLN(F("pre msg.readBytes"));
-    msg.readBytes(&buffer, byteCount);
     //DATABASE_PRINTLN(F("StoreMessage: pre-write data"));
     Flash::flash.writeBytes(_curWriteAddress, buffer, byteCount);
     _curWriteAddress += byteCount;

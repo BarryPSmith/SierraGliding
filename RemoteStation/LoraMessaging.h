@@ -32,7 +32,7 @@ class LoraMessageSource : public MessageSource
     bool beginMessage() override;
     MESSAGE_RESULT endMessage() override;
     MESSAGE_RESULT readByte(byte& dest) override;
-    MESSAGE_RESULT readBytes(byte** dest, byte bytesToRead) override;
+    MESSAGE_RESULT accessBytes(byte** dest, byte bytesToRead) override;
 
     MESSAGE_RESULT seek(const byte newPosition) override;
 

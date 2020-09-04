@@ -358,7 +358,7 @@ MESSAGE_RESULT LoraMessageSource::readByte(byte& dest)
   }
 }
 
-MESSAGE_RESULT LoraMessageSource::readBytes(byte** dest, byte bytesToRead)
+MESSAGE_RESULT LoraMessageSource::accessBytes(byte** dest, byte bytesToRead)
 {
   if (_currentLocation == 255)
     return MESSAGE_NOT_IN_MESSAGE;

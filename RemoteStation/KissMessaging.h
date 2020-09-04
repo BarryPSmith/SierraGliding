@@ -24,5 +24,5 @@ class KissMessageDestination : public MessageDestination
     ~KissMessageDestination();
     MESSAGE_RESULT finishAndSend() override;
     MESSAGE_RESULT appendByte(const byte data) override;
-    MESSAGE_RESULT readBytes(byte** buffer, byte len) override;
+    MESSAGE_RESULT accessBytes(byte** buffer, byte len) override;
 };

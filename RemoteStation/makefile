@@ -16,12 +16,13 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 7: Second printed PCB (includes battery PWM circuitry)
 # 8: Second printed PCB configured for ALSWind
 # 9: Single board or second PCB with a Atmega328PB and 32768Hz crystal
-BOARD = 601
+BOARD = 9
 include Boards.makefile
 
 #Flags, etc.
 DEFINES=$(BOARD_DEFINES) -DARDUINO=100 \
     -DTWI_BUFFER_LENGTH=10 \
+	-DMIN_FREQ=420000000 -DMAX_FREQ=450000000\
 #-DRADIOLIB_DEBUG 
 #-DRADIOLIB_VERBOSE
 CFLAGS= -mcall-prologues -mmcu=$(MCU) -Os -fdata-sections -ffunction-sections -fno-exceptions -std=c++17 -g -flto

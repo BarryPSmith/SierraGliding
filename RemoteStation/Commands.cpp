@@ -62,76 +62,83 @@ namespace Commands
     bool handled = false;
     bool ackRequired = true;
 
-    if (msg.readByte(command) == MESSAGE_OK)
+
+
+    if (msg.getCrc(0xBEEF) == 0)
     {
-      COMMAND_PRINT(F("Command Received: "));
-      COMMAND_PRINTLN((char)command);
-
-      switch (command)
+      msg.trim(2);
+      if (msg.readByte(command) == MESSAGE_OK)
       {
-        case 'A':
-          handled = (msg.read(acknowledge) == MESSAGE_OK);
+        COMMAND_PRINT(F("Command Received: "));
+        COMMAND_PRINTLN((char)command);
+
+        switch (command)
+        {
+          case 'A':
+            handled = (msg.read(acknowledge) == MESSAGE_OK);
+            break;
+
+          case 'R': //Relay command
+            handled = handleRelayCommand(msg);
+            break;
+
+          case 'I': //Interval command
+            handled = handleIntervalCommand(msg);
           break;
 
-        case 'R': //Relay command
-          handled = handleRelayCommand(msg);
+          case 'B': //Battery threshold command
+            handled = handleThresholdCommand(msg);
           break;
 
-        case 'I': //Interval command
-          handled = handleIntervalCommand(msg);
-        break;
-
-        case 'B': //Battery threshold command
-          handled = handleThresholdCommand(msg);
-        break;
-
-        case 'C':
-          handled = handleChargingCommand(msg);
-        break;
-
-        case 'Q': //Query
-          handled = handleQueryCommand(msg, uniqueID);
-          ackRequired = false;
-        break;
-
-        case 'O': //Override Interval
-          handled = handleOverrideCommand(msg);
+          case 'C':
+            handled = handleChargingCommand(msg);
           break;
 
-        case 'M':
-          handled = handleMessageCommand(msg);
+          case 'Q': //Query
+            handled = handleQueryCommand(msg, uniqueID);
+            ackRequired = false;
           break;
 
-        case 'W':
-          handled = WeatherProcessing::handleWeatherCommand(msg);
+          case 'O': //Override Interval
+            handled = handleOverrideCommand(msg);
+            break;
+
+          case 'M':
+            handled = handleMessageCommand(msg);
+            break;
+
+          case 'W':
+            handled = WeatherProcessing::handleWeatherCommand(msg);
+            break;
+
+          case 'P':
+            handled = RemoteProgramming::handleProgrammingCommand(msg, uniqueID, &ackRequired);
+            break;
+
+          case 'U': // Change ID
+            handled = handleIDCommand(msg, uniqueID);
+            break;
+
+          case 'F': // Restart
+            acknowledgeMessage(uniqueID, isSpecific, command);
+            while (1);
+
+          case 'G': // Flash (Gordon)
+            handled = Flash::handleFlashCommand(msg, uniqueID, &ackRequired);
+            break;
+
+  #ifndef  NO_STORAGE
+          case 'D':
+            handled = Database::handleDatabaseCommand(msg, uniqueID, &ackRequired);
+            break;
+  #endif // ! NO_STORAGE
+
+          default:
+          //do nothing. handled = false, so we send "IGNORED"
           break;
-
-        case 'P':
-          handled = RemoteProgramming::handleProgrammingCommand(msg, uniqueID, &ackRequired);
-          break;
-
-        case 'U': // Change ID
-          handled = handleIDCommand(msg, uniqueID);
-          break;
-
-        case 'F': // Restart
-          acknowledgeMessage(uniqueID, isSpecific, command);
-          while (1);
-
-        case 'G': // Flash (Gordon)
-          handled = Flash::handleFlashCommand(msg, uniqueID, &ackRequired);
-          break;
-
-#ifndef  NO_STORAGE
-        case 'D':
-          handled = Database::handleDatabaseCommand(msg, uniqueID, &ackRequired);
-          break;
-#endif // ! NO_STORAGE
-
-        default:
-        //do nothing. handled = false, so we send "IGNORED"
-        break;
+        }
       }
+      msg.trim(-2);
     }
     if (handled && ackRequired && acknowledge)
       acknowledgeMessage(uniqueID, isSpecific, command);

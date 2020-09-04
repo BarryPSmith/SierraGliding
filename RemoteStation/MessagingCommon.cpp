@@ -1,7 +1,11 @@
+
+#include <util/crc16.h>
 #include "LoraMessaging.h"
 
 const bool MessageSource::s_discardCallsign = false;
 const bool MessageDestination::s_prependCallsign = false;
+
+
 
 MessageDestination::MessageDestination() {}
 
@@ -73,4 +77,23 @@ MessageSource::MessageSource() {}
 byte MessageSource::getMessageLength()
 {
   return _length;
+}
+
+uint16_t MessageSource::getCrc(uint16_t seed)
+{
+  auto prevLoc = getCurrentLocation();
+  if (seek(0) != MESSAGE_OK)
+    return 0xEE;
+  byte b;
+  uint16_t crc = seed;
+  while (readByte(b) == MESSAGE_OK)
+    crc = _crc_ccitt_update(crc, b);
+  seek(prevLoc);
+  return crc;
+}
+
+MESSAGE_RESULT MessageSource::trim(const byte bytesToTrim)
+{
+  _length -= bytesToTrim;
+  return MESSAGE_OK;
 }

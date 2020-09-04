@@ -82,9 +82,13 @@ class MessageSource
     }
     MESSAGE_RESULT readBytes(byte* dest, byte dataLen);
 
-    virtual MESSAGE_RESULT readBytes(byte** dest, byte dataLen) = 0;
+    virtual MESSAGE_RESULT accessBytes(byte** dest, byte dataLen) = 0;
     
     virtual MESSAGE_RESULT seek(const byte newPosition) = 0;
+
+    MESSAGE_RESULT trim(const byte bytesToTrim);
+
+    uint16_t getCrc(uint16_t seed);
     
     byte getMessageLength();
     byte getCurrentLocation();

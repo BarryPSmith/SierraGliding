@@ -42,6 +42,7 @@ void loop();
 void sleep(adc_t adc_state);
 void restart();
 void sendStackTrace();
+void storeStackTrace();
 void sendNoPingMessage();
 
 void TestBoard();
@@ -213,13 +214,14 @@ void setup() {
   if (oldSP > 0x100)
   {
     sendStackTrace();
+#ifndef NO_STORAGE
+    storeStackTrace();
+#endif
   }
   canarifyStackDump();
 
   BASE_PRINTLN(F("Messaging Initialised"));
   
-  //MessageHandling::sendStatusMessage();
-
   lastStatusMillis = 0;// millis();
 }
 
@@ -236,6 +238,15 @@ void sendStackTrace()
   if (size > oldStackSize)
     size = oldStackSize;
   msg.append((byte*)&oldStack, size);
+}
+
+void storeStackTrace()
+{
+  byte size = STACK_DUMP_SIZE;
+  unsigned short oldStackSize = (unsigned short)&__stack - oldSP;
+  if (size > oldStackSize)
+    size = oldStackSize;
+  Database::storeData('S', stationID, (byte*)&oldStack, size);
 }
 
 void sendNoPingMessage()

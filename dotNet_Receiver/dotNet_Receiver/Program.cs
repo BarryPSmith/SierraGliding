@@ -360,15 +360,7 @@ Arguments:
                 {
                     if (_sendPing)
                     {
-                        uint timestamp = (uint)DateTimeOffset.Now.ToUnixTimeSeconds();
-                        byte[] ping = Encoding.ASCII.GetBytes("P0#" + CallSign)
-                            .Concat(BitConverter.GetBytes(timestamp))
-                            .ToArray();
-                        //ping[0] |= 0x80; // Demand relay
-                        ping[1] = 0x00; //Addressed to all stations (any station which is set to relay commands will also relay the ping).
-                        ping[2] = i; //This is used for relay tracking
-                        _dataReceiver.Write(ping);
-                        OutputWriter.WriteLine($"Ping sent: {i}");
+                        SendPing(i);
                         unchecked
                         {
                             i++;
@@ -382,6 +374,19 @@ Arguments:
                     Thread.Sleep(TimeSpan.FromMinutes(1));
                 }
             }
+        }
+
+        public static void SendPing(byte packetUID)
+        {
+            uint timestamp = (uint)DateTimeOffset.Now.ToUnixTimeSeconds();
+            byte[] ping = Encoding.ASCII.GetBytes("P0#" + CallSign)
+                .Concat(BitConverter.GetBytes(timestamp))
+                .ToArray();
+            //ping[0] |= 0x80; // Demand relay
+            ping[1] = 0x00; //Addressed to all stations (any station which is set to relay commands will also relay the ping).
+            ping[2] = packetUID; //This is used for relay tracking
+            _dataReceiver.Write(ping);
+            OutputWriter.WriteLine($"Ping sent: {packetUID}");
         }
 
         private static Task TryForever(Action A)

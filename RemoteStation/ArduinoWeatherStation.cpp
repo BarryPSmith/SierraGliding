@@ -242,11 +242,14 @@ void sendStackTrace()
 
 void storeStackTrace()
 {
+  byte buffer[STACK_DUMP_SIZE + 2];
   byte size = STACK_DUMP_SIZE;
   unsigned short oldStackSize = (unsigned short)&__stack - oldSP;
   if (size > oldStackSize)
     size = oldStackSize;
-  Database::storeData('S', stationID, (byte*)&oldStack, size);
+  *((unsigned short*)buffer) = oldSP;
+  memcpy(buffer + 2, (void*)&oldStack, size)
+  Database::storeData('S', stationID, buffer, size + 2);
 }
 
 void sendNoPingMessage()

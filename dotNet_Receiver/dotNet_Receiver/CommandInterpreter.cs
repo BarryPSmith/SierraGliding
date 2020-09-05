@@ -66,6 +66,9 @@ namespace core_Receiver
                 case 'P': //Programming...
                     _programmerInterpreter.HandleProgrammingCommand(line);
                     break;
+                case 'T':
+                    Program.SendPing(_modem.GetNextUniqueID());
+                    break;
             }
 
             return true;

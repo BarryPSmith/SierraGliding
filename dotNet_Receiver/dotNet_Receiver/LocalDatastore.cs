@@ -118,7 +118,11 @@ namespace core_Receiver
                     dataString = dataString?.Replace((char)0, ' ');
 
                     cmd.Parameters.AddWithValue("$To_String", (object)dataString ?? DBNull.Value);
-                    if (p.packetData is IEnumerable<byte> data)
+                    Packet interiorPacket = p;
+                    //Unwrap our packets, as we might find after querying the station data store:
+                    while (interiorPacket.packetData is Packet dataPacket)
+                        interiorPacket = dataPacket;
+                    if (interiorPacket.packetData is IEnumerable<byte> data)
                         cmd.Parameters.AddWithValue("$Data", data.ToArray());
                     else
                         cmd.Parameters.AddWithValue("$Data", DBNull.Value);

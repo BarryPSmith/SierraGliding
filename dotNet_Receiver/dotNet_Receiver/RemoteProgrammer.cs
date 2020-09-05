@@ -211,8 +211,12 @@ namespace core_Receiver
             writer.Write((UInt16)CRC);
             writer.Write(_image.Skip(i * PacketSize).Take(PacketSize).ToArray());
             writer.Flush();
+            var data = ms.ToArray().ToList();
+            HashSet<byte> crcStations = new HashSet<byte>() { (byte)'T', (byte)'5', };
+            if (crcStations.Contains(destinationStationID))
+                CommandInterpreter.AddCrc(data);
             PacketDecoder.RecentCommands[uniqueID] = "P";
-            _communicator.Write(ms.ToArray());
+            _communicator.Write(data.ToArray());
         }
 
         /// <summary>

@@ -158,12 +158,17 @@ Command starting characters:
             data.Insert(0, (byte)'C');
             //Byte 1 of the encoded data is the destination station ID.
             data.Insert(2, (byte)_modem.GetNextUniqueID());
+            AddCrc(data);
+
+            HandleMessage(data.ToArray(), 0);
+        }
+
+        public static void AddCrc(List<byte> data)
+        {
             data.Insert(0, (byte)'X');
             var crc = RemoteProgrammer.CalculateCRC(data, 0xBEEF);
             data.RemoveAt(0);
             data.AddRange(BitConverter.GetBytes(crc));
-
-            HandleMessage(data.ToArray(), 0);
         }
 
         void HandleMessage(byte[] data, byte packetType)

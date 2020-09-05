@@ -62,7 +62,7 @@ void TimerTwo::initialise()
 
 unsigned long TimerTwo::seconds()
 {
-  long ret;
+  unsigned long ret = 0;
   auto sreg = SREG;
   cli();
 #ifdef CRYSTAL_FREQ

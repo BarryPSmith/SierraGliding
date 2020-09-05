@@ -36,7 +36,7 @@ namespace Database
     unsigned long address; // 4
     byte length; // 1
     unsigned long timestamp; // 4
-    bool overwritten; // 1
+    byte isValid; // 1
   };
 
   constexpr unsigned long totalMemory = 512ul * 1024;
@@ -188,7 +188,7 @@ namespace Database
       .address = _curWriteAddress,
       .length = byteCount,
       .timestamp = TimerTwo::seconds(),
-      .overwritten = false
+      .isValid = 0xFF
     };
 
     DATABASE_PRINTVAR(_curHeaderAddress);
@@ -218,6 +218,7 @@ namespace Database
     if (endInBlock < sizeof(MessageRecord))
     {
       _curHeaderAddress = endHeaderAddress - endInBlock;
+      Flash::flash.blockErase4K(_curHeaderAddress);
       byte initBuffer[] = {'M', 'S', 'G', ++_curCycle };
       Flash::flash.writeBytes(_curHeaderAddress, initBuffer, sizeof(initBuffer));
       _curHeaderAddress += sizeof(initBuffer);
@@ -283,7 +284,7 @@ namespace Database
           continue;
         if (_messageSourceFilter && record.stationID != _messageSourceFilter)
           continue;
-        if (record.overwritten)
+        if (!record.isValid)
           continue;
         unsigned short address = baseAddress + i * sizeof(MessageRecord);
         switch (appendRecord(record, address))

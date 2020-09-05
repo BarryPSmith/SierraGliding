@@ -275,8 +275,12 @@ namespace Database
       for (int i = 0; i < recordsRead; i++)
       {
         MessageRecord& record = buffer[i];
-        if (record.messageType == 0)
+        if (record.messageType & 0x80 || record.messageType == 0)
         {
+          DATABASE_PRINTLN("End Search");
+          DATABASE_PRINTLN(i);
+          DATABASE_PRINTLN(_curSearchAddress);
+          DATABASE_PRINTLN(record.messageType);
           endSearch();
           return;
         }
@@ -424,7 +428,7 @@ namespace Database
       return false;
     MessageRecord record;
     Flash::flash.readBytes(hAddress, &record, sizeof(record));
-    if (record.messageType == 0 ||
+    if (record.messageType & 0x80  || record.messageType == 0 ||
         record.address < messageDataStart || record.address >= messageDataEnd)
       return false;
     LoraMessageDestination<254> dest(false);

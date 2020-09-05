@@ -45,6 +45,7 @@ void AwsRecordState(int i);
 //#define DEBUG_STACK
 //#define DEBUG_BASE
 //#define DEBUG_FLASH
+#define DEBUG_NO_WEATHER //This is us desperate to get program space.
 
 #ifdef DEBUG_TX
 #define TX_PRINT AWS_DEBUG_PRINT

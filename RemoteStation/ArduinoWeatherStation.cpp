@@ -290,7 +290,9 @@ void loop() {
     WeatherProcessing::updateBatterySavings(WeatherProcessing::readBattery(), false);
   else
   {
+#if !defined(DEBUG_NO_WEATHER) || !defined(DEBUG)
     WeatherProcessing::processWeather();
+#endif
     noInterrupts();
     bool localWeatherRequired = WeatherProcessing::weatherRequired;
     WeatherProcessing::weatherRequired = false;

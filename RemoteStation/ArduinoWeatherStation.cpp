@@ -248,7 +248,7 @@ void storeStackTrace()
   if (size > oldStackSize)
     size = oldStackSize;
   *((unsigned short*)buffer) = oldSP;
-  memcpy(buffer + 2, (void*)&oldStack, size)
+  memcpy(buffer + 2, (void*)&oldStack, size);
   Database::storeData('S', stationID, buffer, size + 2);
 }
 

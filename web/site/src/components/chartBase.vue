@@ -2,9 +2,15 @@
     <!--I don't know what all this div bullshit is about.
         But it seems to be necessary so the chart doesn't grow without bounds.-->
     <div style="height: 100%;" ref="chartContainer">
-        <canvas ref="chart" />
+        <canvas ref="chart" class="pany" />
     </div>
 </template>
+
+<style>
+    pany {
+        touch-action: pan-y !important;
+    }
+</style>
 
 <script>
 import { EventBus } from '../eventBus.js';

@@ -171,7 +171,8 @@ namespace core_Receiver
             writer.Write((byte)PacketSize);
             writer.Write((UInt16)CRC);
             writer.Flush();
-            _communicator.Write(ms.ToArray());
+            var data = AppendCommandCrc(destinationStationID, ms);
+            _communicator.Write(data);
             return unID;
         }
         
@@ -211,18 +212,19 @@ namespace core_Receiver
             writer.Write((UInt16)CRC);
             writer.Write(_image.Skip(i * PacketSize).Take(PacketSize).ToArray());
             writer.Flush();
-            List<byte> data = AppendCommandCrc(destinationStationID, ms);
+            var data = AppendCommandCrc(destinationStationID, ms);
             PacketDecoder.RecentCommands[uniqueID] = "P";
-            _communicator.Write(data.ToArray());
+            _communicator.Write(data);
         }
 
-        private static List<byte> AppendCommandCrc(byte destinationStationID, MemoryStream ms)
+        private static byte[] AppendCommandCrc(byte destinationStationID, MemoryStream ms)
         {
             var data = ms.ToArray().ToList();
-            HashSet<byte> crcStations = new HashSet<byte>() { (byte)'T', (byte)'5', };
-            if (crcStations.Contains(destinationStationID))
+            HashSet<char> crcStations = new HashSet<char>() 
+                { 'T', '5', '1', '2', '3' };
+            if (crcStations.Contains((char)destinationStationID))
                 CommandInterpreter.AddCrc(data);
-            return data;
+            return data.ToArray();
         }
 
         /// <summary>
@@ -313,8 +315,9 @@ namespace core_Receiver
             writer.Write('P');
             writer.Write('Q');
             writer.Flush();
+            var data = AppendCommandCrc(destinationStationID, ms);
             PacketDecoder.RecentCommands[uniqueID] = "PQ";
-            _communicator.Write(ms.ToArray());
+            _communicator.Write(data);
             return uniqueID;
         }
 
@@ -332,8 +335,9 @@ namespace core_Receiver
             writer.Write(address);
             writer.Write(payloadSize);
             writer.Flush();
+            var data = AppendCommandCrc(destinationStationID, ms);
             PacketDecoder.RecentCommands[uniqueID] = "PFR";
-            _communicator.Write(ms.ToArray());
+            _communicator.Write(data);
             return uniqueID;
         }
 
@@ -352,7 +356,8 @@ namespace core_Receiver
             writer.Write('C');
             writer.Write(CRC);
             writer.Flush();
-            _communicator.Write(ms.ToArray());
+            var data = AppendCommandCrc(destinationStationID, ms);
+            _communicator.Write(data);
         }
 
         private static List<byte> ReadHex(string hexSourceFile)

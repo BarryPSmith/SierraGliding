@@ -79,7 +79,7 @@ namespace Database
   byte _messageSourceFilter;
   byte _outgoingMessageBuffer[sizeof(LoraMessageDestination<254>)];
   LoraMessageDestination<254>* _searchMessage;
-  unsigned long _lastSearchMessage = 0;
+  unsigned long _lastSearchMessageMillis = 0;
 
 
   void initDatabase()
@@ -349,18 +349,21 @@ namespace Database
     _currentAction = ProcessingActions::Searching;
     prepSearchMessage();
     dbSleepEnabled = SleepModes::disabled;
+    // Ensure that we wait before we start to send the search results.
+    // Otherwise our results will likely collide with the relay of our acknowledge
+    _lastSearchMessageMillis = millis(); 
   }
 
   void sendSearchMessage()
   {
-    if (millis() - _lastSearchMessage < minMessageInterval)
+    if (millis() - _lastSearchMessageMillis < minMessageInterval)
     {
       dbSleepEnabled = SleepModes::powerSave;
       return;
     }
     endSearchMessage();
     prepSearchMessage();
-    _lastSearchMessage = millis();
+    _lastSearchMessageMillis = millis();
     _currentAction = ProcessingActions::Searching;
     dbSleepEnabled = SleepModes::disabled;
   }

@@ -6,8 +6,8 @@
     </div>
 </template>
 
-<style>
-    pany {
+<style scoped>
+    .pany {
         touch-action: pan-y !important;
     }
 </style>

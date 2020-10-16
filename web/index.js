@@ -486,7 +486,11 @@ function main(db, cb) {
         const avg_wd_String = extensionLoaded ?
             '(DEGREES(ATAN2(AVG(SIN(RADIANS(Wind_Direction))), AVG(COS(RADIANS(Wind_Direction))))) + 360) % 360'
             :
-            'AVG(Wind_Direction)'
+            'AVG(Wind_Direction)';
+        const avg_wd_windowed = extensionLoaded ?
+            '(DEGREES(ATAN2(AVG(SIN(RADIANS(Wind_Direction))) OVER stat_wind, AVG(COS(RADIANS(Wind_Direction))) OVER stat_wind)) + 360) % 360'
+            :
+            'AVG(Wind_Direction) OVER stat_wind';
 
         let stat_len = parseFloat(req.query.stat_len);
         stat_len = Number.isNaN(stat_len) ? defaultStatSize : stat_len;
@@ -500,6 +504,7 @@ function main(db, cb) {
                 MAX(windspeed_sample_max) OVER stat_wind AS windspeed_max,
                 MIN(windspeed_sample_min) OVER stat_wind AS windspeed_min,
                 wind_direction,
+                ${avg_wd_windowed} AS wind_direction_avg,
                 battery_level,
                 internal_temp,
                 external_temp
@@ -606,11 +611,16 @@ function main(db, cb) {
         }
 
         try {
+            const avg_wd_String = extensionLoaded ?
+                '(DEGREES(ATAN2(AVG(SIN(RADIANS(Wind_Direction))), AVG(COS(RADIANS(Wind_Direction))))) + 360) % 360'
+                :
+                'AVG(Wind_Direction)';
             const stats = await dbGet(`
                 SELECT
                     MIN(windspeed) as windspeed_min,
                     MAX(COALESCE(wind_gust, windspeed)) as windspeed_max,
-                    AVG(windspeed) as windspeed_avg
+                    AVG(windspeed) as windspeed_avg,
+                    ${avg_wd_String} as wind_direction_avg
                 FROM station_data
                 WHERE
                     Station_ID = $id
@@ -634,6 +644,7 @@ function main(db, cb) {
                     windspeed_max: stats.windspeed_max,
                     windspeed_min: stats.windspeed_min,
                     wind_direction: req.body.wind_direction,
+                    wind_direction_avg: stats.wind_direction_avg,
                     battery_level: req.body.battery,
                     internal_temp: req.body.internal_temp,
                     external_temp: req.body.external_temp

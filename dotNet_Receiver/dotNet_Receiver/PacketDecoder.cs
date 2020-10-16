@@ -49,11 +49,6 @@ namespace core_Receiver
                 uniqueID = uniqueID
             };
 
-            HashSet<char> v2_3Stations = new HashSet<char>
-            {
-                'T', '3', '6', '5', '1', '2', '9'
-            };
-
             switch (ret.type)
             {
                 case PacketTypes.Modem:
@@ -65,7 +60,7 @@ namespace core_Receiver
                         data => (data as IList<SingleWeatherData>)?.ToCsv();
                     break;
                 case PacketTypes.Response:
-                    if (v2_3Stations.Contains((char)sendingStationID))
+                    if (true)
                     {
                         var responseType = bytes[dataStart++];
                         byte subType;

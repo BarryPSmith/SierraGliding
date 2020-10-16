@@ -3,7 +3,7 @@
         <svg viewBox="0 0 100 100"
              :style="image_style">
             <legendArc v-for="entry in legend"
-                        :min="entry.start" :max="entry.end" :fill="entry.color">
+                       :min="entry.start" :max="entry.end" :fill="entry.color">
             </legendArc>
             <marker orient="auto"
                     id="Arrow1Mstart"
@@ -43,8 +43,14 @@
                   style="stroke:#000000;marker-start:url(#Arrow1Mstart);marker-end:url(#Tail)"
                   :stroke-width="strokeWidth"
                   :transform="'rotate(' + curVal + ', 50, 50)'" />
+            <path d="M 50,10 V 60"
+                  style="stroke:#000000;marker-start:url(#Arrow1Mstart);marker-end:url(#Tail)"
+                  opacity="0.3"
+                  :stroke-width="strokeWidth"
+                  :transform="'rotate(' + curAvg + ', 50, 50)'" />
         </svg>
         <h1 v-if="detailed" class="txt-h2 align-center"> {{ curVal | number0 }} &deg; </h1>
+        <p v-if="detailed" class="align-center">Avg: {{ curAvg | number0 }} &deg</p>
         <p v-if="detailed">Arrow points in the direction the wind is coming from.</p>
     </div>
 </template>
@@ -57,6 +63,7 @@ export default {
     data: function() {
         return {
             curVal: 0,
+            curAvg: 0,
             lastTime: null,
         };
     },
@@ -106,11 +113,20 @@ export default {
             if (!this.dataManager.windDirectionData || this.dataManager.windDirectionData.length < 1) {
                 return;
             }
-            const mostRecent = this.dataManager.windDirectionData[this.dataManager.windDirectionData.length - 1];
-            if (mostRecent && mostRecent.x > this.lastTime /*&&
-                mostRecent.x > new Date() - 60000*/) {
-                this.lastTime = mostRecent.x;
-                this.curVal = mostRecent.y;
+            if (false) {
+                const mostRecent = this.dataManager.windDirectionData[this.dataManager.windDirectionData.length - 1];
+                if (mostRecent && mostRecent.x > this.lastTime /*&&
+                    mostRecent.x > new Date() - 60000*/) {
+                    this.lastTime = mostRecent.x;
+                    this.curVal = mostRecent.y;
+                }
+            } else {
+                const mostRecent = this.dataManager.stationData[this.dataManager.stationData.length - 1];
+                if (mostRecent && mostRecent.timestamp > this.lastTime) {
+                    this.lastTime = mostRecent.timestamp;
+                    this.curVal = mostRecent.wind_direction;
+                    this.curAvg = mostRecent.wind_direction_avg;
+                }
             }
         },
     },

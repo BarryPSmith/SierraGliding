@@ -46,7 +46,8 @@
             </div>
             <div style="grid-row:2; grid-column:2; display:flex;
                     justify-content:center; align-items:center">
-                <curWindDirIndicator style="width:150px" v-bind:dataManager="dataManager"
+                <curWindDirIndicator style="width:150px" 
+                                     v-bind:dataManager="dataManager"
                                      :legend="windDirLegend"/>
             </div>
         </div>

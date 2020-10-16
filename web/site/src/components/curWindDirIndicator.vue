@@ -50,12 +50,32 @@
                   :transform="'rotate(' + curAvg + ', 50, 50)'" />
         </svg>
         <h1 v-if="detailed" class="txt-h2 align-center"> {{ curVal | number0 }} &deg; </h1>
-        <p v-if="detailed" class="align-center">Avg: {{ curAvg | number0 }} &deg</p>
+        <p v-if="detailed" class="align-center">Avg: {{ curAvg | number0 }}&deg ({{ getName(curAvg) }})</p>
         <p v-if="detailed">Arrow points in the direction the wind is coming from.</p>
     </div>
 </template>
 <script>
 import legendArc from './legendArc.vue';
+
+const directionNames = {
+    0: 'N',
+    22.5: 'NNE',
+    45: 'NE',
+    67.5: 'ENE',
+    90: 'E',
+    112.5: 'ESE',
+    135: 'SE',
+    157.5: 'SSE',
+    180: 'S',
+    202.5: 'SSW',
+    225: 'SW',
+    247.5: 'WSW',
+    270: 'W',
+    292.5: 'WNW',
+    315: 'NW',
+    337.5: 'NNW',
+    360: 'N'
+};
 
 export default {
     name: 'curWindDirIndicator',
@@ -93,7 +113,7 @@ export default {
         image_style: function() {
             if (!this.detailed) return 'height: 100%;';
             else return '';
-        }
+        },
     },
 
     components: {
@@ -108,7 +128,18 @@ export default {
             this.dataManager.on('data_updated', this.data_updated);
             this.data_updated();
         },
-
+        getName(direction) {
+            let closest = 360;
+            let ret = 'N';
+            for (const testDir in directionNames) {
+                const test = Math.abs(direction - testDir);
+                if (test < closest) {
+                    closest = test;
+                    ret = directionNames[testDir];
+                }
+            }
+            return ret;
+        },
         data_updated: function() {
             if (!this.dataManager.windDirectionData || this.dataManager.windDirectionData.length < 1) {
                 return;

@@ -113,7 +113,7 @@ export default {
     },
 
     mounted: function() {
-        if (this.station && window.location.hash == '#' + this.station.id)
+        if (this.station && (this.hash_present() || (window.location.hash == '#' + this.station.id)))
             this.collapsed = false;
         this.init_dataManager();
         EventBus.$on('socket-message', this.on_socket_message);
@@ -122,7 +122,7 @@ export default {
     watch: {
         'station': function() {
             this.init_dataManager();
-            if (this.station && window.location.hash == '#' + this.station.id)
+            if (this.station && (this.hash_present() || (window.location.hash == '#' + this.station.id)))
                 this.collapsed = false;
         },
 
@@ -185,9 +185,40 @@ export default {
     methods: {
         title_click: function() {
             this.collapsed = !this.collapsed;
-            if (!this.collapsed && this.station) {
-                window.location.hash = this.station.id;
+            this.set_hash();
+        },
+
+        hash_present() {
+            if (!this.station)
+                return false;
+            const hash = window.location.hash.slice(1)
+            const searchParams = new URLSearchParams(hash);
+            for (const [key, value] of searchParams.entries()) {
+                if (key == 'station' && value == this.station.id)
+                    return true;
             }
+            return false;
+        },
+        set_hash() {
+            if (!this.station)
+                return;
+            const hash = window.location.hash.slice(1)
+            const searchParams = new URLSearchParams(hash);
+            const otherStations = [];
+            for (const [key, value] of searchParams.entries()) {
+                if (key == 'station' && value != this.station.id) {
+                    otherStations.push(value);
+                }
+            }
+            if (this.collapsed) {
+                searchParams.delete('station');
+            } else {
+                searchParams.set('station', this.station.id);
+            }
+            for (const val of otherStations) {
+                searchParams.append('station', val);
+            }
+            window.location.hash = searchParams;
         },
 
         detailed_click: function() {

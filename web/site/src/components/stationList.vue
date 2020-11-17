@@ -40,10 +40,15 @@ export default {
         };
     },
     mounted: function () {
+        this.loadHash();
     },
     watch: {
         'chartEnd': function() { 
             this.$emit('update:chartEnd', this.chartEnd);
+            this.setHash();
+        },
+        duration() {
+            this.setHash();
         }
     },
     computed: {
@@ -92,7 +97,29 @@ export default {
     },
 
     methods: {
-
+        loadHash() {
+            const hash = window.location.hash.slice(1)
+            const searchParams = new URLSearchParams(hash);
+            const chartEndStr = searchParams.get('chartEnd');
+            if (chartEndStr && !Number.isNaN(+chartEndStr)) {
+                this.chartEnd = +chartEndStr;
+            }
+            const durationStr = searchParams.get('duration');
+            if (durationStr && !Number.isNaN(+durationStr)) {
+                this.duration = +durationStr;
+            }
+        },
+        setHash() {
+            const hash = window.location.hash.slice(1)
+            const searchParams = new URLSearchParams(hash); 
+            if (this.chartEnd) {
+                searchParams.set('chartEnd', this.chartEnd);
+            } else {
+                searchParams.delete('chartEnd');
+            }
+            searchParams.set('duration', this.duration);
+            window.location.hash=searchParams;
+        }
     }
 }
 </script>

@@ -1,15 +1,19 @@
 <template>
     <div>
-        <select class="fr px24" v-model="duration">
-            <option value="300">5 Minutes</option>
-            <option value="900">15 Minutes</option>
-            <option value="3600">1 Hour</option>
-            <option value="14400">4 Hours</option>
-            <option value="43200">12 Hours</option>
-            <option value="86400">24 Hours</option>
-            <option value="604800">1 Week</option>
-            <option value="2592000">1 Month</option>
-        </select>
+        <span class="fr px12">
+            <select v-model="duration">
+                <option value="300">5 Minutes</option>
+                <option value="900">15 Minutes</option>
+                <option value="3600">1 Hour</option>
+                <option value="14400">4 Hours</option>
+                <option value="43200">12 Hours</option>
+                <option value="86400">24 Hours</option>
+                <option value="604800">1 Week</option>
+                <option value="2592000">1 Month</option>
+            </select>
+            <button class="btn btn--s ml6" @click="jumping=true" v-if="!jumping">Jump</button>
+            <input v-if="jumping" class="input--s mt3 ml6" type="datetime-local" v-model="endDate" />
+        </span>
         <div class='h-full w-full'>
             <div class='align-center border-b border--gray h36 my6'>
                 <h1 class='txt-h4'>Active Stations</h1>
@@ -31,7 +35,8 @@ export default {
     data: function() { 
         return {
             chartEnd: null,
-            duration: 900
+            duration: 900,
+            jumping: false,
         };
     },
     mounted: function () {
@@ -66,7 +71,24 @@ export default {
             return {
                 'btn--stroke': this.duration === 84400
             }
-        }
+        },
+        endDate: {
+            get() {
+                if (this.chartEnd) {
+                    return new Date(this.chartEnd).toDatetimeLocal();
+                } else {
+                    return null;
+                }
+            },
+            set(value) {
+                if (value) {
+                    this.chartEnd = Date.parse(value);
+                    return;
+                    const date = Date(value);
+                    this.chartEnd = +date + (date.getTimezoneOffset() * 60000);
+                }
+            },
+        },
     },
 
     methods: {

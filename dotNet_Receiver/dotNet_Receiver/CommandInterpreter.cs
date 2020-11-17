@@ -130,7 +130,13 @@ Command starting characters:
  W : Change weather settings    : (C|O|G)(newValue) C: calibrate wind O: set temp offset G: set temp gain
  P : Reprogram station          : (Use programmer interface instead. )
  U : Change station ID          : UR for random. US(newID) to specify.
- C : Set charging parameters    : (charge voltage:2)(response rate:2)(freezing voltage:2)(freezing PWM:1)";
+ C : Set charging parameters    : (charge voltage:2)(response rate:2)(freezing voltage:2)(freezing PWM:1)
+ F : Force station to restart
+ G : Read flash memory          : (R|W|E)(address:4)
+                                : R(address:4)(count:1)(I|E)? bytes to read, internal or external
+                                : W(address:4)[data...] external only, address > 32k
+                                : E(address:4) Erases 4kB. External only, address > 32k
+";
         const string c_6Help =
 @" 6 : Enter data to be sent to the modem.
 Command starting characters:

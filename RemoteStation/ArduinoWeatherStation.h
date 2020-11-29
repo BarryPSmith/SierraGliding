@@ -33,9 +33,9 @@ void AwsRecordState(int i);
 //#define DEBUG_COMMANDS
 //#define DEBUG_TX
 //#define DEBUG_RX
-#define DEBUG_DATABASE
+//#define DEBUG_DATABASE
 //#define DEBUG_MSGPROC
-//#define DEBUG_PARAMETERS
+#define DEBUG_PARAMETERS
 //#define DEBUG_SOLAR
 //#define DEBUG_PROGRAMMING
 //#define DEBUG_IT

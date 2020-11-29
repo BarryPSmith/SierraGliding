@@ -5348,6 +5348,19 @@ Diode with low voltage drop</description>
 <pinref part="GND11" gate="1" pin="GND"/>
 <wire x1="63.5" y1="-93.98" x2="63.5" y2="-96.52" width="0.1524" layer="91"/>
 </segment>
+<segment>
+<wire x1="116.84" y1="-99.06" x2="127" y2="-99.06" width="0.1524" layer="91"/>
+<label x="114.3" y="-99.06" size="1.778" layer="95"/>
+<pinref part="U$2" gate="G$1" pin="GND@1"/>
+</segment>
+<segment>
+<pinref part="J2" gate="G$1" pin="GND@0"/>
+<pinref part="J2" gate="G$1" pin="GND@1"/>
+<wire x1="99.06" y1="-78.74" x2="99.06" y2="-81.28" width="0.1524" layer="91"/>
+<wire x1="99.06" y1="-78.74" x2="88.9" y2="-78.74" width="0.1524" layer="91"/>
+<junction x="99.06" y="-78.74"/>
+<label x="88.9" y="-78.74" size="1.778" layer="95"/>
+</segment>
 </net>
 <net name="SDA" class="0">
 <segment>
@@ -5580,21 +5593,6 @@ Diode with low voltage drop</description>
 <pinref part="J3" gate="G$1" pin="5"/>
 <wire x1="96.52" y1="-208.28" x2="83.82" y2="-208.28" width="0.1524" layer="91"/>
 <label x="83.82" y="-208.28" size="1.778" layer="95"/>
-</segment>
-</net>
-<net name="RF_GND" class="0">
-<segment>
-<wire x1="116.84" y1="-99.06" x2="127" y2="-99.06" width="0.1524" layer="91"/>
-<label x="114.3" y="-99.06" size="1.778" layer="95"/>
-<pinref part="U$2" gate="G$1" pin="GND@1"/>
-</segment>
-<segment>
-<pinref part="J2" gate="G$1" pin="GND@0"/>
-<pinref part="J2" gate="G$1" pin="GND@1"/>
-<wire x1="99.06" y1="-78.74" x2="99.06" y2="-81.28" width="0.1524" layer="91"/>
-<wire x1="99.06" y1="-78.74" x2="88.9" y2="-78.74" width="0.1524" layer="91"/>
-<junction x="99.06" y="-78.74"/>
-<label x="88.9" y="-78.74" size="1.778" layer="95"/>
 </segment>
 </net>
 <net name="CTS" class="0">

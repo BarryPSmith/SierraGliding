@@ -87,7 +87,19 @@ public:
     return crc == 0;
   }
   static void setCRC();
-
+#ifdef DEBUG
+  static inline void dump()
+  {
+    byte mem[255];
+    eeprom_read_block(mem, (void*)0, 255);
+    for (int i = 0; i < 255; i++)
+    {
+      AWS_DEBUG_PRINT(i);
+      AWS_DEBUG_PRINT(F("\t:\t"));
+      PRINT_VARIABLE_HEX(mem[i]);
+    }
+  }
+#endif
   static inline void getBytes(const void* address, size_t size, void* buffer)
   {
     eeprom_read_block(buffer, address, size);

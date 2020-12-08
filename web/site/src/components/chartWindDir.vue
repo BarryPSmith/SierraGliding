@@ -2,6 +2,7 @@
 import chartBase from './chartBase.vue';
 import zoomPlugin from 'chartjs-plugin-zoom';
 import filterPlugin from '../chart-filter.js';
+import chartjsAnnotation from 'chartjs-plugin-annotation';
 
 export default {
     extends: chartBase,
@@ -131,8 +132,8 @@ export default {
 
             let wdElem = this.$refs.chart;
 
-            Chart.plugins.register(zoomPlugin);
-            Chart.plugins.register(filterPlugin);
+            //Chart.plugins.register(zoomPlugin);
+            //Chart.plugins.register(filterPlugin);
 
             if (wdElem) {
                 let wdOpts = this.commonOptions;
@@ -191,7 +192,8 @@ export default {
                             lineTension: 0
                         }]
                     },
-                    options: wdOpts
+                    options: wdOpts,
+                    plugins: [zoomPlugin, chartjsAnnotation, filterPlugin],
                 });
             }
         },

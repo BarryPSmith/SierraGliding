@@ -14,6 +14,7 @@
 
 <script>
 import { EventBus } from '../eventBus.js';
+import SunCalc from 'sunCalc';
 
 export default {
     name: 'chartBase',
@@ -40,6 +41,7 @@ export default {
                         position: 'right'
                     }],
                     xAxes: [{
+                        id: 'x',
                         type: 'time',
                         offset: false,
                         ticks: {
@@ -73,7 +75,10 @@ export default {
                             },
                         }
                     }
-                }
+                },
+                annotation: {
+                    drawTime: 'afterDatasetsDraw',
+                },
             },
             isPanning: false,
             timer: null,
@@ -176,6 +181,7 @@ export default {
             this.chart.options.scales.xAxes[0].ticks.min = this.cur_start();
             this.chart.options.scales.xAxes[0].ticks.max = this.cur_end();
 
+            this.do_daylight_annotations();
             if (this.before_update)
                 this.before_update();
             this.chart.update();
@@ -241,10 +247,16 @@ export default {
                 this.set_chartEnd(null);
             else
                 this.set_chartEnd(chartMax);
+            this.do_daylight_annotations();
         },
         
         chart_panComplete: function ({ chart }) {
             this.set_isPanning(false);
+            if (this.before_update)
+                this.before_update();
+            // We need an update here because chart_panning fires after the paint,
+            // and we need to ensure that the proper daylight annotations are drawn.
+            this.chart.update();
         },
 
         update_annotation_range()
@@ -260,6 +272,34 @@ export default {
                 this.annotationSets[idx][0].x = minX;
                 this.annotationSets[idx][1].x = maxX;
             }
+        },
+
+        do_daylight_annotations()
+        {
+            const start = this.cur_start();
+            const end = this.cur_end();
+            const annotations = [];
+            let lastSunset = start;
+            const oneDay = 86400000;
+            if (end - start < oneDay * 100) {
+                for (let day = start; day < +end + 2 * oneDay; day += oneDay) {
+                    //TODO: Proper lat/long/elevation here
+                    const times = SunCalc.getTimes(day, 37.4, -118.3, 2000);
+                    if (times.sunrise > start) {
+                        annotations.push({
+                            type: 'box',
+                            xMin: lastSunset,
+                            xMax: times.sunrise,
+                            xScaleID: 'x',
+                            borderWidth: 0,
+                            borderColor: 'transparent',
+                            backgroundColor: 'rgba(0,0,0, 0.1)'
+                        });
+                    }
+                    lastSunset = times.sunset;
+                }
+            }
+            this.chart.options.annotation.annotations = annotations;
         },
 
         update_chart: function()

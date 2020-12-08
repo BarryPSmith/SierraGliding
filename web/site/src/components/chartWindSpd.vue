@@ -3,6 +3,7 @@ import chartBase from './chartBase.vue';
 import bs from '../../node_modules/binary-search/index.js';
 import zoomPlugin from 'chartjs-plugin-zoom';
 import filterPlugin from '../chart-filter.js';
+import chartjsAnnotation from 'chartjs-plugin-annotation';
 
 export default {
     extends: chartBase,
@@ -137,8 +138,8 @@ export default {
 
             let wsElem = this.$refs.chart;
 
-            Chart.plugins.register(zoomPlugin);
-            Chart.plugins.register(filterPlugin);
+            //Chart.plugins.register(zoomPlugin);
+            //Chart.plugins.register(filterPlugin);
 
 
             if (wsElem) {
@@ -200,7 +201,8 @@ export default {
                 this.chart = new Chart(wsElem, {
                     type: 'line',
                     data: wsData,
-                    options: wsOpts
+                    options: wsOpts,
+                    plugins: [zoomPlugin, chartjsAnnotation, filterPlugin],
                 });
 
 

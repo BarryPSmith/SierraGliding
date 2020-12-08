@@ -12,6 +12,7 @@ class KissMessageSource : public MessageSource
     MESSAGE_RESULT endMessage() override;
     MESSAGE_RESULT readByte(byte& dest) override;
     MESSAGE_RESULT seek(const byte dest) override;
+    MESSAGE_RESULT accessBytes(byte** buffer, byte len) override;
     inline uint8_t getMessageType() { return _messageType; }
 };
 
@@ -24,5 +25,4 @@ class KissMessageDestination : public MessageDestination
     ~KissMessageDestination();
     MESSAGE_RESULT finishAndSend() override;
     MESSAGE_RESULT appendByte(const byte data) override;
-    MESSAGE_RESULT accessBytes(byte** buffer, byte len) override;
 };

@@ -2,6 +2,7 @@
 import chartBase from './chartBase.vue';
 import zoomPlugin from 'chartjs-plugin-zoom';
 import filterPlugin from '../chart-filter.js';
+import chartjsAnnotation from 'chartjs-plugin-annotation';
 
 export default {
     extends: chartBase,
@@ -41,8 +42,8 @@ export default {
 
             let battElem = this.$refs.chart;
 
-            Chart.plugins.register(zoomPlugin);
-            Chart.plugins.register(filterPlugin);
+            //Chart.plugins.register(zoomPlugin);
+            //Chart.plugins.register(filterPlugin);
 
             if (battElem) {
                 let battOpts = this.commonOptions;
@@ -73,7 +74,8 @@ export default {
                             lineTension: 0
                         }]
                     },
-                    options: battOpts
+                    options: battOpts,
+                    plugins: [zoomPlugin, chartjsAnnotation, filterPlugin],
                 });
             }
         }

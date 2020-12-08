@@ -100,9 +100,14 @@ Usage: dotnet WindyPoster.dll [--db <DB>] [--key <KEY> | --keyfile <FILENAME>] [
                 return;
             }
 
-            /*PostStation(48 + 9, "Bria Dog Ridge", 37.7042, -118.6642,
-                9, 9, 2666).Wait();
-            return;*/
+            PostStation( stationID: 48 + 5,
+                Name: "Sherwin Ridge",
+                lat: 37.607211, 
+                lon: -118.98982,
+                windheight: 7.5, 
+                tempheight: 7.5,
+                elevation: 3057).Wait();
+            return;
 
             while (true)
             {

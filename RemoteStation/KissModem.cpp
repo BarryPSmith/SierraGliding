@@ -106,7 +106,7 @@ int main()
     Serial.print(F("Previous Stack: "));
     for (int i = 0; i < STACK_DUMP_SIZE; i++)
     {
-      Serial.print(oldStack[i], HEX);
+      Serial.print((&oldStack)[i], HEX);
       Serial.print(' ');
     }
     Serial.println();

@@ -15,9 +15,10 @@
     "chart.js": "^2.9.3",
     "chartjs-plugin-annotation": "^0.5.7",
     "chartjs-plugin-zoom": "^0.7.5",
-    "mapbox-gl": "^1.7.0",
+    "mapbox-gl": "^1.13.0",
     "nanoevents": "^2.0.0",
     "numeral": "^2.0.6",
+    "suncalc": "^1.8.0",
     "vue": "^2.6.11",
     "vue-chartjs": "^3.5.0",
     "vue-collapsible": "^2.0.0"

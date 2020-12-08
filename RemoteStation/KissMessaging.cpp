@@ -79,7 +79,7 @@ bool KissMessageSource::readByteRaw(byte& dest)
   return true;
 }
 
-MESSAGE_RESULT KissMessageDestination::accessBytes(byte** buffer, byte len)
+MESSAGE_RESULT KissMessageSource::accessBytes(byte** buffer, byte len)
 {
   return MESSAGE_ERROR;
 }

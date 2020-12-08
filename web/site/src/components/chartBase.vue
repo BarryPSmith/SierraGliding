@@ -14,7 +14,7 @@
 
 <script>
 import { EventBus } from '../eventBus.js';
-import SunCalc from 'sunCalc';
+import SunCalc from 'suncalc';
 
 export default {
     name: 'chartBase',

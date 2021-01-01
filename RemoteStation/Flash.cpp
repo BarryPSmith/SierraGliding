@@ -28,7 +28,7 @@ namespace Flash
       return false;
 
 #ifndef DEBUG
-    if (rwe == 'W' || rwe == 'E' && add < 32768)
+    if ((rwe == 'W' || rwe == 'E') && add < 32768)
       return false;
 #endif
 

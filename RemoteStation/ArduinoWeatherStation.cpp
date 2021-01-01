@@ -69,9 +69,9 @@ int main()
   //Arduino library initialisaton:
   init();
   TimerTwo::initialise();
-  //TestBoard();
 
   setup();
+  //TestBoard();
 
   while (1)
   {
@@ -139,7 +139,16 @@ void savePower()
 
 void TestBoard()
 {
+  while (1)
+  {
+    AWS_DEBUG_PRINTLN();
 
+    for (int i = 0; i < 3; i++)
+      PRINT_VARIABLE(millis());
+    PRINT_VARIABLE(TimerTwo::testFailedOsc());
+    delay(1000);
+  }
+  while (1);
 }
 
 void seedRandom()
@@ -213,10 +222,10 @@ void setup() {
 
   if (oldSP > 0x100)
   {
-    sendStackTrace();
 #ifndef NO_STORAGE
     storeStackTrace();
 #endif
+    sendStackTrace();
   }
   canarifyStackDump();
 
@@ -262,10 +271,21 @@ void sendNoPingMessage()
 	msg.append(F("PTimeout"), 8);
 }
 
+void sendFailedCrystalMessage()
+{
+  BASE_PRINTLN(F("Crystal Failed!"));
+  MESSAGE_DESTINATION_SOLID<20> msg(false);
+  msg.appendByte('K');
+  msg.appendByte(stationID);
+  msg.appendByte(MessageHandling::getUniqueID());
+  msg.append(F("PXTAL_Failed"), 12);
+}
+
 void loop() {
   //BASE(auto loopMicros = micros());
-  // Generate and discard a random number. Just used to ensure that all of the RNGs out there will give different numbers.
-  random();
+  
+  if (random(1000) == 1 && TimerTwo::testFailedOsc())
+    sendFailedCrystalMessage();
   static bool noPingSent = false;
 
   if (initMessagingRequired)

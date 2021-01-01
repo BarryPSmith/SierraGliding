@@ -4389,39 +4389,6 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <text x="0" y="1.651" size="0.6096" layer="25" font="vector" ratio="20" align="bottom-center">&gt;NAME</text>
 <text x="0" y="-1.651" size="0.6096" layer="27" font="vector" ratio="20" align="top-center">&gt;VALUE</text>
 </package>
-<package name="TO-92" urn="urn:adsk.eagle:footprint:38414/1" library_version="1">
-<description>&lt;b&gt;TO 92&lt;/b&gt;</description>
-<wire x1="-0.7863" y1="2.5485" x2="-2.0946" y2="-1.651" width="0.2032" layer="21" curve="111.098962"/>
-<wire x1="2.0945" y1="-1.651" x2="0.7863" y2="2.548396875" width="0.2032" layer="21" curve="111.099507"/>
-<wire x1="-2.0945" y1="-1.651" x2="2.0945" y2="-1.651" width="0.2032" layer="21"/>
-<wire x1="-2.6549" y1="-0.254" x2="-2.2537" y2="-0.254" width="0.2032" layer="21"/>
-<wire x1="-0.2863" y1="-0.254" x2="0.2863" y2="-0.254" width="0.2032" layer="21"/>
-<wire x1="2.2537" y1="-0.254" x2="2.6549" y2="-0.254" width="0.2032" layer="21"/>
-<pad name="1" x="-1.27" y="0" drill="0.8128" diameter="1.8796"/>
-<pad name="2" x="0" y="1.905" drill="0.8128" diameter="1.8796"/>
-<pad name="3" x="1.27" y="0" drill="0.8128" diameter="1.8796"/>
-<text x="0" y="3.048" size="0.6096" layer="25" font="vector" ratio="20" align="bottom-center">&gt;NAME</text>
-<text x="0" y="-1.905" size="0.6096" layer="27" font="vector" ratio="20" align="top-center">&gt;VALUE</text>
-</package>
-<package name="TO-92-EZ" urn="urn:adsk.eagle:footprint:38415/1" library_version="1">
-<wire x1="-0.7863" y1="2.5485" x2="-2.0946" y2="-1.651" width="0.2032" layer="21" curve="111.098962"/>
-<wire x1="2.0945" y1="-1.651" x2="0.7863" y2="2.548396875" width="0.2032" layer="21" curve="111.099507"/>
-<wire x1="-2.0945" y1="-1.651" x2="2.0945" y2="-1.651" width="0.2032" layer="21"/>
-<wire x1="-2.6549" y1="-0.254" x2="-2.2537" y2="-0.254" width="0.2032" layer="21"/>
-<wire x1="-0.2863" y1="-0.254" x2="0.2863" y2="-0.254" width="0.2032" layer="21"/>
-<wire x1="2.2537" y1="-0.254" x2="2.6549" y2="-0.254" width="0.2032" layer="21"/>
-<pad name="1" x="-1.27" y="0" drill="0.8128" diameter="1.8796" stop="no"/>
-<pad name="2" x="0" y="1.905" drill="0.8128" diameter="1.8796" stop="no"/>
-<pad name="3" x="1.27" y="0" drill="0.8128" diameter="1.8796" stop="no"/>
-<text x="0" y="3.048" size="0.6096" layer="25" font="vector" ratio="20" align="bottom-center">&gt;NAME</text>
-<text x="0" y="-1.905" size="0.6096" layer="27" font="vector" ratio="20" align="top-center">&gt;VALUE</text>
-<circle x="0" y="1.905" radius="1.02390625" width="0" layer="30"/>
-<circle x="1.27" y="0" radius="1.02390625" width="0" layer="30"/>
-<circle x="0" y="1.905" radius="0.508" width="0" layer="29"/>
-<circle x="-1.27" y="0" radius="0.508" width="0" layer="29"/>
-<circle x="-1.27" y="0" radius="1.02390625" width="0" layer="30"/>
-<circle x="1.27" y="0" radius="0.508" width="0" layer="29"/>
-</package>
 </packages>
 <packages3d>
 <package3d name="SOT23-3" urn="urn:adsk.eagle:package:38446/1" type="box" library_version="1">
@@ -4477,38 +4444,8 @@ SMA is the smallest package in the DO-214 standard (DO-214AC)</description>
 <packageinstance name="SMA-DIODE"/>
 </packageinstances>
 </package3d>
-<package3d name="TO-92" urn="urn:adsk.eagle:package:38450/1" type="box" library_version="1">
-<description>TO 92</description>
-<packageinstances>
-<packageinstance name="TO-92"/>
-</packageinstances>
-</package3d>
-<package3d name="TO-92-EZ" urn="urn:adsk.eagle:package:38451/1" type="box" library_version="1">
-<packageinstances>
-<packageinstance name="TO-92-EZ"/>
-</packageinstances>
-</package3d>
 </packages3d>
 <symbols>
-<symbol name="PNP" urn="urn:adsk.eagle:symbol:38416/1" library_version="1">
-<description>&lt;h3&gt; PNP Transistor&lt;/h3&gt;</description>
-<wire x1="2.54" y1="2.54" x2="0.508" y2="1.524" width="0.1524" layer="94"/>
-<wire x1="0.508" y1="-1.524" x2="2.54" y2="-2.54" width="0.1524" layer="94"/>
-<wire x1="1.27" y1="2.54" x2="1.778" y2="1.524" width="0.1524" layer="94"/>
-<wire x1="1.778" y1="1.524" x2="0.508" y2="1.524" width="0.1524" layer="94"/>
-<wire x1="0.508" y1="1.524" x2="1.27" y2="2.54" width="0.1524" layer="94"/>
-<wire x1="1.2192" y1="2.3114" x2="1.5748" y2="1.6256" width="0.2032" layer="94"/>
-<wire x1="1.143" y1="2.159" x2="1.397" y2="1.6256" width="0.2032" layer="94"/>
-<wire x1="1.016" y1="2.032" x2="1.2192" y2="1.6256" width="0.2032" layer="94"/>
-<wire x1="0.9398" y1="1.8796" x2="1.0414" y2="1.651" width="0.2032" layer="94"/>
-<wire x1="0.8128" y1="1.778" x2="0.889" y2="1.6256" width="0.2032" layer="94"/>
-<text x="2.54" y="0" size="1.778" layer="95" font="vector">&gt;NAME</text>
-<text x="2.54" y="-0.254" size="1.778" layer="96" font="vector" align="top-left">&gt;VALUE</text>
-<rectangle x1="-0.254" y1="-2.54" x2="0.508" y2="2.54" layer="94"/>
-<pin name="B" x="-2.54" y="0" visible="off" length="short" direction="pas" swaplevel="1"/>
-<pin name="C" x="2.54" y="-5.08" visible="off" length="short" direction="pas" swaplevel="3" rot="R90"/>
-<pin name="E" x="2.54" y="5.08" visible="off" length="short" direction="pas" swaplevel="2" rot="R270"/>
-</symbol>
 <symbol name="LABELED-NMOS" urn="urn:adsk.eagle:symbol:38422/1" library_version="1">
 <description>&lt;h3&gt; N-channel MOSFET transistor&lt;/h3&gt;
 Switches electronic signals</description>
@@ -4568,73 +4505,8 @@ Diode with low voltage drop</description>
 <vertex x="-1.27" y="-1.27"/>
 </polygon>
 </symbol>
-<symbol name="NPN" urn="urn:adsk.eagle:symbol:38413/1" library_version="1">
-<description>&lt;h3&gt; NPN Transistor&lt;/h3&gt;
-Allows current flow when high potential at base.</description>
-<wire x1="2.54" y1="2.54" x2="0.508" y2="1.524" width="0.1524" layer="94"/>
-<wire x1="1.778" y1="-1.524" x2="2.54" y2="-2.54" width="0.1524" layer="94"/>
-<wire x1="2.54" y1="-2.54" x2="1.27" y2="-2.54" width="0.1524" layer="94"/>
-<wire x1="1.27" y1="-2.54" x2="1.778" y2="-1.524" width="0.1524" layer="94"/>
-<wire x1="1.54" y1="-2.04" x2="0.308" y2="-1.424" width="0.1524" layer="94"/>
-<wire x1="1.524" y1="-2.413" x2="2.286" y2="-2.413" width="0.254" layer="94"/>
-<wire x1="2.286" y1="-2.413" x2="1.778" y2="-1.778" width="0.254" layer="94"/>
-<wire x1="1.778" y1="-1.778" x2="1.524" y2="-2.286" width="0.254" layer="94"/>
-<wire x1="1.524" y1="-2.286" x2="1.905" y2="-2.286" width="0.254" layer="94"/>
-<wire x1="1.905" y1="-2.286" x2="1.778" y2="-2.032" width="0.254" layer="94"/>
-<text x="2.54" y="0" size="1.778" layer="95" font="vector">&gt;NAME</text>
-<text x="2.54" y="-2.286" size="1.778" layer="96" font="vector">&gt;VALUE</text>
-<rectangle x1="-0.254" y1="-2.54" x2="0.508" y2="2.54" layer="94"/>
-<pin name="B" x="-2.54" y="0" visible="off" length="short" direction="pas" swaplevel="1"/>
-<pin name="E" x="2.54" y="-5.08" visible="off" length="short" direction="pas" swaplevel="3" rot="R90"/>
-<pin name="C" x="2.54" y="5.08" visible="off" length="short" direction="pas" swaplevel="2" rot="R270"/>
-</symbol>
 </symbols>
 <devicesets>
-<deviceset name="TRANS_PNP" urn="urn:adsk.eagle:component:38470/1" prefix="Q" library_version="1">
-<description>&lt;h3&gt;PNP transistor&lt;/h3&gt;
-&lt;p&gt;Current controlled devices typically used to amplify current or used as a switch.&lt;/p&gt;
-&lt;p&gt;&lt;b&gt;SparkFun Products:&lt;/b&gt;
-&lt;ul&gt;&lt;li&gt;&lt;a href=”https://www.sparkfun.com/products/9068”&gt;SparkFun Serial Enabled 16x2 LCD - Red on Black&lt;/a&gt;&lt;/li&gt;
-&lt;li&gt;&lt;a href=”https://www.sparkfun.com/products/12772”&gt;SparkFun Logomatic&lt;/a&gt;&lt;/li&gt;
-&lt;/ul&gt;&lt;/p&gt;</description>
-<gates>
-<gate name="G$1" symbol="PNP" x="0" y="0"/>
-</gates>
-<devices>
-<device name="-PMBT3906|MMBT3906L" package="SOT23-3">
-<connects>
-<connect gate="G$1" pin="B" pad="1"/>
-<connect gate="G$1" pin="C" pad="3"/>
-<connect gate="G$1" pin="E" pad="2"/>
-</connects>
-<package3dinstances>
-<package3dinstance package3d_urn="urn:adsk.eagle:package:38446/1"/>
-</package3dinstances>
-<technologies>
-<technology name="">
-<attribute name="PROD_ID" value="TRANS-08052"/>
-<attribute name="VALUE" value="200mA/40V"/>
-</technology>
-</technologies>
-</device>
-<device name="-MMBT4403" package="SOT23-3">
-<connects>
-<connect gate="G$1" pin="B" pad="1"/>
-<connect gate="G$1" pin="C" pad="3"/>
-<connect gate="G$1" pin="E" pad="2"/>
-</connects>
-<package3dinstances>
-<package3dinstance package3d_urn="urn:adsk.eagle:package:38446/1"/>
-</package3dinstances>
-<technologies>
-<technology name="">
-<attribute name="PROD_ID" value="TRANS-09245"/>
-<attribute name="VALUE" value="600mA/40V"/>
-</technology>
-</technologies>
-</device>
-</devices>
-</deviceset>
 <deviceset name="MOSFET-NCH" urn="urn:adsk.eagle:component:38486/1" prefix="Q" library_version="1">
 <description>&lt;h3&gt;N-channel MOSFETs&lt;/h3&gt;
 &lt;p&gt;Voltage controlled devices that allow control of high current outputs.&lt;/p&gt;
@@ -4861,113 +4733,6 @@ Allows current flow when high potential at base.</description>
 </device>
 </devices>
 </deviceset>
-<deviceset name="TRANS_NPN" urn="urn:adsk.eagle:component:38477/1" prefix="Q" library_version="1">
-<description>&lt;h3&gt;NPN transistor&lt;/h3&gt;
-&lt;p&gt;Current controlled devices typically used to amplify current or used as a switch.&lt;/p&gt;
-&lt;ul&gt;
-  &lt;li&gt;
-    BC547 - 
-    &lt;a href="http://www.sparkfun.com/products/8928"&gt;COM-08928&lt;/a&gt;
-    (TO-92 45V 100mA) (1.Collector 2.Base 3.Emitter)
-  &lt;/li&gt;
-  &lt;li&gt;
-    2N3904 - 
-    &lt;a href="http://www.sparkfun.com/products/521"&gt;COM-00521&lt;/a&gt;
-    (TO-92 40V 200mA) (1.Emitter 2.Base 3.Collector)
-  &lt;/li&gt;
-  &lt;li&gt;
-    P2N2222A - 
-    &lt;a href="http://www.sparkfun.com/products/12852"&gt;COM-12852&lt;/a&gt;
-    (TO-92 40V 600mA) (1.Collector 2.Base 3.Emitter)
-  &lt;/li&gt;
-
-&lt;/ul&gt;</description>
-<gates>
-<gate name="G$1" symbol="NPN" x="0" y="0"/>
-</gates>
-<devices>
-<device name="-MMBT2222AL" package="SOT23-3">
-<connects>
-<connect gate="G$1" pin="B" pad="1"/>
-<connect gate="G$1" pin="C" pad="3"/>
-<connect gate="G$1" pin="E" pad="2"/>
-</connects>
-<package3dinstances>
-<package3dinstance package3d_urn="urn:adsk.eagle:package:38446/1"/>
-</package3dinstances>
-<technologies>
-<technology name="">
-<attribute name="PROD_ID" value="TRANS-08049"/>
-<attribute name="VALUE" value="600mA/40V"/>
-</technology>
-</technologies>
-</device>
-<device name="-2N3904" package="TO-92">
-<connects>
-<connect gate="G$1" pin="B" pad="2"/>
-<connect gate="G$1" pin="C" pad="3"/>
-<connect gate="G$1" pin="E" pad="1"/>
-</connects>
-<package3dinstances>
-<package3dinstance package3d_urn="urn:adsk.eagle:package:38450/1"/>
-</package3dinstances>
-<technologies>
-<technology name="">
-<attribute name="PROD_ID" value="TRANS-08447"/>
-<attribute name="VALUE" value="200mA/40V"/>
-</technology>
-</technologies>
-</device>
-<device name="-P2N2222A" package="TO-92">
-<connects>
-<connect gate="G$1" pin="B" pad="2"/>
-<connect gate="G$1" pin="C" pad="1"/>
-<connect gate="G$1" pin="E" pad="3"/>
-</connects>
-<package3dinstances>
-<package3dinstance package3d_urn="urn:adsk.eagle:package:38450/1"/>
-</package3dinstances>
-<technologies>
-<technology name="">
-<attribute name="PROD_ID" value="TRANS-09536"/>
-<attribute name="VALUE" value="600mA/40V"/>
-</technology>
-</technologies>
-</device>
-<device name="-MMBTA42" package="SOT23-3">
-<connects>
-<connect gate="G$1" pin="B" pad="1"/>
-<connect gate="G$1" pin="C" pad="3"/>
-<connect gate="G$1" pin="E" pad="2"/>
-</connects>
-<package3dinstances>
-<package3dinstance package3d_urn="urn:adsk.eagle:package:38446/1"/>
-</package3dinstances>
-<technologies>
-<technology name="">
-<attribute name="PROD_ID" value="TRANS-09116"/>
-<attribute name="VALUE" value="500mA/300V"/>
-</technology>
-</technologies>
-</device>
-<device name="-2N3904-EZ" package="TO-92-EZ">
-<connects>
-<connect gate="G$1" pin="B" pad="2"/>
-<connect gate="G$1" pin="C" pad="3"/>
-<connect gate="G$1" pin="E" pad="1"/>
-</connects>
-<package3dinstances>
-<package3dinstance package3d_urn="urn:adsk.eagle:package:38451/1"/>
-</package3dinstances>
-<technologies>
-<technology name="">
-<attribute name="PROD_ID" value="TRANS-08447"/>
-<attribute name="VALUE" value="200mA/40V"/>
-</technology>
-</technologies>
-</device>
-</devices>
-</deviceset>
 </devicesets>
 </library>
 <library name="RadioShield">
@@ -5100,11 +4865,11 @@ Allows current flow when high potential at base.</description>
 <part name="R6" library="SparkFun-Resistors" library_urn="urn:adsk.eagle:library:532" deviceset="RESISTOR" device="0805" package3d_urn="urn:adsk.eagle:package:39651/1" value="1k"/>
 <part name="C2" library="SparkFun-Capacitors" library_urn="urn:adsk.eagle:library:510" deviceset="10NF" device="-0603-50V-10%" package3d_urn="urn:adsk.eagle:package:37414/1" value="10nF"/>
 <part name="C5" library="SparkFun-Capacitors" library_urn="urn:adsk.eagle:library:510" deviceset="10NF" device="-0603-50V-10%" package3d_urn="urn:adsk.eagle:package:37414/1" value="10nF"/>
-<part name="R7" library="SparkFun-Resistors" library_urn="urn:adsk.eagle:library:532" deviceset="RESISTOR" device="0805" package3d_urn="urn:adsk.eagle:package:39651/1" value="68k"/>
+<part name="R7" library="SparkFun-Resistors" library_urn="urn:adsk.eagle:library:532" deviceset="RESISTOR" device="0805" package3d_urn="urn:adsk.eagle:package:39651/1" value="220k"/>
 <part name="GND5" library="SparkFun-PowerSymbols" library_urn="urn:adsk.eagle:library:530" deviceset="GND" device=""/>
 <part name="GND6" library="SparkFun-PowerSymbols" library_urn="urn:adsk.eagle:library:530" deviceset="GND" device=""/>
 <part name="GND7" library="SparkFun-PowerSymbols" library_urn="urn:adsk.eagle:library:530" deviceset="GND" device=""/>
-<part name="R8" library="SparkFun-Resistors" library_urn="urn:adsk.eagle:library:532" deviceset="RESISTOR" device="0805" package3d_urn="urn:adsk.eagle:package:39651/1" value="68k"/>
+<part name="R8" library="SparkFun-Resistors" library_urn="urn:adsk.eagle:library:532" deviceset="RESISTOR" device="0805" package3d_urn="urn:adsk.eagle:package:39651/1" value="220k"/>
 <part name="C3" library="SparkFun-Capacitors" library_urn="urn:adsk.eagle:library:510" deviceset="10NF" device="-0603-50V-10%" package3d_urn="urn:adsk.eagle:package:37414/1" value="10nF"/>
 <part name="X2" library="con-JST PH" deviceset="B2B-PH" device="-K-S"/>
 <part name="X3" library="con-JST XH" deviceset="B2B-XH" device="-2"/>
@@ -5118,9 +4883,8 @@ Allows current flow when high potential at base.</description>
 <part name="SUPPLY6" library="SparkFun-PowerSymbols" library_urn="urn:adsk.eagle:library:530" deviceset="VCC" device=""/>
 <part name="R11" library="SparkFun-Resistors" library_urn="urn:adsk.eagle:library:532" deviceset="RESISTOR" device="0805" package3d_urn="urn:adsk.eagle:package:39651/1" value="1k"/>
 <part name="R12" library="SparkFun-Resistors" library_urn="urn:adsk.eagle:library:532" deviceset="RESISTOR" device="0805" package3d_urn="urn:adsk.eagle:package:39651/1" value="1k"/>
-<part name="Q1" library="SparkFun-DiscreteSemi" library_urn="urn:adsk.eagle:library:514" deviceset="TRANS_PNP" device="-PMBT3906|MMBT3906L" package3d_urn="urn:adsk.eagle:package:38446/1" value="200mA/40V"/>
 <part name="Q2" library="SparkFun-DiscreteSemi" library_urn="urn:adsk.eagle:library:514" deviceset="MOSFET-NCH" device="-BSS138" package3d_urn="urn:adsk.eagle:package:38446/1" value="220mA/50V/3.5Ω"/>
-<part name="R13" library="SparkFun-Resistors" library_urn="urn:adsk.eagle:library:532" deviceset="RESISTOR" device="0805" package3d_urn="urn:adsk.eagle:package:39651/1" value="0"/>
+<part name="R13" library="SparkFun-Resistors" library_urn="urn:adsk.eagle:library:532" deviceset="RESISTOR" device="0805" package3d_urn="urn:adsk.eagle:package:39651/1" value="200"/>
 <part name="SUPPLY5" library="SparkFun-PowerSymbols" library_urn="urn:adsk.eagle:library:530" deviceset="VIN" device=""/>
 <part name="SUPPLY7" library="SparkFun-PowerSymbols" library_urn="urn:adsk.eagle:library:530" deviceset="VIN" device=""/>
 <part name="SUPPLY8" library="SparkFun-PowerSymbols" library_urn="urn:adsk.eagle:library:530" deviceset="VCC" device=""/>
@@ -5139,13 +4903,16 @@ Allows current flow when high potential at base.</description>
 <part name="C7" library="capsmd" deviceset="C0805" device="" value="1uF"/>
 <part name="GND3" library="SparkFun-PowerSymbols" library_urn="urn:adsk.eagle:library:530" deviceset="GND" device=""/>
 <part name="R17" library="SparkFun-Resistors" library_urn="urn:adsk.eagle:library:532" deviceset="RESISTOR" device="0805" package3d_urn="urn:adsk.eagle:package:39651/1" value="0"/>
-<part name="R18" library="SparkFun-Resistors" library_urn="urn:adsk.eagle:library:532" deviceset="RESISTOR" device="0805" package3d_urn="urn:adsk.eagle:package:39651/1" value="0"/>
-<part name="Q3" library="SparkFun-DiscreteSemi" library_urn="urn:adsk.eagle:library:514" deviceset="TRANS_NPN" device="-MMBTA42" package3d_urn="urn:adsk.eagle:package:38446/1" value="500mA/300V"/>
-<part name="R19" library="SparkFun-Resistors" library_urn="urn:adsk.eagle:library:532" deviceset="RESISTOR" device="0402" package3d_urn="urn:adsk.eagle:package:39657/1" value="500k"/>
-<part name="R20" library="SparkFun-Resistors" library_urn="urn:adsk.eagle:library:532" deviceset="RESISTOR" device="0402" package3d_urn="urn:adsk.eagle:package:39657/1" value="500k"/>
 <part name="U1" library="main_board" deviceset="INA199A3DCKR" device=""/>
 <part name="R21" library="SparkFun-Resistors" library_urn="urn:adsk.eagle:library:532" deviceset="RESISTOR" device="1206" package3d_urn="urn:adsk.eagle:package:39654/1" value="0.1"/>
-<part name="R14" library="SparkFun-Resistors" library_urn="urn:adsk.eagle:library:532" deviceset="RESISTOR" device="0402" package3d_urn="urn:adsk.eagle:package:39657/1" value="20k"/>
+<part name="Q1" library="SparkFun-DiscreteSemi" library_urn="urn:adsk.eagle:library:514" deviceset="MOSFET-NCH" device="-BSS138" package3d_urn="urn:adsk.eagle:package:38446/1" value="220mA/50V/3.5Ω"/>
+<part name="R14" library="SparkFun-Resistors" library_urn="urn:adsk.eagle:library:532" deviceset="RESISTOR" device="0805" package3d_urn="urn:adsk.eagle:package:39651/1" value="6k"/>
+<part name="R15" library="SparkFun-Resistors" library_urn="urn:adsk.eagle:library:532" deviceset="RESISTOR" device="0805" package3d_urn="urn:adsk.eagle:package:39651/1" value="10k"/>
+<part name="R18" library="SparkFun-Resistors" library_urn="urn:adsk.eagle:library:532" deviceset="RESISTOR" device="0805" package3d_urn="urn:adsk.eagle:package:39651/1" value="42k"/>
+<part name="C4" library="SparkFun-Capacitors" library_urn="urn:adsk.eagle:library:510" deviceset="10NF" device="-0603-50V-10%" package3d_urn="urn:adsk.eagle:package:37414/1" value="10nF"/>
+<part name="C8" library="SparkFun-Capacitors" library_urn="urn:adsk.eagle:library:510" deviceset="10NF" device="-0603-50V-10%" package3d_urn="urn:adsk.eagle:package:37414/1" value="10nF"/>
+<part name="C9" library="capsmd" deviceset="C0805" device="" value="1uF"/>
+<part name="GND8" library="SparkFun-PowerSymbols" library_urn="urn:adsk.eagle:library:530" deviceset="GND" device=""/>
 </parts>
 <sheets>
 <sheet>
@@ -5271,34 +5038,30 @@ Allows current flow when high potential at base.</description>
 <attribute name="NAME" x="154.94" y="-181.356" size="1.778" layer="95" font="vector" align="bottom-center"/>
 <attribute name="VALUE" x="154.94" y="-184.404" size="1.778" layer="96" font="vector" align="top-center"/>
 </instance>
-<instance part="Q1" gate="G$1" x="-38.1" y="43.18" smashed="yes" rot="MR0">
-<attribute name="NAME" x="-40.64" y="43.18" size="1.778" layer="95" font="vector" rot="MR0"/>
-<attribute name="VALUE" x="-40.64" y="42.926" size="1.778" layer="96" font="vector" rot="MR0" align="top-left"/>
-</instance>
 <instance part="Q2" gate="NMOS" x="-66.04" y="22.86" smashed="yes" rot="R180">
 <attribute name="NAME" x="-71.12" y="22.86" size="1.778" layer="95" font="vector" rot="R180"/>
 <attribute name="VALUE" x="-71.12" y="25.4" size="1.778" layer="96" font="vector" rot="R180"/>
 </instance>
 <instance part="R13" gate="G$1" x="-63.5" y="38.1" smashed="yes" rot="R180">
-<attribute name="NAME" x="-63.5" y="34.036" size="1.778" layer="95" font="vector" rot="R270" align="bottom-center"/>
+<attribute name="NAME" x="-63.5" y="34.036" size="1.778" layer="95" font="vector" align="bottom-center"/>
 <attribute name="VALUE" x="-63.5" y="39.624" size="1.778" layer="96" font="vector" rot="R180" align="top-center"/>
 </instance>
 <instance part="SUPPLY5" gate="G$1" x="-127" y="-7.62" smashed="yes">
 <attribute name="VALUE" x="-127" y="-4.826" size="1.778" layer="96" align="bottom-center"/>
 </instance>
-<instance part="SUPPLY7" gate="G$1" x="-53.34" y="58.42" smashed="yes">
-<attribute name="VALUE" x="-53.34" y="61.214" size="1.778" layer="96" align="bottom-center"/>
+<instance part="SUPPLY7" gate="G$1" x="-86.36" y="58.42" smashed="yes">
+<attribute name="VALUE" x="-86.36" y="61.214" size="1.778" layer="96" align="bottom-center"/>
 </instance>
-<instance part="SUPPLY8" gate="G$1" x="-40.64" y="68.58" smashed="yes">
-<attribute name="VALUE" x="-40.64" y="71.374" size="1.778" layer="96" align="bottom-center"/>
+<instance part="SUPPLY8" gate="G$1" x="-25.4" y="43.18" smashed="yes">
+<attribute name="VALUE" x="-25.4" y="45.974" size="1.778" layer="96" align="bottom-center"/>
 </instance>
-<instance part="D3" gate="G$1" x="-60.96" y="48.26" smashed="yes">
-<attribute name="NAME" x="-63.5" y="42.672" size="1.778" layer="95" font="vector"/>
+<instance part="D3" gate="G$1" x="-78.74" y="48.26" smashed="yes" rot="R180">
+<attribute name="NAME" x="-81.28" y="51.308" size="1.778" layer="95" font="vector" rot="R180"/>
 </instance>
 <instance part="U$2" gate="G$1" x="152.4" y="-111.76" smashed="yes"/>
-<instance part="C11" gate="G$1" x="-48.26" y="33.02" smashed="yes" rot="R90">
-<attribute name="NAME" x="-48.895" y="35.56" size="1.524" layer="95" rot="R90"/>
-<attribute name="VALUE" x="-46.101" y="35.56" size="1.524" layer="96" rot="R90"/>
+<instance part="C11" gate="G$1" x="-86.36" y="40.64" smashed="yes" rot="R90">
+<attribute name="NAME" x="-86.995" y="43.18" size="1.524" layer="95" rot="R90"/>
+<attribute name="VALUE" x="-84.201" y="43.18" size="1.524" layer="96" rot="R90"/>
 </instance>
 <instance part="U5" gate="G$1" x="7.62" y="-124.46" smashed="yes">
 <attribute name="NAME" x="-30.595" y="-95.0972" size="2.55326875" layer="95"/>
@@ -5342,22 +5105,6 @@ Allows current flow when high potential at base.</description>
 <attribute name="NAME" x="36.576" y="91.44" size="1.778" layer="95" font="vector" rot="R180" align="bottom-center"/>
 <attribute name="VALUE" x="44.704" y="88.9" size="1.778" layer="96" font="vector" rot="R180" align="top-center"/>
 </instance>
-<instance part="R18" gate="G$1" x="-40.64" y="55.88" smashed="yes" rot="R90">
-<attribute name="NAME" x="-44.704" y="55.88" size="1.778" layer="95" font="vector" rot="R180" align="bottom-center"/>
-<attribute name="VALUE" x="-36.576" y="53.34" size="1.778" layer="96" font="vector" rot="R180" align="top-center"/>
-</instance>
-<instance part="Q3" gate="G$1" x="-55.88" y="33.02" smashed="yes" rot="R180">
-<attribute name="NAME" x="-58.42" y="33.02" size="1.778" layer="95" font="vector" rot="R180"/>
-<attribute name="VALUE" x="-58.42" y="35.306" size="1.778" layer="96" font="vector" rot="R180"/>
-</instance>
-<instance part="R19" gate="G$1" x="-27.94" y="43.18" smashed="yes">
-<attribute name="NAME" x="-27.94" y="44.704" size="1.778" layer="95" font="vector" align="bottom-center"/>
-<attribute name="VALUE" x="-27.94" y="41.656" size="1.778" layer="96" font="vector" align="top-center"/>
-</instance>
-<instance part="R20" gate="G$1" x="-27.94" y="20.32" smashed="yes">
-<attribute name="NAME" x="-27.94" y="21.844" size="1.778" layer="95" font="vector" align="bottom-center"/>
-<attribute name="VALUE" x="-27.94" y="18.796" size="1.778" layer="96" font="vector" align="top-center"/>
-</instance>
 <instance part="U1" gate="A" x="-101.6" y="-15.24" smashed="yes">
 <attribute name="NAME" x="-114.3" y="-1.54" size="2.0828" layer="95" ratio="10" rot="SR0"/>
 <attribute name="VALUE" x="-114.3" y="-31.94" size="2.0828" layer="96" ratio="10" rot="SR0"/>
@@ -5366,9 +5113,36 @@ Allows current flow when high potential at base.</description>
 <attribute name="NAME" x="-128.524" y="-17.78" size="1.778" layer="95" font="vector" rot="R90" align="bottom-center"/>
 <attribute name="VALUE" x="-125.476" y="-17.78" size="1.778" layer="96" font="vector" rot="R90" align="top-center"/>
 </instance>
-<instance part="R14" gate="G$1" x="-20.32" y="12.7" smashed="yes" rot="R90">
-<attribute name="NAME" x="-21.844" y="12.7" size="1.778" layer="95" font="vector" rot="R90" align="bottom-center"/>
-<attribute name="VALUE" x="-18.796" y="12.7" size="1.778" layer="96" font="vector" rot="R90" align="top-center"/>
+<instance part="Q1" gate="NMOS" x="-55.88" y="30.48" smashed="yes" rot="R180">
+<attribute name="NAME" x="-60.96" y="30.48" size="1.778" layer="95" font="vector" rot="R180"/>
+<attribute name="VALUE" x="-60.96" y="33.02" size="1.778" layer="96" font="vector" rot="R180"/>
+</instance>
+<instance part="R14" gate="G$1" x="-58.42" y="45.72" smashed="yes" rot="R180">
+<attribute name="NAME" x="-58.42" y="41.656" size="1.778" layer="95" font="vector" align="bottom-center"/>
+<attribute name="VALUE" x="-58.42" y="47.244" size="1.778" layer="96" font="vector" rot="R180" align="top-center"/>
+</instance>
+<instance part="R15" gate="G$1" x="-43.18" y="25.4" smashed="yes">
+<attribute name="NAME" x="-43.18" y="29.464" size="1.778" layer="95" font="vector" rot="R180" align="bottom-center"/>
+<attribute name="VALUE" x="-43.18" y="23.876" size="1.778" layer="96" font="vector" align="top-center"/>
+</instance>
+<instance part="R18" gate="G$1" x="-73.66" y="-10.16" smashed="yes" rot="R180">
+<attribute name="NAME" x="-73.66" y="-14.224" size="1.778" layer="95" font="vector" align="bottom-center"/>
+<attribute name="VALUE" x="-73.66" y="-8.636" size="1.778" layer="96" font="vector" rot="R180" align="top-center"/>
+</instance>
+<instance part="C4" gate="G$1" x="86.36" y="-45.72" smashed="yes" rot="R180">
+<attribute name="NAME" x="84.836" y="-48.641" size="1.778" layer="95" font="vector" rot="R180"/>
+<attribute name="VALUE" x="84.836" y="-43.561" size="1.778" layer="96" font="vector" rot="R180"/>
+</instance>
+<instance part="C8" gate="G$1" x="-60.96" y="-12.7" smashed="yes" rot="R180">
+<attribute name="NAME" x="-62.484" y="-15.621" size="1.778" layer="95" font="vector" rot="R180"/>
+<attribute name="VALUE" x="-62.484" y="-10.541" size="1.778" layer="96" font="vector" rot="R180"/>
+</instance>
+<instance part="C9" gate="G$1" x="-81.28" y="-17.78" smashed="yes" rot="R90">
+<attribute name="NAME" x="-81.915" y="-15.24" size="1.524" layer="95" rot="R90"/>
+<attribute name="VALUE" x="-79.121" y="-15.24" size="1.524" layer="96" rot="R90"/>
+</instance>
+<instance part="GND8" gate="1" x="86.36" y="-55.88" smashed="yes">
+<attribute name="VALUE" x="86.36" y="-56.134" size="1.778" layer="96" align="top-center"/>
 </instance>
 </instances>
 <busses>
@@ -5422,9 +5196,10 @@ Allows current flow when high potential at base.</description>
 <label x="40.64" y="106.68" size="1.778" layer="95"/>
 </segment>
 <segment>
-<pinref part="R18" gate="G$1" pin="2"/>
+<pinref part="R15" gate="G$1" pin="2"/>
+<wire x1="-38.1" y1="25.4" x2="-25.4" y2="25.4" width="0.1524" layer="91"/>
+<wire x1="-25.4" y1="25.4" x2="-25.4" y2="43.18" width="0.1524" layer="91"/>
 <pinref part="SUPPLY8" gate="G$1" pin="VCC"/>
-<wire x1="-40.64" y1="60.96" x2="-40.64" y2="68.58" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="GND" class="0">
@@ -5472,6 +5247,14 @@ Allows current flow when high potential at base.</description>
 <pinref part="U1" gate="A" pin="REF"/>
 <wire x1="-119.38" y1="-15.24" x2="-119.38" y2="-35.56" width="0.1524" layer="91"/>
 <wire x1="-119.38" y1="-35.56" x2="-83.82" y2="-35.56" width="0.1524" layer="91"/>
+<pinref part="C8" gate="G$1" pin="1"/>
+<wire x1="-83.82" y1="-22.86" x2="-81.28" y2="-22.86" width="0.1524" layer="91"/>
+<wire x1="-81.28" y1="-22.86" x2="-60.96" y2="-22.86" width="0.1524" layer="91"/>
+<wire x1="-60.96" y1="-22.86" x2="-60.96" y2="-17.78" width="0.1524" layer="91"/>
+<junction x="-83.82" y="-22.86"/>
+<pinref part="C9" gate="G$1" pin="1"/>
+<wire x1="-81.28" y1="-20.32" x2="-81.28" y2="-22.86" width="0.1524" layer="91"/>
+<junction x="-81.28" y="-22.86"/>
 </segment>
 <segment>
 <pinref part="C5" gate="G$1" pin="2"/>
@@ -5490,8 +5273,8 @@ Allows current flow when high potential at base.</description>
 <pinref part="Q2" gate="NMOS" pin="D"/>
 <pinref part="GND10" gate="1" pin="GND"/>
 <wire x1="-68.58" y1="17.78" x2="-68.58" y2="15.24" width="0.1524" layer="91"/>
-<wire x1="-48.26" y1="30.48" x2="-48.26" y2="15.24" width="0.1524" layer="91"/>
-<wire x1="-48.26" y1="15.24" x2="-68.58" y2="15.24" width="0.1524" layer="91"/>
+<wire x1="-86.36" y1="38.1" x2="-86.36" y2="15.24" width="0.1524" layer="91"/>
+<wire x1="-86.36" y1="15.24" x2="-68.58" y2="15.24" width="0.1524" layer="91"/>
 <junction x="-68.58" y="15.24"/>
 </segment>
 <segment>
@@ -5559,6 +5342,11 @@ Allows current flow when high potential at base.</description>
 <pinref part="GND3" gate="1" pin="GND"/>
 <pinref part="C7" gate="G$1" pin="1"/>
 <wire x1="58.42" y1="-223.52" x2="58.42" y2="-218.44" width="0.1524" layer="91"/>
+</segment>
+<segment>
+<pinref part="C4" gate="G$1" pin="1"/>
+<pinref part="GND8" gate="1" pin="GND"/>
+<wire x1="86.36" y1="-50.8" x2="86.36" y2="-53.34" width="0.1524" layer="91"/>
 </segment>
 </net>
 <net name="SDA" class="0">
@@ -5828,28 +5616,15 @@ Allows current flow when high potential at base.</description>
 <pinref part="R12" gate="G$1" pin="1"/>
 </segment>
 </net>
-<net name="N$12" class="0">
-<segment>
-<pinref part="Q1" gate="G$1" pin="C"/>
-<wire x1="-40.64" y1="25.4" x2="-40.64" y2="38.1" width="0.1524" layer="91"/>
-<pinref part="Q2" gate="NMOS" pin="G"/>
-<wire x1="-60.96" y1="25.4" x2="-58.42" y2="25.4" width="0.1524" layer="91"/>
-<pinref part="Q3" gate="G$1" pin="C"/>
-<wire x1="-58.42" y1="25.4" x2="-40.64" y2="25.4" width="0.1524" layer="91"/>
-<wire x1="-58.42" y1="27.94" x2="-58.42" y2="25.4" width="0.1524" layer="91"/>
-<junction x="-58.42" y="25.4"/>
-</segment>
-</net>
 <net name="VIN" class="0">
 <segment>
 <pinref part="SUPPLY7" gate="G$1" pin="VIN"/>
 <pinref part="C11" gate="G$1" pin="2"/>
-<wire x1="-48.26" y1="48.26" x2="-48.26" y2="35.56" width="0.1524" layer="91"/>
+<wire x1="-86.36" y1="48.26" x2="-86.36" y2="43.18" width="0.1524" layer="91"/>
 <pinref part="D3" gate="G$1" pin="C"/>
-<wire x1="-58.42" y1="48.26" x2="-53.34" y2="48.26" width="0.1524" layer="91"/>
-<wire x1="-53.34" y1="48.26" x2="-48.26" y2="48.26" width="0.1524" layer="91"/>
-<junction x="-53.34" y="48.26"/>
-<wire x1="-53.34" y1="48.26" x2="-53.34" y2="58.42" width="0.1524" layer="91"/>
+<wire x1="-81.28" y1="48.26" x2="-86.36" y2="48.26" width="0.1524" layer="91"/>
+<junction x="-86.36" y="48.26"/>
+<wire x1="-86.36" y1="48.26" x2="-86.36" y2="58.42" width="0.1524" layer="91"/>
 </segment>
 <segment>
 <pinref part="R21" gate="G$1" pin="2"/>
@@ -5869,17 +5644,13 @@ Allows current flow when high potential at base.</description>
 </net>
 <net name="PWM_SOLAR" class="0">
 <segment>
-<label x="-20.32" y="43.18" size="1.778" layer="95"/>
-<wire x1="-22.86" y1="43.18" x2="-20.32" y2="43.18" width="0.1524" layer="91"/>
-<wire x1="-20.32" y1="43.18" x2="-5.08" y2="43.18" width="0.1524" layer="91"/>
-<junction x="-20.32" y="43.18"/>
-<pinref part="R20" gate="G$1" pin="2"/>
-<wire x1="-20.32" y1="20.32" x2="-20.32" y2="43.18" width="0.1524" layer="91"/>
-<wire x1="-22.86" y1="20.32" x2="-20.32" y2="20.32" width="0.1524" layer="91"/>
-<junction x="-20.32" y="20.32"/>
-<pinref part="R19" gate="G$1" pin="2"/>
-<pinref part="R14" gate="G$1" pin="2"/>
-<wire x1="-20.32" y1="20.32" x2="-20.32" y2="17.78" width="0.1524" layer="91"/>
+<label x="-45.72" y="33.02" size="1.778" layer="95"/>
+<wire x1="-50.8" y1="33.02" x2="-30.48" y2="33.02" width="0.1524" layer="91"/>
+<pinref part="Q1" gate="NMOS" pin="G"/>
+<pinref part="R14" gate="G$1" pin="1"/>
+<wire x1="-53.34" y1="45.72" x2="-50.8" y2="45.72" width="0.1524" layer="91"/>
+<wire x1="-50.8" y1="45.72" x2="-50.8" y2="33.02" width="0.1524" layer="91"/>
+<junction x="-50.8" y="33.02"/>
 </segment>
 <segment>
 <pinref part="U5" gate="G$1" pin="PD5(OC0B/T1/PTCXY)"/>
@@ -5892,21 +5663,13 @@ Allows current flow when high potential at base.</description>
 <pinref part="Q2" gate="NMOS" pin="S"/>
 <pinref part="X2" gate="G$1" pin="1"/>
 <wire x1="-68.58" y1="27.94" x2="-68.58" y2="38.1" width="0.1524" layer="91"/>
-<wire x1="-68.58" y1="38.1" x2="-68.58" y2="50.8" width="0.1524" layer="91"/>
-<wire x1="-20.32" y1="7.62" x2="-96.52" y2="7.62" width="0.1524" layer="91"/>
-<wire x1="-96.52" y1="7.62" x2="-96.52" y2="27.94" width="0.1524" layer="91"/>
-<wire x1="-96.52" y1="27.94" x2="-68.58" y2="27.94" width="0.1524" layer="91"/>
-<junction x="-68.58" y="27.94"/>
+<wire x1="-68.58" y1="38.1" x2="-68.58" y2="45.72" width="0.1524" layer="91"/>
 <pinref part="R13" gate="G$1" pin="2"/>
 <junction x="-68.58" y="38.1"/>
-<pinref part="R14" gate="G$1" pin="1"/>
-</segment>
-</net>
-<net name="N$13" class="0">
-<segment>
-<pinref part="Q1" gate="G$1" pin="B"/>
-<wire x1="-35.56" y1="43.18" x2="-33.02" y2="43.18" width="0.1524" layer="91"/>
-<pinref part="R19" gate="G$1" pin="1"/>
+<pinref part="R14" gate="G$1" pin="2"/>
+<wire x1="-68.58" y1="45.72" x2="-68.58" y2="50.8" width="0.1524" layer="91"/>
+<wire x1="-68.58" y1="45.72" x2="-63.5" y2="45.72" width="0.1524" layer="91"/>
+<junction x="-68.58" y="45.72"/>
 </segment>
 </net>
 <net name="VSOLAR" class="0">
@@ -5914,7 +5677,7 @@ Allows current flow when high potential at base.</description>
 <pinref part="X2" gate="G$1" pin="2"/>
 <pinref part="D3" gate="G$1" pin="A"/>
 <wire x1="-66.04" y1="50.8" x2="-66.04" y2="48.26" width="0.1524" layer="91"/>
-<wire x1="-66.04" y1="48.26" x2="-63.5" y2="48.26" width="0.1524" layer="91"/>
+<wire x1="-66.04" y1="48.26" x2="-76.2" y2="48.26" width="0.1524" layer="91"/>
 <label x="-66.04" y="50.8" size="1.778" layer="95"/>
 </segment>
 </net>
@@ -5933,6 +5696,9 @@ Allows current flow when high potential at base.</description>
 <label x="78.74" y="-40.64" size="1.778" layer="95"/>
 <wire x1="86.36" y1="-27.94" x2="86.36" y2="-40.64" width="0.1524" layer="91"/>
 <junction x="86.36" y="-27.94"/>
+<pinref part="C4" gate="G$1" pin="2"/>
+<wire x1="86.36" y1="-40.64" x2="86.36" y2="-43.18" width="0.1524" layer="91"/>
+<junction x="86.36" y="-40.64"/>
 </segment>
 </net>
 <net name="N$16" class="0">
@@ -6053,31 +5819,10 @@ Allows current flow when high potential at base.</description>
 <wire x1="40.64" y1="81.28" x2="91.44" y2="81.28" width="0.1524" layer="91"/>
 <wire x1="91.44" y1="81.28" x2="99.06" y2="81.28" width="0.1524" layer="91"/>
 <junction x="91.44" y="81.28"/>
-<label x="35.56" y="63.5" size="1.778" layer="95"/>
+<label x="45.72" y="81.28" size="1.778" layer="95"/>
 <pinref part="R17" gate="G$1" pin="1"/>
 <wire x1="40.64" y1="86.36" x2="40.64" y2="81.28" width="0.1524" layer="91"/>
 <junction x="40.64" y="81.28"/>
-</segment>
-</net>
-<net name="N$3" class="0">
-<segment>
-<pinref part="Q1" gate="G$1" pin="E"/>
-<pinref part="R18" gate="G$1" pin="1"/>
-<wire x1="-40.64" y1="48.26" x2="-40.64" y2="50.8" width="0.1524" layer="91"/>
-</segment>
-</net>
-<net name="N$5" class="0">
-<segment>
-<pinref part="Q3" gate="G$1" pin="E"/>
-<pinref part="R13" gate="G$1" pin="1"/>
-</segment>
-</net>
-<net name="N$10" class="0">
-<segment>
-<pinref part="Q3" gate="G$1" pin="B"/>
-<wire x1="-53.34" y1="33.02" x2="-53.34" y2="20.32" width="0.1524" layer="91"/>
-<wire x1="-53.34" y1="20.32" x2="-33.02" y2="20.32" width="0.1524" layer="91"/>
-<pinref part="R20" gate="G$1" pin="1"/>
 </segment>
 </net>
 <net name="N$11" class="0">
@@ -6105,8 +5850,12 @@ Allows current flow when high potential at base.</description>
 </segment>
 <segment>
 <pinref part="U1" gate="A" pin="V+"/>
-<wire x1="-83.82" y1="-5.08" x2="-73.66" y2="-5.08" width="0.1524" layer="91"/>
+<wire x1="-83.82" y1="-5.08" x2="-81.28" y2="-5.08" width="0.1524" layer="91"/>
 <label x="-81.28" y="-5.08" size="1.778" layer="95"/>
+<pinref part="C9" gate="G$1" pin="2"/>
+<wire x1="-81.28" y1="-5.08" x2="-73.66" y2="-5.08" width="0.1524" layer="91"/>
+<wire x1="-81.28" y1="-15.24" x2="-81.28" y2="-5.08" width="0.1524" layer="91"/>
+<junction x="-81.28" y="-5.08"/>
 </segment>
 </net>
 <net name="CUR_SENSE" class="0">
@@ -6116,9 +5865,36 @@ Allows current flow when high potential at base.</description>
 <label x="-53.34" y="-132.08" size="1.778" layer="95"/>
 </segment>
 <segment>
+<pinref part="R18" gate="G$1" pin="1"/>
+<pinref part="C8" gate="G$1" pin="2"/>
+<wire x1="-68.58" y1="-10.16" x2="-60.96" y2="-10.16" width="0.1524" layer="91"/>
+<wire x1="-60.96" y1="-10.16" x2="-50.8" y2="-10.16" width="0.1524" layer="91"/>
+<junction x="-60.96" y="-10.16"/>
+<label x="-66.04" y="-10.16" size="1.778" layer="95"/>
+</segment>
+</net>
+<net name="N$3" class="0">
+<segment>
+<pinref part="R13" gate="G$1" pin="1"/>
+<pinref part="Q1" gate="NMOS" pin="S"/>
+<wire x1="-58.42" y1="35.56" x2="-58.42" y2="38.1" width="0.1524" layer="91"/>
+</segment>
+</net>
+<net name="N$10" class="0">
+<segment>
+<pinref part="Q2" gate="NMOS" pin="G"/>
+<pinref part="Q1" gate="NMOS" pin="D"/>
+<wire x1="-60.96" y1="25.4" x2="-58.42" y2="25.4" width="0.1524" layer="91"/>
+<pinref part="R15" gate="G$1" pin="1"/>
+<wire x1="-58.42" y1="25.4" x2="-48.26" y2="25.4" width="0.1524" layer="91"/>
+<junction x="-58.42" y="25.4"/>
+</segment>
+</net>
+<net name="N$5" class="0">
+<segment>
 <pinref part="U1" gate="A" pin="OUT"/>
-<wire x1="-83.82" y1="-10.16" x2="-73.66" y2="-10.16" width="0.1524" layer="91"/>
-<label x="-81.28" y="-10.16" size="1.778" layer="95"/>
+<pinref part="R18" gate="G$1" pin="2"/>
+<wire x1="-83.82" y1="-10.16" x2="-78.74" y2="-10.16" width="0.1524" layer="91"/>
 </segment>
 </net>
 </nets>

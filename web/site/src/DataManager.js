@@ -245,16 +245,44 @@ export default class DataManager {
                            this.internalTempData, this.externalTempData];
     }
 
+    findPrevIdx(arr, comp)
+    {
+        let idx = arr.length - 1;
+        while (idx > 0 && comp(arr[idx]))
+            idx--;
+        if (idx < 0)
+            idx = 0;
+        return idx;
+    }
+
+    spliceBefore(arr, comp, data)
+    {
+        const idx = this.findPrevIdx(arr, comp);
+        arr.splice(idx, 0, data);
+    }
+
     add_point(newDataPoint) {
         if (!this.end_is_now())
             return;
         
-        this.stationData.push(newDataPoint);
+        let idx = this.stationData.length - 1;
+        while (idx > 0 && this.stationData[idx].timestamp > newDataPoint.timestamp)
+            idx--;
+        if (idx < 0)
+            idx = 0;
+        this.spliceBefore(this.stationData, d => d.timestamp > newDataPoint.timestamp, newDataPoint);
+        const jsTimestamp = newDataPoint.timestamp * 1000;
+        this.spliceBefore(this.windDirectionData, pt => pt.x > jsTimestamp, this.get_wind_dir_entry(newDataPoint));
+        this.spliceBefore(this.batteryData, pt => pt.x > jsTimestamp, this.get_batt_entries(newDataPoint));
+        this.spliceBefore(this.internalTempData, pt => pt.x > jsTimestamp, this.get_internalTemp_entries(newDataPoint));
+        this.spliceBefore(this.externalTempData, pt => pt.x > jsTimestamp, this.get_externalTemp_entries(newDataPoint));
+        /*this.stationData.splice(idx, 0, newDataPoint);
+        //this.stationData.push(newDataPoint);
         this.windDirectionData.push(this.get_wind_dir_entry(newDataPoint));
         this.windspeedData.push(this.get_wind_spd_entry(newDataPoint));
         this.batteryData.push(...this.get_batt_entries(newDataPoint));
         this.internalTempData.push(...this.get_internalTemp_entries(newDataPoint));
-        this.externalTempData.push(...this.get_externalTemp_entries(newDataPoint));
+        this.externalTempData.push(...this.get_externalTemp_entries(newDataPoint));*/
 
         const wsAvgEntry = this.get_entry(newDataPoint, 'windspeed_avg', this.wsFactor());
         if (this.windspeedAvgData.length >= 2 

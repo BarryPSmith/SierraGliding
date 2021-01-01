@@ -24,7 +24,9 @@ namespace PwmSolar
   //Time constant is 2 milliseconds.
   //So... if our update interval is two time constants,
   //the battery voltage we read will be close to the actual battery voltage.
-  constexpr unsigned int PwmUpdateInterval_uS = 4000;
+  // We're going to put larger resistors in there to lower our current consumption.
+  // So that means a longer update interval...
+  constexpr unsigned int PwmUpdateInterval_uS = 10000;
 
   constexpr unsigned long mV_Ref = REF_MV;
   constexpr unsigned long BattVNumerator = BATTV_NUM;

@@ -35,7 +35,7 @@ void AwsRecordState(int i);
 //#define DEBUG_RX
 //#define DEBUG_DATABASE
 //#define DEBUG_MSGPROC
-#define DEBUG_PARAMETERS
+//#define DEBUG_PARAMETERS
 //#define DEBUG_SOLAR
 //#define DEBUG_PROGRAMMING
 //#define DEBUG_IT
@@ -46,6 +46,10 @@ void AwsRecordState(int i);
 //#define DEBUG_BASE
 //#define DEBUG_FLASH
 #define DEBUG_NO_WEATHER //This is us desperate to get program space.
+#ifdef DEBUG
+#undef SOLAR_PWM
+#undef CRYSTAL_FREQ
+#endif
 
 #ifdef DEBUG_TX
 #define TX_PRINT AWS_DEBUG_PRINT

@@ -28,6 +28,7 @@ namespace WeatherProcessing
 #endif
 
   extern volatile bool weatherRequired;
+  extern volatile unsigned short windCounts;
 
   extern short internalTemperature;
   extern float externalTemperature;

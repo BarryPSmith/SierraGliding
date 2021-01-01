@@ -5,6 +5,7 @@
 #ifdef CRYSTAL_FREQ
 #define DIVIDER 32UL
 #define TIMER2_TOP 255
+#define TIMER2_TOP_ALT 244
 #else
 #define DIVIDER 1024UL
 #define TIMER2_TOP 249
@@ -38,4 +39,13 @@ public:
   static void setSeconds(unsigned long seconds);
 
   static void attachInterrupt(void (*interruptAction)(void));
+
+  static bool testFailedOsc();
+#ifdef CRYSTAL_FREQ
+  static bool _crystalFailed;
+#if F_CPU > 1000000
+  static byte _subTicks;
+  static constexpr byte subsPerTick = F_CPU / 1000000;
+#endif
+#endif
 };

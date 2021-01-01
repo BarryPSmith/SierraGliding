@@ -122,7 +122,6 @@ void PermanentStorage::initialise()
   else
   {
     PARAMETER_PRINTLN(F("Initialising Default Parameters"));
-    PARAMETER_DEBUG(while(1));
     PermanentVariables vars;
     memcpy_P(&vars, &defaultVars, sizeof(vars));
     vars.stationID = stationID;

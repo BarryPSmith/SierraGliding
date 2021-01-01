@@ -6,8 +6,46 @@ volatile unsigned char TimerTwo::_ofTicks __attribute__ ((section (".noinit")));
 void timerTwo_defaultInterrupt() {}
 void (*TimerTwo::_interruptAction)() = &timerTwo_defaultInterrupt;
 
+bool TimerTwo::_crystalFailed = false;
+
+bool TimerTwo::testFailedOsc()
+{
+#ifdef CRYSTAL_FREQ
+  if (_crystalFailed)
+    return false;
+
+  unsigned long entryMillis = millis();
+  delay(10);
+  unsigned long testMillis = millis();
+  //Declare the crystal failed if off by more than 30%.
+  if (testMillis - entryMillis < 7 || testMillis - entryMillis > 13)
+  {
+    _crystalFailed = true;
+    cli();
+    ASSR = 0; // Run it synchronously off the internal clock
+    while (ASSR)
+    {
+      // Wait for ASSR to change to indicating these have been set.
+      // I'm not sure if we actually have to wait here, but...
+    }
+    TCCR2B = _BV(CS20) | _BV(CS21) | _BV(CS22); //1024 prescaler
+    OCR2A = TIMER2_TOP_ALT;
+    OCR2B = 0;
+    TCCR2A = _BV(WGM21);
+    sei();
+    return true;
+  }
+#endif
+  return false;
+}
+
 ISR(TIMER2_COMPA_vect)
 {
+#if defined(CRYSTAL_FREQ) && (F_CPU > 1000000)
+  if (TimerTwo::_crystalFailed)
+    if (++TimerTwo::_subTicks % TimerTwo::subsPerTick)
+      return;
+#endif
   TimerTwo::_ticks++;
   if (bit_is_set(SREG, SREG_C))
     TimerTwo::_ofTicks++;
@@ -37,8 +75,6 @@ void TimerTwo::initialise()
   //Enable interrupts
   TIFR2 = 0;
   TIMSK2 = _BV(OCIE2A);
-
-
 }
 #else
 void TimerTwo::initialise()
@@ -100,13 +136,22 @@ unsigned long TimerTwo::millis()
 {
   auto sreg = SREG;
   cli();
+#if F_CPU > 1000000
+  auto st = _subTicks;
+#endif
   unsigned long m = _ticks;
   byte t = TCNT2;
   if (TIFR2 & _BV(OCF2A) && t < 249)
     m++;
   SREG = sreg;
-
-  return (m * MillisPerTick) + t * MillisPerTick / (TIMER2_TOP + 1);
+  if (!TimerTwo::_crystalFailed)
+    return (m * MillisPerTick) + t * MillisPerTick / (TIMER2_TOP + 1);
+  else
+#if F_CPU > 1000000
+    return (m * MillisPerTick) + ((unsigned short)st * (TIMER2_TOP_ALT + 1) + t) * MillisPerTick / ((unsigned short)subsPerTick * (TIMER2_TOP_ALT + 1));
+#else
+    return (m * MillisPerTick) + t * MillisPerTick / (TIMER2_TOP_ALT + 1);
+#endif
 }
 
 unsigned long TimerTwo::micros()

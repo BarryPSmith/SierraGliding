@@ -32,7 +32,33 @@ namespace core_Receiver
 
             var now = new DateTimeOffset(receivedTime).ToUniversalTime();
 
-            foreach (var subPacket in packet.packetData as IList<SingleWeatherData>)
+            var subPackets = packet.packetData as IList<SingleWeatherData>;
+            var groupedPackets = subPackets.GroupBy(p => p.sendingStation);
+            foreach (var grp in groupedPackets.Where(grp => grp.Count() > 1))
+            {
+                byte spaceAfter(SingleWeatherData d)
+                {
+                    if (grp.Count() == 1)
+                        return 255;
+                    var otherPackets = grp.Where(p => p != d);
+                    var nextId = otherPackets.Where(p => p.uniqueID > d.uniqueID)
+                        .Min(p => (byte?)p.uniqueID);
+                    if (nextId != null)
+                        return (byte)(nextId - d.uniqueID);
+                    var firstId = otherPackets.Min(p => p.uniqueID);
+                    return (byte)(firstId + (255 - d.uniqueID));
+                }
+                var lastId = grp.OrderBy(p => spaceAfter(p)).Last().uniqueID;
+                TimeSpan timeBetweenPackets = TimeSpan.FromSeconds(4);
+                foreach(var subPacket in grp)
+                {
+                    byte idSpace = (byte)(lastId - subPacket.uniqueID);
+                    var packetTime = now - idSpace * timeBetweenPackets;
+                    subPacket.calculatedTime = packetTime;
+                }
+            }
+
+            foreach (var subPacket in subPackets.OrderBy(p => p.calculatedTime ?? now))
             {
                 var identifier = new PacketIdentifier()
                 {
@@ -47,7 +73,7 @@ namespace core_Receiver
 
                 var toSerialize = new
                 {
-                    timestamp = now.ToUnixTimeSeconds(),
+                    timestamp = (subPacket.calculatedTime ?? now).ToUnixTimeSeconds(),
                     wind_speed = subPacket.windSpeed,
                     wind_direction = subPacket.windDirection,
                     battery = subPacket.batteryLevelH,

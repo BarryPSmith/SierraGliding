@@ -1,5 +1,5 @@
 #COM port for upload
-PORT=COM14
+PORT=COM4
 MCU=atmega328p
 
 uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
@@ -16,7 +16,7 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 7: Second printed PCB (includes battery PWM circuitry)
 # 8: Second printed PCB configured for ALSWind
 # 9: Single board or second PCB with a Atmega328PB and 32768Hz crystal
-BOARD = 5
+BOARD = 9
 include Boards.makefile
 
 #Flags, etc.

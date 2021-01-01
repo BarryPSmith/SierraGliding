@@ -15,6 +15,7 @@ namespace core_Receiver.Packets
         public double? externalTemp;
         public double? gust;
         public byte[] extras;
+        public DateTimeOffset? calculatedTime;
 
         public override string ToString()
         {

@@ -35,8 +35,8 @@ namespace WeatherProcessing
     Wire.begin();
     TWBR = GetWireClock(100000);
     
-    PRINT_VARIABLE(TWBR);
-    PRINT_VARIABLE(TWSR);
+    //WX_PRINTVAR(TWBR);
+    //WX_PRINTVAR(TWSR);
    
     if (doWriteEeprom)
     {     

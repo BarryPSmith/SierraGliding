@@ -518,7 +518,7 @@ namespace WeatherProcessing
       return true;
 #ifdef ALS_WIND
     case 'E':
-      writeAlsEeprom();
+      return writeAlsEeprom();
 #endif
     default:
       return false;

@@ -43,11 +43,11 @@ namespace Database
 
   constexpr short blockSize = 4096;
   constexpr unsigned long messageFatStart = 32768;
-  constexpr unsigned short messageFatLen = blockSize * 6;
+  constexpr unsigned short messageFatLen = blockSize * 6; // 24 kB - 2000 messages worth of headers (12 bytes per header)
   constexpr unsigned long messageFatEnd = messageFatStart + messageFatLen;
   constexpr unsigned long messageDataStart = messageFatEnd;
   constexpr unsigned long messageDataLen = totalMemory - messageDataStart;
-  constexpr unsigned long messageDataEnd = messageDataStart + messageDataLen;
+  constexpr unsigned long messageDataEnd = messageDataStart + messageDataLen; // 450 kB - about enough for 1800 full size messages
   constexpr unsigned short maxProcessingTime = 1000;
   constexpr unsigned short minMessageInterval = 1000;
 
@@ -80,6 +80,8 @@ namespace Database
   byte _outgoingMessageBuffer[sizeof(LoraMessageDestination<254>)];
   LoraMessageDestination<254>* _searchMessage;
   unsigned long _lastSearchMessageMillis = 0;
+  unsigned long _cleanAddressStart = 0;
+  unsigned long _cleanAddressFat = 0;
 
 
   void initDatabase()
@@ -206,16 +208,16 @@ namespace Database
 
   bool checkEndsOfBlocks(byte messageSize)
   {
-    //TODO: Implement some sort of circular buffer logic where it just starts overwriting once it's done.
     unsigned long endHeaderAddress = _curHeaderAddress + sizeof(MessageRecord);
-    if (endHeaderAddress >= messageFatEnd)
-      return false;
-    unsigned long endMessageAddress = _curWriteAddress + messageSize;
-    if (endMessageAddress >= messageDataEnd)
-      return false;
-
+    bool initFirstHeaderBlock = false;
+    if (endHeaderAddress > messageFatEnd)
+    {
+      initFirstHeaderBlock = true;
+      _curHeaderAddress = messageFatStart;
+      endHeaderAddress = messageFatStart + sizeof(MessageRecord);
+    }
     unsigned short endInBlock = endHeaderAddress % blockSize;
-    if (endInBlock < sizeof(MessageRecord))
+    if (initFirstHeaderBlock || (endInBlock != 0 && endInBlock < sizeof(MessageRecord)))
     {
       _curHeaderAddress = endHeaderAddress - endInBlock;
       Flash::flash.blockErase4K(_curHeaderAddress);
@@ -224,16 +226,28 @@ namespace Database
       _curHeaderAddress += sizeof(initBuffer);
     }
 
+    unsigned long endMessageAddress = _curWriteAddress + messageSize;
+    bool initFirstDataBlock = false;
+    if (endMessageAddress > messageDataEnd)
+    {
+      initFirstDataBlock = true;
+      _curWriteAddress = messageDataStart;
+      endMessageAddress = messageDataStart + messageSize;
+    }
     endInBlock = endMessageAddress % blockSize;
-    if (endInBlock < messageSize)
+    if (initFirstDataBlock || (endInBlock != 0 && endInBlock < messageSize))
+    {
       _curWriteAddress = endMessageAddress - endInBlock;
+      Flash::flash.blockErase4K(_curWriteAddress);
+      //TODO: Update the FAT to indicate that we've overwritten the block.
+    }
 
     return true;
   }
 
   enum class ProcessingActions
   {
-    Idle, Searching, Sending
+    Idle, Searching, Sending, Cleaning
   };
   ProcessingActions _currentAction = ProcessingActions::Idle;
   void doProcessing()
@@ -244,6 +258,7 @@ namespace Database
     {
     case ProcessingActions::Idle:
       return;
+    case ProcessingActions::Cleaning:
     case ProcessingActions::Searching:
       doSearch();
       break;
@@ -284,25 +299,40 @@ namespace Database
           endSearch();
           return;
         }
-        if (_messageTypeFilter && record.messageType != _messageTypeFilter)
-          continue;
-        if (_messageSourceFilter && record.stationID != _messageSourceFilter)
-          continue;
         if (!record.isValid)
           continue;
         unsigned short address = baseAddress + i * sizeof(MessageRecord);
-        switch (appendRecord(record, address))
+        if (_currentAction == ProcessingActions::Searching)
         {
-        case MESSAGE_OK:
-          continue;
-        case MESSAGE_BUFFER_OVERRUN:
-          _curSearchAddress = messageFatStart + address;
-          _currentAction = ProcessingActions::Sending;
-          return;
-        default:
-          SIGNALERROR();
-          endSearch();
-          return;
+          if (_messageTypeFilter && record.messageType != _messageTypeFilter)
+            continue;
+          if (_messageSourceFilter && record.stationID != _messageSourceFilter)
+            continue;
+          switch (appendRecord(record, address))
+          {
+          case MESSAGE_OK:
+            continue;
+          case MESSAGE_BUFFER_OVERRUN:
+            _curSearchAddress = messageFatStart + address;
+            _currentAction = ProcessingActions::Sending;
+            return;
+          default:
+            SIGNALERROR();
+            endSearch();
+            return;
+          }
+        }
+        else
+        {
+          unsigned long recordAddress = messageFatStart + address;
+          // If the record points to erased data,
+          if (_cleanAddressStart <= record.address && record.address < _cleanAddressStart + blockSize
+            // and the record is not recently written
+            && recordAddress - _cleanAddressFat > 240)
+            // update the fact that the record is erased.
+          {
+            Flash::flash.writeByte(recordAddress + 11, 0);
+          }
         }
       }
     }
@@ -339,6 +369,18 @@ namespace Database
     Flash::flash.readBytes(_curSearchAddress, buffer, bytesToRead);
     _curSearchAddress += bytesToRead;
     return bytesToRead;
+  }
+
+  void startClean(unsigned long dataStart, unsigned long fatStart)
+  {
+    _cleanAddressFat = fatStart;
+    _cleanAddressStart = dataStart;
+    if (_searchMessage)
+    {
+      _searchMessage->abort();
+      _searchMessage = nullptr;
+    }
+    _currentAction = ProcessingActions::Cleaning;
   }
 
   void startSearch(byte typeFilter, byte sourceFilter)

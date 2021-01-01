@@ -513,7 +513,7 @@ function main(db, cb) {
                         timestamp,
                         AVG(Windspeed) as windspeed,
                         MIN(Windspeed) as windspeed_sample_min,
-                        MAX(COALESCE(wind_gust, windspeed)) as windspeed_sample_max,
+                        MAX(windspeed) as windspeed_sample_max,
                         ` + avg_wd_String + ` AS wind_direction,
                         AVG(Battery_Level) AS battery_level,
                         AVG(Internal_Temp) as internal_temp,
@@ -618,7 +618,7 @@ function main(db, cb) {
             const stats = await dbGet(`
                 SELECT
                     MIN(windspeed) as windspeed_min,
-                    MAX(COALESCE(wind_gust, windspeed)) as windspeed_max,
+                    MAX(windspeed) as windspeed_max,
                     AVG(windspeed) as windspeed_avg,
                     ${avg_wd_String} as wind_direction_avg
                 FROM station_data

@@ -144,6 +144,8 @@ function database(dbpath, drop, cb) {
                 Internal_Temp       FLOAT NULL,
                 External_Temp       FLOAT NULL,
                 Wind_Gust           FLOAT NULL,
+                Pwm                 INT NULL,
+                Current             INT NULL,
                 PRIMARY KEY(Station_ID, Timestamp)
             );
         `);
@@ -583,7 +585,9 @@ function main(db, cb) {
                     Battery_Level,
                     Internal_Temp,
                     External_Temp,
-                    Wind_Gust
+                    Wind_Gust,
+                    Pwm,
+                    Current
                 ) VALUES (
                     $id,
                     $timestamp,
@@ -592,7 +596,9 @@ function main(db, cb) {
                     $battery,
                     $internal_temp,
                     $external_temp,
-                    $wind_gust
+                    $wind_gust,
+                    $pwm,
+                    $current
                 )
             `, {
                 $id: req.params.id,
@@ -602,7 +608,9 @@ function main(db, cb) {
                 $battery: typeof(req.body.battery) == 'number' ? req.body.battery : null,
                 $internal_temp: typeof(req.body.internal_temp) == 'number' ? req.body.internal_temp : null,
                 $external_temp: typeof(req.body.external_temp) == 'number' ? req.body.external_temp : null,
-                $wind_gust: typeof(req.body.wind_gust) == 'number' ? req.body.wind_gust : req.body.wind_speed
+                $wind_gust: typeof(req.body.wind_gust) == 'number' ? req.body.wind_gust : req.body.wind_speed,
+                $pwm: typeof(req.body.pwm) == 'number' ? req.body.pwm : null,
+                $current: typeof(req.body.current) == 'number' ? req.body.current : null,
             });
 
             res.json("success");

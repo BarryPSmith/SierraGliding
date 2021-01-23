@@ -214,6 +214,10 @@ namespace core_Receiver
             if (packetLen > cur)
                 ret.internalTemp = GetTemp(data[cur++]); //7 (^8)
             if (packetLen > cur)
+                ret.pwmValue = data[cur++];
+            if (packetLen > cur)
+                ret.current = data[cur++];
+            if (packetLen > cur)
                 ret.extras = data[cur..packetLen].ToArray(); //8 (^9)
             return ret;
         }

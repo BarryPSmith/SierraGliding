@@ -33,7 +33,7 @@ export default {
         },
         'centre': function() {
             this.chart.options.scales.yAxes[0].ticks.max = this.centre + 180;
-            this.chart.options.scales.yAxes[0].ticks.max = this.centre + 180;
+            this.chart.options.scales.yAxes[0].ticks.min = this.centre - 180;
             this.update_chart();
         }
     },

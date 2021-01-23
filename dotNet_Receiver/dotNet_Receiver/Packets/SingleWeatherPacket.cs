@@ -14,6 +14,8 @@ namespace core_Receiver.Packets
         public double? internalTemp;
         public double? externalTemp;
         public double? gust;
+        public byte? pwmValue;
+        public byte? current;
         public byte[] extras;
         public DateTimeOffset? calculatedTime;
 
@@ -28,6 +30,10 @@ namespace core_Receiver.Packets
                 ret += $" ET:{externalTemp:F1}";
             if (internalTemp.HasValue)
                 ret += $" IT:{internalTemp:F1}";
+            if (pwmValue.HasValue)
+                ret += $" PWM:{pwmValue:X}";
+            if (current.HasValue)
+                ret += $" Cur:{current}";
             if (extras?.Length > 0)
                 ret += $" ({extras.ToCsv(b => b.ToString("X2"), " ")})";
             return ret;

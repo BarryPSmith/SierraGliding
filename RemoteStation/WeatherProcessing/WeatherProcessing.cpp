@@ -5,6 +5,7 @@
 #include "../PermanentStorage.h"
 #include "Wind.h"
 #include <avr/boot.h>
+#include "../PWMSolar.h"
 
 
 #if (defined(DAVIS_WIND) && defined(ARGENTDATA_WIND)) || \
@@ -16,12 +17,6 @@
 #error No wind system defined
 #endif
 
-#ifdef DEBUG_PWM
-namespace PwmSolar
-{
-  extern byte solarPwmValue;
-}
-#endif
 
 namespace WeatherProcessing
 {
@@ -157,7 +152,7 @@ namespace WeatherProcessing
 
     bool isComplex = simpleMessagesSent >= complexMessageFrequency - 1;
 
-    byte length = isComplex ? 6 : 3;
+    byte length = isComplex ? 8 : 3;
 #ifdef DEBUG_PWM
     if (isComplex)
       length++;
@@ -190,6 +185,7 @@ namespace WeatherProcessing
     message.appendByte(wsByte);
     message.appendByte(wgByte);
     
+    
     byte batteryByte, externalTempByte, internalTempByte;
     if (isComplex)
     {
@@ -203,9 +199,8 @@ namespace WeatherProcessing
       internalTempByte = getInternalTemperature(iTReading);
       message.appendByte(internalTempByte);
 
-#ifdef DEBUG_PWM
       message.appendByte(PwmSolar::solarPwmValue);
-#endif
+      message.appendByte(PwmSolar::curCurrent_mA_x6/6);
 #ifdef DEBUG_IT
       message.appendT(iTReading);
 #endif
@@ -396,6 +391,7 @@ namespace WeatherProcessing
     while (!(ADCSRA & _BV(ADIF)));
 
     // Restore the old reference, allow the reference cap to settle
+    reading = ADC;
     ADMUX = oldMux;
     delay(1);
 
@@ -408,7 +404,6 @@ namespace WeatherProcessing
 
     //The point at which tsGain has no effect is at 100C.
     // (ADC + Offset - 173) * 128 / gain + 100
-    reading = ADC;
     int temp_x2 = (((long)reading + tsOffset - (273 + 100)) * 256) / tsGain + 100 * 2;
     // T = ADC * 128 / tsGain + (tsOffset - 373) * 128 / tsGain + 100
     internalTemperature = temp_x2 / 2;

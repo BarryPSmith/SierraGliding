@@ -16,6 +16,8 @@ constexpr byte printFreq = 1;
 #define SOLAR_PRINTVAR(...)  do { } while (0)
 #endif
 
+#define MAX_PWM_BASE_FREQ 4000000
+
 namespace PwmSolar
 {
 #define SOLAR_PWM_PIN 5 // Pin 5 is OCR0B
@@ -39,8 +41,13 @@ namespace PwmSolar
   byte safeFreezingPwm;
   unsigned short chargeVoltage_mV;
 
+  enum CurrentSensorState { Off, Startup, Running };
+  CurrentSensorState currentState = CurrentSensorState::Off;
+
   unsigned long lastPwmMicros = 0;
   byte solarPwmValue = 0;
+
+  short curCurrent_mA_x6;
 
   int getNewPwmValue(bool* canIdle);
   byte getMaxPwm(unsigned short batteryVoltage_mV);
@@ -48,6 +55,20 @@ namespace PwmSolar
   void turnOffSolar();
   void setSolarFull();
   void ensurePwmActive(bool canIdle);
+  byte readCurrentAndCalcMaxPwm();
+#ifdef CURRENT_SENSE_PWR
+  void stopCurrentSensor();
+  void startupCurrentSensor();
+#endif
+#ifdef CURRENT_SENSE
+  short readCurrent_x6();
+#endif
+
+#if defined(SOLAR_IMPEDANCE_SWITCHING) && (F_CPU < MAX_PWM_BASE_FREQ)
+  constexpr byte minPwm = 8;
+#else
+  constexpr byte minPwm = 1;
+#endif
 
   void setupPwm()
   {
@@ -55,7 +76,15 @@ namespace PwmSolar
     GET_PERMANENT_S(safeFreezingChargeLevel_mV);
     GET_PERMANENT_S(safeFreezingPwm);
     GET_PERMANENT_S(chargeVoltage_mV);
+#ifndef SOLAR_IMPEDANCE_SWITCHING
     pinMode(SOLAR_PWM_PIN, OUTPUT);
+#endif
+#ifdef CURRENT_SENSE
+    pinMode(CURRENT_SENSE, INPUT);
+#endif
+#ifdef CURRENT_SENSE_PWR
+    pinMode(CURRENT_SENSE_PWR, OUTPUT);
+#endif
   }
 
   void doPwmLoop()
@@ -68,8 +97,8 @@ namespace PwmSolar
     lastPwmMicros = micros();
     
     bool canIdle;
-    int newValue = getNewPwmValue(&canIdle);
-    if (newValue <= 0)
+    short newValue = getNewPwmValue(&canIdle);
+    if (newValue < minPwm)
     {
       turnOffSolar();
       solarPwmValue = 0;
@@ -115,21 +144,112 @@ namespace PwmSolar
     }
   }
 
+  /*
+  * Current PWM behaviour:
+  * Check voltage. Adjust PWM as necessary within limits.
+  * 
+  * In presence of current sensor:
+  * Check voltage. Determine new desired PWM level based on existing level.
+  * Check current. Determine new desired PWM level based on existing level.
+  * Take whichever gives the lowest PWM level to exceed neither voltage nor current.
+  * 
+  * Current sensor logic:
+  * If temp sufficient: No current limit => No need to run current sensor
+  * If current limit in place.
+  *  - Is current-based PWM full right now?
+  *   + Yes: Do not check current until check interval has passed
+  *   + No: Check current immediately.
+  * */
+
+  byte readCurrentAndCalcMaxPwm(bool applyLimits)
+  {
+#ifndef CURRENT_SENSE
+    return applyLimits ? safeFreezingPwm : 255;
+#else
+    //We can use shorts for all these millis values because the intervals are much less than 65 seconds.
+    static unsigned short powerUpMillis;
+    static unsigned short lastCurrentCheckMillis;
+    unsigned short curMillis = millis();
+    constexpr unsigned short powerUpInterval_ms = 10;
+    constexpr unsigned short currentCheckInterval_ms = 5000;
+    if (currentState == CurrentSensorState::Off)
+    {
+      if (curMillis - lastCurrentCheckMillis > currentCheckInterval_ms)
+      {
+        startupCurrentSensor();
+        powerUpMillis = curMillis;
+      }
+      else
+        return 255;
+    }
+    if (currentState == CurrentSensorState::Startup)
+    {
+      if (curMillis - powerUpMillis > powerUpInterval_ms)
+        currentState = CurrentSensorState::Running;
+      else
+        return 255;
+    }
+    // If we get here, the sensor is running.
+    curCurrent_mA_x6 = readCurrent_x6();
+    short desired;
+    short diff = (curCurrent_mA_x6 - (short)safeFreezingPwm * 6);
+    short change = diff * chargeResponseRate / 256;
+    desired = solarPwmValue + change;
+    if (!applyLimits || desired >= 255) {
+      // If there is no limit due to the current, then shut the sensor down for a while to save power.
+      stopCurrentSensor();
+      lastCurrentCheckMillis = curMillis;
+      return 255;
+    }
+    if (desired < 0)
+      desired = 0;
+    return desired;
+#endif
+  }
+
+  void startupCurrentSensor()
+  {
+#ifdef CURRENT_SENSE_PWR
+    digitalWrite(CURRENT_SENSE_PWR, HIGH);
+    currentState = CurrentSensorState::Startup;
+#endif
+  }
+
+  void stopCurrentSensor()
+  {
+#ifdef CURRENT_SENSE_PWR
+    digitalWrite(CURRENT_SENSE_PWR, LOW);
+    currentState = CurrentSensorState::Off;
+#endif
+  }
+
+#ifdef CURRENT_SENSE
+  short readCurrent_x6()
+  {
+    int reading = analogRead(CURRENT_SENSE);
+    constexpr unsigned long denominator = (CURRENT_SENSE_GAIN * 1023);
+    return ((unsigned long)reading * REF_MV * 6) / denominator;
+  }
+#endif
+
   //In cold temperatures with lithium ion, we must perform current and voltage limitation. maxPwm limits the maximum chart current.
   //Internet sources suggest 0.02C charge rate is acceptable in very cold temperatures.
   //So we can calculate the maximum PWM because we know the maximum current from the panel and the battery capacity.
   byte getMaxPwm(unsigned short batteryVoltage_mV)
   {
-    //Undefined stuff will should be defined in permanent storage.
-    if (batteryVoltage_mV < safeFreezingChargeLevel_mV) //If the battery voltage is less than 3.7V, we're unlikely to damage it with any current we throw at it.
-      return 255;
-    else if (WeatherProcessing::internalTemperature < 0 ||
-             (WeatherProcessing::internalTemperature < 2 && WeatherProcessing::externalTemperature < 2)) //The battery might be colder than the MCU - thermal capacity, inaccurate measurement, etc.
-      return safeFreezingPwm;
-    else if (WeatherProcessing::internalTemperature > 50)
+    bool applyLimits = false;
+    if (WeatherProcessing::internalTemperature > 50)
+    {
+      stopCurrentSensor();
+      curCurrent_mA_x6 = 0;
       return 0;
-    else
-      return 255;
+    }
+    if (//If the battery voltage is less than 3.7V, we're unlikely to damage it with any current we throw at it.
+        batteryVoltage_mV > safeFreezingChargeLevel_mV &&
+        (WeatherProcessing::internalTemperature < 0 ||
+        (WeatherProcessing::internalTemperature < 2 && WeatherProcessing::externalTemperature < 2))) //The battery might be colder than the MCU - thermal capacity, inaccurate measurement, etc.
+      applyLimits = true;
+    return readCurrentAndCalcMaxPwm(applyLimits);
   }
 
   unsigned short getDesiredBatteryVoltage()
@@ -141,19 +261,39 @@ namespace PwmSolar
 
   void turnOffSolar()
   {
+#ifdef SOLAR_IMPEDANCE_SWITCHING
+    //Disable Timer0 interrupts:
+    TIMSK0 = 0;
+    TIFR0 = _BV(TOV0) | _BV(OCF0B);
+    //Set pin5 to output, value HIGH
+    static_assert(SOLAR_PWM_PIN == 5);
+    PORTD |= _BV(PORTD5);
+    DDRD |= _BV(DDD5);
+#else
     // Take control of the pin back.
     // write it HIGH (which will turn the switch off)
-    // Record that sleep is allowed
     digitalWrite(SOLAR_PWM_PIN, HIGH);
+#endif
+    // Record that sleep is allowed
     solarSleepEnabled = SleepModes::powerSave;
   }
 
   void setSolarFull()
   {
+#ifdef SOLAR_IMPEDANCE_SWITCHING
+    //Disable Timer0 interrupts:
+    TIMSK0 = 0;
+    TIFR0 = _BV(TOV0) | _BV(OCF0B);
+    //Set pin5 to high impedance
+    static_assert(SOLAR_PWM_PIN == 5);
+    PORTD &= ~_BV(PORTD5);
+    DDRD &= ~_BV(DDD5);
+#else
     // Take control of the pin back
     // write it LOW (which will turn the switch on)
-    // Record that sleep is allowed
     digitalWrite(SOLAR_PWM_PIN, LOW);
+#endif
+    // Record that sleep is allowed
     solarSleepEnabled = SleepModes::powerSave;
   }
 
@@ -161,9 +301,35 @@ namespace PwmSolar
   {
     // Set up the necessary registers
     // Ensure the MCU doesn't go to sleep.
+#ifdef SOLAR_IMPEDANCE_SWITCHING
+    TIMSK0 = _BV(OCIE0B) | _BV(TOIE0);
+#else
     TIMSK0 = 0; //No interrupts
+#endif
     TCCR0A = _BV(COM0B1) | _BV(COM0B0) | _BV(WGM01) | _BV(WGM00); //Fast PWM inverting on output B
-    TCCR0B = _BV(CS00); // No prescaler: Operate at full clock frequency (PWM at 31.25kHz for 8MHz, 3.9kHz for 1MHz)
+#if F_CPU < MAX_PWM_BASE_FREQ
+    TCCR0B = _BV(CS00); // No prescaler: Operate at full clock frequency (PWM at 3.9kHz for 1MHz)
+#else
+    TCCR0B = _BV(CS01); // 8x prescaler: PWM at 3.9kHz for 8MHz
+#endif
     solarSleepEnabled = canIdle ? SleepModes::idle : SleepModes::disabled;
   }
+
+#ifdef SOLAR_IMPEDANCE_SWITCHING
+  ISR(TIMER0_COMPB_vect, ISR_NAKED)
+  {
+    static_assert(SOLAR_PWM_PIN == 5);
+    PORTD |= _BV(PORTD5);
+    DDRD |= _BV(DDD5);
+    reti();
+  }
+
+  ISR(TIMER0_OVF_vect, ISR_NAKED)
+  {
+    static_assert(SOLAR_PWM_PIN == 5);
+    PORTD &= ~_BV(PORTD5);
+    DDRD &= ~_BV(DDD5);
+    reti();
+  }
+#endif
 }

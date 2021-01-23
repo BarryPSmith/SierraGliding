@@ -125,7 +125,8 @@ void savePower()
 #endif
   power_timer1_disable();
 
-  DIDR0 = _BV(ADC0D) | _BV(ADC1D) | _BV(ADC2D) | _BV(ADC3D) 
+  DIDR0 = 
+    _BV(ADC0D) | _BV(ADC1D) | _BV(ADC2D) | _BV(ADC3D) 
 #ifdef ATMEGA328PB
     | _BV(ADC6D) | _BV(ADC7D)
 #endif

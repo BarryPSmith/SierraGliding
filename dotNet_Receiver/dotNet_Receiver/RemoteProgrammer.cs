@@ -221,7 +221,7 @@ namespace core_Receiver
         {
             var data = ms.ToArray().ToList();
             HashSet<char> crcStations = new HashSet<char>() 
-                { 'T', '5', '1', '2', '3' };
+                { 'T', '5', '1', '2', '3', 'A', '9' };
             if (crcStations.Contains((char)destinationStationID))
                 CommandInterpreter.AddCrc(data);
             return data.ToArray();

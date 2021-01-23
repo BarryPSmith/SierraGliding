@@ -1,5 +1,8 @@
 #COM port for upload
 PORT=COM4
+# If we're using the ISP, it's handy to keep different COM ports. Also baud is not board dependent.
+PORT_ISP=COM10
+ISP_BAUD=115200
 MCU=atmega328p
 
 uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
@@ -16,7 +19,8 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 7: Second printed PCB (includes battery PWM circuitry)
 # 8: Second printed PCB configured for ALSWind
 # 9: Single board or second PCB with a Atmega328PB and 32768Hz crystal
-BOARD = 9
+# 10: Single board rev2
+BOARD = 10
 include Boards.makefile
 
 #Flags, etc.
@@ -42,6 +46,8 @@ INCLUDES=-Ilib/ArduinoCore-avr/cores/arduino \
 ARDUINO_BASE_LIBS=^/wiring_analog.c \
 			^/wiring_digital.c ^/WInterrupts.c ^/hooks.c \
 			^/Print.cpp ^/WMath.cpp
+
+BOOTLOADER_HEX=Dualoptiboot_v5.0_atmega328_8mhz_57600baud_BlinkD9.hex
 
 #Serial is included in modem and debug builds:
 ifeq ($(DEBUG), 1)
@@ -144,7 +150,15 @@ $(OBJFOLDER)/%.o: %.cpp *.h | $(OBJFOLDER)
 $(OBJFOLDER)/all.obj: $(OBJS)
 	$(CC) $(INCLUDES) $(DEFINES) $(CFLAGS) $(OBJS) $(LDFLAGS) -o $@
 
+$(OBJFOLDER)/all_with_bootloader.hex: $(OBJFOLDER)/all.hex
+	srec_cat $< -intel $(BOOTLOADER_HEX) -intel -o $@ -intel
 
+.PHONY: isp_program
+isp_program: $(OBJFOLDER)/all_with_bootloader.hex $(OBJFOLDER)/all.s
+	program_fuses.cmd $(PORT_ISP) $(ISP_BAUD)
+	avrdude -c avrisp -p $(MCU) -P $(PORT_ISP) -b $(ISP_BAUD) -U $(OBJFOLDER)/all_with_bootloader.hex
+
+.PHONY: program
 program: $(OBJFOLDER)/all.hex $(OBJFOLDER)/all.s
 	avrdude -c arduino -p $(MCU) -P $(PORT) -b $(PROG_BAUD) -U $(OBJFOLDER)/all.hex
 	ECHO INFO : All done

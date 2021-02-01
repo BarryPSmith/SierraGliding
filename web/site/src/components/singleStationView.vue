@@ -232,7 +232,13 @@ export default {
         init_dataManager() {
             if (this.station && this.station.id) {
                 this.dataManager = new DataManager(this.station.id);
-                this.dataManager.ensure_data(this.cur_start(), this.chartEnd);
+                if (!this.collapsed) {
+                    //Load all necessary data
+                    this.dataManager.ensure_data(this.cur_start(), this.chartEnd);
+                } else {
+                    //Load the last 60 seconds of data to get the current info displaying
+                    this.dataManager.ensure_data(+new Date() - 60000, +new Date());
+                }
             }
         },
 

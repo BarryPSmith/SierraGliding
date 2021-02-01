@@ -88,17 +88,10 @@ function database(dbpath, drop, cb) {
         if (drop) {
             db.run(`
                 DROP TABLE IF EXISTS stations;
-            `);
-
-            db.run(`
                 DROP TABLE IF EXISTS station_data;
-            `);
-
-            db.run(`
+                DROP TABLE IF EXISTS station_data_100;
+                DROP TABLE IF EXISTS station_data_600;
                 DROP TABLE IF EXISTS users;
-            `);
-
-            db.run(`
                 DROP TABLE IF EXISTS tokens;
             `);
         }
@@ -134,21 +127,53 @@ function database(dbpath, drop, cb) {
             );
         `);
 
-        db.run(`
-            CREATE TABLE IF NOT EXISTS station_data (
-                Station_ID          INT NOT NULL REFERENCES Stations(id) ON DELETE CASCADE ON UPDATE CASCADE,
-                Timestamp           INT NOT NULL,
-                Windspeed           FLOAT NOT NULL,
-                Wind_Direction      FLOAT NOT NULL,
-                Battery_Level       Float NULL,
-                Internal_Temp       FLOAT NULL,
-                External_Temp       FLOAT NULL,
-                Wind_Gust           FLOAT NULL,
-                Pwm                 INT NULL,
-                Current             INT NULL,
-                PRIMARY KEY(Station_ID, Timestamp)
-            );
-        `);
+        for (const postFix of ['', '_100', '_600']) {
+            db.run(`
+                CREATE TABLE IF NOT EXISTS station_data${postFix} (
+                    Station_ID          INT NOT NULL REFERENCES Stations(id) ON DELETE CASCADE ON UPDATE CASCADE,
+                    Timestamp           INT NOT NULL,
+                    Windspeed           FLOAT NOT NULL,
+                    Wind_Direction      FLOAT NOT NULL,
+                    Battery_Level       Float NULL,
+                    Internal_Temp       FLOAT NULL,
+                    External_Temp       FLOAT NULL,
+                    Wind_Gust           FLOAT NULL,
+                    Pwm                 INT NULL,
+                    Current             INT NULL,
+                    PRIMARY KEY(Station_ID, Timestamp)
+                );
+            `);
+        }
+
+        for (const interval of ['100', '600']) {
+            db.run(`CREATE TRIGGER IF NOT EXISTS 
+                    Trg_Station_Data_${interval} 
+                    AFTER INSERT ON Station_Data
+                    BEGIN
+                      INSERT OR REPLACE INTO Station_Data_${interval}
+                        (Station_ID, Timestamp, Windspeed, 
+                        Wind_Direction, Battery_Level,
+                        Internal_Temp, External_Temp, Wind_Gust, Pwm, Current)
+                      SELECT
+                        NEW.Station_ID,
+                        CEIL(NEW.Timestamp/${interval}.0) * ${interval} AS Timestamp,
+                        AVG(windspeed) AS Windspeed,
+                        (DEGREES(ATAN2(AVG(SIN(RADIANS(Wind_Direction))), AVG(COS(RADIANS(Wind_Direction))))) + 360) % 360 AS Wind_Direction,
+                        AVG(Battery_Level) AS Battery_Level,
+                        AVG(Internal_Temp) AS Internal_Temp,
+                        AVG(External_Temp) AS External_Temp,
+                        MAX(Windspeed) AS Wind_Gust,
+                        AVG(Pwm) AS Pwm,
+                        AVG(Current) AS Current
+                      FROM
+                        Station_Data
+                      WHERE 
+                        (CEIL(NEW.Timestamp/${interval}.0) - 1) * ${interval} < Timestamp
+                        AND Timestamp <= CEIL(NEW.Timestamp/${interval}.0) * ${interval}
+                        AND Station_ID = NEW.Station_ID;
+                    END;
+            `);
+        }
 
         db.run(`
             CREATE TABLE IF NOT EXISTS discarded_data
@@ -497,6 +522,8 @@ function main(db, cb) {
         let stat_len = parseFloat(req.query.stat_len);
         stat_len = Number.isNaN(stat_len) ? defaultStatSize : stat_len;
         const start = parseInt(req.query.start)
+        const dataSource = req.query.sample < 600 ? req.query.sample < 100 ? 'Station_Data' : 'Station_Data_100' : 'Station_Data_600';
+        const gustCol = req.query.sample < 100 ? 'Windspeed' : 'Wind_Gust';
         db.all(`
             SELECT
                 $id AS ID,
@@ -515,13 +542,13 @@ function main(db, cb) {
                         timestamp,
                         AVG(Windspeed) as windspeed,
                         MIN(Windspeed) as windspeed_sample_min,
-                        MAX(windspeed) as windspeed_sample_max,
+                        MAX(${gustCol}) as windspeed_sample_max,
                         ` + avg_wd_String + ` AS wind_direction,
                         AVG(Battery_Level) AS battery_level,
                         AVG(Internal_Temp) as internal_temp,
                         AVG(External_Temp) as external_temp
                     FROM
-                        station_data
+                        ${dataSource}
                     WHERE
                         Station_ID = $id
                         AND timestamp > $start - $stat_len

@@ -257,7 +257,7 @@ export default class DataManager {
 
     spliceBefore(arr, comp, data)
     {
-        const idx = this.findPrevIdx(arr, comp);
+        const idx = this.findPrevIdx(arr, comp) + 1;
         arr.splice(idx, 0, data);
     }
 
@@ -273,6 +273,7 @@ export default class DataManager {
         this.spliceBefore(this.stationData, d => d.timestamp > newDataPoint.timestamp, newDataPoint);
         const jsTimestamp = newDataPoint.timestamp * 1000;
         this.spliceBefore(this.windDirectionData, pt => pt.x > jsTimestamp, this.get_wind_dir_entry(newDataPoint));
+        this.spliceBefore(this.windspeedData, pt => pt.x > jsTimestamp, this.get_wind_spd_entry(newDataPoint));
         this.spliceBefore(this.batteryData, pt => pt.x > jsTimestamp, this.get_batt_entries(newDataPoint));
         this.spliceBefore(this.internalTempData, pt => pt.x > jsTimestamp, this.get_internalTemp_entries(newDataPoint));
         this.spliceBefore(this.externalTempData, pt => pt.x > jsTimestamp, this.get_externalTemp_entries(newDataPoint));

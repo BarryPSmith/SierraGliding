@@ -31,7 +31,7 @@ app.set('json replacer', (key, val) => {
         return undefined;
     }
     if (typeof (val) == 'number') {
-        if (key.startsWith('wind')) {
+        if (key.startsWith('wind') || key.startsWith('battery') || key.endsWith('temp')) {
             return +val.toFixed(1);
         } else {
             return +val.toFixed(4);

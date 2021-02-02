@@ -258,7 +258,11 @@ export default class DataManager {
     spliceBefore(arr, comp, data)
     {
         const idx = this.findPrevIdx(arr, comp) + 1;
-        arr.splice(idx, 0, data);
+        if (Array.isArray(data)) {
+            arr.splice(idx, 0, ...data);
+        } else {
+            arr.splice(idx, 0, data);
+        }
     }
 
     add_point(newDataPoint) {

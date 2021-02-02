@@ -31,7 +31,7 @@ app.set('json replacer', (key, val) => {
         return undefined;
     }
     if (typeof (val) == 'number') {
-        if (key == 'windspeed_avg') {
+        if (key.startsWith('wind') {
             return +val.toFixed(1);
         } else {
             return +val.toFixed(4);

@@ -25,6 +25,20 @@ app.disable('x-powered-by');
 app.use(express.static(path.resolve(__dirname, 'site/dist')));
 app.use('/all', express.static(path.resolve(__dirname, 'site/dist')));
 app.use(express.json());
+app.set('json replacer', (key, val) => {
+    // This remove null entries
+    if (val === null) {
+        return undefined;
+    }
+    if (typeof (val) == 'number') {
+        if (key == 'windspeed_avg') {
+            return +val.toFixed(1);
+        } else {
+            return +val.toFixed(4);
+        }
+    }
+    return val;
+});
 
 app.use('/api/', router);
 

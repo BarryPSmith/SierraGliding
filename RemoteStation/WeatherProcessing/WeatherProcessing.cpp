@@ -155,7 +155,7 @@ namespace WeatherProcessing
     byte length = isComplex ? 8 : 3;
 #ifdef DEBUG_PWM
     if (isComplex)
-      length++;
+      length += 9;
 #endif
 #ifdef DEBUG_IT
     if (isComplex)
@@ -204,7 +204,13 @@ namespace WeatherProcessing
 #ifdef DEBUG_IT
       message.appendT(iTReading);
 #endif
-    
+#ifdef DEBUG_PWM
+      message.appendT(PwmSolar::debug_applyLimits); //1
+      message.appendT(PwmSolar::debug_desired); //2
+      message.appendT(PwmSolar::debug_change); //2
+      message.appendT(PwmSolar::lastCurrentCheckMillis); //2
+      message.appendT(PwmSolar::debug_curMillis); //2
+#endif
       simpleMessagesSent = 0;
     }
     else
@@ -364,6 +370,10 @@ namespace WeatherProcessing
     pinMode(WIND_PWR_PIN, OUTPUT);
     digitalWrite(WIND_PWR_PIN, LOW);
   #endif
+  #ifdef TEMP_PWR_PIN
+      pinMode(TEMP_PWR_PIN, OUTPUT);
+      digitalWrite(TEMP_PWR_PIN, LOW);
+  #endif
   }
 
   byte getInternalTemperature(short& reading)
@@ -437,7 +447,14 @@ namespace WeatherProcessing
     float T = externalTemperature;
   #elif defined(TEMP_SENSE)
   #pragma message("Using NTC Thermistor")
+#ifdef TEMP_PWR_PIN
+    digitalWrite(TEMP_PWR_PIN, HIGH);
+    delay(3);
+#endif
     auto tempReading = analogRead(TEMP_SENSE);
+#ifdef TEMP_PWR_PIN
+    digitalWrite(TEMP_PWR_PIN, LOW);
+#endif
     // V = Vref * R1 / (R1 + R2)
     // V / (Vref * R1) = 1 / (R1 + R2)
     // R1 * Vref / V = R1 + R2

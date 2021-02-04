@@ -176,108 +176,118 @@ bool handleMessageCommand(MessageSource& src, byte* desc)
   if (state != ERR_NONE)
     return false;
   
-  switch(descByte) {
+  switch (descByte) {
   case 'P':
+  {
+    short txPower;
+    if (src.read(txPower))
     {
-      short txPower;
-      if (src.read(txPower))
-      {
-        state = ERR_UNKNOWN;
-        break;
-      }      
-      state = LORA_CHECK(lora.setOutputPower(txPower));
-      if (state == ERR_NONE)
-        SET_PERMANENT_S(txPower);
+      state = ERR_UNKNOWN;
       break;
     }
+    state = LORA_CHECK(lora.setOutputPower(txPower));
+    if (state == ERR_NONE)
+      SET_PERMANENT_S(txPower);
+    break;
+  }
   case 'C':
+  {
+    byte csmaP;
+    if (src.read(csmaP))
     {
-      byte csmaP;
-      if (src.read(csmaP))
-      {
-        state = ERR_UNKNOWN;
-        break;
-      }
-      csma.setPByte(csmaP);
-      SET_PERMANENT_S(csmaP);
-      state == ERR_NONE;
+      state = ERR_UNKNOWN;
       break;
     }
+    csma.setPByte(csmaP);
+    SET_PERMANENT_S(csmaP);
+    state == ERR_NONE;
+    break;
+  }
   case 'T':
+  {
+    uint32_t csmaTimeslot;
+    if (src.read(csmaTimeslot))
     {
-      uint32_t csmaTimeslot;
-      if (src.read(csmaTimeslot))
-      {
-        state = ERR_UNKNOWN;
-        break;
-      }      
-      csma.setTimeSlot(csmaTimeslot);
-      SET_PERMANENT_S(csmaTimeslot);
-      state = ERR_NONE;
+      state = ERR_UNKNOWN;
       break;
     }
+    csma.setTimeSlot(csmaTimeslot);
+    SET_PERMANENT_S(csmaTimeslot);
+    state = ERR_NONE;
+    break;
+  }
   case 'F':
+  {
+    uint32_t frequency_i;
+    if (src.read(frequency_i))
     {
-      uint32_t frequency_i;
-      if (src.read(frequency_i))
-      {
-        state = ERR_UNKNOWN;
-        break;
-      }      
-#ifdef USE_FP
-      float frequency = frequency_i / 1000000.0;
-      state = LORA_CHECK(lora.setFrequency(frequency));
-#else
-      state = LORA_CHECK(lora.setFrequency_i(frequency_i));
-#endif
-      if (state == ERR_NONE)
-        SET_PERMANENT_S(frequency_i);
+      state = ERR_UNKNOWN;
       break;
     }
+#ifdef USE_FP
+    float frequency = frequency_i / 1000000.0;
+    state = LORA_CHECK(lora.setFrequency(frequency));
+#else
+    state = LORA_CHECK(lora.setFrequency_i(frequency_i));
+#endif
+    if (state == ERR_NONE)
+      SET_PERMANENT_S(frequency_i);
+    break;
+  }
   case 'B':
+  {
+    uint16_t bandwidth_i;
+    if (src.read(bandwidth_i))
     {
-      uint16_t bandwidth_i;
-      if (src.read(bandwidth_i))
-      {
-        state = ERR_UNKNOWN;
-        break;
-      }
+      state = ERR_UNKNOWN;
+      break;
+    }
 #ifdef USE_FP
-      float bandwidth = bandwidth_i / 10.0;
-      state = LORA_CHECK(lora.setBandwidth(bandwidth));
+    float bandwidth = bandwidth_i / 10.0;
+    state = LORA_CHECK(lora.setBandwidth(bandwidth));
 #else
-      state = LORA_CHECK(lora.setBandwidth_i(bandwidth_i));
+    state = LORA_CHECK(lora.setBandwidth_i(bandwidth_i));
 #endif
-      if (state == ERR_NONE)
-        SET_PERMANENT_S(bandwidth_i);
-      break;
-    }
+    if (state == ERR_NONE)
+      SET_PERMANENT_S(bandwidth_i);
+    break;
+  }
   case 'S':
+  {
+    byte spreadingFactor;
+    if (src.read(spreadingFactor))
     {
-      byte spreadingFactor;
-      if (src.read(spreadingFactor))
-      {
-        state = ERR_UNKNOWN;
-        break;
-      }
-      state = LORA_CHECK(lora.setSpreadingFactor(spreadingFactor));
-      if (state == ERR_NONE)
-        SET_PERMANENT_S(spreadingFactor);
+      state = ERR_UNKNOWN;
       break;
     }
+    state = LORA_CHECK(lora.setSpreadingFactor(spreadingFactor));
+    if (state == ERR_NONE)
+      SET_PERMANENT_S(spreadingFactor);
+    break;
+  }
   case 'O':
+  {
+    uint16_t outboundPreambleLength;
+
+    if (src.read(outboundPreambleLength))
+      state = ERR_UNKNOWN;
+    else
     {
-      uint16_t outboundPreambleLength;
-    
-      if (src.read(outboundPreambleLength))
-        state = ERR_UNKNOWN;
-      else
-      {
-        state = ERR_NONE;
-        SET_PERMANENT_S(outboundPreambleLength);
-        csma._senderPremableLength = outboundPreambleLength;
-      }
+      state = ERR_NONE;
+      SET_PERMANENT_S(outboundPreambleLength);
+      csma._senderPremableLength = outboundPreambleLength;
     }
+  }
+#ifdef SX_SWITCH
+  case 'W':
+  {
+    static bool sxSwitchOn = true;
+    sxSwitchOn = !sxSwitchOn;
+    state = ERR_NONE;
+    digitalWrite(SX_SWITCH, sxSwitchOn);
+    break;
+  }
+#endif
     break;
   default:
     state = ERR_UNKNOWN;

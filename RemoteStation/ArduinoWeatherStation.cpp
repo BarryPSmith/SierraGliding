@@ -100,10 +100,18 @@ void savePower()
   CLKPR = CalcClockDividerByte();
 #endif
 
+#if CURRENT_SENSE != A1
   pinMode(A1, INPUT_PULLUP);
+#endif
+#if SX_SWITCH != A3
   pinMode(A3, INPUT_PULLUP);
+#endif
+#if TEMP_PWR_PIN != 6
   pinMode(6, INPUT_PULLUP);
+#endif
+#if CURRENT_SENSE_PWR != 7
   pinMode(7, INPUT_PULLUP);
+#endif
 
 
 #ifndef DEBUG

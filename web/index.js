@@ -25,20 +25,7 @@ app.disable('x-powered-by');
 app.use(express.static(path.resolve(__dirname, 'site/dist')));
 app.use('/all', express.static(path.resolve(__dirname, 'site/dist')));
 app.use(express.json());
-app.set('json replacer', (key, val) => {
-    // This remove null entries
-    if (val === null) {
-        return undefined;
-    }
-    if (typeof (val) == 'number') {
-        if (key.startsWith('wind') || key.startsWith('battery') || key.endsWith('temp')) {
-            return +val.toFixed(1);
-        } else {
-            return +val.toFixed(4);
-        }
-    }
-    return val;
-});
+app.set('json replacer', standardReplacer);
 
 app.use('/api/', router);
 
@@ -697,7 +684,7 @@ function main(db, cb) {
                     battery_level: req.body.battery,
                     internal_temp: req.body.internal_temp,
                     external_temp: req.body.external_temp
-                }));
+                }, standardReplacer));
             });
         } catch (err) {
             console.error(err);
@@ -789,4 +776,22 @@ async function checkCullInvalidWindspeed(db, id, windspeed, timestamp, stats, ws
             op: 'Remove'
         }));
     });
+}
+
+function standardReplacer(key, val)
+{
+    // This remove null entries
+    if (val === null) {
+        return undefined;
+    }
+    if (typeof (val) == 'number') {
+        if (key.startsWith('battery')) {
+            return +val.toFixed(2);
+        } else if (key.startsWith('wind') || key.endsWith('temp')) {
+            return +val.toFixed(1);
+        } else {
+            return +val.toFixed(4);
+        }
+    }
+    return val;
 }

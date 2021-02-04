@@ -22,13 +22,14 @@ namespace PwmSolar
 {
 #define SOLAR_PWM_PIN 5 // Pin 5 is OCR0B
 
+  //Old board:
   //Battery sense has 33kOhm resistor and 10nF capacitor
-  //Time constant is 2 milliseconds.
-  //So... if our update interval is two time constants,
+  //Time constant is 0.33 milliseconds.
+  //New board:
+  //110kOhm, 10nF => Tau = 1.1ms
+  //So... if our update interval is ~4 time constants,
   //the battery voltage we read will be close to the actual battery voltage.
-  // We're going to put larger resistors in there to lower our current consumption.
-  // So that means a longer update interval...
-  constexpr unsigned int PwmUpdateInterval_uS = 10000;
+  constexpr unsigned int PwmUpdateInterval_uS = 4000;
 
   constexpr unsigned long mV_Ref = REF_MV;
   constexpr unsigned long BattVNumerator = BATTV_NUM;
@@ -41,6 +42,13 @@ namespace PwmSolar
   byte safeFreezingPwm;
   unsigned short chargeVoltage_mV;
 
+#if defined(DEBUG_PWM)
+  short debug_desired;
+  bool debug_applyLimits;
+  short debug_change;
+  unsigned short debug_curMillis;
+#endif
+
   enum CurrentSensorState { Off, Startup, Running };
   CurrentSensorState currentState = CurrentSensorState::Off;
 
@@ -48,6 +56,7 @@ namespace PwmSolar
   byte solarPwmValue = 0;
 
   short curCurrent_mA_x6;
+  unsigned short lastCurrentCheckMillis;
 
   int getNewPwmValue(bool* canIdle);
   byte getMaxPwm(unsigned short batteryVoltage_mV);
@@ -55,7 +64,7 @@ namespace PwmSolar
   void turnOffSolar();
   void setSolarFull();
   void ensurePwmActive(bool canIdle);
-  byte readCurrentAndCalcMaxPwm();
+  byte readCurrentAndCalcMaxPwm(bool applyLimits);
 #ifdef CURRENT_SENSE_PWR
   void stopCurrentSensor();
   void startupCurrentSensor();
@@ -101,7 +110,10 @@ namespace PwmSolar
     if (newValue < minPwm)
     {
       turnOffSolar();
-      solarPwmValue = 0;
+      // We set the 'desired' pwm value, even though we aren't using it.
+      // Our algorithm may have it hovering around minPwm,
+      // or may take several iterations to get it to a value greater than minPwm.
+      solarPwmValue = newValue;
     }
     else if (newValue >= 255)
     {
@@ -168,9 +180,14 @@ namespace PwmSolar
 #else
     //We can use shorts for all these millis values because the intervals are much less than 65 seconds.
     static unsigned short powerUpMillis;
-    static unsigned short lastCurrentCheckMillis;
     unsigned short curMillis = millis();
-    constexpr unsigned short powerUpInterval_ms = 10;
+#if defined(DEBUG_PWM)
+    debug_curMillis = curMillis;
+#endif
+    // R = 47kOhm, C = 10nF, Tau = 470uS, f0 = 330Hz
+    // According to datasheet chip startup time is ~100uS.
+    // For 2% accuracy, allow settling time 4 time constants => 2ms
+    constexpr unsigned short powerUpInterval_us = 2000;
     constexpr unsigned short currentCheckInterval_ms = 5000;
     if (currentState == CurrentSensorState::Off)
     {
@@ -178,27 +195,34 @@ namespace PwmSolar
       {
         startupCurrentSensor();
         powerUpMillis = curMillis;
+        // Better to delay than to loop - we might sleep for 250ms
+        // and leave the current sensor on the whole time (at ~70uA draw).
+        delayMicroseconds(powerUpInterval_us);
       }
       else
         return 255;
     }
-    if (currentState == CurrentSensorState::Startup)
+    /*if (currentState == CurrentSensorState::Startup)
     {
       if (curMillis - powerUpMillis > powerUpInterval_ms)
         currentState = CurrentSensorState::Running;
       else
         return 255;
-    }
+    }*/
     // If we get here, the sensor is running.
     curCurrent_mA_x6 = readCurrent_x6();
-    short desired;
-    short diff = (curCurrent_mA_x6 - (short)safeFreezingPwm * 6);
-    short change = diff * chargeResponseRate / 256;
-    desired = solarPwmValue + change;
+    lastCurrentCheckMillis = curMillis;
+    short diff = ((short)safeFreezingPwm * 6 - curCurrent_mA_x6);
+    short change = diff * (long)chargeResponseRate / 256; //diff can be as large as 6 * 255 = 1530. To avoid an overflow, cast chargeResponseRate to long.
+    short desired = solarPwmValue + change;
+#if defined(DEBUG_PWM)
+    debug_applyLimits = applyLimits;
+    debug_desired = desired;
+    debug_change = change;
+#endif
     if (!applyLimits || desired >= 255) {
       // If there is no limit due to the current, then shut the sensor down for a while to save power.
       stopCurrentSensor();
-      lastCurrentCheckMillis = curMillis;
       return 255;
     }
     if (desired < 0)

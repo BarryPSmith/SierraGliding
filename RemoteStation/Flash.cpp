@@ -58,14 +58,9 @@ namespace Flash
     if (msg.read(count))
       return false;
 
-    char internalOrExt;
-    if (msg.read(internalOrExt))
-      internalOrExt = 'E';
-    bool external = internalOrExt == 'E';
-    if (!external && internalOrExt != 'I')
-      return false;
-    if (!external && (add >= 32768 || add + count > 32768))
-      return false;
+    char memType;
+    if (msg.read(memType))
+      memType = 'E';
 
     LoraMessageDestination<254> dest(false);
     dest.appendByte('K');
@@ -74,14 +69,22 @@ namespace Flash
     dest.appendByte('F');
     dest.appendByte('R');
     //FLASH_PRINTVAR(add);
-    if (external)
+
+    byte* buffer;
+    if (dest.getBuffer(&buffer, count))
     {
-      byte* buffer;
-      if (dest.getBuffer(&buffer, count))
-        return false;
+      dest.abort();
+      return false;
+    }
+    switch (memType)
+    {
+    case 'E':
+    {
       flash.readBytes(add, buffer, count);
     }
-    else
+    case 'I':
+      if (add >= 32768 || add + count > 32768)
+        return false;
       for (int i = 0; i < count; i++)
       {
         byte b = pgm_read_byte(add++);
@@ -89,6 +92,15 @@ namespace Flash
         FLASH_PRINT(' ');
         dest.appendByte(b);
       }
+    case 'V':
+      if (add >= 2048 || add + count > 2048)
+        return false;
+      void* ptr = (void*)add;
+      memcpy(buffer, ptr, count);
+    default:
+      dest.abort();
+      return false;
+    }
     FLASH_PRINTLN();
     *ackRequired = false;
     return true;

@@ -92,7 +92,7 @@ namespace core_Receiver
                 {
                     var response = await _client.PostAsync(uri, content);
                     if (response.IsSuccessStatusCode)
-                        OutputWriter.WriteLine($"Succesfully posted {packet.sendingStation}/{(char)packet.type}{packet.uniqueID} to {url}.");
+                        OutputWriter.WriteLine($"Succesfully posted {subPacket.sendingStation}/{(char)packet.type}{subPacket.uniqueID} to {url}.");
                     else
                     {
                         OutputWriter.WriteLine($"Post of {packet.sendingStation}/{(char)packet.type}{packet.uniqueID} to {url} failed ({response.StatusCode}): {response.ReasonPhrase}");

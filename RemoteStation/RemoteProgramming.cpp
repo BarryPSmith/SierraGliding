@@ -199,7 +199,7 @@ namespace RemoteProgramming
 
     LoraMessageDestination<20> msg(false);
 
-      msg.appendByte('K');
+    msg.appendByte('K');
     msg.appendByte(stationID);
     msg.appendByte(uniqueID);
     msg.appendByte('P');

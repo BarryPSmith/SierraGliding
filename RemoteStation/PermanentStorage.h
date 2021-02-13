@@ -62,8 +62,8 @@ typedef struct PermanentVariables
 
   signed char tsOffset;
   byte tsGain;
-  short wdCalibMin, 
-    wdCalibMax;
+  short wdCalib1, 
+    wdCalib2;
 
   unsigned short chargeVoltage_mV;
   unsigned short chargeResponseRate;

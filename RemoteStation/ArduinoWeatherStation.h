@@ -12,12 +12,14 @@ void AwsRecordState(int i);
 #define AWS_DEBUG_PRINTLN(...) do { \
                     Serial.println(__VA_ARGS__);  \
                     } while (0)
+#define AWS_DEBUG_WRITE(...) Serial.write(__VA_ARGS__)
 #define AWS_DEBUG(...) __VA_ARGS__
 #else
 #define AWS_DEBUG_PRINT(...) do { } while (0)
 #define AWS_DEBUG_PRINTLN(...) do { } while (0)
 #define AWS_RECORD_STATE(A) do { } while (0)
 #define AWS_DEBUG(...) do { } while (0)
+#define AWS_DEBUG_WRITE(...) do { } while (0)
 #endif
 
 #define PRINT_VARIABLE(a) do { \
@@ -38,7 +40,7 @@ void AwsRecordState(int i);
 //#define DEBUG_PARAMETERS
 //#define DEBUG_SOLAR
 //#define DEBUG_PROGRAMMING
-//#define DEBUG_IT
+#define DEBUG_IT
 //#define DEBUG_PWM
 //#define DEBUG_WEATHER
 //#define DETAILED_LORA_CHECK
@@ -113,9 +115,9 @@ inline constexpr unsigned long maxMillisBetweenPings = 1300000; //If we don't re
 inline constexpr unsigned short batteryHysterisis_mV = 50;
 
 extern unsigned long weatherInterval; //Current weather interval.
-extern unsigned long overrideStartMillis;
+/*extern unsigned long overrideStartMillis;
 extern unsigned long overrideDuration;
-extern bool overrideShort;
+extern bool overrideShort;*/
 enum SleepModes { disabled = 0, idle = 1, powerSave = 2 };
 extern SleepModes solarSleepEnabled;
 extern SleepModes dbSleepEnabled;

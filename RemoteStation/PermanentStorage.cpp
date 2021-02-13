@@ -61,8 +61,8 @@ const PermanentVariables defaultVars PROGMEM =
   .tsOffset = -75,
   .tsGain = 164,
 #endif
-  .wdCalibMin = 0,
-  .wdCalibMax = 1023,
+  .wdCalib1 = 0,
+  .wdCalib2 = 1023,
 
   .chargeVoltage_mV = 4050,
   .chargeResponseRate = 40,
@@ -102,8 +102,8 @@ void PermanentStorage::initialise()
     PRINT_VARIABLE(vars.csmaP);
     PRINT_VARIABLE(vars.csmaTimeslot);
     PRINT_VARIABLE(vars.outboundPreambleLength);
-    PRINT_VARIABLE(vars.wdCalibMin);
-    PRINT_VARIABLE(vars.wdCalibMax);
+    PRINT_VARIABLE(vars.wdCalib1);
+    PRINT_VARIABLE(vars.wdCalib2);
     PRINT_VARIABLE(vars.chargeVoltage_mV);
     PRINT_VARIABLE(vars.chargeResponseRate);
     PRINT_VARIABLE(vars.safeFreezingChargeLevel_mV);

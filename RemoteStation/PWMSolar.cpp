@@ -262,7 +262,7 @@ namespace PwmSolar
   byte getMaxPwm(unsigned short batteryVoltage_mV)
   {
     bool applyLimits = false;
-    if (WeatherProcessing::internalTemperature > 50)
+    if (WeatherProcessing::internalTemperature_x2 > 100)
     {
       stopCurrentSensor();
       curCurrent_mA_x6 = 0;
@@ -270,8 +270,8 @@ namespace PwmSolar
     }
     if (//If the battery voltage is less than 3.7V, we're unlikely to damage it with any current we throw at it.
         batteryVoltage_mV > safeFreezingChargeLevel_mV &&
-        (WeatherProcessing::internalTemperature < 0 ||
-        (WeatherProcessing::internalTemperature < 2 && WeatherProcessing::externalTemperature < 2))) //The battery might be colder than the MCU - thermal capacity, inaccurate measurement, etc.
+        (WeatherProcessing::internalTemperature_x2 < 0 ||
+        (WeatherProcessing::internalTemperature_x2 < 4 && WeatherProcessing::externalTemperature < 2))) //The battery might be colder than the MCU - thermal capacity, inaccurate measurement, etc.
       applyLimits = true;
     return readCurrentAndCalcMaxPwm(applyLimits);
   }

@@ -17,9 +17,9 @@
 #include "Database.h"
 
 unsigned long weatherInterval = 2000; //Current weather interval.
-unsigned long overrideStartMillis;
+/*unsigned long overrideStartMillis;
 unsigned long overrideDuration;
-bool overrideShort;
+bool overrideShort;*/
 SleepModes solarSleepEnabled = SleepModes::powerSave;
 SleepModes dbSleepEnabled = SleepModes::powerSave;
 bool continuousReceiveEnabled = true;

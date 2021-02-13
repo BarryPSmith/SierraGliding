@@ -6,7 +6,7 @@ namespace WeatherProcessing
   void doSampleWind();
   byte atan2ToByte(float x, float y);
 
-#ifdef DAVIS_WIND
+#if defined(DAVIS_WIND) || defined(ALS_WIND)
   void calibrateWindDirection();
 #else
   static inline void calibrateWindDirection() {}

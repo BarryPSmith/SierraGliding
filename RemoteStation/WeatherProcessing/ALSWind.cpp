@@ -2,6 +2,24 @@
 #include "WeatherProcessing.h"
 #include "Wind.h"
 #include <Wire.h>
+#include "../PermanentStorage.h"
+#include <avr/wdt.h>
+
+//#define DEBUG_ALS
+#ifdef DEBUG_ALS
+#define ALS_PRINT AWS_DEBUG_PRINT
+#define ALS_PRINTLN AWS_DEBUG_PRINTLN
+#define ALS_PRINTVAR PRINT_VARIABLE
+#define ALS_DEBUG AWS_DEBUG
+#define ALS_DEBUG_WRITE AWS_DEBUG_WRITE
+#else
+#define ALS_PRINT(...) do {} while (0)
+#define ALS_PRINTLN(...) do {} while (0)
+#define ALS_PRINTVAR(...) do {} while (0)
+#define ALS_DEBUG(...) do {} while (0)
+#define ALS_DEBUG_WRITE(...) do {} while (0)
+#endif
+
 namespace WeatherProcessing
 {
   short SignExtendBitfield(unsigned short data, int width);
@@ -9,6 +27,12 @@ namespace WeatherProcessing
   constexpr byte alsAddress = 96;
   void read(byte regAddress, void* data, byte count);
   void write(byte regAddress, void* data, byte count);
+
+  struct wdCalibStruct
+  {
+    char x, y;
+  };
+  wdCalibStruct wdCalibOffset;
 
 #ifdef WIND_DIR_AVERAGING
   extern float curWindX, curWindY;
@@ -48,6 +72,20 @@ namespace WeatherProcessing
     data[3] = (data[3] & (~0x7F)) | 0x52; //Low Power / 10 samples/sec
     write(0x27, data, 4);
 
+    GET_PERMANENT2(&wdCalibOffset, wdCalib1);
+#if 0 // DEBUG_ALS
+    byte zeroData[10] = { 0 };
+    while (1)
+    {
+      read(0x02, zeroData, 4);
+      short sX, sY;
+      takeReading(&sX, &sY);
+      ALS_DEBUG_WRITE((byte*)&sX, 2);
+      ALS_DEBUG_WRITE((byte*)&sY, 2);
+      ALS_DEBUG_WRITE(zeroData, 10);
+      wdt_reset();
+    }
+#endif
 #if 0
     delay(100);
 
@@ -57,17 +95,17 @@ namespace WeatherProcessing
     for (int i = 0; i < sizeof(addresses); i++)
     {
       auto address = addresses[i];
-      PRINT_VARIABLE_HEX(address);
+      ALS_PRINTVAR(address);
       read(address, data, 4);
       for (int i = 0; i < 4; i++)
       {
-        AWS_DEBUG_PRINT(data[i], HEX);
-        AWS_DEBUG_PRINT(' ');
+        ALS_PRINT(data[i], HEX);
+        ALS_PRINT(' ');
       }
-      AWS_DEBUG_PRINTLN();
+      ALS_PRINTLN();
     }
-    AWS_DEBUG_PRINTLN();
-    AWS_DEBUG_PRINTLN();
+    ALS_PRINTLN();
+    ALS_PRINTLN();
     }
 #endif
   }
@@ -80,7 +118,7 @@ namespace WeatherProcessing
     write(0x35, &customerAccessCode, 4);
     read(0x02, data, 4);
     data[2] = 0x02; // Disable Z axis, 3V I2C
-    data[1] = 0xC0; // Enable X and Y axes
+    data[3] = 0xC0; // Enable X and Y axes
     write(0x02, data, 4);
     return true;
   }
@@ -110,7 +148,7 @@ namespace WeatherProcessing
   {
     short sX, sY;
     takeReading(&sX, &sY);
-    return atan2ToByte(sX, sY);
+    return atan2ToByte(sX - wdCalibOffset.x, sY - wdCalibOffset.y);
   }
   
   void doSampleWind()
@@ -120,12 +158,51 @@ namespace WeatherProcessing
     //AWS_DEBUG(auto entryMicros = micros());
     takeReading(&sX, &sY);
     //AWS_DEBUG(auto postRead = micros());
-    curWindX += sX;
-    curWindY += sY;
+    curWindX += sX - wdCalibOffset.x;
+    curWindY += sY - wdCalibOffset.y;
     //AWS_DEBUG(auto endMicros = micros());
     //PRINT_VARIABLE(postRead - entryMicros);
     //PRINT_VARIABLE(endMicros - postRead);
 #endif
+  }
+
+  void calibrateWindDirection()
+  {
+    short sX, sY;
+    long tX = 0,
+      tY = 0;
+    constexpr short sampleCount = 1000;
+
+    //Set full power mode
+    /*byte data[4];
+    read(0x27, data, 4);
+    data[3] = (data[3] & (~0x7F)); //Full active mode
+    write(0x27, data, 4);*/
+
+    for (short i = 0; i < sampleCount; i++)
+    {
+      takeReading(&sX, &sY);
+      tX += sX;
+      tY += sY;
+      delay(1); 
+    }
+
+    //Set low power mode
+    /*read(0x27, data, 4);
+    data[3] = (data[3] & (~0x7F)) | 0x52; //Low Power / 10 samples/sec
+    write(0x27, data, 4);*/
+
+    tX /= sampleCount;
+    tY /= sampleCount;
+    if (tX > 127 || tX < -128 || tY > 127 || tY < -128)
+    {
+      SIGNALERROR();
+      WX_PRINTLN("Calibration Failed!");
+      return;
+    }
+    wdCalibOffset.x = tX;
+    wdCalibOffset.y = tY;
+    SET_PERMANENT2(&wdCalibOffset, wdCalib1);
   }
 
   //The ALS31313 hall effect sensor uses I2C to measure X, Y, and Z components of the magnetic field, 
@@ -133,16 +210,19 @@ namespace WeatherProcessing
   {
     byte data[8];
     read(0x28, data, 8);
+    ALS_DEBUG_WRITE(data, 8);
 
-    auto x = ((unsigned short)data[0] << 4) | (data[4] & 0x0F);
-    auto y = ((unsigned short)data[1] << 4) | ((data[5] & 0xF0) >> 4);
+    auto x = ((unsigned short)data[0] << 4) | (data[5] & 0x0F);
+    auto y = ((unsigned short)data[1] << 4) | ((data[6] & 0xF0) >> 4);
   
     *sX = SignExtendBitfield(x, 12);
     *sY = SignExtendBitfield(y, 12);
 
+    //ALS_TEMP should not be used because the processor doesn't properly report temperature in low power mode
 #ifdef ALS_TEMP
-    unsigned short t = (((unsigned short)data[3] & 0x3F) << 6) | (data[7] & 0x3F);
-    externalTemperature = 25 + (t - 0x800) / 8.0;
+    short t = (((unsigned short)data[3] & 0x3F) << 6) | (data[7] & 0x3F);
+    ALS_DEBUG_WRITE((byte*)&t, 2);
+    internalTemperature_x2 = 50 + (t - 0x800) / 4;
 #endif
   }
 

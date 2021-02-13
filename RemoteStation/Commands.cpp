@@ -98,11 +98,11 @@ namespace Commands
             handled = handleQueryCommand(msg, uniqueID);
             ackRequired = false;
           break;
-
+          /*
           case 'O': //Override Interval
             handled = handleOverrideCommand(msg);
             break;
-
+            */
           case 'M':
             handled = handleMessageCommand(msg);
             break;
@@ -278,6 +278,8 @@ namespace Commands
   }
 
   //Override command: C(ID)(UID)O(L|S)(Duration)(S|M|H)
+  //We don't use this so I'm removing it
+  /*
   bool handleOverrideCommand(MessageSource& msg)
   {
     byte destByte;
@@ -304,6 +306,7 @@ namespace Commands
     overrideStartMillis = millis();
     return true;
   }
+  */
   
   //Threshold command: C(ID)(UID)B(new threshold)
   bool handleThresholdCommand(MessageSource& msg)
@@ -409,12 +412,12 @@ namespace Commands
     unsigned long curMillis = millis();
     response.appendT(curMillis); //+4 = 5
     response.appendT(lastPingMillis); //+4 = 9
-    response.appendT(overrideDuration); //+4 = 13
-    if (overrideDuration)
+    response.appendT((long)0); //+4 = 13
+    /*if (overrideDuration)
     {
       response.appendT(overrideStartMillis); //+4 = 17
       response.appendT(overrideShort); //1 = 18
-    }
+    }*/
     response.appendByte(0); //+1 = 19
   
     //Recently seen stations, +102 bytes = 121

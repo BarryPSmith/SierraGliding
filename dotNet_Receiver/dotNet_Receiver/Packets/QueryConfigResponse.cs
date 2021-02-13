@@ -50,8 +50,8 @@ namespace core_Receiver.Packets
             OutboundPreambleLength = br.ReadUInt16();
             TsOffset = br.ReadSByte();
             TsGain = br.ReadByte();
-            WdCalibMin = br.ReadInt16();
-            WdCalibMax = br.ReadInt16();
+            WdCalib1 = br.ReadInt16();
+            WdCalib2 = br.ReadInt16();
             if (VersionNumber >= new Version(2, 2))
             {
                 ChargeVoltage_mV = br.ReadUInt16();
@@ -89,8 +89,11 @@ namespace core_Receiver.Packets
         public UInt16 OutboundPreambleLength { get; set; }
         public sbyte TsOffset { get; set; }
         public byte TsGain { get; set; }
-        public Int16 WdCalibMin { get; set; }
-        public Int16 WdCalibMax { get; set; }
+
+        public sbyte WdCalib1x => (sbyte)(WdCalib1 >> 8);
+        public sbyte WdCalib1y => (sbyte)(WdCalib1 & 0xFF);
+        public Int16 WdCalib1 { get; set; }
+        public Int16 WdCalib2 { get; set; }
 
         public UInt16 ChargeVoltage_mV { get; set; }
         public UInt16 ChargeResponseRate { get; set; }
@@ -107,7 +110,7 @@ namespace core_Receiver.Packets
                 $" Relay Commands:({StationsToRelayCommands.ToCsv(b => ((char)b).ToString())}) " + Environment.NewLine +
                 $" Relay Weather:({StationsToRelayWeather.ToCsv(b => ((char)b).ToString())})" + Environment.NewLine +
                 $" Freq:{Frequency_Hz / 1.0E6:F3} Hz, BW:{Bandwidth_Hz/1.0E3:F3} kHz, TxPower:{TxPower}, SF:{SpreadingFactor}, CSMA_P:{CSMA_P}, CSMA_Slot:{CSMA_Timeslot} uS, OB_Preamble:{OutboundPreambleLength}" + Environment.NewLine +
-                $" TsOffset:{TsOffset}, TSGain:{TsGain}, WdCalibMin:{WdCalibMin}, WdCalibMax:{WdCalibMax}" + Environment.NewLine +
+                $" TsOffset:{TsOffset}, TSGain:{TsGain}, WdCalibMin:({WdCalib1x}, {WdCalib1y}), WdCalibMax:{WdCalib2}" + Environment.NewLine +
                 $" ChargeV: {ChargeVoltage_mV} mV, ChargeResponsitivity: {ChargeResponseRate}, FreezingChargeV: {SafeFreezingChargeLevel_mV} mV, FreezingPwm: {SafeFreezingPwm}" + Environment.NewLine +
                 $" Record Types: ({MessageRecordTypes.ToCsv()}) Non Relay Records: {NonRelayRecording}";
         }

@@ -81,6 +81,7 @@ namespace Flash
     case 'E':
     {
       flash.readBytes(add, buffer, count);
+      break;
     }
     case 'I':
       if (add >= 32768 || add + count > 32768)
@@ -92,11 +93,15 @@ namespace Flash
         FLASH_PRINT(' ');
         dest.appendByte(b);
       }
+      break;
     case 'V':
+    {
       if (add >= 2048 || add + count > 2048)
         return false;
       void* ptr = (void*)add;
       memcpy(buffer, ptr, count);
+      break;
+    }
     default:
       dest.abort();
       return false;

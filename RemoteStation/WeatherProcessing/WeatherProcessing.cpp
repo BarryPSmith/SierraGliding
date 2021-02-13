@@ -24,7 +24,7 @@ namespace WeatherProcessing
   unsigned volatile long tickCounts = 0;
   unsigned long requiredTicks = 100;
 
-  short internalTemperature;
+  short internalTemperature_x2;
   float externalTemperature;
 
   #ifdef WIND_DIR_AVERAGING
@@ -252,7 +252,7 @@ namespace WeatherProcessing
   void updateBatterySavings(unsigned short batteryVoltage_mV, bool initial)
   {
     unsigned long oldInterval = weatherInterval;
-    bool overrideActive = millis() - overrideStartMillis < overrideDuration;
+    //bool overrideActive = millis() - overrideStartMillis < overrideDuration;
     unsigned short batteryThreshold_mV, batteryEmergencyThresh_mV;
     GET_PERMANENT_S(batteryThreshold_mV);
     GET_PERMANENT_S(batteryEmergencyThresh_mV);
@@ -268,21 +268,23 @@ namespace WeatherProcessing
       WX_PRINTLN(F("No Deep Sleep"));
       doDeepSleep = false;
       if (initial || 
-        (!overrideActive && batteryVoltage_mV > batteryThreshold_mV + batteryHysterisis_mV) ||
-        (overrideActive && overrideShort))
+        (/*!overrideActive &&*/ batteryVoltage_mV > batteryThreshold_mV + batteryHysterisis_mV)
+        /* ||
+        (overrideActive && overrideShort)*/)
       {
         GET_PERMANENT2(&weatherInterval, shortInterval);
         continuousReceiveEnabled = true;
-      } else if ((!overrideActive && batteryVoltage_mV < batteryThreshold_mV - batteryHysterisis_mV) ||
-          (overrideActive && !overrideShort))
+      } else if ((/*!overrideActive &&*/ batteryVoltage_mV < batteryThreshold_mV - batteryHysterisis_mV) 
+        /*||
+          (overrideActive && !overrideShort)*/)
       {
         GET_PERMANENT2(&weatherInterval, longInterval);
         continuousReceiveEnabled = false;
       }
     }
     //Ensure that once we get out of override, we won't accidently go back into it due to millis wraparound.
-    if (!overrideActive)
-      overrideDuration = 0;
+    /*if (!overrideActive)
+      overrideDuration = 0;*/
   
     setTimerInterval();
   }
@@ -378,6 +380,15 @@ namespace WeatherProcessing
 
   byte getInternalTemperature(short& reading)
   {
+#ifdef ALS_TEMP
+#pragma message("Using ALS Temperature")
+    if (internalTemperature_x2 < -64)
+      return 0;
+    else if (internalTemperature_x2 > 190)
+      return 255;
+    else
+      return internalTemperature_x2 + 64;
+#endif
   #ifdef NO_INTERNAL_TEMP
     return 0;
   #endif
@@ -416,7 +427,7 @@ namespace WeatherProcessing
     // (ADC + Offset - 173) * 128 / gain + 100
     int temp_x2 = (((long)reading + tsOffset - (273 + 100)) * 256) / tsGain + 100 * 2;
     // T = ADC * 128 / tsGain + (tsOffset - 373) * 128 / tsGain + 100
-    internalTemperature = temp_x2 / 2;
+    internalTemperature_x2 = temp_x2;
     int temp_x2_offset = temp_x2 + 64;
     if (temp_x2_offset < 0)
       temp_x2_offset = 0;
@@ -442,10 +453,7 @@ namespace WeatherProcessing
 
   byte getExternalTemperature()
   {
-  #ifdef ALS_TEMP
-  #pragma message("Using ALS Temperature")
-    float T = externalTemperature;
-  #elif defined(TEMP_SENSE)
+#if defined(TEMP_SENSE)
   #pragma message("Using NTC Thermistor")
 #ifdef TEMP_PWR_PIN
     digitalWrite(TEMP_PWR_PIN, HIGH);

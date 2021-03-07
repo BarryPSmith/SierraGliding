@@ -139,7 +139,7 @@ namespace WeatherProcessing
       return 255;
   }
 
-  void createWeatherData(MessageDestination& message)
+  void createWeatherData(MESSAGE_DESTINATION_SOLID<254>& message)
   {
   #ifdef DEBUG
     unsigned long entryMicros = micros();
@@ -306,11 +306,12 @@ namespace WeatherProcessing
 
   void countWind()
   {
-    unsigned long thisInterval = millis() - lastWindCountMillis;
+    unsigned long thisMillis = millis();
+    unsigned long thisInterval = thisMillis - lastWindCountMillis;
     // no counting in deep sleep / debounce the signal:
     if (doDeepSleep || thisInterval < minWindIntervalTest)
       return;
-    lastWindCountMillis = millis();
+    lastWindCountMillis = thisMillis;
     if (hasTicked && thisInterval < minInterval)
       minInterval = thisInterval;
     hasTicked = true;
@@ -358,15 +359,20 @@ namespace WeatherProcessing
     windCounts = 0;
     //pinMode or digitalWrite should give the same results:
     pinMode(WIND_SPD_PIN, INPUT_PULLUP);
-    //digitalWrite(windSpdPin, HIGH);
-    attachInterrupt(digitalPinToInterrupt(WIND_SPD_PIN), countWind, RISING);
+    static_assert(WIND_SPD_PIN == 2);
+    EICRA |= _BV(ISC01) | _BV(ISC00);
+    EIMSK |= _BV(INT0);
+  }
+
+  ISR(INT0_vect)
+  {
+    countWind();
   }
 
   void setupWeatherProcessing()
   {
     initWind();
     updateBatterySavings(0, true);
-    TimerTwo::attachInterrupt(&timer2Tick);
     setupWindCounter();
   #ifdef WIND_PWR_PIN
     pinMode(WIND_PWR_PIN, OUTPUT);
@@ -544,4 +550,9 @@ namespace WeatherProcessing
       return false;
     }
   }
+}
+
+void timer2InterruptAction()
+{
+  WeatherProcessing::timer2Tick();
 }

@@ -27,7 +27,6 @@ public:
 #endif
   static volatile unsigned long _ticks;
   static volatile unsigned char _ofTicks;
-  static void (*_interruptAction)(void);
 
   static void initialise();
 
@@ -37,8 +36,6 @@ public:
 
   static unsigned long seconds();
   static void setSeconds(unsigned long seconds);
-
-  static void attachInterrupt(void (*interruptAction)(void));
 
   static bool testFailedOsc();
 #ifdef CRYSTAL_FREQ

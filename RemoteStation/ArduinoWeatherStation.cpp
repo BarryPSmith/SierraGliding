@@ -219,6 +219,7 @@ void setup() {
   #endif
 
   WeatherProcessing::setupWeatherProcessing();
+  BASE_PRINTLN(F("Weather initialised"));
   if (!Flash::flashInit())
   {
     BASE_PRINTLN(F("!! Remote programming failed to initialise !!"));

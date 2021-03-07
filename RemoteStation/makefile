@@ -44,7 +44,7 @@ INCLUDES=-Ilib/ArduinoCore-avr/cores/arduino \
 		 -Ilib/RadioLib/src \
 		 -Ilib/SPIFlash
 ARDUINO_BASE_LIBS=^/wiring_analog.c \
-			^/wiring_digital.c ^/WInterrupts.c ^/hooks.c \
+			^/wiring_digital.c ^/hooks.c \
 			^/Print.cpp ^/WMath.cpp
 
 BOOTLOADER_HEX=Dualoptiboot_v5.0_atmega328_8mhz_57600baud_BlinkD9.hex
@@ -63,7 +63,7 @@ else
 DEFINES += -DSERIAL_TX_BUFFER_SIZE=16 -DSERIAL_RX_BUFFER_SIZE=8
 endif
 
-ARDUINO_LIBS=^/SPI/src/SPI.cpp ^/Wire/src/Wire.cpp ^/Wire/src/utility/twi.c
+ARDUINO_LIBS=^/SPI/src/SPI.cpp 
 ARDUINO_LIBSWDIRS = \
 				$(patsubst ^/%, lib/ArduinoCore-avr/cores/arduino/%, $(ARDUINO_BASE_LIBS)) \
 				$(patsubst ^/%, lib/ArduinoCore-avr/libraries/%, $(ARDUINO_LIBS))
@@ -84,6 +84,7 @@ else
 SRCS_C = ArduinoWeatherStation.cpp Commands.cpp MessageHandling.cpp \
 		 WeatherProcessing/WeatherProcessing.cpp WeatherProcessing/ADWind.cpp \
 		 WeatherProcessing/DavisWind.cpp WeatherProcessing/ALSWind.cpp \
+		 WeatherProcessing/TwoWire.cpp \
 		 LoraMessaging.cpp MessagingCommon.cpp \
 		 delay.c millis.cpp PermanentStorage.cpp StackCanary.cpp TimerTwo.cpp \
 		 RemoteProgramming.cpp PWMSolar.cpp \

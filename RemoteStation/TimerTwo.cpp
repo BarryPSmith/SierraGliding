@@ -3,8 +3,8 @@
 volatile unsigned long TimerTwo::_ticks __attribute__ ((section (".noinit")));
 volatile unsigned char TimerTwo::_ofTicks __attribute__ ((section (".noinit")));
 
-void timerTwo_defaultInterrupt() {}
-void (*TimerTwo::_interruptAction)() = &timerTwo_defaultInterrupt;
+void timer2InterruptAction(void) __attribute__((weak));
+void timer2InterruptAction(void) {}
 
 bool TimerTwo::_crystalFailed = false;
 
@@ -49,7 +49,7 @@ ISR(TIMER2_COMPA_vect)
   TimerTwo::_ticks++;
   if (bit_is_set(SREG, SREG_C))
     TimerTwo::_ofTicks++;
-  TimerTwo::_interruptAction();
+  timer2InterruptAction();
 }
 
 #ifdef CRYSTAL_FREQ
@@ -167,12 +167,4 @@ unsigned long TimerTwo::micros()
   SREG = sreg;
 
   return (m * MillisPerTick * 1000) + t * MillisPerTick * 1000 / (TIMER2_TOP + 1);
-}
-
-void TimerTwo::attachInterrupt(void (*interruptAction)(void))
-{
-  auto sreg = SREG;
-  cli();
-  _interruptAction = interruptAction;
-  SREG = sreg;
 }

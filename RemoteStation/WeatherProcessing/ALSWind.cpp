@@ -1,15 +1,17 @@
 #ifdef ALS_WIND
 #include "WeatherProcessing.h"
 #include "Wind.h"
-#include <Wire.h>
+//#include <Wire.h>
+#include "TwoWire.h"
 #include "../PermanentStorage.h"
 #include <avr/wdt.h>
 
-//#define DEBUG_ALS
+#define DEBUG_ALS
 #ifdef DEBUG_ALS
 #define ALS_PRINT AWS_DEBUG_PRINT
 #define ALS_PRINTLN AWS_DEBUG_PRINTLN
 #define ALS_PRINTVAR PRINT_VARIABLE
+#define ALS_PRINTVAR_HEX PRINT_VARIABLE_HEX
 #define ALS_DEBUG AWS_DEBUG
 #define ALS_DEBUG_WRITE AWS_DEBUG_WRITE
 #else
@@ -18,6 +20,7 @@
 #define ALS_PRINTVAR(...) do {} while (0)
 #define ALS_DEBUG(...) do {} while (0)
 #define ALS_DEBUG_WRITE(...) do {} while (0)
+#define ALS_PRINTVAR_HEX(...) do {} while (0)
 #endif
 
 namespace WeatherProcessing
@@ -38,30 +41,16 @@ namespace WeatherProcessing
   extern float curWindX, curWindY;
 #endif
 
-  constexpr byte GetWireClock(long desiredSpeed)
-  {
-    //FClock = F_CPU / (16 + 2 * TWBR * Prescaler)
-    //TWBR = (F_CPU / FClock - 16) / 2
-    auto test = (long)F_CPU / desiredSpeed - 16;
-    if (test < 2)
-      return 1;
-    else if (test < 512)
-      return test / 2;
-    else
-      return 255;
-  }
 
   void initWind()
   {
     byte data[4];
     bool doWriteEeprom = false;
 
-    Wire.begin();
-    TWBR = GetWireClock(100000);
-    
-    //WX_PRINTVAR(TWBR);
-    //WX_PRINTVAR(TWSR);
-   
+    ALS_PRINTLN(F("Beginning wire..."));
+    Wire_begin();
+    ALS_PRINTLN(F("Wire Begun!"));
+
     if (doWriteEeprom)
     {     
       writeAlsEeprom();
@@ -71,6 +60,8 @@ namespace WeatherProcessing
     read(0x27, data, 4);
     data[3] = (data[3] & (~0x7F)) | 0x52; //Low Power / 10 samples/sec
     write(0x27, data, 4);
+
+    ALS_PRINTLN(F("ALS Low power set"));
 
     GET_PERMANENT2(&wdCalibOffset, wdCalib1);
 #if 0 // DEBUG_ALS
@@ -126,22 +117,36 @@ namespace WeatherProcessing
   void read(byte regAddress, void* data, byte count)
   {
     byte* dataB = (byte*)data;
-    Wire.beginTransmission(alsAddress);
-    Wire.write(regAddress);
-    Wire.endTransmission(false);
-    Wire.requestFrom(alsAddress, count);
+    Wire_beginTransmission(alsAddress);
+    ALS_PRINTLN(F("begun tx"));
+    Wire_write(regAddress);
+    ALS_PRINTLN(F("wrote"));
+    Wire_endTransmission(false);
+    ALS_PRINTLN(F("ended false"));
+    Wire_requestFrom(alsAddress, count);
+    ALS_PRINTLN(F("requested"));
     for (byte i = 0; i < count; i++)
-      dataB[i] = Wire.read();
+    {
+      dataB[i] = Wire_read();
+      ALS_PRINTVAR_HEX(dataB[i]);
+    }
+    ALS_PRINTLN(F("read"));
+    Wire_endTransmission(true);
+    ALS_PRINTLN(F("ended true"));
   }
 
   void write(byte regAddress, void* data, byte count)
   {
     byte* dataB = (byte*)data;
-    Wire.beginTransmission(alsAddress);
-    Wire.write(regAddress);
+    Wire_beginTransmission(alsAddress);
+    ALS_PRINTLN(F("begun write tx"));
+    Wire_write(regAddress);
+    ALS_PRINTLN(F("register written"));
     for (byte i = 0; i < count; i++)
-      Wire.write(dataB[i]);
-    Wire.endTransmission();
+      Wire_write(dataB[i]);
+    ALS_PRINTLN(F("data written"));
+    Wire_endTransmission(true);
+    ALS_PRINTLN(F("ended true"));
   }
   
   byte getCurWindDirection()

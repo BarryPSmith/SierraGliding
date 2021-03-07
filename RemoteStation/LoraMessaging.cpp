@@ -308,20 +308,6 @@ void appendMessageStatistics(MessageDestination& msg)
 LoraMessageSource::LoraMessageSource() : MessageSource()
 {}
 
-//LoraMessageDestination::~LoraMessageDestination()
-
-//LoraMessageDestination::LoraMessageDestination(bool isOutbound, bool prependX)
-
-
-//void LoraMessageDestination::abort()
-
-//MESSAGE_RESULT LoraMessageDestination::getBuffer(byte** buffer, byte bytesToAdd)
-
-//MESSAGE_RESULT LoraMessageDestination::finishAndSend()
-
-
-//MESSAGE_RESULT LoraMessageDestination::appendByte(const byte data)
-
 
 bool LoraMessageSource::beginMessage()
 {

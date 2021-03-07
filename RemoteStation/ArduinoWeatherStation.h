@@ -45,7 +45,7 @@ void AwsRecordState(int i);
 //#define DEBUG_WEATHER
 //#define DETAILED_LORA_CHECK
 //#define DEBUG_STACK
-//#define DEBUG_BASE
+#define DEBUG_BASE
 //#define DEBUG_FLASH
 #define DEBUG_NO_WEATHER //This is us desperate to get program space.
 #ifdef DEBUG

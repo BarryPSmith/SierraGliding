@@ -1,14 +1,21 @@
 <template>
     <div>
-        <h1 class="align-center align-mid outlineText"
+        <div class="align-center align-mid outlineText"
             :class="text_size"
             :style="{ color: color }">
             {{ curVal | number1 }}
-        </h1>
-
+        </div>
+        <div class="align-center align-mid outlineText"
+            v-if="!detailed"
+            :class="text_size"
+            :style="{ color: gustColor }">
+            G{{ curGust | number1 }}
+        </div>
+        
         <h1 class="align-center align-mid outlineText"
             :class="text_size"
-            :style="{ color: color }">
+            :style="{ color: color }"
+            v-if="detailed">
             {{ dataManager ? dataManager.unit : '' }}
         </h1>
 
@@ -30,7 +37,7 @@ export default {
 
     data: function() {
         return {
-            curVal: null,
+            curInst: null,
             curGust: null,
             curAvg: null,
             lastTime: null,
@@ -51,6 +58,13 @@ export default {
     },
 
     computed: {
+        curVal() {
+            if (this.detailed) {
+                return this.curInst;
+            } else {
+                return this.curAvg;
+            }
+        },
         color: function() {
             return this.get_color(this.curVal);
         },
@@ -100,22 +114,13 @@ export default {
             if (!this.dataManager.windspeedData || this.dataManager.windspeedData.length < 1) {
                 return;
             }
-            if (false) {
-                const mostRecent = this.dataManager.windspeedData[this.dataManager.windspeedData.length - 1];
-                if (mostRecent && mostRecent.x > this.lastTime /*&&
-                    mostRecent.x > new Date() - 60000*/) {
-                    this.lastTime = mostRecent.x;
-                    this.curVal = mostRecent.y;
-                }
-            } else {
-                const mostRecent = this.dataManager.stationData[this.dataManager.stationData.length - 1];
-                if (mostRecent && mostRecent.timestamp > this.lastTime) {
-                    this.lastTime = mostRecent.timestamp;
-                    const factor = this.dataManager.wsFactor();
-                    this.curVal = mostRecent.windspeed / factor;
-                    this.curAvg = mostRecent.windspeed_avg / factor;
-                    this.curGust = mostRecent.windspeed_max / factor;
-                }
+            const mostRecent = this.dataManager.stationData[this.dataManager.stationData.length - 1];
+            if (mostRecent && mostRecent.timestamp > this.lastTime) {
+                this.lastTime = mostRecent.timestamp;
+                const factor = this.dataManager.wsFactor();
+                this.curInst = mostRecent.windspeed / factor;
+                this.curAvg = mostRecent.windspeed_avg / factor;
+                this.curGust = mostRecent.windspeed_max / factor;
             }
         },
     },

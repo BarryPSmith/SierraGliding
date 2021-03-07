@@ -44,7 +44,7 @@ class LoraMessageSource : public MessageSource
 extern bool delayRequired;
 
 template<uint8_t outgoingBufferSize>
-class LoraMessageDestination : public MessageDestination
+class LoraMessageDestination final : public MessageDestination
 {
   static_assert(outgoingBufferSize <= 254);
 

@@ -220,9 +220,9 @@ namespace core_Receiver
         private static byte[] AppendCommandCrc(byte destinationStationID, MemoryStream ms)
         {
             var data = ms.ToArray().ToList();
-            HashSet<char> crcStations = new HashSet<char>() 
-                { 'T', '5', '1', '2', '3', 'A', '9' };
-            if (crcStations.Contains((char)destinationStationID))
+            HashSet<char> nonCrcStations = new HashSet<char>() 
+                { '7', '8' };
+            if (!nonCrcStations.Contains((char)destinationStationID))
                 CommandInterpreter.AddCrc(data);
             return data.ToArray();
         }

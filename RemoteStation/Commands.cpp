@@ -19,6 +19,8 @@
 #define COMMAND_PRINTVAR(...)  do { } while (0)
 #endif
 
+//#define MessageDestination LoraMessageDestination;
+
 extern uint8_t _end;
 
 namespace Commands
@@ -33,9 +35,10 @@ namespace Commands
   bool handleChargingCommand(MessageSource& msg);
   bool handleIDCommand(MessageSource& msg, byte uniqueID);
   bool handleQueryCommand(MessageSource& msg, byte uniqueID);
-  void handleQueryConfigCommand(MessageDestination& response);
-  void handleQueryVolatileCommand(MessageDestination& response);
-  bool handleOverrideCommand(MessageSource& msg);
+  template<uint8_t outgoingBufferSize>
+  void handleQueryConfigCommand(MESSAGE_DESTINATION_SOLID<outgoingBufferSize>& response);
+  template<uint8_t outgoingBufferSize>
+  void handleQueryVolatileCommand(MESSAGE_DESTINATION_SOLID<outgoingBufferSize>& response);
   void acknowledgeMessage(byte uniqueID, bool isSpecific, byte msgType);
 
   void handleCommandMessage(MessageSource& msg, byte uniqueID, bool isSpecific)
@@ -388,7 +391,8 @@ namespace Commands
     return true;
   }
 
-  void handleQueryConfigCommand(MessageDestination& response)
+  template<uint8_t outgoingBufferSize>
+  void handleQueryConfigCommand(MESSAGE_DESTINATION_SOLID<outgoingBufferSize>& response)
   {
     // Just throw the whole config at them.
 #if 0 //This takes too much memory
@@ -405,7 +409,8 @@ namespace Commands
 #endif
   }
 
-  void handleQueryVolatileCommand(MessageDestination& response)
+  template<uint8_t outgoingBufferSize>
+  void handleQueryVolatileCommand(MESSAGE_DESTINATION_SOLID<outgoingBufferSize>& response)
   { 
     //So far used 17 bytes. 237 bytes remain
     response.appendByte('M'); //+1 = 1

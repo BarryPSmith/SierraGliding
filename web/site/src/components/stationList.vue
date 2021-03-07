@@ -26,7 +26,8 @@
     </div>
 </template>
 <script>
-import singleStationView from './singleStationView.vue'
+import singleStationView from './singleStationView.vue';
+import debounce from 'debounce';
 
 export default {
     name: 'stationList',
@@ -38,6 +39,9 @@ export default {
             duration: 900,
             jumping: false,
         };
+    },
+    created() {
+        this.setHash = debounce(this.setHash, 200);
     },
     mounted: function () {
         this.loadHash();
@@ -101,8 +105,12 @@ export default {
             const hash = window.location.hash.slice(1)
             const searchParams = new URLSearchParams(hash);
             const chartEndStr = searchParams.get('chartEnd');
-            if (chartEndStr && !Number.isNaN(+chartEndStr)) {
+            const lastHashStr = searchParams.get('lastHash');
+            if (chartEndStr && !Number.isNaN(+chartEndStr) &&
+                lastHashStr && !Number.isNaN(+lastHashStr) && 
+                (+new Date() - (+lastHashStr) < 1800000)) {
                 this.chartEnd = +chartEndStr;
+                this.jumping = true;
             }
             const durationStr = searchParams.get('duration');
             if (durationStr && !Number.isNaN(+durationStr)) {
@@ -112,13 +120,16 @@ export default {
         setHash() {
             const hash = window.location.hash.slice(1)
             const searchParams = new URLSearchParams(hash); 
-            if (this.chartEnd) {
+            if (this.chartEnd && this.jumping) {
                 searchParams.set('chartEnd', this.chartEnd);
+                searchParams.set('lastHash', +new Date());
             } else {
                 searchParams.delete('chartEnd');
+                searchParams.delete('lastHash');
             }
             searchParams.set('duration', this.duration);
-            window.location.hash=searchParams;
+            //window.location.hash=searchParams;
+            history.replaceState(null, null, `#${searchParams}`);
         }
     }
 }

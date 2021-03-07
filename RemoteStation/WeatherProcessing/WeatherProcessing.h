@@ -18,7 +18,7 @@ namespace WeatherProcessing
 {
   void setupWeatherProcessing();
   void processWeather();
-  void createWeatherData(MessageDestination& message);
+  void createWeatherData(MESSAGE_DESTINATION_SOLID<254>& message);
   bool handleWeatherCommand(MessageSource& src);
   unsigned short readBattery();
   void updateBatterySavings(unsigned short batteryVoltage_mV, bool initial);

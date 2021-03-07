@@ -17,7 +17,7 @@
                     <curWindSpdIndicator v-bind:dataManager="dataManager"
                                          :legend="station.Wind_Speed_Legend"
                                          :detailed="false"
-                                         style="width:50px"/>
+                                         style="width:70px"/>
                 </div>
             </div>
         </div>
@@ -237,7 +237,7 @@ export default {
                     this.dataManager.ensure_data(this.cur_start(), this.chartEnd);
                 } else {
                     //Load the last 60 seconds of data to get the current info displaying
-                    this.dataManager.ensure_data(+new Date() - 60000, +new Date());
+                    this.dataManager.ensure_data(+new Date() - 60000, null);
                 }
             }
         },

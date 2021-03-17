@@ -40,7 +40,7 @@ void AwsRecordState(int i);
 //#define DEBUG_PARAMETERS
 //#define DEBUG_SOLAR
 //#define DEBUG_PROGRAMMING
-#define DEBUG_IT
+//#define DEBUG_IT
 //#define DEBUG_PWM
 //#define DEBUG_WEATHER
 //#define DETAILED_LORA_CHECK

@@ -278,16 +278,6 @@ bool handleMessageCommand(MessageSource& src, byte* desc)
       csma._senderPremableLength = outboundPreambleLength;
     }
   }
-#ifdef SX_SWITCH
-  case 'W':
-  {
-    static bool sxSwitchOn = true;
-    sxSwitchOn = !sxSwitchOn;
-    state = ERR_NONE;
-    digitalWrite(SX_SWITCH, sxSwitchOn);
-    break;
-  }
-#endif
     break;
   default:
     state = ERR_UNKNOWN;

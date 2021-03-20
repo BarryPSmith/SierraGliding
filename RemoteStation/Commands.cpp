@@ -452,11 +452,19 @@ namespace Commands
     //message statistics:
     response.appendByte('M'); //+1 = 206
     appendMessageStatistics(response); //+8 = 214
+
+    //2.3: Date / Time, memory
     response.appendByte('S'); //+1 = 215
     response.appendT(TimerTwo::seconds()); //+4 = 219
     response.appendT(StackCount()); //+2 = 221
     const uint8_t *p = &_end;
     response.appendT(SP - (unsigned short)p); //+2 = 223
+
+    //2.4: Database info
+    response.appendByte('D'); //+1 = 224
+    response.appendT(Database::_curHeaderAddress); //+4 = 228
+    response.appendT(Database::_curWriteAddress); //+4 = 232
+    response.appendByte(Database::_curCycle); //+1 = 233
   }
 
   void notifyNewID(byte uniqueID, byte newID)

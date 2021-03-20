@@ -11,7 +11,7 @@ namespace core_Receiver.Packets
     class QueryVolatileResponse : QueryResponse
     {
         public QueryVolatileResponse(Span<byte> data)
-            : base(data, out var consumed)
+            : base(data, out int consumed)
         {
             int i;
             bool constantArraySize = VersionNumber >= new Version(2, 2);
@@ -90,6 +90,16 @@ namespace core_Receiver.Packets
                 MemoryLowWater = br.ReadUInt16();
                 FreeMemory = br.ReadUInt16();
             }
+
+            if (VersionNumber >= new Version(2, 4))
+            {
+                if (br.ReadChar() != 'D')
+                    throw new InvalidDataException("Did not find expected 'D' marker.");
+                DatabaseHeaderAdd = br.ReadUInt32();
+                DatabaseDataAdd = br.ReadUInt32();
+                DatabaseCycle = br.ReadByte();
+
+            }
         }
 
         public UInt32 Millis { get; set; }
@@ -111,6 +121,9 @@ namespace core_Receiver.Packets
         public UInt16? MemoryLowWater { get; set; }
         public UInt16? FreeMemory { get; set; }
 
+        public UInt32 DatabaseHeaderAdd { get; set; }
+        public UInt32 DatabaseDataAdd { get; set; }
+        public byte DatabaseCycle { get; set; }
         public override string ToString()
         {
             var overrideString = OverrideDuration > 0 ? $"Override (Remaining:{OverrideDuration - (Millis - OverrideStart)}, short:{OverrideShort}), " : "";
@@ -120,7 +133,8 @@ namespace core_Receiver.Packets
                 $" Recent Commands:({RecentlyHandledCommands.ToCsv(b => $"{b}:{(char)b}")})" + Environment.NewLine +
                 $" Recently Relayed:({RecentlyRelayedPackets.ToCsv()})" + Environment.NewLine +
                 $" CRC Error Rate:{CRCErrorRate:P1}, Dropped Packet Rate:{DroppedPacketRate:P1}, Average Delay:{AverageDelayTime} us" + Environment.NewLine +
-                $" Station Time: {Time?.LocalDateTime}, Memory Low Water: {MemoryLowWater}, Free Memory: {FreeMemory}";
+                $" Station Time: {Time?.LocalDateTime}, Memory Low Water: {MemoryLowWater}, Free Memory: {FreeMemory}" + Environment.NewLine +
+                $" DB Header: {DatabaseHeaderAdd}, DB Data: {DatabaseDataAdd}, DB Cycle: {DatabaseCycle}";
         }
     }
 }

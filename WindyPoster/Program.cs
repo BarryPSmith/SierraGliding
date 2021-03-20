@@ -100,13 +100,13 @@ Usage: dotnet WindyPoster.dll [--db <DB>] [--key <KEY> | --keyfile <FILENAME>] [
                 return;
             }
 
-            PostStation( stationID: 48 + 5,
-                Name: "Sherwin Ridge",
-                lat: 37.607211, 
-                lon: -118.98982,
-                windheight: 7.5, 
-                tempheight: 7.5,
-                elevation: 3057).Wait();
+            PostStation( stationID: 71,
+                Name: "Chalk Bluffs",
+                lat: 37.420207, 
+                lon: -118.427843,
+                windheight: 3.3, 
+                tempheight: 3.3,
+                elevation: 1373).Wait();
             return;
 
             while (true)

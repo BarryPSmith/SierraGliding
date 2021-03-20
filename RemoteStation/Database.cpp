@@ -289,9 +289,13 @@ namespace Database
       }
       for (int i = 0; i < recordsRead; i++)
       {
+        unsigned short address = baseAddress + i * sizeof(MessageRecord);
         MessageRecord& record = buffer[i];
         if (record.messageType & 0x80 || record.messageType == 0)
         {
+          // Bugfix: Database was failing to write the last message in a block. Finding a hole there should not end the search.
+          if (address % blockSize == 4084)
+            continue;
           DATABASE_PRINTLN("End Search");
           DATABASE_PRINTLN(i);
           DATABASE_PRINTLN(_curSearchAddress);
@@ -301,7 +305,6 @@ namespace Database
         }
         if (!record.isValid)
           continue;
-        unsigned short address = baseAddress + i * sizeof(MessageRecord);
         if (_currentAction == ProcessingActions::Searching)
         {
           if (_messageTypeFilter && record.messageType != _messageTypeFilter)

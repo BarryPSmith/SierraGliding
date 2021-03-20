@@ -15,6 +15,14 @@
 #define XSTR(A) STR(A)
 #define XXSTR(A) XSTR(A)
 
+struct XtalInfo
+{
+public:
+  bool failed;
+  byte test1;
+  byte test2;
+};
+
 //We replace default timer2 functionality to wake up less often, or run from an external crystal
 class TimerTwo
 {
@@ -37,7 +45,7 @@ public:
   static unsigned long seconds();
   static void setSeconds(unsigned long seconds);
 
-  static bool testFailedOsc();
+  static XtalInfo testFailedOsc();
 #ifdef CRYSTAL_FREQ
   static bool _crystalFailed;
 #if F_CPU > 1000000

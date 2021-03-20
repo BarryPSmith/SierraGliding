@@ -8,18 +8,39 @@ void timer2InterruptAction(void) {}
 
 bool TimerTwo::_crystalFailed = false;
 
-bool TimerTwo::testFailedOsc()
+XtalInfo TimerTwo::testFailedOsc()
 {
+  // Tests the crystal oscillator against the internal osciallator.
+  // Switch to internal oscillator if off by more than 30%.
 #ifdef CRYSTAL_FREQ
   if (_crystalFailed)
-    return false;
+  {
+    //Switch back onto the crystal:
+    //initialise();
+    //_crystalFailed = false;
+    return { 0 };
+  }
+
+  XtalInfo ret = { 0 };
 
   unsigned long entryMillis = millis();
   delay(10);
   unsigned long testMillis = millis();
-  //Declare the crystal failed if off by more than 30%.
-  if (testMillis - entryMillis < 7 || testMillis - entryMillis > 13)
+  unsigned long diff1 = testMillis - entryMillis;
+
+  ret.test1 = diff1;
+  if (diff1 >= 7 && diff1 <= 13)
+    return ret;
+
+  // Interrupts may cause a false positive on failure w/ 10ms delay. Retry with 50ms.
+  entryMillis = millis();
+  delay(50);
+  testMillis = millis();
+  unsigned long diff2 = testMillis - entryMillis;
+  ret.test2 = diff2;
+  if (diff2 < 35 || diff2 > 65)
   {
+    ret.failed = true;
     _crystalFailed = true;
     cli();
     ASSR = 0; // Run it synchronously off the internal clock
@@ -33,10 +54,11 @@ bool TimerTwo::testFailedOsc()
     OCR2B = 0;
     TCCR2A = _BV(WGM21);
     sei();
-    return true;
   }
+  return ret;
+#else
+    return { 0 };
 #endif
-  return false;
 }
 
 ISR(TIMER2_COMPA_vect)
@@ -57,7 +79,7 @@ void TimerTwo::initialise()
 {
   TIMSK2 = 0;
   ASSR = _BV(AS2); //Run it off the 32 kHz crystal
-  //Wait 1 seconds for crystal to stabilise
+  //Wait 1 second for crystal to stabilise
   for (byte i = 0; i < 16; i++)
     delayMicroseconds(65535);
   TCNT2 = 1;

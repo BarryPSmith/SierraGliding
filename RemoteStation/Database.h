@@ -14,4 +14,8 @@ namespace Database
 
   bool handleDatabaseCommand(MessageSource& msg, const byte uniqueID,
     bool* ackRequired);
+
+  extern unsigned long _curHeaderAddress;
+  extern unsigned long _curWriteAddress;
+  extern byte _curCycle;
 }

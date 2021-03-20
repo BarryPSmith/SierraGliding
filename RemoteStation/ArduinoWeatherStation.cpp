@@ -44,6 +44,7 @@ void restart();
 void sendStackTrace();
 void storeStackTrace();
 void sendNoPingMessage();
+void testCrystal(bool sendAnyway);
 
 void TestBoard();
 void savePower();
@@ -241,7 +242,8 @@ void setup() {
 
   BASE_PRINTLN(F("Messaging Initialised"));
   
-  lastStatusMillis = 0;// millis();
+  lastStatusMillis = 0;
+  testCrystal(true);
 }
 
 extern uint8_t __stack;
@@ -281,21 +283,35 @@ void sendNoPingMessage()
 	msg.append(F("PTimeout"), 8);
 }
 
-void sendFailedCrystalMessage()
+void sendCrystalMessage(XtalInfo& result)
 {
   BASE_PRINTLN(F("Crystal Failed!"));
   MESSAGE_DESTINATION_SOLID<20> msg(false);
   msg.appendByte('K');
   msg.appendByte(stationID);
   msg.appendByte(MessageHandling::getUniqueID());
-  msg.append(F("PXTAL_Failed"), 12);
+  msg.appendByte('X');
+  msg.appendByte(result.failed);
+  msg.appendByte(result.test1);
+  msg.appendByte(result.test2);
+}
+
+void testCrystal(bool sendAnyway)
+{
+#ifdef CRYSTAL_FREQ
+  XtalInfo xtalRes = TimerTwo::testFailedOsc();
+  if (xtalRes.failed || sendAnyway)
+    sendCrystalMessage(xtalRes);
+#endif
 }
 
 void loop() {
   //BASE(auto loopMicros = micros());
   
-  if (random(1000) == 1 && TimerTwo::testFailedOsc())
-    sendFailedCrystalMessage();
+  if (random(1000) == 1)
+  {
+    testCrystal(false);
+  }
   static bool noPingSent = false;
 
   if (initMessagingRequired)

@@ -129,13 +129,16 @@ Command starting characters:
  M : Change radio settings.     : Same as modem. H6 for more info. (P|C|T|F|B|S|O)
  W : Change weather settings    : (C|O|G)(newValue) C: calibrate wind O: set temp offset G: set temp gain
  P : Reprogram station          : (Use programmer interface instead. )
- U : Change station ID          : UR for random. US(newID) to specify.
+ U : Change station ID          : UR for random. US(newID:1) to specify.
  C : Set charging parameters    : (charge voltage:2)(response rate:2)(freezing voltage:2)(freezing PWM:1)
  F : Force station to restart
  G : Read flash memory          : (R|W|E)(address:4)
                                 : R(address:4)(count:1)(I|E)? bytes to read, internal or external
                                 : W(address:4)[data...] external only, address > 32k
                                 : E(address:4) Erases 4kB. External only, address > 32k
+ D : Read message database      : (L|R)[Params:2]
+                                : L(type:1)(source:1) List all packets that match optional type/source filters.
+                                : R(address:2) Retrieve a packet. Address is header address from DL query.
 ";
         const string c_6Help =
 @" 6 : Enter data to be sent to the modem.

@@ -13,16 +13,16 @@ namespace WeatherProcessing
   {
     int maxVoltage = 1023;
     int minVoltage = 0;
-    int wdCalibMin, wdCalibMax;
+    int wdCalib1, wdCalib2;
     int pwrVoltage = 1023;
-    GET_PERMANENT_S(wdCalibMin);
-    GET_PERMANENT_S(wdCalibMax);
+    GET_PERMANENT_S(wdCalib1);
+    GET_PERMANENT_S(wdCalib2);
   #ifdef WIND_PWR_PIN
     pwrVoltage = analogRead(WIND_PWR_PIN);
     WX_PRINTVAR(pwrVoltage);
   #endif
-    maxVoltage = ((long)wdCalibMax * pwrVoltage) / 1023;
-    minVoltage = ((long)wdCalibMin * pwrVoltage) / 1023;
+    maxVoltage = ((long)wdCalib2 * pwrVoltage) / 1023;
+    minVoltage = ((long)wdCalib1 * pwrVoltage) / 1023;
     int voltageDiff = maxVoltage - minVoltage;
 
     int wdVoltage = analogRead(WIND_DIR_PIN);
@@ -77,8 +77,8 @@ namespace WeatherProcessing
 #endif
     if (maxValue > minValue + 100)
     {
-      SET_PERMANENT2(&minValue, wdCalibMin);
-      SET_PERMANENT2(&maxValue, wdCalibMax);
+      SET_PERMANENT2(&minValue, wdCalib1);
+      SET_PERMANENT2(&maxValue, wdCalib2);
     }
     else
     {

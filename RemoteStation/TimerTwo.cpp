@@ -6,7 +6,9 @@ volatile unsigned char TimerTwo::_ofTicks __attribute__ ((section (".noinit")));
 void timer2InterruptAction(void) __attribute__((weak));
 void timer2InterruptAction(void) {}
 
+#ifdef CRYSTAL_FREQ
 bool TimerTwo::_crystalFailed = false;
+#endif
 
 XtalInfo TimerTwo::testFailedOsc()
 {
@@ -158,7 +160,7 @@ unsigned long TimerTwo::millis()
 {
   auto sreg = SREG;
   cli();
-#if F_CPU > 1000000
+#if defined(CRYSTAL_FREQ) && F_CPU > 1000000
   auto st = _subTicks;
 #endif
   unsigned long m = _ticks;
@@ -166,6 +168,7 @@ unsigned long TimerTwo::millis()
   if (TIFR2 & _BV(OCF2A) && t < 249)
     m++;
   SREG = sreg;
+#ifdef CRYSTAL_FREQ
   if (!TimerTwo::_crystalFailed)
     return (m * MillisPerTick) + t * MillisPerTick / (TIMER2_TOP + 1);
   else
@@ -173,6 +176,9 @@ unsigned long TimerTwo::millis()
     return (m * MillisPerTick) + ((unsigned short)st * (TIMER2_TOP_ALT + 1) + t) * MillisPerTick / ((unsigned short)subsPerTick * (TIMER2_TOP_ALT + 1));
 #else
     return (m * MillisPerTick) + t * MillisPerTick / (TIMER2_TOP_ALT + 1);
+#endif
+#else
+  return (m * MillisPerTick) + t * MillisPerTick / (TIMER2_TOP + 1);
 #endif
 }
 

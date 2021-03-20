@@ -41,9 +41,9 @@ namespace Database
 
   constexpr unsigned long totalMemory = 512ul * 1024;
 
-  constexpr short blockSize = 4096;
+  constexpr unsigned short blockSize = 4096;
   constexpr unsigned long messageFatStart = 32768;
-  constexpr unsigned short messageFatLen = blockSize * 6; // 24 kB - 2000 messages worth of headers (12 bytes per header)
+  constexpr unsigned short messageFatLen = blockSize * 8; // 32 kB - 2700 messages worth of headers (12 bytes per header)
   constexpr unsigned long messageFatEnd = messageFatStart + messageFatLen;
   constexpr unsigned long messageDataStart = messageFatEnd;
   constexpr unsigned long messageDataLen = totalMemory - messageDataStart;
@@ -296,6 +296,15 @@ namespace Database
           // Bugfix: Database was failing to write the last message in a block. Finding a hole there should not end the search.
           if (address % blockSize == 4084)
             continue;
+
+          // As the memory is filled up that database wraps around.
+          // If we are in the same block as is currently being written, there might be data in the next block.
+          byte curSearchBlock = _curSearchAddress / blockSize;
+          if (curSearchBlock == _curHeaderAddress / blockSize)
+          {
+            _curSearchAddress = (curSearchBlock + 1) * blockSize;
+            break;
+          }
           DATABASE_PRINTLN("End Search");
           DATABASE_PRINTLN(i);
           DATABASE_PRINTLN(_curSearchAddress);
@@ -353,10 +362,17 @@ namespace Database
 
   byte getHeaderChunk(void* buffer)
   {
-    unsigned short bytesToNextBlock = blockSize - _curSearchAddress % blockSize;
-    if (bytesToNextBlock < sizeof(MessageRecord))
+    unsigned short locInBlock = _curSearchAddress % blockSize;
+    unsigned short bytesToNextBlock = blockSize - locInBlock;
+    bool unusedEnd = bytesToNextBlock < sizeof(MessageRecord);
+    if (unusedEnd)
     {
       _curSearchAddress += bytesToNextBlock;
+      locInBlock = 0;
+    }
+    if (locInBlock < 4)
+    {
+      _curSearchAddress -= locInBlock;
       if (_curSearchAddress >= messageFatEnd)
         return 0;
       byte blockHeaderBuffer[3];
@@ -364,7 +380,7 @@ namespace Database
       if (memcmp(blockHeaderBuffer, MSG, 3))
         return 0;
       _curSearchAddress += 4;
-      bytesToNextBlock = blockSize;
+      bytesToNextBlock = blockSize - 4;
     }
     byte bytesToRead = recordBufferSize;
     if (bytesToRead > bytesToNextBlock)

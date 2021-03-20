@@ -2,6 +2,9 @@
 #include <Arduino.h>
 #include "revid.h"
 
+#define STR(A) #A
+#define XSTR(A) STR(A)
+
 #ifdef DEBUG
 void AwsRecordState(int i);
 #define AWS_RECORD_STATE(i) AwsRecordState(i);
@@ -80,7 +83,7 @@ void AwsRecordState(int i);
 #define MESSAGE_DESTINATION_SOLID LoraMessageDestination
 #define MESSAGE_SOURCE_SOLID LoraMessageSource
 
-#define ver_str "2.4." REV_ID
+#define ver_str "2.4." REV_ID "." XSTR(BOARD)
 #define ASW_VER F(ver_str)
 #define ver_size (sizeof(ver_str) - 1)
 
@@ -95,8 +98,6 @@ inline constexpr __FlashStringHelper verF = F(verC);*/
 
 //Station Specific Constants
 #ifdef STATION_ID
-#define STR(A) #A
-#define XSTR(A) STR(A)
 inline constexpr char defaultStationID = STATION_ID;
 #else
 inline constexpr char defaultStationID = 'Z';

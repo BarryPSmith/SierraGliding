@@ -27,6 +27,7 @@ include Boards.makefile
 DEFINES=$(BOARD_DEFINES) -DARDUINO=100 \
     -DTWI_BUFFER_LENGTH=10 \
 	-DMIN_FREQ=420000000 -DMAX_FREQ=450000000\
+	-DBOARD=$(BOARD)
 #-DRADIOLIB_DEBUG 
 #-DRADIOLIB_VERBOSE
 CFLAGS= -mcall-prologues -mmcu=$(MCU) -Os -fdata-sections -ffunction-sections -fno-exceptions -std=c++17 -g -flto

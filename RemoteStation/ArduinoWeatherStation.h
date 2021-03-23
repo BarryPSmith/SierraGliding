@@ -6,9 +6,6 @@
 #define XSTR(A) STR(A)
 
 #ifdef DEBUG
-void AwsRecordState(int i);
-#define AWS_RECORD_STATE(i) AwsRecordState(i);
-
 #define AWS_DEBUG_PRINT(...) do { \
                     Serial.print(__VA_ARGS__); \
                     } while (0)
@@ -20,7 +17,6 @@ void AwsRecordState(int i);
 #else
 #define AWS_DEBUG_PRINT(...) do { } while (0)
 #define AWS_DEBUG_PRINTLN(...) do { } while (0)
-#define AWS_RECORD_STATE(A) do { } while (0)
 #define AWS_DEBUG(...) do { } while (0)
 #define AWS_DEBUG_WRITE(...) do { } while (0)
 #endif

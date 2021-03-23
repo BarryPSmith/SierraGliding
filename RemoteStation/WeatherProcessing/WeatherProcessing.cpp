@@ -268,15 +268,11 @@ namespace WeatherProcessing
       WX_PRINTLN(F("No Deep Sleep"));
       doDeepSleep = false;
       if (initial || 
-        (/*!overrideActive &&*/ batteryVoltage_mV > batteryThreshold_mV + batteryHysterisis_mV)
-        /* ||
-        (overrideActive && overrideShort)*/)
+        (batteryVoltage_mV > batteryThreshold_mV + batteryHysterisis_mV))
       {
         GET_PERMANENT2(&weatherInterval, shortInterval);
         continuousReceiveEnabled = true;
-      } else if ((/*!overrideActive &&*/ batteryVoltage_mV < batteryThreshold_mV - batteryHysterisis_mV) 
-        /*||
-          (overrideActive && !overrideShort)*/)
+      } else if ((batteryVoltage_mV < batteryThreshold_mV - batteryHysterisis_mV))
       {
         GET_PERMANENT2(&weatherInterval, longInterval);
         continuousReceiveEnabled = false;

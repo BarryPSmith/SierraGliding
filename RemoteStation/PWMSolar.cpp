@@ -53,7 +53,12 @@ namespace PwmSolar
   CurrentSensorState currentState = CurrentSensorState::Off;
 
   unsigned long lastPwmMicros = 0;
-  byte solarPwmValue = 0;
+  // On startup, have the solar fully open
+  // It's a generally good idea anyway,
+  // but especially important because there's a problem with our PWM circuit 
+  // where it latches closed if the battery voltage is low.
+  byte solarPwmValue = 0xFF;
+  
 
   short curCurrent_mA_x6;
   unsigned short lastCurrentCheckMillis;
@@ -268,8 +273,8 @@ namespace PwmSolar
       curCurrent_mA_x6 = 0;
       return 0;
     }
-    if (//If the battery voltage is less than 3.7V, we're unlikely to damage it with any current we throw at it.
-        batteryVoltage_mV > safeFreezingChargeLevel_mV &&
+    //If the battery voltage is less than 3.7V, we're unlikely to damage it with any current we throw at it.
+    if (batteryVoltage_mV > safeFreezingChargeLevel_mV &&
         (WeatherProcessing::internalTemperature_x2 < 0 ||
         (WeatherProcessing::internalTemperature_x2 < 4 && WeatherProcessing::externalTemperature < 2))) //The battery might be colder than the MCU - thermal capacity, inaccurate measurement, etc.
       applyLimits = true;

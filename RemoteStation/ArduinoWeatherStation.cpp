@@ -389,16 +389,6 @@ void restart()
   }
 }
 
-#ifdef DEBUG
-void AwsRecordState(int i)
-{
-  digitalWrite(5, i & 1 ? 1 : 0);
-  digitalWrite(6, i & 2 ? 1 : 0);
-  digitalWrite(7, i & 4 ? 1 : 0);
-  digitalWrite(8, i & 8 ? 1 : 0);
-}
-#endif
-
 #ifndef DEBUG
 //Export signalError here.
 extern inline void signalError(byte count, unsigned long delay_ms);

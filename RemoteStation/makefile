@@ -20,7 +20,7 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 8: Second printed PCB configured for ALSWind
 # 9: Single board or second PCB with a Atmega328PB and 32768Hz crystal
 # 10: Single board rev2
-BOARD = 9
+BOARD = 10
 include Boards.makefile
 
 #Flags, etc.

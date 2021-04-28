@@ -45,13 +45,19 @@ const PermanentVariables defaultVars PROGMEM =
   //.stationsToRelayCommands = { 0 },
   //.stationsToRelayWeather = { 0 },
 
+#ifdef FCC_COMPLIANT
+  .frequency_i = 917000000,
+  .bandwidth_i = 5000,
+#else
   .frequency_i = 424800000,
   .bandwidth_i = 625,
+#endif // !FCC_COMPLIANT
   .txPower = -9,
   .spreadingFactor = 5,
   .csmaP = 100, //40% chance to transmit
   .csmaTimeslot = 10000, // 10ms
   .outboundPreambleLength = 384, // allow end nodes to spend most of their time asleep.
+        
 
   // These default tsOffset / tsGain values correspond to the datasheet example values on page 215.
 #ifdef ATMEGA328PB

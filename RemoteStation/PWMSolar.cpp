@@ -301,7 +301,11 @@ namespace PwmSolar
 #else
     // Take control of the pin back.
     // write it HIGH (which will turn the switch off)
+#ifdef SOLAR_INVERSE
+    digitalWrite(SOLAR_PWM_PIN, LOW);
+#else
     digitalWrite(SOLAR_PWM_PIN, HIGH);
+#endif
 #endif
     // Record that sleep is allowed
     solarSleepEnabled = SleepModes::powerSave;
@@ -320,7 +324,11 @@ namespace PwmSolar
 #else
     // Take control of the pin back
     // write it LOW (which will turn the switch on)
+#ifdef SOLAR_INVERSE
+    digitalWrite(SOLAR_PWM_PIN, HIGH);
+#else
     digitalWrite(SOLAR_PWM_PIN, LOW);
+#endif
 #endif
     // Record that sleep is allowed
     solarSleepEnabled = SleepModes::powerSave;
@@ -335,7 +343,11 @@ namespace PwmSolar
 #else
     TIMSK0 = 0; //No interrupts
 #endif
+#ifndef SOLAR_INVERSE
     TCCR0A = _BV(COM0B1) | _BV(COM0B0) | _BV(WGM01) | _BV(WGM00); //Fast PWM inverting on output B
+#else
+    TCCR0A = _BV(COM0B1) | _BV(WGM01) | _BV(WGM00); //Fast PWM non-inverting on output B
+#endif
 #if F_CPU < MAX_PWM_BASE_FREQ
     TCCR0B = _BV(CS00); // No prescaler: Operate at full clock frequency (PWM at 3.9kHz for 1MHz)
 #else

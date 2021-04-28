@@ -14,17 +14,8 @@ bool initMessagingRequired = false;
 
 //Hardware pins:
 Module mod(SX_SELECT, SX_DIO1, SX_BUSY);
-#ifndef MOTEINO_96
 SX1262 lora = &mod;
 CSMAWrapper<SX1262> csma = &lora;
-#else
-SX1278 lora = &mod;
-#endif
-
-#ifdef MOTEINO_96
-static volatile bool packetWaiting;
-void rxDone() { packetWaiting = true; }
-#endif
 
 void updateIdleState()
 {

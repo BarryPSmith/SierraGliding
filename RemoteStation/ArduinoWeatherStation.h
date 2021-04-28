@@ -36,7 +36,7 @@
 //#define DEBUG_RX
 //#define DEBUG_DATABASE
 //#define DEBUG_MSGPROC
-//#define DEBUG_PARAMETERS
+#define DEBUG_PARAMETERS
 //#define DEBUG_SOLAR
 //#define DEBUG_PROGRAMMING
 //#define DEBUG_IT
@@ -44,9 +44,10 @@
 //#define DEBUG_WEATHER
 //#define DETAILED_LORA_CHECK
 //#define DEBUG_STACK
-#define DEBUG_BASE
+//#define DEBUG_BASE
 //#define DEBUG_FLASH
 #define DEBUG_NO_WEATHER //This is us desperate to get program space.
+//#define ALS_FIELD_STRENGTH
 #ifdef DEBUG
 #undef SOLAR_PWM
 #undef CRYSTAL_FREQ

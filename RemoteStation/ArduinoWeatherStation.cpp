@@ -146,19 +146,22 @@ void savePower()
   DIDR1 = _BV(AIN0D) | _BV(AIN1D);
 }
 
-
+extern SX1262 lora;
 void TestBoard()
 {
+  wdt_disable();
+  LORA_CHECK(lora.setOutputPower(22));
+  LORA_CHECK(lora.setFrequency_i(425200000));
+  LORA_CHECK(lora.sleep());
   while (1)
   {
-    AWS_DEBUG_PRINTLN();
-
     for (int i = 0; i < 3; i++)
-      PRINT_VARIABLE(millis());
-    PRINT_VARIABLE(TimerTwo::testFailedOsc());
+    {
+      AWS_DEBUG_PRINTLN("Not Transmitting...");
+      delay(100);
+    }
     delay(1000);
   }
-  while (1);
 }
 
 void seedRandom()

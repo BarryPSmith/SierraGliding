@@ -285,4 +285,90 @@ BOARD_DEFINES = \
 
 PROG_BAUD=57600
 
+else ifeq ($(BOARD), 12)
+$(info Running Makefile for Single Board rev3 (12))
+BOARD_DEFINES = \
+    -DF_CPU=1000000L \
+    -DSERIAL_BAUD=9600 \
+    -DREF_MV=3300 \
+    -DBATT_PIN=A0 \
+    -DBATTV_NUM=2 \
+    -DBATTV_DEN=1 \
+    -DWIND_SPD_PIN=2 \
+    -DTEMP_SENSE=A2 \
+    -DSX_BUSY=4 \
+    -DSX_DIO1=3 \
+    -DSX_SELECT=10 \
+    -DSX_SWITCH=A3 \
+    -DSX_TCXOV_X10=18 \
+    -DSX_RESET=9 \
+    -DFLASH_SELECT=8 \
+    -DWIND_DIR_AVERAGING \
+    -DALS_WIND \
+    -DSOLAR_PWM \
+    -DSX_TCXO_STARTUP_US=2000 \
+    -DCRYSTAL_FREQ=32768 \
+    -DCLOCK_DIVIDER=8 \
+    -DCURRENT_SENSE=A1 \
+    -DCURRENT_SENSE_PWR=7 \
+    -DCURRENT_SENSE_GAIN=25 \
+    -DSOLAR_INVERSE \
+    -DTEMP_PWR_PIN=6 \
+    #-DATMEGA328PB \
+
+PROG_BAUD=57600
+
+else ifeq ($(BOARD), 13)
+$(info Running Makefile for Single Board rev3 915MHz (13))
+BOARD_DEFINES = \
+    -DF_CPU=1000000L \
+    -DSERIAL_BAUD=9600 \
+    -DREF_MV=3300 \
+    -DBATT_PIN=A0 \
+    -DBATTV_NUM=2 \
+    -DBATTV_DEN=1 \
+    -DWIND_SPD_PIN=2 \
+    -DTEMP_SENSE=A2 \
+    -DSX_BUSY=4 \
+    -DSX_DIO1=3 \
+    -DSX_SELECT=10 \
+    -DSX_SWITCH=A3 \
+    -DSX_TCXOV_X10=18 \
+    -DSX_RESET=9 \
+    -DFLASH_SELECT=8 \
+    -DWIND_DIR_AVERAGING \
+    -DALS_WIND \
+    -DSOLAR_PWM \
+    -DSX_TCXO_STARTUP_US=2000 \
+    -DCRYSTAL_FREQ=32768 \
+    -DCLOCK_DIVIDER=8 \
+    -DCURRENT_SENSE=A1 \
+    -DCURRENT_SENSE_PWR=7 \
+    -DCURRENT_SENSE_GAIN=25 \
+    -DSOLAR_INVERSE \
+    -DTEMP_PWR_PIN=6 \
+    #-DATMEGA328PB \
+
+FCC_COMPLIANT=1
+
+PROG_BAUD=57600
+
+else ifeq ($(BOARD), 14)
+$(info Running Makefile for 917MHz Dorji Test Board (14))
+BOARD_DEFINES = \
+    -DF_CPU=16000000L \
+    -DSX_BUSY=3 \
+    -DSX_SELECT=7 \
+    -DSX_DIO1=5 \
+    -DSX_RESET=A0 \
+    -DSX_SWITCH=8 \
+    -DWATCHDOG_LOOPS=15 \
+    -DNO_DIO1_INTERRUPT \
+    -DSX_TCXOV_X10=18 \
+    -DDEBUG_PARAMETERS
+
+PROG_BAUD=115200
+MODEM=1
+FCC_COMPLIANT=1
+
 endif

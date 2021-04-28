@@ -21,14 +21,24 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 9: Single board or second PCB with a Atmega328PB and 32768Hz crystal
 # 10: Single board rev2
 # 11: Single board rev2 no current sensor
-BOARD = 11
+# 12: Single board rev3
+# 13: Single board rev3 FCC Compliant @ 917MHz
+# 14: Dorji Modem @ 917MHz
+BOARD = 14
 include Boards.makefile
 
 #Flags, etc.
 DEFINES=$(BOARD_DEFINES) -DARDUINO=100 \
     -DTWI_BUFFER_LENGTH=10 \
-	-DMIN_FREQ=420000000 -DMAX_FREQ=450000000\
 	-DBOARD=$(BOARD)
+
+ifeq ($(FCC_COMPLIANT), 1)
+DEFINES += -DMIN_FREQ=903000000 -DMAX_FREQ=927000000 -DFCC_COMPLIANT
+$(info FCC Complaint)
+else
+DEFINES += -DMIN_FREQ=420000000 -DMAX_FREQ=450000000
+$(info not FCC Complaint)
+endif
 #-DRADIOLIB_DEBUG 
 #-DRADIOLIB_VERBOSE
 CFLAGS= -mcall-prologues -mmcu=$(MCU) -Os -fdata-sections -ffunction-sections -fno-exceptions -std=c++17 -g -flto

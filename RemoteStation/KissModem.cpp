@@ -82,8 +82,9 @@ void TestBoard()
 int main()
 {
   //Enable the watchdog early to catch initialisation hangs (Side note: This limits initialisation to 8 seconds)
-  wdt_enable(WDTO_8S);
-  WDTCSR |= (1 << WDIE);
+  //wdt_enable(WDTO_8S);
+  wdt_disable();
+  //WDTCSR |= (1 << WDIE);
 
 
   init();
@@ -114,10 +115,8 @@ int main()
 
   SPI.begin();
   delay(10);
-  Serial.println(XSTR(RADIO_TYPE));
-  
-  PermanentStorage::initialise();
 
+  PermanentStorage::initialise();
   InitMessaging();
   updateIdleState();
   

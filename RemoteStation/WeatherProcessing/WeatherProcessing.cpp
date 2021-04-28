@@ -153,14 +153,19 @@ namespace WeatherProcessing
     bool isComplex = simpleMessagesSent >= complexMessageFrequency - 1;
 
     byte length = isComplex ? 8 : 3;
-#ifdef DEBUG_PWM
+
     if (isComplex)
+    {
+#ifdef DEBUG_PWM
       length += 9;
 #endif
 #ifdef DEBUG_IT
-    if (isComplex)
       length += 2;
 #endif
+#if defined(ALS_WIND) && defined(ALS_FIELD_STRENGTH)
+      length += 4;
+#endif
+    }
     
     message.appendByte(length);
 
@@ -210,6 +215,11 @@ namespace WeatherProcessing
       message.appendT(PwmSolar::debug_change); //2
       message.appendT(PwmSolar::lastCurrentCheckMillis); //2
       message.appendT(PwmSolar::debug_curMillis); //2
+#endif
+#if defined(ALS_WIND) && defined(ALS_FIELD_STRENGTH)
+      message.appendT(curFieldSquared / curSampleCount);
+      curFieldSquared = 0;
+      curSampleCount = 0;
 #endif
       simpleMessagesSent = 0;
     }

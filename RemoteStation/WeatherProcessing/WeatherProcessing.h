@@ -25,6 +25,10 @@ namespace WeatherProcessing
   //ALS only:
 #ifdef ALS_WIND
   bool writeAlsEeprom();
+#ifdef ALS_FIELD_STRENGTH
+  extern unsigned long curFieldSquared;
+  extern short curSampleCount;
+#endif
 #endif
 
   extern volatile bool weatherRequired;

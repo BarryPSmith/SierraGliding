@@ -6,7 +6,6 @@
 #include "../PermanentStorage.h"
 #include <avr/wdt.h>
 
-#define DEBUG_ALS
 #ifdef DEBUG_ALS
 #define ALS_PRINT AWS_DEBUG_PRINT
 #define ALS_PRINTLN AWS_DEBUG_PRINTLN
@@ -40,7 +39,10 @@ namespace WeatherProcessing
 #ifdef WIND_DIR_AVERAGING
   extern float curWindX, curWindY;
 #endif
-
+#ifdef ALS_FIELD_STRENGTH
+  unsigned long curFieldSquared;
+  short curSampleCount;
+#endif
 
   void initWind()
   {
@@ -163,11 +165,18 @@ namespace WeatherProcessing
     //AWS_DEBUG(auto entryMicros = micros());
     takeReading(&sX, &sY);
     //AWS_DEBUG(auto postRead = micros());
-    curWindX += sX - wdCalibOffset.x;
-    curWindY += sY - wdCalibOffset.y;
+    auto calibX = sX - wdCalibOffset.x;
+    auto calibY = sY - wdCalibOffset.y;
+    curWindX += calibX;
+    curWindY += calibY;
     //AWS_DEBUG(auto endMicros = micros());
     //PRINT_VARIABLE(postRead - entryMicros);
     //PRINT_VARIABLE(endMicros - postRead);
+#ifdef ALS_FIELD_STRENGTH
+    curFieldSquared += (long)calibX * calibX + (long)calibY * calibY;
+    curSampleCount++;
+#endif // ALS_FIELD_STRENGTH
+    
 #endif
   }
 

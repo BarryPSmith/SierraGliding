@@ -33,6 +33,8 @@ export default {
 
             if (window.location.pathname.toLowerCase().indexOf("all") >= 0)
                 url.searchParams.append('all', true);
+            else if (window.location.pathname.length > 1)
+                url.searchParams.append('groupName', window.location.pathname.replace(/^\/+|\/+$/g, ''));
 
             if (window.location.hash && window.location.hash.length > 1)
                 url.searchParams.append('stationID', window.location.hash.substr(1));

@@ -23,11 +23,12 @@ const router = new express.Router();
 app.disable('x-powered-by');
 
 app.use(express.static(path.resolve(__dirname, 'site/dist')));
-app.use('/all', express.static(path.resolve(__dirname, 'site/dist')));
+app.use('/api/', router);
+//app.use('/all', express.static(path.resolve(__dirname, 'site/dist')));
 app.use(express.json());
+app.use('/[^\.]+', express.static(path.resolve(__dirname, 'site/dist')));
 app.set('json replacer', standardReplacer);
 
-app.use('/api/', router);
 
 if (require.main === module) {
     if (!args.db || args.help) {
@@ -94,6 +95,7 @@ function database(dbpath, drop, cb) {
                 DROP TABLE IF EXISTS station_data_600;
                 DROP TABLE IF EXISTS users;
                 DROP TABLE IF EXISTS tokens;
+                DROP TABLE IF EXISTS station_groups;
             `);
         }
 
@@ -113,6 +115,13 @@ function database(dbpath, drop, cb) {
         `);
 
         db.run(`
+            CREATE TABLE IF NOT EXISTS station_groups (
+                ID INTEGER PRIMARY KEY,
+                Name TEXT UNIQUE NOT NULL COLLATE NOCASE
+            )
+        `);
+
+        db.run(`
             CREATE TABLE IF NOT EXISTS stations (
                 ID                      INTEGER PRIMARY KEY,
                 Name                    TEXT UNIQUE NOT NULL,
@@ -124,7 +133,8 @@ function database(dbpath, drop, cb) {
                 Wind_Direction_Offset   FLOAT NOT NULL DEFAULT 0, -- Used to compensate for misaligned stations. Applied when data is added to the station_data
                 Display_Level           INTEGER NOT NULL DEFAULT 1, -- If we want to have some stations that are not usually displayed. 0 = Hidden, 1 = Public, 2 = Private (TODO: Figure out admin stuff)
                 Status_Message          TEXT NULL, --If we want to temporarily display a status message when e.g. a station has a hardware fault
-                Battery_Range           TEXT NULL
+                Battery_Range           TEXT NULL,
+                Group_ID                INTEGER NULL REFERENCES station_groups ON DELETE SET NULL ON UPDATE CASCADE
             );
         `);
 
@@ -294,15 +304,16 @@ function main(db, cb) {
             WHERE
                 id >= 0
                 AND (
-                    Display_Level <= 1
-                    OR
-                    id = $specificId
+                        (Group_ID IS (SELECT ID FROM station_groups WHERE Name = $groupName)
+                        AND
+                        Display_Level <= 1)
                     OR
                     1 = $showAll)
         `,
             { 
                 $specificId: req.query.stationID,
-                $showAll: req.query.all == "true" ? 1 : 0
+                $showAll: req.query.all == "true" ? 1 : 0,
+                $groupName: req.query.groupName,
             }
         , (err, stations) => {
             if (err) return error(err, res);

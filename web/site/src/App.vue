@@ -36,9 +36,6 @@ export default {
             else if (window.location.pathname.length > 1)
                 url.searchParams.append('groupName', window.location.pathname.replace(/^\/+|\/+$/g, ''));
 
-            if (window.location.hash && window.location.hash.length > 1)
-                url.searchParams.append('stationID', window.location.hash.substr(1));
-
             return fetch(url, {
                 method: 'GET',
                 credentials: 'same-origin'

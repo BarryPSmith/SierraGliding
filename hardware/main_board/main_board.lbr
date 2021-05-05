@@ -7,7 +7,7 @@
 <setting keepoldvectorfont="yes"/>
 <setting verticaltext="up"/>
 </settings>
-<grid distance="50" unitdist="mil" unit="mil" style="lines" multiple="1" display="yes" altdistance="5" altunitdist="mil" altunit="mil"/>
+<grid distance="50" unitdist="mil" unit="mm" style="lines" multiple="1" display="yes" altdistance="5" altunitdist="mil" altunit="mil"/>
 <layers>
 <layer number="1" name="Top" color="4" fill="1" visible="yes" active="yes"/>
 <layer number="16" name="Bottom" color="1" fill="1" visible="yes" active="yes"/>
@@ -1053,10 +1053,10 @@ Holes are offset from center 0.005", to hold pins in place while soldering.
 </package>
 <package name="RJHSE-3380">
 <description>Conn Mod 8p8c Shielded 13.5x16mm</description>
-<wire x1="-8.13" y1="-6.8" x2="-8.13" y2="6.8" width="0.127" layer="21"/>
-<wire x1="-8.13" y1="6.8" x2="8.13" y2="6.8" width="0.127" layer="21"/>
-<wire x1="8.13" y1="6.8" x2="8.13" y2="-6.8" width="0.127" layer="21"/>
-<wire x1="8.13" y1="-6.8" x2="-8.13" y2="-6.8" width="0.127" layer="21"/>
+<wire x1="-8.13" y1="-5.622" x2="-8.13" y2="7.978" width="0.127" layer="21"/>
+<wire x1="-8.13" y1="7.978" x2="8.13" y2="7.978" width="0.127" layer="21"/>
+<wire x1="8.13" y1="7.978" x2="8.13" y2="-5.622" width="0.127" layer="21"/>
+<wire x1="8.13" y1="-5.622" x2="-8.13" y2="-5.622" width="0.127" layer="21"/>
 <hole x="-6.35" y="-2.49" drill="3.25"/>
 <hole x="6.35" y="-2.49" drill="3.25"/>
 <pad name="SHLD2" x="8.26" y="1.75" drill="1.57" diameter="2"/>
@@ -1069,6 +1069,13 @@ Holes are offset from center 0.005", to hold pins in place while soldering.
 <pad name="5" x="-0.51" y="0.94" drill="0.89" diameter="1.27"/>
 <pad name="3" x="1.53" y="0.94" drill="0.89" diameter="1.27"/>
 <pad name="1" x="3.55" y="0.94" drill="0.89" diameter="1.27"/>
+<polygon width="0.127" layer="39">
+<vertex x="-8.128" y="8.001"/>
+<vertex x="8.128" y="8.001"/>
+<vertex x="8.128" y="7.874"/>
+<vertex x="8.128" y="-5.588"/>
+<vertex x="-8.128" y="-5.588"/>
+</polygon>
 </package>
 <package name="PSON50P300X200X60-9N">
 <wire x1="-1.55" y1="1.05" x2="1.55" y2="1.05" width="0.127" layer="51"/>

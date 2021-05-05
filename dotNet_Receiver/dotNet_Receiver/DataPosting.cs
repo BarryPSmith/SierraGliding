@@ -18,6 +18,7 @@ namespace core_Receiver
         
         readonly string _url;
 
+        public int Offset { get; set; }
         public TextWriter OutputWriter => Program.OutputWriter;
 
         public DataPosting(string url)
@@ -85,7 +86,7 @@ namespace core_Receiver
                 };
                 var json = JsonConvert.SerializeObject(toSerialize);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var url = _url + "/api/station/" + subPacket.sendingStation + "/data";
+                var url = _url + $"/api/station/{subPacket.sendingStation + Offset}/data";
                 var uri = new Uri(url);
 
                 try

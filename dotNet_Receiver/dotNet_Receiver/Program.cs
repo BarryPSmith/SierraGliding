@@ -30,6 +30,7 @@ Arguments:
  --nonPacket <file>     Record the non-packet stream in a particular file. Set to 'DISCARD' to discard the non packet stream.
  --exposeUDP <incoming> <outgoing> Expose the serial and net streams to UDP on ports incoming and outgoing
  --connectUDP <outgoing> <incoming> Send and receive via UDP rather than serial or TCP socket
+ --offset <offset>      All station data reported to the server will have their IDs offset by this amount
 "
 );
         }
@@ -48,6 +49,7 @@ Arguments:
         static string _srcNetworkAddress = null;
         static string _serialAddress = null;
         static string _npsFn = null;
+        static int _offset = 0;
 
         static readonly CancellationTokenSource _exitingSource = new CancellationTokenSource();
 
@@ -61,6 +63,12 @@ Arguments:
                      idx >= 0;
                      idx = Array.FindIndex(args, idx + 1, arg => arg.Equals("--dest", StringComparison.OrdinalIgnoreCase)))
                 _destUrls.Add(args[idx + 1]);
+
+            int offsetIdx = Array.FindIndex(args, arg => arg.Equals("--offset", StringComparison.OrdinalIgnoreCase));
+            if (offsetIdx >= 0)
+            {
+                _offset = int.Parse(args[offsetIdx + 1]);
+            }
 
             int connectUdpIndex = Array.FindIndex(args, arg => arg.Equals("--connectUDP", StringComparison.OrdinalIgnoreCase));
             if (connectUdpIndex >= 0)
@@ -124,6 +132,7 @@ Arguments:
             _serverPosters = _destUrls.Select(url =>
             {
                 var ret = new DataPosting(url);
+                ret.Offset = _offset;
                 ret.OnException += (sender, ex) => 
                     ErrorWriter.WriteLine($"Post error ({url}): {ex.GetType()}: {ex.Message}");
                 return ret;

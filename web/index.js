@@ -23,11 +23,12 @@ const router = new express.Router();
 app.disable('x-powered-by');
 
 app.use(express.static(path.resolve(__dirname, 'site/dist')));
-app.use('/api/', router);
 //app.use('/all', express.static(path.resolve(__dirname, 'site/dist')));
 app.use(express.json());
-app.use('/[^\.]+', express.static(path.resolve(__dirname, 'site/dist')));
 app.set('json replacer', standardReplacer);
+app.use('/api/', router);
+app.use('/[^\.]+', express.static(path.resolve(__dirname, 'site/dist')));
+
 
 
 if (require.main === module) {

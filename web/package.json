@@ -23,7 +23,7 @@
     "simple-statistics": "^7.0.5",
     "sqlite3": "^4.1.0",
     "tape": "^4.11.0",
-    "ws": "^7.1.2"
+    "ws": "^7.4.6"
   },
   "devDependencies": {
     "@mapbox/eslint-config-geocoding": "^2.0.2",

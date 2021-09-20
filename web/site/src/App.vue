@@ -31,10 +31,13 @@ export default {
         fetch_stations: function() {
             const url = new URL(`${window.location.protocol}//${window.location.host}/api/stations`);
 
+            const splitHost = window.location.hostname.split('.');
             if (window.location.pathname.toLowerCase().indexOf("all") >= 0)
                 url.searchParams.append('all', true);
             else if (window.location.pathname.length > 1)
                 url.searchParams.append('groupName', window.location.pathname.replace(/^\/+|\/+$/g, ''));
+            else if (splitHost.length > 2)
+                url.searchParams.append('groupName', splitHost[0]);
 
             return fetch(url, {
                 method: 'GET',

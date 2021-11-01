@@ -45,13 +45,8 @@ const PermanentVariables defaultVars PROGMEM =
   //.stationsToRelayCommands = { 0 },
   //.stationsToRelayWeather = { 0 },
 
-#ifdef FCC_COMPLIANT
-  .frequency_i = 917000000,
-  .bandwidth_i = 5000,
-#else
-  .frequency_i = 424800000,
-  .bandwidth_i = 625,
-#endif // !FCC_COMPLIANT
+  .frequency_i = defaultFreq,
+  .bandwidth_i = defaultBw,
   .txPower = -9,
   .spreadingFactor = 5,
   .csmaP = 100, //40% chance to transmit

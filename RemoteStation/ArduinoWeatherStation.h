@@ -112,6 +112,14 @@ inline constexpr unsigned long millisBetweenStatus = 600000; //We send our statu
 inline constexpr unsigned long maxMillisBetweenPings = 1300000; //If we don't receive a ping in just under 20 minutes, we restart.
 inline constexpr unsigned short batteryHysterisis_mV = 50;
 
+#ifdef FCC_COMPLIANT
+inline constexpr uint32_t defaultFreq = 917000000;
+inline constexpr uint16_t defaultBw = 5000;
+#else
+inline constexpr uint32_t defaultFreq = 424800000;
+inline constexpr uint16_t defaultBw = 625;
+#endif
+
 extern unsigned long weatherInterval; //Current weather interval.
 /*extern unsigned long overrideStartMillis;
 extern unsigned long overrideDuration;

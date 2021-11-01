@@ -59,6 +59,11 @@ namespace core_Receiver
                     ret.GetDataString = 
                         data => (data as IList<SingleWeatherData>)?.ToCsv();
                     break;
+                case PacketTypes.Overflow:
+                    ret.packetData = DecodeWeatherPackets(bytes.AsSpan(dataStart));
+                    ret.GetDataString =
+                        data => (data as IList<SingleWeatherData>)?.ToCsv();
+                    break;
                 case PacketTypes.Response:
                     var responseType = bytes[dataStart++];
                     byte subType;
@@ -208,6 +213,9 @@ namespace core_Receiver
                     var packet = DecodeWeatherPacket(bytes.Slice(cur), out var len);
                     if (packet == null)
                         throw new NullReferenceException("Decode Weather Packet returned null");
+                    // Something wrong with R packets... temporary fix
+                    if (packet.sendingStation < 49 || packet.sendingStation > 80 || packet.extras?.Length > 5)
+                        break;
                     ret.Add(packet);
                     cur += len;
                 }

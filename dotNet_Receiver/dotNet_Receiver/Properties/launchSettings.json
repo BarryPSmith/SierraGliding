@@ -2,7 +2,7 @@
   "profiles": {
     "core_Receiver": {
       "commandName": "Project",
-      "commandLineArgs": "--connectUDP 15244 15344 --db \"../../../data.sqlite\" --dest http://localhost:4000 --_serial COM14 --noping"
+      "commandLineArgs": "--connectUDP 15244 15344 --db \"../../../data.sqlite\" --_dest http://localhost:4000 --_serial COM6 --_noping --_dest https://sierragliding.us"
     }
   }
 }

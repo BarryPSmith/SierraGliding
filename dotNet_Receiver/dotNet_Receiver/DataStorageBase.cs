@@ -33,7 +33,7 @@ namespace core_Receiver
         /// <summary>
         /// If two packets with the same sending station and identifier are received within this period, the second will be ignored.
         /// </summary>
-        public TimeSpan InvalidationTime { get; set; } = TimeSpan.FromMinutes(2);
+        public TimeSpan InvalidationTime { get; set; } = TimeSpan.FromMinutes(1);
 
         protected Dictionary<PacketIdentifier, DateTimeOffset> receivedPacketTimes = new Dictionary<PacketIdentifier, DateTimeOffset>();
 

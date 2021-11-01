@@ -28,7 +28,7 @@ namespace core_Receiver
 
         public async Task SendWeatherDataAsync(Packet packet, DateTime receivedTime)
         {
-            if (packet.type != PacketTypes.Weather)
+            if (packet.type != PacketTypes.Weather && packet.type != PacketTypes.Overflow)
                 throw new InvalidOperationException();
 
             var now = new DateTimeOffset(receivedTime).ToUniversalTime();

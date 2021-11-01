@@ -17,6 +17,7 @@ Module mod(SX_SELECT, SX_DIO1, SX_BUSY);
 SX1262 lora = &mod;
 CSMAWrapper<SX1262> csma = &lora;
 
+
 void updateIdleState()
 {
   //If we need to relay weather from anyone, we want to listen continuously.
@@ -74,6 +75,15 @@ void InitMessaging()
   unsigned short bandwidth_i;
   GET_PERMANENT_S(frequency_i);
   GET_PERMANENT_S(bandwidth_i);
+  if (frequency_i < MIN_FREQ || frequency_i > MAX_FREQ)
+  {
+    AWS_DEBUG_PRINTLN(F("Freq OOR. Using Default"));
+    frequency_i = defaultFreq;
+    bandwidth_i = defaultBw;
+    SET_PERMANENT_S(frequency_i);
+    SET_PERMANENT_S(bandwidth_i);
+  }
+
   short txPower;
   byte spreadingFactor, csmaP;
   unsigned long csmaTimeslot;

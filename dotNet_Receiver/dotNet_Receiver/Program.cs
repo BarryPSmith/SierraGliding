@@ -232,6 +232,7 @@ Arguments:
                 switch (packet.type)
                 {
                     case PacketTypes.Weather:
+                    case PacketTypes.Overflow:
                         foreach (var serverPoster in _serverPosters)
                             serverPoster?.SendWeatherDataAsync(packet, receivedTime);
                         break;
@@ -354,6 +355,7 @@ Arguments:
             }
         }
 
+        private static TimeSpan _pingInterval = TimeSpan.FromMinutes(5);
         private static bool _sendPing = true;
         private static void PingLoop()
         {
@@ -375,7 +377,7 @@ Arguments:
                             i++;
                         }
                     }
-                    Thread.Sleep(TimeSpan.FromMinutes(5));
+                    Thread.Sleep(_pingInterval);
                 }
                 catch (Exception ex)
                 {

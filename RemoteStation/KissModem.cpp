@@ -128,6 +128,9 @@ int main()
   Serial.println();
   Serial.println(F("Starting..."));
 
+  unsigned long lastMessage = 0;
+  const unsigned long messageInterval = 6000;
+
   while (1)
   {
     LoraMessageSource loraSrc;
@@ -141,7 +144,16 @@ int main()
 #ifdef WATCHDOG_LOOPS
         watchdogLoops = 0;
 #endif
+        lastMessage = millis();
       }
+    }
+    
+    if (millis() - lastMessage > messageInterval)
+    {
+      LORA_CHECK(lora.standby(SX126X_STANDBY_RC));
+      LORA_CHECK(csma.enterIdleState());
+      lastMessage = millis();
+      AWS_DEBUG_PRINTLN(F("No messages, jiggled Radio."));
     }
     
     KissMessageSource kissSrc;
@@ -175,8 +187,6 @@ int main()
           Serial.println(F("Command FAILURE"));
       }
     }
-
-    //if (serialEventRun) serialEventRun();
   }
 
   return 0;

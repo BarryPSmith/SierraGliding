@@ -256,7 +256,7 @@ namespace MessageHandling
   
     //Incomming message might be XW (SID) (UID) (Sz) (WD) (WS) - length = 7
     //In that case we need to append (SID) (UID) (Sz) (WD) (WS) - length = 5, 3 more to read (because we've already read SID and UID)
-    byte dataSize = msg.getMessageLength() - 2; //2 for the 'XW'
+    byte dataSize = msg.getMessageLength() - 2; //2 for the 'XW' or 'XR'
 
     //If we can't fit it in the relay buffer,
     //we have to make sure to read the incomming message as we're sending out bytes,
@@ -290,6 +290,7 @@ namespace MessageHandling
       msgDump->append(weatherRelayBuffer + dataSize, weatherRelayLength - dataSize);
       msgDump->~MESSAGE_DESTINATION_SOLID();
       msgDump = 0; //We're done with it. Ensure we don't accidentally re-use it.
+      weatherRelayLength = 0;
     }
     if (sourceFaulted)
       weatherRelayLength = 0;

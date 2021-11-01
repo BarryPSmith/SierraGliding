@@ -1,8 +1,10 @@
 #COM port for upload
-PORT=COM4
+PORT=COM6
 # If we're using the ISP, it's handy to keep different COM ports. Also baud is not board dependent.
-PORT_ISP=COM10
+PORT_ISP=COM5
 ISP_BAUD=115200
+#ISP_TYPE of stk500v2 for Pololu v2.1
+ISP_TYPE=stk500v2
 MCU=atmega328p
 
 uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
@@ -15,8 +17,8 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 4: Flynns Rev 2 -- NO LONGER USED --
 # 5: Dorji Modem
 # 6: First attempt at a printed PCB configured for DavisWind (Flynns)
-# 601: First attempt at a printed PCB configured for ADWind (Mt Tom)
-# 7: Second printed PCB (includes battery PWM circuitry)
+# 601: First attempt at a printed PCB configured for ADWind (old Mt Tom) -- NO LONGER USED --
+# 7: Second printed PCB (includes battery PWM circuitry) -- NOT USED --
 # 8: Second printed PCB configured for ALSWind
 # 9: Single board or second PCB with a Atmega328PB and 32768Hz crystal
 # 10: Single board rev2
@@ -24,7 +26,7 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 12: Single board rev3
 # 13: Single board rev3 FCC Compliant @ 917MHz
 # 14: Dorji Modem @ 917MHz
-BOARD = 12
+BOARD = 13
 include Boards.makefile
 
 #Flags, etc.
@@ -168,8 +170,8 @@ $(OBJFOLDER)/all_with_bootloader.hex: $(OBJFOLDER)/all.hex
 
 .PHONY: isp_program
 isp_program: $(OBJFOLDER)/all_with_bootloader.hex $(OBJFOLDER)/all.s
-	program_fuses.cmd $(PORT_ISP) $(ISP_BAUD)
-	avrdude -c avrisp -p $(MCU) -P $(PORT_ISP) -b $(ISP_BAUD) -U $(OBJFOLDER)/all_with_bootloader.hex
+	program_fuses.cmd $(PORT_ISP) $(ISP_BAUD) $(ISP_TYPE)
+	avrdude -c $(ISP_TYPE) -p $(MCU) -P $(PORT_ISP) -b $(ISP_BAUD) -U $(OBJFOLDER)/all_with_bootloader.hex
 
 .PHONY: program
 program: $(OBJFOLDER)/all.hex $(OBJFOLDER)/all.s

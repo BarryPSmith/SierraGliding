@@ -9,6 +9,7 @@ namespace core_Receiver.Packets
         Unknown = 0,
         Modem = 6,
         Weather = (byte)'W',
+        Overflow = (byte)'R',
         Command = (byte)'C',
         Response = (byte)'K',
         Ping = (byte)'P',

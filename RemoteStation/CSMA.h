@@ -277,7 +277,7 @@ class CSMAWrapper
     uint16_t _crcErrorRate = 0;
     uint16_t _droppedPacketRate = 0;
     uint32_t _averageDelayTime = 0;
-  private:
+  //private:
     uint8_t _buffer[bufferSize];
     uint8_t _messageLengths[maxQueue];
     uint8_t _readBufferLenIdx = 0;

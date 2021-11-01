@@ -7,6 +7,7 @@
 #include <avr/boot.h>
 #include "../PWMSolar.h"
 
+//#define DEBUG_IT
 
 #if (defined(DAVIS_WIND) && defined(ARGENTDATA_WIND)) || \
     (defined(DAVIS_WIND) && defined(ALS_WIND)) || \

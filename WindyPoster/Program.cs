@@ -100,15 +100,40 @@ Usage: dotnet WindyPoster.dll [--db <DB>] [--key <KEY> | --keyfile <FILENAME>] [
                 return;
             }
 
-            PostStation( stationID: 71,
-                Name: "Chalk Bluffs",
-                lat: 37.420207, 
-                lon: -118.427843,
-                windheight: 3.3, 
-                tempheight: 3.3,
-                elevation: 1373).Wait();
-            return;
+            PostStation( stationID: 51,
+                Name: "Gunther",
+                lat: 37.46828, 
+                lon: -118.26333,
+                windheight: 9, 
+                tempheight: 9,
+                elevation: 2528).Wait();
 
+            PostStation(stationID: 65,
+                Name: "Mono Lake",
+                lat: 37.94019,
+                lon: -118.89717,
+                windheight: 5,
+                tempheight: 5,
+                elevation: 2146).Wait();
+            
+            PostStation(stationID: 1073,
+                Name: "Cove Launch",
+                lat: 38.63467,
+                lon: -112.0599,
+                windheight: 7,
+                tempheight: 7,
+                elevation: 2668).Wait();
+
+            PostStation(stationID: 1068,
+                Name: "Monroe Peak",
+                lat: 38.53622,
+                lon: -112.07303,
+                windheight: 3,
+                tempheight: 3,
+                elevation: 3422).Wait();
+
+            return;
+            
             while (true)
             {
                 TimerLoopAsync();

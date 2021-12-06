@@ -1,5 +1,5 @@
 #COM port for upload
-PORT=COM6
+PORT=COM8
 # If we're using the ISP, it's handy to keep different COM ports. Also baud is not board dependent.
 PORT_ISP=COM5
 ISP_BAUD=115200
@@ -19,14 +19,14 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 6: First attempt at a printed PCB configured for DavisWind (Flynns)
 # 601: First attempt at a printed PCB configured for ADWind (old Mt Tom) -- NO LONGER USED --
 # 7: Second printed PCB (includes battery PWM circuitry) -- NOT USED --
-# 8: Second printed PCB configured for ALSWind
+# 8: Second printed PCB configured for ALSWind (Mt Tom?)
 # 9: Single board or second PCB with a Atmega328PB and 32768Hz crystal
 # 10: Single board rev2
 # 11: Single board rev2 no current sensor
 # 12: Single board rev3
 # 13: Single board rev3 FCC Compliant @ 917MHz
 # 14: Dorji Modem @ 917MHz
-BOARD = 13
+BOARD = 9
 include Boards.makefile
 
 #Flags, etc.

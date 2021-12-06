@@ -59,15 +59,18 @@ export default {
                 battOpts.scales.xAxes[0].afterFit = this.xAxis_afterFit;
                 battOpts.scales.xAxes[0].afterUpdate = this.xAxis_afterUpdate;
 
+                const ptColor = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ?
+                    'cyan' : 'black';
+
                 this.chart = new Chart(battElem, {
                     type: 'line',
                     data: {
                         allData: [],
                         datasets: [{
-                            pointBackgroundColor: 'black',
-                            pointBorderColor: 'black',
+                            pointBackgroundColor: ptColor,
+                            pointBorderColor: ptColor,
                             pointRadius: 0,
-                            borderColor: 'black',
+                            borderColor: ptColor,
                             borderJoinStyle: 'round',
                             fill: false,
                             //data: this.dataManager.batteryData,

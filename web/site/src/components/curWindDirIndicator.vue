@@ -7,44 +7,45 @@
             </legendArc>
             <marker orient="auto"
                     id="Arrow1Mstart"
-                    style="overflow:visible">
+                    style="overflow:visible"
+                    class="contrastColor">
                 <path id="path4698"
                       d="M 0,0 5,-5 -12.5,0 5,5 Z"
-                      style="fill:#000000;fill-opacity:1;stroke:#000000;"
+                      style="fill-opacity:1;"
                       transform="scale(0.3)" />
             </marker>
             <marker orient="auto"
                     id="Tail"
-                    style="overflow:visible">
+                    style="overflow:visible"
+                    class="contrastColor">
                 <g id="g4740"
-                   transform="scale(-0.6)"
-                   style="stroke:#000000">
+                   transform="scale(-0.6)">
                     <path id="path4728"
                           d="M -3.8048674,-3.9585227 0.54352094,0"
-                          style="stroke:#000000;stroke-width:0.8" />
+                          style="stroke-width:0.8" />
                     <path id="path4730"
                           d="M -1.2866832,-3.9585227 3.0617053,0"
-                          style="stroke:#000000;stroke-width:0.8" />
+                          style="stroke-width:0.8" />
                     <path id="path4732"
                           d="M 1.3053582,-3.9585227 5.6537466,0"
-                          style="stroke:#000000;stroke-width:0.8" />
+                          style="stroke-width:0.8" />
                     <path id="path4734"
                           d="M -3.8048674,4.1775838 0.54352094,0.21974226"
-                          style="stroke:#000000;stroke-width:0.8" />
+                          style="stroke-width:0.8" />
                     <path id="path4736"
                           d="M -1.2866832,4.1775838 3.0617053,0.21974226"
-                          style="stroke:#000000;stroke-width:0.8" />
+                          style="stroke-width:0.8" />
                     <path id="path4738"
                           d="M 1.3053582,4.1775838 5.6537466,0.21974226"
-                          style="stroke:#000000;stroke-width:0.8" />
+                          style="stroke-width:0.8" />
                 </g>
             </marker>
-            <path d="M 50,10 V 60"
-                  style="stroke:#000000;marker-start:url(#Arrow1Mstart);marker-end:url(#Tail)"
+            <path class="contrastColor" d="M 50,10 V 60"
+                  style="marker-start:url(#Arrow1Mstart);marker-end:url(#Tail)"
                   :stroke-width="strokeWidth"
                   :transform="'rotate(' + curVal + ', 50, 50)'" />
-            <path d="M 50,10 V 60"
-                  style="stroke:#000000;marker-start:url(#Arrow1Mstart);marker-end:url(#Tail)"
+            <path class="contrastColor" d="M 50,10 V 60"
+                  style="marker-start:url(#Arrow1Mstart);marker-end:url(#Tail)"
                   opacity="0.3"
                   :stroke-width="strokeWidth"
                   :transform="'rotate(' + curAvg + ', 50, 50)'" />

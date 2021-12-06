@@ -120,7 +120,8 @@ namespace core_Receiver
                     var packetSrc = packet.sendingStation;
                     if (packet.type == PacketTypes.Response &&
                         stationIDs.Any(id => id == packetSrc) &&
-                        unIds.TryGetValue(packetSrc, out var statUnId) && statUnId == packet.uniqueID)
+                        unIds.TryGetValue(packetSrc, out var statUnId) && 
+                        statUnId == packet.uniqueID)
                     {
                         responses[packetSrc] = (BasicResponse)packet.packetData;
                         acksReceived[packetSrc].Set();

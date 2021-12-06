@@ -39,6 +39,35 @@
             -webkit-text-stroke-width: 1px;
             -webkit-text-stroke-color: black
         }
+
+        .contrastColor {
+            color: black;
+            stroke: black;
+            fill: black;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: black;
+                color: white;
+            }
+
+            .contrastColor {
+                color: cyan;
+                stroke: cyan;
+                fill: cyan;
+            }
+
+            .foreColor {
+                color: white;
+            }
+
+            .outlineText {
+                -webkit-text-stroke-width: 0.25px;
+                -webkit-text-stroke-color: blanchedalmond;
+            }
+        }
+
     </style>
 
     <link href="https://api.mapbox.com/mapbox-assembly/v0.24.0/assembly.min.css" rel="stylesheet">

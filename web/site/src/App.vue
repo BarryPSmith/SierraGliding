@@ -1,5 +1,5 @@
 <template>
-    <div class='viewport-full'>
+    <div class='viewport-full foreColor'>
         <stationList :stations="stations"/>
     </div>
 </template>

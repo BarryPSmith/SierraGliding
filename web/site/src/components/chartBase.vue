@@ -20,6 +20,8 @@ export default {
     name: 'chartBase',
 
     data: function() {
+        const lineColor = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ?
+            'rgb(205, 205, 205, 0.1)' : 'rgb(0, 0, 0, 0.1)';
         return {
             lastRange: new Date(),
             commonOptions: {
@@ -38,7 +40,10 @@ export default {
                         ticks: {
                             min: 0
                         },
-                        position: 'right'
+                        position: 'right',
+                        gridLines: {
+                            color: lineColor
+                        },
                     }],
                     xAxes: [{
                         id: 'x',
@@ -54,7 +59,10 @@ export default {
                             minUnit: 'minute',
                             displayFormats: {
                                 hour: 'MMM D hA'
-                            }
+                            },
+                        gridLines: {
+                            color: lineColor
+                            },
                         }
                     }]
                 },

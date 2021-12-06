@@ -175,13 +175,15 @@ export default {
                         return value;
                 };
                 wdOpts.title.text = 'Wind Direction';
+                const ptColor = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ?
+                    'cyan' : 'black';
                 this.chart = new Chart(wdElem, {
                     type: 'line',
                     data: {
                         allData: [],
                         datasets: [{
                             //label: 'Wind Direction',
-                            pointBackgroundColor: 'black',
+                            pointBackgroundColor: ptColor,
                             pointBorderColor: 'transparent',
                             pointBorderWidth: 0,
                             pointRadius: 2,
@@ -231,8 +233,12 @@ export default {
             }
 
             this.chart.data.datasets[0].pointRadius = desiredPtRadius;
-            this.chart.data.datasets[0].pointBackgroundColor = 'rgba(0, 0, 0, ' + pointOpacity + ')';
-            this.chart.data.datasets[0].pointBorderColor = 'rgba(0, 0, 0, 0.1)';
+
+            const ptColor = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ?
+                'rgba(0, 255, 255, ' : 'rgba(0, 0, 0, ';
+
+            this.chart.data.datasets[0].pointBackgroundColor = ptColor + pointOpacity + ')';
+            this.chart.data.datasets[0].pointBorderColor = ptColor + ' 0.1)';
         }
     }
 }

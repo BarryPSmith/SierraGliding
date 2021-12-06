@@ -89,10 +89,13 @@ export default {
 
     methods: {
         get_color(value) {
+            const ptColor = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ?
+                'white' : 'black';
+
             if (typeof (value) != "number"
                 || !this.dataManager
                 || !this.legend) {
-                return 'Black';
+                return ptColor;
             }
             const factor = this.dataManager.unit == 'mph' ? 1.6 : 1.0;
             for (const entry of this.legend) {

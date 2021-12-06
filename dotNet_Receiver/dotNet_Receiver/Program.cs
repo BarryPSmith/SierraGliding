@@ -13,7 +13,7 @@ namespace core_Receiver
 {
     static class Program
     {
-        const string CallSign = "KN6DUC";
+        static string _callSign = "KN6DUC";
 
         static LocalDatastore _dataStore;
         static void Help()
@@ -31,6 +31,7 @@ Arguments:
  --exposeUDP <incoming> <outgoing> Expose the serial and net streams to UDP on ports incoming and outgoing
  --connectUDP <outgoing> <incoming> Send and receive via UDP rather than serial or TCP socket
  --offset <offset>      All station data reported to the server will have their IDs offset by this amount
+ --callsign <Callsign>  The callsign to use. Must match station callsign for ping to work.
 "
 );
         }
@@ -95,6 +96,12 @@ Arguments:
             {
                 _outgoingPort = int.Parse(args[exposeUdpIndex + 1]);
                 _incomingPort = int.Parse(args[exposeUdpIndex + 2]);
+            }
+
+            int callsignIndex = Array.FindIndex(args, args => args.Equals("--callsign", StringComparison.OrdinalIgnoreCase));
+            if (callsignIndex >= 0)
+            {
+                _callSign = args[callsignIndex + 1];
             }
 
             if (args.Contains("--noPing", StringComparer.OrdinalIgnoreCase))
@@ -293,7 +300,7 @@ Arguments:
                 tasks.Add(Task.Run(() => kisser.Connect(srcAddress)));
             if (!string.IsNullOrEmpty(serialAddress))
             {
-                tasks.Add(Task.Run(() =>
+                tasks.Add(TryForever(() =>
                 {
                     kisser.ConnectSerial(serialAddress);
                 }));
@@ -390,7 +397,7 @@ Arguments:
         public static void SendPing(byte packetUID)
         {
             uint timestamp = (uint)DateTimeOffset.Now.ToUnixTimeSeconds();
-            byte[] ping = Encoding.ASCII.GetBytes("P0#" + CallSign)
+            byte[] ping = Encoding.ASCII.GetBytes("P0#" + _callSign)
                 .Concat(BitConverter.GetBytes(timestamp))
                 .ToArray();
             //ping[0] |= 0x80; // Demand relay

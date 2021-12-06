@@ -135,7 +135,7 @@ Adjust programmer settings
                         case nameof(RemoteProgrammer.GoAsync):
                             if (args.Length < 1)
                                 throw new CommandException("Go requires stationID list as first parameter (cannot contain zero).");
-                            var stationIDs = args[0].Split(',').Select(str => byte.Parse(str));
+                            var stationIDs = args[0].Split(',').Select(str => ParseStationID(str).Value);
                             TimeSpan timeout = TimeSpan.FromMinutes(5);
                             if (args.Length >= 2)
                                 timeout = TimeSpan.FromSeconds(double.Parse(args[1]));

@@ -13,6 +13,10 @@ inline void setHiNibble(uint8_t* dest, const uint8_t value) { *dest = getLowNibb
 #define NO_PACKET_AVAILABLE -1000
 #define NOT_ENOUGH_SPACE -1001
 
+#ifdef MODEM
+extern unsigned long lastFailMillis;
+#endif
+
 inline int16_t lora_check(const int16_t result, const __FlashStringHelper* msg) 
 {
   if (result != ERR_NONE && result != NO_PACKET_AVAILABLE)
@@ -20,6 +24,9 @@ inline int16_t lora_check(const int16_t result, const __FlashStringHelper* msg)
     AWS_DEBUG_PRINT(msg);
     AWS_DEBUG_PRINTLN(result);
     SIGNALERROR();
+#ifdef MODEM
+    lastFailMillis = millis();
+#endif
   }
   return result;
 }

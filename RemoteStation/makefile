@@ -26,7 +26,7 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 12: Single board rev3
 # 13: Single board rev3 FCC Compliant @ 917MHz
 # 14: Dorji Modem @ 917MHz
-BOARD = 9
+BOARD = 14
 include Boards.makefile
 
 #Flags, etc.
@@ -72,7 +72,7 @@ ARDUINO_BASE_LIBS += ^/HardwareSerial.cpp ^/HardwareSerial0.cpp
 endif
 
 ifeq ($(MODEM), 1)
-DEFINES += -DMODEM
+DEFINES += -DMODEM -DDETAILED_LORA_CHECK
 else
 DEFINES += -DSERIAL_TX_BUFFER_SIZE=16 -DSERIAL_RX_BUFFER_SIZE=8
 endif

@@ -79,6 +79,9 @@ void TestBoard()
 }
 #endif
 
+unsigned long lastFailMillis = 0;
+bool doDeepSleep = false;
+
 int main()
 {
   //Enable the watchdog early to catch initialisation hangs (Side note: This limits initialisation to 8 seconds)
@@ -129,7 +132,7 @@ int main()
   Serial.println(F("Starting..."));
 
   unsigned long lastMessage = 0;
-  const unsigned long messageInterval = 6000;
+  const unsigned long messageInterval = 15000;
 
   while (1)
   {
@@ -148,7 +151,9 @@ int main()
       }
     }
     
-    if (millis() - lastMessage > messageInterval)
+    auto thisMillis = millis();
+    if (thisMillis - lastMessage > messageInterval &&
+        thisMillis - lastFailMillis > messageInterval)
     {
       LORA_CHECK(lora.standby(SX126X_STANDBY_RC));
       LORA_CHECK(csma.enterIdleState());

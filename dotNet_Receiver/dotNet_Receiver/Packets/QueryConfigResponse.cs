@@ -69,6 +69,10 @@ namespace core_Receiver.Packets
                 }
                 NonRelayRecording = br.ReadBoolean();
             }
+            if (VersionNumber >= new Version(2, 4))
+            {
+                InboundPreambleLength = br.ReadUInt16();
+            }
         }
 
         public bool Initialised { get; set; }
@@ -101,6 +105,8 @@ namespace core_Receiver.Packets
         public byte SafeFreezingPwm { get; set; }
         public List<char> MessageRecordTypes { get; set; } = new List<char>();
         public bool NonRelayRecording { get; set; }
+
+        public UInt16 InboundPreambleLength { get; set; }
              
         public override string ToString()
         {
@@ -109,10 +115,11 @@ namespace core_Receiver.Packets
                 $"Batt E Thresh:{BatteryEmergencyThres_mV}, Demand Relay:{DemandRelay}" + Environment.NewLine +
                 $" Relay Commands:({StationsToRelayCommands.ToCsv(b => ((char)b).ToString())}) " + Environment.NewLine +
                 $" Relay Weather:({StationsToRelayWeather.ToCsv(b => ((char)b).ToString())})" + Environment.NewLine +
-                $" Freq:{Frequency_Hz / 1.0E6:F3} Hz, BW:{Bandwidth_Hz/1.0E3:F3} kHz, TxPower:{TxPower}, SF:{SpreadingFactor}, CSMA_P:{CSMA_P}, CSMA_Slot:{CSMA_Timeslot} uS, OB_Preamble:{OutboundPreambleLength}" + Environment.NewLine +
+                $" Freq:{Frequency_Hz / 1.0E6:F3} Hz, BW:{Bandwidth_Hz/1.0E3:F3} kHz, TxPower:{TxPower}, SF:{SpreadingFactor}, CSMA_P:{CSMA_P}, CSMA_Slot:{CSMA_Timeslot} uS " + Environment.NewLine +
                 $" TsOffset:{TsOffset}, TSGain:{TsGain}, WdCalibMin:({WdCalib1x}, {WdCalib1y}), WdCalibMax:{WdCalib2}" + Environment.NewLine +
                 $" ChargeV: {ChargeVoltage_mV} mV, ChargeResponsitivity: {ChargeResponseRate}, FreezingChargeV: {SafeFreezingChargeLevel_mV} mV, FreezingPwm: {SafeFreezingPwm}" + Environment.NewLine +
-                $" Record Types: ({MessageRecordTypes.ToCsv()}) Non Relay Records: {NonRelayRecording}";
+                $" Record Types: ({MessageRecordTypes.ToCsv()}) Non Relay Records: {NonRelayRecording}" + Environment.NewLine +
+                $" Outbound Preamble:{OutboundPreambleLength}, Inbound Preamble {InboundPreambleLength}";
         }
     }
 }

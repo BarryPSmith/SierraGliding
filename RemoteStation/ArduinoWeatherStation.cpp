@@ -336,7 +336,10 @@ void loop() {
 
 
   if (doDeepSleep)
-    WeatherProcessing::updateBatterySavings(WeatherProcessing::readBattery(), false);
+  {
+    if (WeatherProcessing::updateBatterySavings(WeatherProcessing::readBattery(), false))
+      updateIdleState();
+  }
   else
   {
 #if !defined(DEBUG_NO_WEATHER) || !defined(DEBUG)
@@ -348,7 +351,8 @@ void loop() {
     interrupts();
     if (localWeatherRequired)
     {
-      MessageHandling::sendWeatherMessage();
+      if (MessageHandling::sendWeatherMessage())
+        updateIdleState();
       WX_PRINTLN(F("Weather message sent."));
     }
 

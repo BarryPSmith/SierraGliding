@@ -5,7 +5,7 @@ namespace MessageHandling
 {
   void sendStatusMessage();
   void readMessages();
-  void sendWeatherMessage();
+  bool sendWeatherMessage();
   byte getUniqueID();
 
   //We keep track of recently seen stations to allow network debugging / optimisation

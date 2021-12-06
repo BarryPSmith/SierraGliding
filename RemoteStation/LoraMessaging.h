@@ -88,6 +88,12 @@ class LoraMessageDestination final : public MessageDestination
         GET_PERMANENT_S(outboundPreambleLength);
         preambleLength = outboundPreambleLength;
       }
+      else
+      {
+        uint16_t inboundPreambleLength;
+        GET_PERMANENT_S(inboundPreambleLength);
+        preambleLength = inboundPreambleLength;
+      }
 
 
     #if !defined(DEBUG) && !defined(MODEM)

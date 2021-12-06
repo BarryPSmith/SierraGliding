@@ -36,7 +36,9 @@
 //#define DEBUG_RX
 //#define DEBUG_DATABASE
 //#define DEBUG_MSGPROC
+#ifndef  DEBUG_PARAMETERS
 #define DEBUG_PARAMETERS
+#endif
 //#define DEBUG_SOLAR
 //#define DEBUG_PROGRAMMING
 //#define DEBUG_IT
@@ -80,7 +82,7 @@
 #define MESSAGE_DESTINATION_SOLID LoraMessageDestination
 #define MESSAGE_SOURCE_SOLID LoraMessageSource
 
-#define ver_str "2.4." REV_ID "." XSTR(BOARD)
+#define ver_str "2.5." REV_ID "." XSTR(BOARD)
 #define ASW_VER F(ver_str)
 #define ver_size (sizeof(ver_str) - 1)
 

@@ -32,6 +32,8 @@ Arguments:
  --connectUDP <outgoing> <incoming> Send and receive via UDP rather than serial or TCP socket
  --offset <offset>      All station data reported to the server will have their IDs offset by this amount
  --callsign <Callsign>  The callsign to use. Must match station callsign for ping to work.
+ --pingInterval <seconds> Specify a custom ping interval. Default is 5 minutes (300)
+ --noping               Specify that the software should not send pings
 "
 );
         }
@@ -98,10 +100,16 @@ Arguments:
                 _incomingPort = int.Parse(args[exposeUdpIndex + 2]);
             }
 
-            int callsignIndex = Array.FindIndex(args, args => args.Equals("--callsign", StringComparison.OrdinalIgnoreCase));
+            int callsignIndex = Array.FindIndex(args, arg => arg.Equals("--callsign", StringComparison.OrdinalIgnoreCase));
             if (callsignIndex >= 0)
             {
                 _callSign = args[callsignIndex + 1];
+            }
+
+            int pingIntervalIndex = Array.FindIndex(args, arg => arg.Equals("--pingInterval", StringComparison.OrdinalIgnoreCase));
+            if (pingIntervalIndex >= 0)
+            {
+                _pingInterval = TimeSpan.FromSeconds(int.Parse(args[pingIntervalIndex + 1]));
             }
 
             if (args.Contains("--noPing", StringComparer.OrdinalIgnoreCase))

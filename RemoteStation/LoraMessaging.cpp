@@ -25,6 +25,8 @@ void updateIdleState()
 
   uint16_t outboundPreambleLength;
   GET_PERMANENT_S(outboundPreambleLength);
+  if (doDeepSleep)
+    outboundPreambleLength *= 8;
   csma._senderPremableLength = outboundPreambleLength;
   IdleStates newState;
 #if defined(MODEM)

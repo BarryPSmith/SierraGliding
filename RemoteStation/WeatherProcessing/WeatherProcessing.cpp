@@ -37,7 +37,6 @@ namespace WeatherProcessing
 
   void countWind();
   void timer2Tick();
-  void updateBatterySavings(unsigned short batteryVoltage_mv, bool startup);
   void setTimerInterval();
   void setupWindCounter();
   byte getExternalTemperature();
@@ -140,7 +139,7 @@ namespace WeatherProcessing
       return 255;
   }
 
-  void createWeatherData(MESSAGE_DESTINATION_SOLID<254>& message)
+  bool createWeatherData(MESSAGE_DESTINATION_SOLID<254>& message)
   {
   #ifdef DEBUG
     unsigned long entryMicros = micros();
@@ -183,8 +182,7 @@ namespace WeatherProcessing
 
     //Update the send interval only after we calculate windSpeed, because windSpeed is dependent on weatherInterval
     unsigned short batt_mV = readBattery();
-    updateBatterySavings(batt_mV, false);
-  
+    
     byte windDirection = getWindDirection();
     message.appendByte(windDirection);
 
@@ -252,6 +250,7 @@ namespace WeatherProcessing
     }
     WX_PRINTLN(F("  ======================"));
   #endif
+    return updateBatterySavings(batt_mV, false);
   }
 
   unsigned short readBattery()
@@ -260,8 +259,9 @@ namespace WeatherProcessing
     return mV_Ref * BattVNumerator * batteryVoltageReading / (BattVDenominator  * 1023);
   }
 
-  void updateBatterySavings(unsigned short batteryVoltage_mV, bool initial)
+  bool updateBatterySavings(unsigned short batteryVoltage_mV, bool initial)
   {
+    bool changed = false;
     unsigned long oldInterval = weatherInterval;
     //bool overrideActive = millis() - overrideStartMillis < overrideDuration;
     unsigned short batteryThreshold_mV, batteryEmergencyThresh_mV;
@@ -272,6 +272,7 @@ namespace WeatherProcessing
       WX_PRINTVAR(batteryVoltage_mV);
       WX_PRINTVAR(batteryEmergencyThresh_mV);
       WX_PRINTLN(F("Entering Deep Sleep"));
+      changed = !doDeepSleep;
       doDeepSleep = true;
     }
     else 
@@ -282,10 +283,12 @@ namespace WeatherProcessing
         (batteryVoltage_mV > batteryThreshold_mV + batteryHysterisis_mV))
       {
         GET_PERMANENT2(&weatherInterval, shortInterval);
+        changed = !continuousReceiveEnabled;
         continuousReceiveEnabled = true;
       } else if ((batteryVoltage_mV < batteryThreshold_mV - batteryHysterisis_mV))
       {
         GET_PERMANENT2(&weatherInterval, longInterval);
+        changed = continuousReceiveEnabled;
         continuousReceiveEnabled = false;
       }
     }
@@ -294,6 +297,7 @@ namespace WeatherProcessing
       overrideDuration = 0;*/
   
     setTimerInterval();
+    return changed;
   }
 
   void setTimerInterval()

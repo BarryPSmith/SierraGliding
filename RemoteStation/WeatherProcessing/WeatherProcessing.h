@@ -18,10 +18,10 @@ namespace WeatherProcessing
 {
   void setupWeatherProcessing();
   void processWeather();
-  void createWeatherData(MESSAGE_DESTINATION_SOLID<254>& message);
+  bool createWeatherData(MESSAGE_DESTINATION_SOLID<254>& message);
   bool handleWeatherCommand(MessageSource& src);
   unsigned short readBattery();
-  void updateBatterySavings(unsigned short batteryVoltage_mV, bool initial);
+  bool updateBatterySavings(unsigned short batteryVoltage_mV, bool initial);
   //ALS only:
 #ifdef ALS_WIND
   bool writeAlsEeprom();

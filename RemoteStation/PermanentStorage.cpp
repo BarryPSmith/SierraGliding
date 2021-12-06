@@ -69,7 +69,8 @@ const PermanentVariables defaultVars PROGMEM =
   .chargeResponseRate = 40,
   .safeFreezingChargeLevel_mV = 3750,
   .safeFreezingPwm = 85,
-  .recordNonRelayedMessages = false
+  .recordNonRelayedMessages = false,
+  .inboundPreambleLength = 8
 };
 
 void PermanentStorage::initialise()
@@ -86,9 +87,19 @@ void PermanentStorage::initialise()
     initialised = false;
     //SET_PERMANENT_S(stationID);
   }
-
-  bool completeCrc = initialised 
-    && checkCRC(sizeof(PermanentVariables));
+  bool completeCrc = false;
+  if (initialised)
+  {
+    //When upgrading from 2.4 to 2.5, we don't want to clear the entire memory. Just set the inbound preamble length and recalculate the CRC:
+    if (checkCRC(sizeof(PermanentVariables) - 2))
+    {
+      unsigned short inboundPreambleLength = 8;
+      SET_PERMANENT_S(inboundPreambleLength);
+      setCRC();
+      completeCrc = true;
+    }
+    completeCrc = checkCRC(sizeof(PermanentVariables));
+  }
   if (completeCrc)
   {
     #if DEBUG && defined(DEBUG_PARAMETERS)

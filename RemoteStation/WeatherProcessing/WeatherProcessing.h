@@ -17,14 +17,20 @@
 namespace WeatherProcessing
 {
   void setupWeatherProcessing();
+  void enterDeepSleep();
+  void enterBatterySave();
+  void enterNormalMode();
+
   void processWeather();
-  bool createWeatherData(MESSAGE_DESTINATION_SOLID<254>& message);
+  void createWeatherData(MESSAGE_DESTINATION_SOLID<254>& message);
   bool handleWeatherCommand(MessageSource& src);
   unsigned short readBattery();
-  bool updateBatterySavings(unsigned short batteryVoltage_mV, bool initial);
   //ALS only:
 #ifdef ALS_WIND
   bool writeAlsEeprom();
+  void sleepWind();
+  void setWindLowPower();
+  void setWindNormal();
 #ifdef ALS_FIELD_STRENGTH
   extern unsigned long curFieldSquared;
   extern short curSampleCount;

@@ -67,7 +67,6 @@ namespace PwmSolar
   byte getMaxPwm(unsigned short batteryVoltage_mV);
   unsigned short getDesiredBatteryVoltage();
   void turnOffSolar();
-  void setSolarFull();
   void ensurePwmActive(bool canIdle);
   byte readCurrentAndCalcMaxPwm(bool applyLimits);
 #ifdef CURRENT_SENSE_PWR
@@ -353,7 +352,7 @@ namespace PwmSolar
 #else
     TCCR0B = _BV(CS01); // 8x prescaler: PWM at 3.9kHz for 8MHz
 #endif
-    solarSleepEnabled = canIdle ? SleepModes::idle : SleepModes::disabled;
+    //solarSleepEnabled = canIdle ? SleepModes::idle : SleepModes::disabled;
   }
 
 #ifdef SOLAR_IMPEDANCE_SWITCHING

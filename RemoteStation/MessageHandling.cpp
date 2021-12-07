@@ -322,7 +322,7 @@ namespace MessageHandling
     cur->millis = curMillis;
   }
 
-  bool sendWeatherMessage()
+  void sendWeatherMessage()
   {
     //If it's just our message, it will be:
     //W (Station ID) (Unique ID) (3) (WS) (WD) (Batt)
@@ -334,11 +334,11 @@ namespace MessageHandling
     message.appendByte('W');
     message.appendByte(stationID);
     message.appendByte(getUniqueID());
-    bool ret = WeatherProcessing::createWeatherData(message);
+
+    WeatherProcessing::createWeatherData(message);
     message.append(weatherRelayBuffer, weatherRelayLength);
     weatherRelayLength = 0;
     message.finishAndSend();
-    return ret;
   }
 
   void sendStatusMessage()

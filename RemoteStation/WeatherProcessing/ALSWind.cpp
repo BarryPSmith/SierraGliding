@@ -46,7 +46,6 @@ namespace WeatherProcessing
 
   void initWind()
   {
-    byte data[4];
     bool doWriteEeprom = false;
 
     ALS_PRINTLN(F("Beginning wire..."));
@@ -58,10 +57,7 @@ namespace WeatherProcessing
       writeAlsEeprom();
     }
 
-    //Set low power mode
-    read(0x27, data, 4);
-    data[3] = (data[3] & (~0x7F)) | 0x52; //Low Power / 10 samples/sec
-    write(0x27, data, 4);
+    setWindNormal();
 
     ALS_PRINTLN(F("ALS Low power set"));
 
@@ -101,6 +97,30 @@ namespace WeatherProcessing
     ALS_PRINTLN();
     }
 #endif
+  }
+
+  void sleepWind()
+  {
+    byte data[4];
+    read(0x27, data, 4);
+    data[3] = (data[3] & (~0x7F)) | 0x51; //Sleep
+    write(0x27, data, 4);
+  }
+
+  void setWindNormal()
+  {
+    byte data[4];
+    read(0x27, data, 4);
+    data[3] = (data[3] & (~0x7F)) | 0x52; //Low Power / 10 samples/sec
+    write(0x27, data, 4);
+  }
+
+  void setWindLowPower()
+  {
+    byte data[4];
+    read(0x27, data, 4);
+    data[3] = (data[3] & (~0x7F)) | 0x72; //Low Power / 1 samples/sec
+    write(0x27, data, 4);
   }
 
   bool writeAlsEeprom()

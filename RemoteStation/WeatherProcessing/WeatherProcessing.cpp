@@ -23,7 +23,7 @@ namespace WeatherProcessing
 {
   volatile bool weatherRequired = true;
   unsigned volatile long tickCounts = 0;
-  unsigned long requiredTicks = 100;
+  unsigned long requiredTicks = 0xFFFFFF;
 
   short internalTemperature_x2;
   float externalTemperature;
@@ -65,7 +65,9 @@ namespace WeatherProcessing
 
   unsigned long lastWindCountMillis;
   constexpr byte minWindIntervalTest = 3; //Debounce. 330 kph = broken station;
-  constexpr byte windSampleTicks = 100 / TimerTwo::MillisPerTick;
+  constexpr byte windSampleShortTicks = 100 / TimerTwo::MillisPerTick;
+  constexpr byte windSampleLongTicks = 1000 / TimerTwo::MillisPerTick;
+  volatile byte windSampleTicks = windSampleShortTicks;
 
   byte getWindDirection()
   {
@@ -139,7 +141,7 @@ namespace WeatherProcessing
       return 255;
   }
 
-  bool createWeatherData(MESSAGE_DESTINATION_SOLID<254>& message)
+  void createWeatherData(MESSAGE_DESTINATION_SOLID<254>& message)
   {
   #ifdef DEBUG
     unsigned long entryMicros = micros();
@@ -188,7 +190,6 @@ namespace WeatherProcessing
 
     message.appendByte(wsByte);
     message.appendByte(wgByte);
-    
     
     byte batteryByte, externalTempByte, internalTempByte;
     if (isComplex)
@@ -250,54 +251,13 @@ namespace WeatherProcessing
     }
     WX_PRINTLN(F("  ======================"));
   #endif
-    return updateBatterySavings(batt_mV, false);
   }
 
   unsigned short readBattery()
   {
     int batteryVoltageReading = analogRead(BATT_PIN);
-    return mV_Ref * BattVNumerator * batteryVoltageReading / (BattVDenominator  * 1023);
-  }
-
-  bool updateBatterySavings(unsigned short batteryVoltage_mV, bool initial)
-  {
-    bool changed = false;
-    unsigned long oldInterval = weatherInterval;
-    //bool overrideActive = millis() - overrideStartMillis < overrideDuration;
-    unsigned short batteryThreshold_mV, batteryEmergencyThresh_mV;
-    GET_PERMANENT_S(batteryThreshold_mV);
-    GET_PERMANENT_S(batteryEmergencyThresh_mV);
-    if (!initial && batteryVoltage_mV < batteryEmergencyThresh_mV)
-    {
-      WX_PRINTVAR(batteryVoltage_mV);
-      WX_PRINTVAR(batteryEmergencyThresh_mV);
-      WX_PRINTLN(F("Entering Deep Sleep"));
-      changed = !doDeepSleep;
-      doDeepSleep = true;
-    }
-    else 
-    {
-      WX_PRINTLN(F("No Deep Sleep"));
-      doDeepSleep = false;
-      if (initial || 
-        (batteryVoltage_mV > batteryThreshold_mV + batteryHysterisis_mV))
-      {
-        GET_PERMANENT2(&weatherInterval, shortInterval);
-        changed = !continuousReceiveEnabled;
-        continuousReceiveEnabled = true;
-      } else if ((batteryVoltage_mV < batteryThreshold_mV - batteryHysterisis_mV))
-      {
-        GET_PERMANENT2(&weatherInterval, longInterval);
-        changed = continuousReceiveEnabled;
-        continuousReceiveEnabled = false;
-      }
-    }
-    //Ensure that once we get out of override, we won't accidently go back into it due to millis wraparound.
-    /*if (!overrideActive)
-      overrideDuration = 0;*/
-  
-    setTimerInterval();
-    return changed;
+    batteryReading_mV = mV_Ref * BattVNumerator * batteryVoltageReading / (BattVDenominator  * 1023);
+    return batteryReading_mV;
   }
 
   void setTimerInterval()
@@ -320,7 +280,7 @@ namespace WeatherProcessing
     unsigned long thisMillis = millis();
     unsigned long thisInterval = thisMillis - lastWindCountMillis;
     // no counting in deep sleep / debounce the signal:
-    if (doDeepSleep || thisInterval < minWindIntervalTest)
+    if (batteryMode == BatteryMode::DeepSleep || thisInterval < minWindIntervalTest)
       return;
     lastWindCountMillis = thisMillis;
     if (hasTicked && thisInterval < minInterval)
@@ -382,17 +342,47 @@ namespace WeatherProcessing
 
   void setupWeatherProcessing()
   {
+    weatherRequired = false;
+    tickCounts = 0;
     initWind();
-    updateBatterySavings(0, true);
     setupWindCounter();
   #ifdef WIND_PWR_PIN
     pinMode(WIND_PWR_PIN, OUTPUT);
     digitalWrite(WIND_PWR_PIN, LOW);
   #endif
   #ifdef TEMP_PWR_PIN
-      pinMode(TEMP_PWR_PIN, OUTPUT);
-      digitalWrite(TEMP_PWR_PIN, LOW);
+    pinMode(TEMP_PWR_PIN, OUTPUT);
+    digitalWrite(TEMP_PWR_PIN, LOW);
   #endif
+  }
+
+  void enterDeepSleep()
+  {
+    GET_PERMANENT2(&weatherInterval, longInterval);
+    WeatherProcessing::setTimerInterval();
+#ifdef ALS_WIND
+    sleepWind();
+#endif
+  }
+
+  void enterBatterySave()
+  {
+    windSampleTicks = windSampleLongTicks;
+    GET_PERMANENT2(&weatherInterval, longInterval);
+    WeatherProcessing::setTimerInterval();
+#ifdef ALS_WIND
+    setWindLowPower();
+#endif
+  }
+
+  void enterNormalMode()
+  {
+    windSampleTicks = windSampleShortTicks;
+    GET_PERMANENT2(&weatherInterval, shortInterval);
+    WeatherProcessing::setTimerInterval();
+#ifdef ALS_WIND
+    setWindNormal();
+#endif
   }
 
   byte getInternalTemperature(short& reading)

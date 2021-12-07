@@ -15,4 +15,5 @@ namespace PwmSolar
 
   void setupPwm();
   void doPwmLoop();
+  void setSolarFull();
 }

@@ -80,7 +80,7 @@ void TestBoard()
 #endif
 
 unsigned long lastFailMillis = 0;
-bool doDeepSleep = false;
+BatteryMode batteryMode = BatteryMode::Normal;
 
 int main()
 {

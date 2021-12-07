@@ -250,7 +250,8 @@ class CSMAWrapper
 
     int16_t setIdleState(IdleStates newState)
     {
-      if (newState == _idleState)
+      if (newState == _idleState &&
+        _senderPremableLength == _actualPreambleLength)
         return ERR_NONE;
 
       _idleState = newState;
@@ -266,6 +267,7 @@ class CSMAWrapper
     int16_t enterIdleState()
     {
       _base->setPreambleLength(_senderPremableLength);
+      _actualPreambleLength = _senderPremableLength;
       switch (_idleState)
       {
       case IdleStates::IntermittentReceive:
@@ -279,7 +281,8 @@ class CSMAWrapper
       }
     }
 
-    uint16_t _senderPremableLength = 0xFFFF;
+    uint16_t _senderPremableLength = 0xFFFF,
+      _actualPreambleLength = 0;
 
     uint16_t _crcErrorRate = 0;
     uint16_t _droppedPacketRate = 0;

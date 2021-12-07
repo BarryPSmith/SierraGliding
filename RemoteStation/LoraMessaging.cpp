@@ -25,7 +25,7 @@ void updateIdleState()
 
   uint16_t outboundPreambleLength;
   GET_PERMANENT_S(outboundPreambleLength);
-  if (doDeepSleep)
+  if (batteryMode == BatteryMode::DeepSleep)
     outboundPreambleLength *= 8;
   csma._senderPremableLength = outboundPreambleLength;
   IdleStates newState;
@@ -33,7 +33,7 @@ void updateIdleState()
   newState = IdleStates::ContinuousReceive;
 #else
   bool continuousReceive = false;
-  if (continuousReceiveEnabled)
+  if (batteryMode == BatteryMode::Normal)
   {
     for (int i = 0; i < permanentArraySize; i++)
     {

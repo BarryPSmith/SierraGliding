@@ -22,12 +22,12 @@ unsigned long overrideDuration;
 bool overrideShort;*/
 SleepModes solarSleepEnabled = SleepModes::powerSave;
 SleepModes dbSleepEnabled = SleepModes::powerSave;
-bool continuousReceiveEnabled = true;
 // deep sleep disables timer2, and allows the MCU to turn off everything.
 // That greatly drops sleep current, but the unit cannot do its weather reporting.
 // It'll still respond to messages.
 // It'll even relay messages but weather messages will only be relayed when the buffer is filled
-bool doDeepSleep = false;
+BatteryMode batteryMode = BatteryMode::Normal;
+unsigned short batteryReading_mV;
 
 #ifdef DEBUG
 extern volatile bool windTicked;
@@ -45,6 +45,11 @@ void sendStackTrace();
 void storeStackTrace();
 void sendNoPingMessage();
 void testCrystal(bool sendAnyway);
+
+void updateBatterySavings();
+void enterDeepSleep();
+void enterNormalMode();
+void enterBatterySave();
 
 void TestBoard();
 void savePower();
@@ -222,8 +227,6 @@ void setup() {
   PwmSolar::setupPwm();
   #endif
 
-  WeatherProcessing::setupWeatherProcessing();
-  BASE_PRINTLN(F("Weather initialised"));
   if (!Flash::flashInit())
   {
     BASE_PRINTLN(F("!! Remote programming failed to initialise !!"));
@@ -232,7 +235,11 @@ void setup() {
   Database::initDatabase();
 
   InitMessaging();
-  updateIdleState();
+
+  WeatherProcessing::readBattery();
+  enterNormalMode();
+  WeatherProcessing::setupWeatherProcessing();  
+  BASE_PRINTLN(F("Weather initialised"));
 
   if (oldSP > 0x100)
   {
@@ -310,10 +317,16 @@ void testCrystal(bool sendAnyway)
 
 void loop() {
   //BASE(auto loopMicros = micros());
-  
-  if (random(1000) == 1)
+  static byte counter = 0;
+  constexpr byte cystalTestInterval = 50;
+
+  if (++counter == cystalTestInterval)
   {
-    testCrystal(false);
+    if (random(20) == 1)
+    {
+      testCrystal(false);
+    }
+    counter = 0;
   }
   static bool noPingSent = false;
 
@@ -335,10 +348,19 @@ void loop() {
 
 
 
-  if (doDeepSleep)
+  if (batteryMode == BatteryMode::DeepSleep)
   {
-    if (WeatherProcessing::updateBatterySavings(WeatherProcessing::readBattery(), false))
-      updateIdleState();
+#ifdef CRYSTAL_FREQ
+    noInterrupts();
+    bool localWeatherRequired = WeatherProcessing::weatherRequired;
+    WeatherProcessing::weatherRequired = false;
+    interrupts();
+    if (localWeatherRequired)
+#endif
+    {
+      // We periodically read the battery to see if we should come out of deep sleep:
+      WeatherProcessing::readBattery();
+    }
   }
   else
   {
@@ -351,20 +373,20 @@ void loop() {
     interrupts();
     if (localWeatherRequired)
     {
-      if (MessageHandling::sendWeatherMessage())
-        updateIdleState();
-      WX_PRINTLN(F("Weather message sent."));
+      MessageHandling::sendWeatherMessage();
+      BASE_PRINTLN(F("Weather message sent."));
     }
 
     if (millis() - lastStatusMillis > millisBetweenStatus)
     {
       MessageHandling::sendStatusMessage();
     }
+#ifdef SOLAR_PWM
+    PwmSolar::doPwmLoop();
+#endif
   }
+  updateBatterySavings();
 
-  #ifdef SOLAR_PWM
-  PwmSolar::doPwmLoop();
-  #endif
   if (millis() - lastPingMillis < maxMillisBetweenPings)
   {
     noPingSent = false;
@@ -420,7 +442,9 @@ void sleep(adc_t adc_state)
   SleepModes sleepMode = min(solarSleepEnabled, dbSleepEnabled);
   //If we've disabled sleep for some reason...
   if (sleepMode == SleepModes::disabled)
+  {
     return;
+  }
   // Or interrupts aren't enabled (= no wakeup)
   if (bit_is_clear(SREG, SREG_I))
     return;
@@ -432,7 +456,7 @@ void sleep(adc_t adc_state)
 #ifdef CRYSTAL_FREQ
   timer2_t timer2State = TIMER2_ON;
 #else
-  timer2_t timer2State = (doDeepSleep && adc_state == ADC_OFF) ? TIMER2_OFF : TIMER2_ON;
+  timer2_t timer2State = (batteryMode == BatteryMode::DeepSleep && adc_state == ADC_OFF) ? TIMER2_OFF : TIMER2_ON;
 #endif
   if (timer2State == TIMER2_OFF)
     wdt_dontRestart = true;
@@ -445,13 +469,16 @@ void sleep(adc_t adc_state)
   }
 
   if (sleepMode == SleepModes::powerSave)
+  {
     LowPower.powerSave(SLEEP_FOREVER, //Low power library messes with our watchdog timer, so we lie and tell it to sleep forever.
-                      adc_state,
-                      BOD_ON,
-                      timer2State
-                      );
+      adc_state,
+      BOD_ON,
+      timer2State
+    );
+  }
   else if (sleepMode == SleepModes::idle)
   {
+    digitalWrite(LED_PIN0, LED_ON);
     // note that these *_ON just tell LowPower not to mess with the PRR, they don't actually turn things on. 
     // TODO: Test what happens if we turn off SPI & TWI.
     LowPower.idle(SLEEP_FOREVER,
@@ -462,6 +489,7 @@ void sleep(adc_t adc_state)
                   SPI_OFF,
                   USART0_ON, 
                   TWI_OFF);
+    digitalWrite(LED_PIN0, LED_OFF);
   }
   // Ensure that any calls to millis will work properly, 
   // and that we won't have problems returning to sleep.
@@ -480,4 +508,52 @@ void sleep(adc_t adc_state)
     // In that case we need to re-enable the interrupt.
     WDTCSR |= (1 << WDIE);
   }
+}
+
+void updateBatterySavings()
+{
+  unsigned short batteryThreshold_mV, batteryEmergencyThresh_mV;
+  GET_PERMANENT_S(batteryThreshold_mV);
+  GET_PERMANENT_S(batteryEmergencyThresh_mV);
+  if (batteryReading_mV < batteryEmergencyThresh_mV)
+  {
+    if (batteryMode != BatteryMode::DeepSleep)
+      enterDeepSleep();
+  }
+  else if ((batteryReading_mV < batteryThreshold_mV - batteryHysterisis_mV)
+    || batteryMode == BatteryMode::DeepSleep)
+  {
+    if (batteryMode != BatteryMode::Save)
+      enterBatterySave();
+  }
+  else if (batteryReading_mV > batteryThreshold_mV + batteryHysterisis_mV)
+  {
+    if (batteryMode != BatteryMode::Normal)
+      enterNormalMode();
+  }
+}
+
+void enterDeepSleep()
+{
+  BASE_PRINTLN(F("Entering Deep Sleep"));
+  batteryMode = BatteryMode::DeepSleep;
+  WeatherProcessing::enterDeepSleep();
+  updateIdleState();
+#ifdef SOLAR_PWM
+  PwmSolar::setSolarFull();
+#endif
+}
+
+void enterBatterySave()
+{
+  batteryMode = BatteryMode::Save;
+  WeatherProcessing::enterBatterySave();
+  updateIdleState();
+}
+
+void enterNormalMode()
+{
+  batteryMode = BatteryMode::Normal;
+  WeatherProcessing::enterNormalMode();
+  updateIdleState();
 }

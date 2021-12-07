@@ -280,7 +280,17 @@ bool handleMessageCommand(MessageSource& src, byte* desc)
       SET_PERMANENT_S(outboundPreambleLength);
       csma._senderPremableLength = outboundPreambleLength;
     }
+    break;
   }
+  case 'I':
+    uint16_t inboundPreambleLength;
+    if (src.read(inboundPreambleLength))
+      state = ERR_UNKNOWN;
+    else
+    {
+      state = ERR_NONE;
+      SET_PERMANENT_S(inboundPreambleLength);
+    }
     break;
   default:
     state = ERR_UNKNOWN;

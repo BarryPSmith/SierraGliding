@@ -26,7 +26,7 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 12: Single board rev3
 # 13: Single board rev3 FCC Compliant @ 917MHz
 # 14: Dorji Modem @ 917MHz
-BOARD = 2
+BOARD = 10
 include Boards.makefile
 
 #Flags, etc.
@@ -170,7 +170,9 @@ $(OBJFOLDER)/all_with_bootloader.hex: $(OBJFOLDER)/all.hex
 .PHONY: isp_program
 isp_program: $(OBJFOLDER)/all_with_bootloader.hex $(OBJFOLDER)/all.s
 	program_fuses.cmd $(PORT_ISP) $(ISP_BAUD) $(ISP_TYPE)
+	avrdude -c $(ISP_TYPE) -p $(MCU) -P $(PORT_ISP) -b $(ISP_BAUD) -U eeprom:r:$(OBJFOLDER)/eeprom.hex:i
 	avrdude -c $(ISP_TYPE) -p $(MCU) -P $(PORT_ISP) -b $(ISP_BAUD) -U $(OBJFOLDER)/all_with_bootloader.hex
+	avrdude -c $(ISP_TYPE) -p $(MCU) -P $(PORT_ISP) -b $(ISP_BAUD) -U eeprom:w:$(OBJFOLDER)/eeprom.hex:i
 
 .PHONY: program
 program: $(OBJFOLDER)/all.hex $(OBJFOLDER)/all.s

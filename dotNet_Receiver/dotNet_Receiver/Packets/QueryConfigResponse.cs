@@ -107,9 +107,9 @@ namespace core_Receiver.Packets
         public List<char> MessageRecordTypes { get; set; } = new List<char>();
         public bool NonRelayRecording { get; set; }
 
-        public UInt16 InboundPreambleLength { get; set; }
+        public UInt16 InboundPreambleLength { get; set; } = 8;
 
-        public bool BoostedRx { get; set; }
+        public bool BoostedRx { get; set; } = false;
              
         public override string ToString()
         {

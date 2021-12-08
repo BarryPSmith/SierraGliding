@@ -260,7 +260,8 @@ Arguments:
                     case PacketTypes.Stats:
                         if (_lastPacket != null)
                         {
-                            Task.Run(() => _dataStore?.RecordStats(_lastPacket, packet.packetData as StatsResponse));
+                            var localLast = _lastPacket;
+                            Task.Run(() => _dataStore?.RecordStats(localLast, packet.packetData as StatsResponse));
                         }
                         break;
                     default:

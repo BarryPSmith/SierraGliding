@@ -50,6 +50,8 @@ class LoraMessageDestination final : public MessageDestination
       byte* buffer, uint8_t bufferSize, bool prependX = true)
     {
       _isOutbound = isOutbound;
+      _outgoingBuffer = buffer;
+      outgoingBufferSize = bufferSize;
 
       if (s_prependCallsign)
         append((byte*)callSign, 6);

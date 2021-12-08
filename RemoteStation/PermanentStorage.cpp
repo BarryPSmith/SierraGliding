@@ -52,7 +52,7 @@ const PermanentVariables defaultVars PROGMEM =
   .csmaP = 100, //40% chance to transmit
   .csmaTimeslot = 10000, // 10ms
   .outboundPreambleLength = 384, // allow end nodes to spend most of their time asleep.
-        
+
 
   // These default tsOffset / tsGain values correspond to the datasheet example values on page 215.
 #ifdef ATMEGA328PB
@@ -74,8 +74,9 @@ const PermanentVariables defaultVars PROGMEM =
 #ifdef MODEM
   .boostedRx = true,
 #else
-  .boostedRx = false
+  .boostedRx = false,
 #endif
+  .stasisRequested = false,
 };
 
 void PermanentStorage::initialise()
@@ -96,7 +97,7 @@ void PermanentStorage::initialise()
   if (initialised)
   {
     //When upgrading from 2.4 to 2.5, we don't want to clear the entire memory. Just set the inbound preamble length and recalculate the CRC:
-    if (checkCRC(sizeof(PermanentVariables) - 3))
+    if (checkCRC(sizeof(PermanentVariables) - 4))
     {
       unsigned short inboundPreambleLength = 8;
       SET_PERMANENT_S(inboundPreambleLength);
@@ -107,6 +108,8 @@ void PermanentStorage::initialise()
         false;
 #endif
       SET_PERMANENT_S(boostedRx);
+      stasisRequested = false;
+      SET_PERMANENT_S(stasisRequested);
       setCRC();
       completeCrc = true;
     }

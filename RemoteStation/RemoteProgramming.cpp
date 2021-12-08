@@ -164,11 +164,11 @@ namespace RemoteProgramming
   {
     byte buffer[254];
     LoraMessageDestination msg(false, buffer, sizeof(buffer));
-      msg.appendByte('K');
-    msg.appendByte(stationID);
-    msg.appendByte(uniqueID);
-    msg.appendByte('P');
-    msg.appendByte('Q');
+      msg.appendByte2('K');
+    msg.appendByte2(stationID);
+    msg.appendByte2(uniqueID);
+    msg.appendByte2('P');
+    msg.appendByte2('Q');
     msg.appendT(expectedCRC);
     msg.appendT(totalExpectedPackets);
     bool allHere = isItAllHere();
@@ -201,11 +201,11 @@ namespace RemoteProgramming
     byte buffer[20];
     LoraMessageDestination msg(false, buffer, sizeof(buffer));
 
-    msg.appendByte('K');
-    msg.appendByte(stationID);
-    msg.appendByte(uniqueID);
-    msg.appendByte('P');
-    msg.appendByte('C');
+    msg.appendByte2('K');
+    msg.appendByte2(stationID);
+    msg.appendByte2(uniqueID);
+    msg.appendByte2('P');
+    msg.appendByte2('C');
     msg.appendT(commandCRC);
     msg.append(F("Programming!"), 12);
     msg.finishAndSend();
@@ -262,10 +262,10 @@ namespace RemoteProgramming
   {
     byte buffer[20];
     LoraMessageDestination msg(false, buffer, sizeof(buffer));
-    msg.appendByte('K');
-    msg.appendByte(stationID);
-    msg.appendByte(MessageHandling::getUniqueID());
-    msg.appendByte('P');
+    msg.appendByte2('K');
+    msg.appendByte2(stationID);
+    msg.appendByte2(MessageHandling::getUniqueID());
+    msg.appendByte2('P');
     msg.append(F("Abort"), 5);
     msg.appendT(expectedCRC);
   }

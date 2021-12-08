@@ -169,7 +169,7 @@ namespace WeatherProcessing
 #endif
     }
     
-    message.appendByte(length);
+    message.appendByte2(length);
 
     //Message format is W(StationID)(UniqueID)(DirHex)(Spd * 2)(Voltage)
   
@@ -186,26 +186,26 @@ namespace WeatherProcessing
     unsigned short batt_mV = readBattery();
     
     byte windDirection = getWindDirection();
-    message.appendByte(windDirection);
+    message.appendByte2(windDirection);
 
-    message.appendByte(wsByte);
-    message.appendByte(wgByte);
+    message.appendByte2(wsByte);
+    message.appendByte2(wgByte);
     
     byte batteryByte, externalTempByte, internalTempByte;
     if (isComplex)
     {
       batteryByte = (byte)(255UL * batt_mV / MaxBatt_mV);
-      message.appendByte(batteryByte);
+      message.appendByte2(batteryByte);
 
       externalTempByte = getExternalTemperature();
-      message.appendByte(externalTempByte);
+      message.appendByte2(externalTempByte);
 
       short iTReading;
       internalTempByte = getInternalTemperature(iTReading);
-      message.appendByte(internalTempByte);
+      message.appendByte2(internalTempByte);
 
-      message.appendByte(PwmSolar::solarPwmValue);
-      message.appendByte(PwmSolar::curCurrent_mA_x6/6);
+      message.appendByte2(PwmSolar::solarPwmValue);
+      message.appendByte2(PwmSolar::curCurrent_mA_x6/6);
 #ifdef DEBUG_IT
       message.appendT(iTReading);
 #endif

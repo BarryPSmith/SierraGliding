@@ -126,9 +126,10 @@ extern bool overrideShort;*/
 enum SleepModes { disabled = 0, idle = 1, powerSave = 2 };
 extern SleepModes solarSleepEnabled;
 extern SleepModes dbSleepEnabled;
-enum class BatteryMode { Normal, Save, DeepSleep };
+enum class BatteryMode { Normal, Save, DeepSleep, Stasis };
 extern BatteryMode batteryMode;
 extern unsigned short batteryReading_mV;
+extern bool stasisRequested;
 
 //Recent Memory
 extern unsigned long lastStatusMillis;

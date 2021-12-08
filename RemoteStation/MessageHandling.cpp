@@ -244,9 +244,9 @@ namespace MessageHandling
     //Outbound messages are 'C' or 'P'
     byte buffer[254];
     LoraMessageDestination relay(msgType == 'C' || msgType == 'P', buffer, sizeof(buffer));
-    relay.appendByte(msgFirstByte);
-    relay.appendByte(msgStatID);
-    relay.appendByte(msgUniqueID);
+    relay.appendByte2(msgFirstByte);
+    relay.appendByte2(msgStatID);
+    relay.appendByte2(msgUniqueID);
     relay.appendData(msg, 254);
   }
 
@@ -271,11 +271,11 @@ namespace MessageHandling
       
     if (overflow)
     {
-      msgDump->appendByte('R');
-      msgDump->appendByte(stationID);
-      msgDump->appendByte(getUniqueID());
-      msgDump->appendByte(weatherRelayBuffer[0]);
-      msgDump->appendByte(weatherRelayBuffer[1]);
+      msgDump->appendByte2('R');
+      msgDump->appendByte2(stationID);
+      msgDump->appendByte2(getUniqueID());
+      msgDump->appendByte2(weatherRelayBuffer[0]);
+      msgDump->appendByte2(weatherRelayBuffer[1]);
     }
     weatherRelayBuffer[offset + 0] = msgStatID;
     weatherRelayBuffer[offset + 1] = msgUniqueID;
@@ -283,7 +283,7 @@ namespace MessageHandling
     for (int i = 2; i < dataSize; i++)
     {
       if (overflow)
-        msgDump->appendByte(weatherRelayBuffer[i]);
+        msgDump->appendByte2(weatherRelayBuffer[i]);
       sourceFaulted = sourceFaulted ||
         msg.readByte(weatherRelayBuffer[offset + i]);
     }
@@ -334,9 +334,9 @@ namespace MessageHandling
   
     byte buffer[254];
     LoraMessageDestination message(false, buffer, sizeof(buffer));
-    message.appendByte('W');
-    message.appendByte(stationID);
-    message.appendByte(getUniqueID());
+    message.appendByte2('W');
+    message.appendByte2(stationID);
+    message.appendByte2(getUniqueID());
 
     WeatherProcessing::createWeatherData(message);
     message.append(weatherRelayBuffer, weatherRelayLength);
@@ -349,11 +349,11 @@ namespace MessageHandling
     //bool wasPrependCallsign = MessageDestination::s_prependCallsign;
     //MessageDestination::s_prependCallsign = true;
     byte buffer[254];
-    LoraMessageDestination msg(false, buffer, sizeof(buffer), false);
+    LoraMessageDestination msg(false, buffer, sizeof(buffer));
     if (!LoraMessageDestination::s_prependCallsign)
       msg.append((byte*)callSign, 6);
     msg.append(STATUS_MESSAGE, strlen_P((const char*)STATUS_MESSAGE));
-    msg.appendByte(stationID);
+    msg.appendByte2(stationID);
     msg.finishAndSend();
     //MessageDestination::s_prependCallsign = wasPrependCallsign;
     lastStatusMillis = millis();

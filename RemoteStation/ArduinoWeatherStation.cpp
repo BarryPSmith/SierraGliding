@@ -28,6 +28,7 @@ SleepModes dbSleepEnabled = SleepModes::powerSave;
 // It'll even relay messages but weather messages will only be relayed when the buffer is filled
 BatteryMode batteryMode = BatteryMode::Normal;
 unsigned short batteryReading_mV;
+bool stasisRequested;
 
 #ifdef DEBUG
 extern volatile bool windTicked;
@@ -50,6 +51,7 @@ void updateBatterySavings();
 void enterDeepSleep();
 void enterNormalMode();
 void enterBatterySave();
+void enterStasis();
 
 void TestBoard();
 void savePower();
@@ -222,6 +224,7 @@ void setup() {
 
   lastPingMillis = millis();
   PermanentStorage::initialise();
+  GET_PERMANENT_S(stasisRequested);
 
   #ifdef SOLAR_PWM
   PwmSolar::setupPwm();
@@ -261,9 +264,9 @@ void sendStackTrace()
 {
   byte buffer[254];
   LoraMessageDestination msg(false, buffer, sizeof(buffer));
-  msg.appendByte('S');
-  msg.appendByte(stationID);
-  msg.appendByte(0x00);
+  msg.appendByte2('S');
+  msg.appendByte2(stationID);
+  msg.appendByte2(0x00);
 	msg.appendT(oldSP);
   byte size = STACK_DUMP_SIZE;
   unsigned short oldStackSize = (unsigned short)&__stack - oldSP;
@@ -289,9 +292,9 @@ void sendNoPingMessage()
   BASE_PRINTLN(F("Ping timeout message!"));
   byte buffer[20];
   LoraMessageDestination msg(false, buffer, sizeof(buffer));
-  msg.appendByte('K');
-  msg.appendByte(stationID);
-  msg.appendByte(MessageHandling::getUniqueID());
+  msg.appendByte2('K');
+  msg.appendByte2(stationID);
+  msg.appendByte2(MessageHandling::getUniqueID());
 	msg.append(F("PTimeout"), 8);
 }
 
@@ -300,13 +303,13 @@ void sendCrystalMessage(XtalInfo& result)
   BASE_PRINTLN(F("Crystal Failed!"));
   byte buffer[20];
   LoraMessageDestination msg(false, buffer, sizeof(buffer));
-  msg.appendByte('K');
-  msg.appendByte(stationID);
-  msg.appendByte(MessageHandling::getUniqueID());
-  msg.appendByte('X');
-  msg.appendByte(result.failed);
-  msg.appendByte(result.test1);
-  msg.appendByte(result.test2);
+  msg.appendByte2('K');
+  msg.appendByte2(stationID);
+  msg.appendByte2(MessageHandling::getUniqueID());
+  msg.appendByte2('X');
+  msg.appendByte2(result.failed);
+  msg.appendByte2(result.test1);
+  msg.appendByte2(result.test2);
 }
 
 void testCrystal(bool sendAnyway)
@@ -408,6 +411,8 @@ void loop() {
     PRINT_VARIABLE(loopMicros);
   #endif
   sleep(ADC_OFF);
+  if (stasisRequested)
+    enterStasis();
 }
 
 void restart()
@@ -544,6 +549,7 @@ void enterDeepSleep()
   updateIdleState();
 #ifdef SOLAR_PWM
   PwmSolar::setSolarFull();
+  PwmSolar::stopCurrentSensor();
 #endif
 }
 
@@ -559,4 +565,54 @@ void enterNormalMode()
   batteryMode = BatteryMode::Normal;
   WeatherProcessing::enterNormalMode();
   updateIdleState();
+}
+
+void enterStasis()
+{
+  batteryMode = BatteryMode::Stasis;
+  WeatherProcessing::enterDeepSleep();
+  sleepRadio();
+  TimerTwo::slowDown();
+#ifdef SOLAR_PWM
+  PwmSolar::setSolarFull();
+  PwmSolar::stopCurrentSensor();
+#endif
+  byte lastSeconds = TimerTwo::seconds();
+  wdt_disable();
+  WeatherProcessing::tickCounts = 0;
+
+#ifdef CRYSTAL_FREQ
+  timer2_t timer2State = TimerTwo::_crystalFailed ? TIMER2_OFF : TIMER2_ON;
+#else
+  timer2_t timer2State = TIMER2_OFF;
+#endif
+#ifdef SX_SWITCH
+  digitalWrite(SX_SWITCH, LOW);
+#endif
+  while (1)
+  {
+    byte theseSeconds = TimerTwo::seconds();
+    if (theseSeconds != lastSeconds)
+    {
+      lastSeconds = theseSeconds;
+      WeatherProcessing::tickCounts = 0;
+    }
+    if (WeatherProcessing::tickCounts > 10)
+      break;    
+    
+    LowPower.powerSave(SLEEP_FOREVER,
+        ADC_OFF,
+        BOD_OFF,
+        timer2State
+      );
+  } 
+#ifdef SX_SWITCH
+  digitalWrite(SX_SWITCH, HIGH);
+#endif
+  stasisRequested = false;
+  SET_PERMANENT_S(stasisRequested);
+  unsigned long exitSeconds = TimerTwo::seconds();
+  TimerTwo::initialise();
+  wdt_enable(WDTO_8S);
+  enterNormalMode();
 }

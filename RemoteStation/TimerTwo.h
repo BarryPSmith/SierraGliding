@@ -33,10 +33,13 @@ public:
 #else
     (TIMER2_TOP + 1) * MILLIS_PER_SECOND * DIVIDER / F_CPU;
 #endif
+  static constexpr byte slowFactor = 32;
   static volatile unsigned long _ticks;
   static volatile unsigned char _ofTicks;
 
   static void initialise();
+  // Slows the timer to run on a 1024 prescaler - this is 32x slower than usual.
+  static void slowDown();
 
   static unsigned long millis();
 

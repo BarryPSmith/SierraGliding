@@ -16,4 +16,6 @@ namespace PwmSolar
   void setupPwm();
   void doPwmLoop();
   void setSolarFull();
+  void turnOffSolar();
+  void stopCurrentSensor();
 }

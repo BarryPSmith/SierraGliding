@@ -74,6 +74,7 @@ typedef struct PermanentVariables
   bool recordNonRelayedMessages;
   unsigned short inboundPreambleLength; //2.4 had a CRC here
   bool boostedRx;
+  bool stasisRequested;
   short crc;
 } PermanentVariables;
 

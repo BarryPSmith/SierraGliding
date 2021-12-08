@@ -16,6 +16,8 @@
 
 namespace WeatherProcessing
 {
+  extern unsigned volatile long tickCounts; 
+
   void setupWeatherProcessing();
   void enterDeepSleep();
   void enterBatterySave();

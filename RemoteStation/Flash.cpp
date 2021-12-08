@@ -64,11 +64,11 @@ namespace Flash
 
     byte msgBuffer[254];
     LoraMessageDestination dest(false, msgBuffer, sizeof(msgBuffer));
-    dest.appendByte('K');
-    dest.appendByte(stationID);
-    dest.appendByte(uniqueID);
-    dest.appendByte('F');
-    dest.appendByte('R');
+    dest.appendByte2('K');
+    dest.appendByte2(stationID);
+    dest.appendByte2(uniqueID);
+    dest.appendByte2('F');
+    dest.appendByte2('R');
     //FLASH_PRINTVAR(add);
 
     byte* buffer;
@@ -92,7 +92,7 @@ namespace Flash
         byte b = pgm_read_byte(add++);
         FLASH_PRINT(b, HEX);
         FLASH_PRINT(' ');
-        dest.appendByte(b);
+        dest.appendByte2(b);
       }
       break;
     case 'V':

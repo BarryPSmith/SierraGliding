@@ -17,6 +17,10 @@ Module mod(SX_SELECT, SX_DIO1, SX_BUSY);
 SX1262 lora = &mod;
 CSMAWrapper<SX1262> csma = &lora;
 
+void sleepRadio()
+{
+  csma.setIdleState(IdleStates::Sleep);
+}
 
 void updateIdleState()
 {

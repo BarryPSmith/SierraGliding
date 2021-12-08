@@ -119,6 +119,11 @@ void TimerTwo::initialise()
   // Leave the async stuff.
 }
 #endif
+void TimerTwo::slowDown()
+{
+  // TCCR2B: 1024 prescaler:
+  TCCR2B = _BV(CS20) | _BV(CS21) | _BV(CS22);
+}
 
 unsigned long TimerTwo::seconds()
 {

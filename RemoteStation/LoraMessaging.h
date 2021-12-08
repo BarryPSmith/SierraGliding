@@ -14,7 +14,8 @@ constexpr auto maxPacketSize = 254;
 void InitMessaging();
 bool handleMessageCommand(MessageSource& src, byte* desc = nullptr);
 void appendMessageStatistics(MessageDestination& msg);
-void updateIdleState();
+void updateIdleState(); 
+void sleepRadio();
 
 extern SX1262 lora;
 extern CSMAWrapper<SX1262> csma;
@@ -56,9 +57,38 @@ class LoraMessageDestination final : public MessageDestination
       if (s_prependCallsign)
         append((byte*)callSign, 6);
       else if (prependX)
-        appendByte('X');
-  
+      {
+        *buffer = 'X';
+        _currentLocation = 1;
+      }
     }
+
+    /*LoraMessageDestination(bool isOutbound,
+      byte* buffer, uint8_t bufferSize)
+    {
+      _isOutbound = isOutbound;
+      _outgoingBuffer = buffer;
+      outgoingBufferSize = bufferSize;
+
+      *buffer = 'X';
+      _currentLocation = 1;
+    }
+
+    LoraMessageDestination(bool isOutbound,
+      byte* buffer, uint8_t bufferSize,
+      byte type, byte uniqueID)
+    {
+      _isOutbound = isOutbound;
+      _outgoingBuffer = buffer;
+      outgoingBufferSize = bufferSize;
+
+      buffer[0] = 'X';
+      buffer[1] = type;
+      buffer[2] = stationID;
+      buffer[3] = uniqueID;
+      _currentLocation = 4;
+    }*/
+
     ~LoraMessageDestination()
     {
       finishAndSend();
@@ -68,7 +98,7 @@ class LoraMessageDestination final : public MessageDestination
     {
       if (_currentLocation == 255)
         return MESSAGE_NOT_IN_MESSAGE;
-      else if (_currentLocation >= maxPacketSize)
+      else if (_currentLocation >= outgoingBufferSize)
       {
         return MESSAGE_BUFFER_OVERRUN;
       }
@@ -76,6 +106,17 @@ class LoraMessageDestination final : public MessageDestination
       _outgoingBuffer[_currentLocation++] = data;
 
       return MESSAGE_OK;
+    }
+
+    #define appendByte2 appendByte
+    /*void appendByte2(const byte data)
+    {
+      _outgoingBuffer[_currentLocation++] = data;
+    }*/
+
+    void appendByteUnchecked(const byte data)
+    {
+      _outgoingBuffer[_currentLocation++] = data;
     }
     MESSAGE_RESULT finishAndSend() override
     {

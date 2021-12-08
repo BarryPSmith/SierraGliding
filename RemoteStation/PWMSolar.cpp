@@ -66,11 +66,9 @@ namespace PwmSolar
   int getNewPwmValue(bool* canIdle);
   byte getMaxPwm(unsigned short batteryVoltage_mV);
   unsigned short getDesiredBatteryVoltage();
-  void turnOffSolar();
   void ensurePwmActive(bool canIdle);
   byte readCurrentAndCalcMaxPwm(bool applyLimits);
 #ifdef CURRENT_SENSE_PWR
-  void stopCurrentSensor();
   void startupCurrentSensor();
 #endif
 #ifdef CURRENT_SENSE
@@ -300,6 +298,7 @@ namespace PwmSolar
 #else
     // Take control of the pin back.
     // write it HIGH (which will turn the switch off)
+    TCCR0A = 0;
 #ifdef SOLAR_INVERSE
     digitalWrite(SOLAR_PWM_PIN, LOW);
 #else
@@ -323,6 +322,7 @@ namespace PwmSolar
 #else
     // Take control of the pin back
     // write it LOW (which will turn the switch on)
+    TCCR0A = 0;
 #ifdef SOLAR_INVERSE
     digitalWrite(SOLAR_PWM_PIN, HIGH);
 #else

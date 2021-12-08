@@ -133,7 +133,10 @@ namespace Commands
             handled = Database::handleDatabaseCommand(msg, uniqueID, &ackRequired);
             break;
   #endif // ! NO_STORAGE
-
+          case 'S':
+            stasisRequested = true;
+            SET_PERMANENT_S(stasisRequested);
+            handled = true;
           default:
           //do nothing. handled = false, so we send "IGNORED"
           break;
@@ -146,12 +149,12 @@ namespace Commands
 
     if (!handled)
     {
-      byte buffer[20];
+      byte buffer[20];// = { 'X', 'K', stationID, uniqueID, command, 'I', 'G', 'N', 'O', 'R', 'E', 'D' };
       LoraMessageDestination response(false, buffer, sizeof(buffer));
-      response.appendByte('K');
-      response.appendByte(stationID);
-      response.appendByte(uniqueID);
-      response.appendByte(command);
+      response.appendByte2('K');
+      response.appendByte2(stationID);
+      response.appendByte2(uniqueID);
+      response.appendByte2(command);
       response.append(F("IGNORED"), 7);
     }
   }
@@ -364,7 +367,7 @@ namespace Commands
     byte headerStart[6];
     
 
-      headerStart[0] = ('K');
+    headerStart[0] = ('K');
     headerStart[1] = (stationID);
     headerStart[2] = (uniqueID);
     headerStart[3] = 'Q';
@@ -374,7 +377,7 @@ namespace Commands
     headerStart[5] = ('V');
     response.append(headerStart, sizeof(headerStart)); //+6 = 6
     response.append(ASW_VER, ver_size); //+11 = 17
-    response.appendByte(0);
+    response.appendByte2(0);
 
     switch (queryType)
     {
@@ -403,77 +406,64 @@ namespace Commands
     {
       byte b;
       PermanentStorage::getBytes((void*)(int)i, 1, &b);
-      response.appendByte(b);
+      response.appendByte2(b);
     }
 #endif
   }
 
+#define copyInt(a, b) memcpy(a, &b, sizeof(b));
+
   void handleQueryVolatileCommand(LoraMessageDestination& response)
-  { 
-    //So far used 17 bytes. 237 bytes remain
-    response.appendByte('M'); //+1 = 1
+  {
     unsigned long curMillis = millis();
-    response.appendT(curMillis); //+4 = 5
-    response.appendT(lastPingMillis); //+4 = 9
-    response.appendT((long)0); //+4 = 13
-    /*if (overrideDuration)
-    {
-      response.appendT(overrideStartMillis); //+4 = 17
-      response.appendT(overrideShort); //1 = 18
-    }*/
-    response.appendByte(0); //+1 = 19
-  
-    //Recently seen stations, +102 bytes = 121
-    response.appendByte('S');
-    for (int i = 0; i < permanentArraySize; i++)
-    {
-      response.appendT(MessageHandling::recentlySeenStations[i]);
-    }
-    response.appendByte(0);
-
-    //recently handled commands, +22 bytes = 143
-    response.appendByte('C');
-    for (int i = 0; i < permanentArraySize; i++)
-    {
-      response.appendByte(recentlyHandledCommands[i]);
-    }
-    response.appendByte(0);
-
-    //recently relayed messages, +62 bytes = 205
-    response.appendByte('R');
-    for (int i = 0; i < permanentArraySize; i++)
-    {
-      response.appendT(MessageHandling::recentlyRelayedMessages[i]);
-    }
-    response.appendByte(0);
-
-    //message statistics:
-    response.appendByte('M'); //+1 = 206
-    appendMessageStatistics(response); //+8 = 214
-
-    //2.3: Date / Time, memory
-    response.appendByte('S'); //+1 = 215
-    response.appendT(TimerTwo::seconds()); //+4 = 219
-    response.appendT(StackCount()); //+2 = 221
-    const uint8_t *p = &_end;
-    response.appendT(SP - (unsigned short)p); //+2 = 223
-
-    //2.4: Database info
-    response.appendByte('D'); //+1 = 224
-    response.appendT(Database::_curHeaderAddress); //+4 = 228
-    response.appendT(Database::_curWriteAddress); //+4 = 232
-    response.appendByte(Database::_curCycle); //+1 = 233
+#if 1
+    byte* buffer;
+    const byte messageSize = 33
+      + sizeof(MessageHandling::recentlySeenStations)
+      + sizeof(recentlyHandledCommands)
+      + sizeof(MessageHandling::recentlyRelayedMessages);
+    response.getBuffer(&buffer, messageSize);
+    *(unsigned long*)buffer = curMillis; //+4 = 4
+    buffer += 4;
+    *(unsigned long*)buffer = lastPingMillis; //+4 = 8
+    buffer += 4;
+    memcpy(buffer, MessageHandling::recentlySeenStations, sizeof(MessageHandling::recentlySeenStations));
+    buffer += sizeof(MessageHandling::recentlySeenStations);
+    memcpy(buffer, recentlyHandledCommands, sizeof(recentlyHandledCommands));
+    buffer += sizeof(recentlyHandledCommands);
+    memcpy(buffer, MessageHandling::recentlyRelayedMessages, sizeof(MessageHandling::recentlyRelayedMessages));
+    buffer += sizeof(MessageHandling::recentlyRelayedMessages);
+    *(unsigned short*)buffer = csma._crcErrorRate; // +2 = 10
+    buffer += 2;
+    *(unsigned short*)buffer = csma._droppedPacketRate; // +2 = 12
+    buffer += 2;
+    *(unsigned long*)buffer = csma._averageDelayTime; // +4 = 16
+    buffer += 4;
+    *(unsigned long*)buffer = TimerTwo::seconds(); // +4 = 20
+    buffer += 4;
+    *(unsigned short*)buffer = StackCount(); // +2 = 22
+    buffer += 2;
+    const uint8_t* p1 = &_end;
+    *(unsigned short*)buffer = SP - (unsigned short)p1; //+2 = 24
+    buffer += 2;
+    *(unsigned long*)buffer = Database::_curHeaderAddress; //+4 = 28
+    buffer += 4;
+    *(unsigned long*)buffer = Database::_curWriteAddress; //+4 = 32
+    buffer += 4;
+    *buffer = Database::_curCycle; //+1 = 33
+    return;
+#endif
   }
 
   void notifyNewID(byte uniqueID, byte newID)
   {
     byte buffer[20];
     LoraMessageDestination reply(false, buffer, sizeof(buffer));
-      reply.appendByte('K');
-      reply.appendByte(stationID);
-      reply.appendByte(uniqueID);
+      reply.appendByte2('K');
+      reply.appendByte2(stationID);
+      reply.appendByte2(uniqueID);
       reply.append(F("UNewID"), 6);
-      reply.appendByte(newID);
+      reply.appendByte2(newID);
       reply.finishAndSend();
   }
 
@@ -527,10 +517,10 @@ namespace Commands
   
     byte buffer[20];
     LoraMessageDestination response(false, buffer, sizeof(buffer));
-    response.appendByte('K');
-    response.appendByte(stationID);
-    response.appendByte(uniqueID);
-    response.appendByte(commandType);
+    response.appendByte2('K');
+    response.appendByte2(stationID);
+    response.appendByte2(uniqueID);
+    response.appendByte2(commandType);
     response.append(F("OK"), 2);
   }
 }

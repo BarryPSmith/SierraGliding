@@ -434,11 +434,11 @@ namespace Database
   {
     _searchMessage = new (_outgoingMessageBuffer) LoraMessageDestination(false,
       _outgoingMessageBytes, sizeof(_outgoingMessageBytes));
-    _searchMessage->appendByte('K');
-    _searchMessage->appendByte(stationID);
-    _searchMessage->appendByte(MessageHandling::getUniqueID());
-    _searchMessage->appendByte('D');
-    _searchMessage->appendByte('L');
+    _searchMessage->appendByte2('K');
+    _searchMessage->appendByte2(stationID);
+    _searchMessage->appendByte2(MessageHandling::getUniqueID());
+    _searchMessage->appendByte2('D');
+    _searchMessage->appendByte2('L');
   }
 
   void endSearchMessage()
@@ -499,14 +499,14 @@ namespace Database
       return false;
     byte msgBuffer[254];
     LoraMessageDestination dest(false, msgBuffer, sizeof(msgBuffer));
-    dest.appendByte('K');
-    dest.appendByte(stationID);
-    dest.appendByte(uniqueID);
-    dest.appendByte('D');
-    dest.appendByte('R');
-    dest.appendByte(record.messageType);
-    dest.appendByte(record.stationID);
-    dest.appendByte(0);
+    dest.appendByte2('K');
+    dest.appendByte2(stationID);
+    dest.appendByte2(uniqueID);
+    dest.appendByte2('D');
+    dest.appendByte2('R');
+    dest.appendByte2(record.messageType);
+    dest.appendByte2(record.stationID);
+    dest.appendByte2(0);
     byte* buffer;
     byte maxSize = 254 - dest.getCurrentLocation();
     if (maxSize > record.length)

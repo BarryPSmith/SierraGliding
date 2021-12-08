@@ -13,28 +13,42 @@ namespace core_Receiver.Packets
         public QueryVolatileResponse(Span<byte> data)
             : base(data, out int consumed)
         {
-            int i;
+
+            int i = 0;
             bool constantArraySize = VersionNumber >= new Version(2, 2);
+            bool hasMarkers = VersionNumber < new Version(2, 5);
             data = data.Slice(consumed);
             using MemoryStream ms = new MemoryStream();
             ms.Write(data);
             ms.Seek(0, SeekOrigin.Begin);
             BinaryReader br = new BinaryReader(ms, Encoding.ASCII);
-            if (br.ReadChar() != 'M')
-                throw new InvalidDataException("Did not find expected 'M' marker in volatile query");
+            void CheckMarker(char marker)
+            {
+                if (hasMarkers && br.ReadChar() != marker)
+                    throw new InvalidDataException($"Did not find expected '{marker}' in volatile query");
+            }
+            void CheckZeroMarker(bool afterArray = false)
+            {
+                int marker = 0;
+                if ((!afterArray || (constantArraySize || i == ArraySize))
+                    && hasMarkers && br.ReadByte() != marker)
+                    throw new InvalidDataException($"Did not find expected '{marker}' in volatile query");
+            }
+            CheckMarker('M');
             Millis = br.ReadUInt32();
             if (VersionNumber >= new Version(2, 1))
                 LastPingAge = Millis - br.ReadUInt32();
-            OverrideDuration = br.ReadUInt32();
-            if (OverrideDuration > 0)
+            if (VersionNumber <= new System.Version(2, 5))
             {
-                OverrideStart = br.ReadUInt32();
-                OverrideShort = br.ReadBoolean();
+                OverrideDuration = br.ReadUInt32();
+                if (OverrideDuration > 0)
+                {
+                    OverrideStart = br.ReadUInt32();
+                    OverrideShort = br.ReadBoolean();
+                }
             }
-            if (br.ReadByte() != 0)
-                throw new InvalidDataException();
-            if (br.ReadChar() != 'S')
-                throw new InvalidDataException("Did not find expected 'S' marker");
+            CheckZeroMarker();
+            CheckMarker('S');
             for (i = 0; i < ArraySize; i++)
             {
                 byte stationID = br.ReadByte();
@@ -45,9 +59,8 @@ namespace core_Receiver.Packets
                 if (stationID != 0)
                     RecentlySeenStations.Add((stationID, age, DateTimeOffset.Now - TimeSpan.FromMilliseconds(age)));
             }
-            if ((constantArraySize || i == ArraySize) && br.ReadByte() != 0) throw new InvalidDataException("Barry's dumb and didn't do good versioning.");
-            if (br.ReadChar() != 'C')
-                throw new InvalidDataException("Did not find expected 'C' marker.");
+            CheckZeroMarker(true);
+            CheckMarker('C');
             for (i = 0; i < ArraySize; i++)
             {
                 byte commandID = br.ReadByte();
@@ -56,9 +69,8 @@ namespace core_Receiver.Packets
                 if (commandID != 0)
                     RecentlyHandledCommands.Add(commandID);
             }
-            if ((constantArraySize || i == ArraySize) && br.ReadByte() != 0) throw new InvalidDataException("Barry's dumb and didn't do good versioning.");
-            if (br.ReadChar() != 'R')
-                throw new InvalidDataException("Did not find expected 'R' marker.");
+            CheckZeroMarker(true);
+            CheckMarker('R');
             for (i = 0; i < ArraySize; i++)
             {
                 byte type = br.ReadByte();
@@ -73,9 +85,8 @@ namespace core_Receiver.Packets
                 if (type != 0)
                     RecentlyRelayedPackets.Add(packet);
             }
-            if ((constantArraySize || i == ArraySize) && br.ReadByte() != 0) throw new InvalidDataException("Barry's dumb and didn't do good versioning.");
-            if (br.ReadChar() != 'M')
-                throw new InvalidDataException("Did not find expected second 'M' marker.");
+            CheckZeroMarker(true);
+            CheckMarker('M');
 
             CRCErrorRate = br.ReadUInt16() / (double)0xFFFF;
             DroppedPacketRate = br.ReadUInt16() / (double)0xFFFF;
@@ -83,8 +94,7 @@ namespace core_Receiver.Packets
 
             if (VersionNumber >= new Version(2, 3))
             {
-                if (br.ReadChar() != 'S')
-                    throw new InvalidDataException("Did not find expected 'S' marker.");
+                CheckMarker('S');
                 uint timestamp = br.ReadUInt32();
                 Time = DateTimeOffset.FromUnixTimeSeconds(timestamp).ToLocalTime();
                 MemoryLowWater = br.ReadUInt16();
@@ -93,8 +103,7 @@ namespace core_Receiver.Packets
 
             if (VersionNumber >= new Version(2, 4))
             {
-                if (br.ReadChar() != 'D')
-                    throw new InvalidDataException("Did not find expected 'D' marker.");
+                CheckMarker('D');
                 DatabaseHeaderAdd = br.ReadUInt32();
                 DatabaseDataAdd = br.ReadUInt32();
                 DatabaseCycle = br.ReadByte();

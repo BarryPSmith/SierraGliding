@@ -15,16 +15,26 @@ namespace core_Receiver.Packets
 
         public override string ToString()
         {
-            string dataString;
-            if (GetDataString != null)
-                dataString = $" {GetDataString?.Invoke(packetData)}";
-            else if (packetData != null)
-                dataString = $" {packetData}";
-            else
-                dataString = "";
-            return $"{CallSign} {(char)sendingStation} {uniqueID:X2} {(char)type}{dataString}";
+            string dataString = SafeDataString;
+            return $"{CallSign} {(char)sendingStation} {uniqueID:X2} {(char)type} {RSSI,6:F1} {SNR,4:F1}{dataString}";
+        }
+
+        public string SafeDataString
+        {
+            get
+            {
+                if (GetDataString != null)
+                    return $" {GetDataString?.Invoke(packetData)}";
+                else if (packetData != null)
+                    return $" {packetData}";
+                else
+                    return "";
+            }
         }
 
         internal Func<object, string> GetDataString;
+        
+        public double SNR { get; set; }
+        public double RSSI { get; set; }
     }
 }

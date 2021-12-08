@@ -224,6 +224,54 @@ Arguments:
                 .ContinueWith(notUsed => FlushForever(str));
         }
 
+        static object _consoleLock = new object();
+        public static void WriteColoured(TextWriter writer, string text, ConsoleColor? foreColour, ConsoleColor? backColour = null,
+            Action<string> writeFunction = null)
+        {
+            lock (_consoleLock)
+            {
+                if (writeFunction == null)
+                    writeFunction = writer.Write;
+                ConsoleColor? oldForeground = null,
+                    oldBackground = null;
+                if (writer == Console.Out)
+                {
+                    if (backColour != null)
+                    {
+                        oldBackground = Console.BackgroundColor;
+                        Console.BackgroundColor = backColour.Value;
+                    }
+                    if (foreColour != null)
+                    {
+                        oldForeground = Console.ForegroundColor;
+                        Console.ForegroundColor = foreColour.Value;
+                    }
+                }
+                writeFunction(text);
+                if (oldBackground != null)
+                    Console.BackgroundColor = oldBackground.Value;
+                if (oldForeground != null)
+                    Console.ForegroundColor = oldForeground.Value;
+            }
+        }
+
+        static void WriteUndecipherablePacket(DateTime receivedTime, byte[] localBytes)
+        {
+            WriteColoured(OutputWriter, $"{receivedTime} Unhandled Packet: {OutputWriter.Encoding.GetString(localBytes)}",
+                ConsoleColor.White, ConsoleColor.Red, OutputWriter.WriteLine);
+        }
+
+        static void WritePacket(DateTime receivedTime, Packet packet)
+        {
+            OutputWriter.Write($"Packet {receivedTime}: ");
+            WriteColoured(OutputWriter, $"{(char)packet.sendingStation} {packet.uniqueID:X2} {(char)packet.type}",
+                ConsoleColor.Black, ConsoleColor.White);
+            OutputWriter.Write(" ");
+            WriteColoured(OutputWriter, $"{packet.RSSI,6:F1} {packet.SNR,4:F1}",
+                ConsoleColor.Black, ConsoleColor.Cyan);
+            OutputWriter.WriteLine(packet.SafeDataString);
+        }
+
         static Packet _lastPacket;
         private static void OnPacketReceived(object sender, IList<byte> data)
         {
@@ -235,16 +283,17 @@ Arguments:
                 {
                     var localBytes = data.ToArray();
                     Task.Run(() => _dataStore?.RecordUndecipherable(localBytes));
-                    Task.Run(() =>
-                    {
-                        OutputWriter.Write(receivedTime.ToString());
-                        OutputWriter.Write(" Unhandled Packet: ");
-                        OutputWriter.WriteLine(OutputWriter.Encoding.GetString(localBytes));
-                    });
+                    Task.Run(() => WriteUndecipherablePacket(receivedTime, localBytes));
                     return;
                 }
                 //Do this in a Task to avoid waiting if we've scrolled up.
-                var consoleTask = Task.Run(() => OutputWriter.WriteLine($"Packet {receivedTime}: {packet}"));
+                Task consoleTask = null;
+                if (packet.type != PacketTypes.Stats)
+                    consoleTask = Task.Run(async () =>
+                    {
+                        await Task.Delay(100);
+                        WritePacket(receivedTime, packet);
+                    });
                 switch (packet.type)
                 {
                     case PacketTypes.Weather:
@@ -260,18 +309,17 @@ Arguments:
                     case PacketTypes.Stats:
                         if (_lastPacket != null)
                         {
+                            var statsResponse = packet.packetData as StatsResponse;
+                            _lastPacket.RSSI = statsResponse.RSSI;
+                            _lastPacket.SNR = statsResponse.SNR;
                             var localLast = _lastPacket;
-                            Task.Run(() => _dataStore?.RecordStats(localLast, packet.packetData as StatsResponse));
+                            Task.Run(() => _dataStore?.RecordStats(localLast, statsResponse));
                         }
                         break;
                     default:
                         //nps is often stdOut in debugging, don't write to it from multiple threads:
                         var localBytes = data.ToArray();
-                        consoleTask.ContinueWith(notUsed =>
-                        {
-                            OutputWriter?.Write($"{DateTime.Now} Unhandled Packet: ");
-                            OutputWriter?.WriteLine(Encoding.ASCII.GetString(localBytes));
-                        });
+                        consoleTask.ContinueWith(notUsed => WriteUndecipherablePacket(receivedTime, localBytes));
                         break;
                 }
                 _lastPacket = packet.type == PacketTypes.Stats || packet.type == PacketTypes.Modem ? null : packet;

@@ -121,8 +121,9 @@ class LoraMessageDestination final : public MessageDestination
       }
       else
       {
-        uint16_t inboundPreambleLength;
-        GET_PERMANENT_S(inboundPreambleLength);
+        uint16_t inboundPreambleLength = 8;
+        if (batteryMode == BatteryMode::Normal)
+          GET_PERMANENT_S(inboundPreambleLength);
         preambleLength = inboundPreambleLength;
       }
 

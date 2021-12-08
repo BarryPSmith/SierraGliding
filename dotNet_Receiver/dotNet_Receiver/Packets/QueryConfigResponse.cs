@@ -69,7 +69,7 @@ namespace core_Receiver.Packets
                 }
                 NonRelayRecording = br.ReadBoolean();
             }
-            if (VersionNumber >= new Version(2, 4))
+            if (VersionNumber >= new Version(2, 5))
             {
                 InboundPreambleLength = br.ReadUInt16();
                 BoostedRx = br.ReadBoolean();

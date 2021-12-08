@@ -81,13 +81,14 @@ void TestBoard()
 
 unsigned long lastFailMillis = 0;
 BatteryMode batteryMode = BatteryMode::Normal;
+bool stasisRequested = false;
 
 int main()
 {
   //Enable the watchdog early to catch initialisation hangs (Side note: This limits initialisation to 8 seconds)
-  //wdt_enable(WDTO_8S);
-  wdt_disable();
-  //WDTCSR |= (1 << WDIE);
+  wdt_enable(WDTO_8S);
+  //wdt_disable();
+  WDTCSR |= (1 << WDIE);
 
 
   init();

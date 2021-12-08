@@ -15,6 +15,8 @@ namespace core_Receiver
         private static readonly HttpClient _client = new HttpClient();
 
         public event EventHandler<Exception> OnException;
+
+        public bool LogSuccessfulPosts { get; set; } = false;
         
         readonly string _url;
 
@@ -93,12 +95,15 @@ namespace core_Receiver
                 {
                     var response = await _client.PostAsync(uri, content);
                     if (response.IsSuccessStatusCode)
-                        OutputWriter.WriteLine($"Succesfully posted {subPacket.sendingStation}/{(char)packet.type}{subPacket.uniqueID} to {url}.");
+                    {
+                        if (LogSuccessfulPosts)
+                            OutputWriter.WriteLine($"Succesfully posted {subPacket.sendingStation}/{(char)packet.type}{subPacket.uniqueID} to {url}.");
+                    }
                     else
                     {
                         OutputWriter.WriteLine($"Post of {packet.sendingStation}/{(char)packet.type}{packet.uniqueID} to {url} failed ({response.StatusCode}): {response.ReasonPhrase}");
-                        OutputWriter.WriteLine($"Content: {response.Content.ReadAsStringAsync().Result}");
-                        OutputWriter.WriteLine($"JSON: {json}");
+                        /*OutputWriter.WriteLine($"Content: {response.Content.ReadAsStringAsync().Result}");
+                        OutputWriter.WriteLine($"JSON: {json}");*/
                     }
                 }
                 catch (Exception ex)

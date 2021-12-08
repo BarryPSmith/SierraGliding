@@ -150,10 +150,7 @@ namespace Commands
     if (!handled)
     {
       byte buffer[20];// = { 'X', 'K', stationID, uniqueID, command, 'I', 'G', 'N', 'O', 'R', 'E', 'D' };
-      LoraMessageDestination response(false, buffer, sizeof(buffer));
-      response.appendByte2('K');
-      response.appendByte2(stationID);
-      response.appendByte2(uniqueID);
+      LoraMessageDestination response(false, buffer, sizeof(buffer), 'K', uniqueID);
       response.appendByte2(command);
       response.append(F("IGNORED"), 7);
     }
@@ -363,18 +360,14 @@ namespace Commands
       queryType = 'C';
   
     byte buffer[254];
-    LoraMessageDestination response(false, buffer, sizeof(buffer));
-    byte headerStart[6];
+    LoraMessageDestination response(false, buffer, sizeof(buffer), 'K', uniqueID);
+    byte headerStart[3];
     
-
-    headerStart[0] = ('K');
-    headerStart[1] = (stationID);
-    headerStart[2] = (uniqueID);
-    headerStart[3] = 'Q';
-    headerStart[4] = queryType;
+    headerStart[0] = 'Q';
+    headerStart[1] = queryType;
 
     //Version (a few bytes)
-    headerStart[5] = ('V');
+    headerStart[2] = ('V');
     response.append(headerStart, sizeof(headerStart)); //+6 = 6
     response.append(ASW_VER, ver_size); //+11 = 17
     response.appendByte2(0);
@@ -458,10 +451,7 @@ namespace Commands
   void notifyNewID(byte uniqueID, byte newID)
   {
     byte buffer[20];
-    LoraMessageDestination reply(false, buffer, sizeof(buffer));
-      reply.appendByte2('K');
-      reply.appendByte2(stationID);
-      reply.appendByte2(uniqueID);
+    LoraMessageDestination reply(false, buffer, sizeof(buffer), 'K', uniqueID);
       reply.append(F("UNewID"), 6);
       reply.appendByte2(newID);
       reply.finishAndSend();
@@ -516,10 +506,7 @@ namespace Commands
       //return;
   
     byte buffer[20];
-    LoraMessageDestination response(false, buffer, sizeof(buffer));
-    response.appendByte2('K');
-    response.appendByte2(stationID);
-    response.appendByte2(uniqueID);
+    LoraMessageDestination response(false, buffer, sizeof(buffer), 'K', uniqueID);
     response.appendByte2(commandType);
     response.append(F("OK"), 2);
   }

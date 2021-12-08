@@ -263,10 +263,7 @@ extern uint8_t __stack;
 void sendStackTrace()
 {
   byte buffer[254];
-  LoraMessageDestination msg(false, buffer, sizeof(buffer));
-  msg.appendByte2('S');
-  msg.appendByte2(stationID);
-  msg.appendByte2(0x00);
+  LoraMessageDestination msg(false, buffer, sizeof(buffer), 'S', 0x00);
 	msg.appendT(oldSP);
   byte size = STACK_DUMP_SIZE;
   unsigned short oldStackSize = (unsigned short)&__stack - oldSP;
@@ -291,10 +288,7 @@ void sendNoPingMessage()
 {
   BASE_PRINTLN(F("Ping timeout message!"));
   byte buffer[20];
-  LoraMessageDestination msg(false, buffer, sizeof(buffer));
-  msg.appendByte2('K');
-  msg.appendByte2(stationID);
-  msg.appendByte2(MessageHandling::getUniqueID());
+  LoraMessageDestination msg(false, buffer, sizeof(buffer), 'K', MessageHandling::getUniqueID());
 	msg.append(F("PTimeout"), 8);
 }
 
@@ -302,10 +296,7 @@ void sendCrystalMessage(XtalInfo& result)
 {
   BASE_PRINTLN(F("Crystal Failed!"));
   byte buffer[20];
-  LoraMessageDestination msg(false, buffer, sizeof(buffer));
-  msg.appendByte2('K');
-  msg.appendByte2(stationID);
-  msg.appendByte2(MessageHandling::getUniqueID());
+  LoraMessageDestination msg(false, buffer, sizeof(buffer), 'K', MessageHandling::getUniqueID());
   msg.appendByte2('X');
   msg.appendByte2(result.failed);
   msg.appendByte2(result.test1);
@@ -579,7 +570,7 @@ void enterStasis()
 #endif
   byte lastSeconds = TimerTwo::seconds();
   wdt_disable();
-  WeatherProcessing::tickCounts = 0;
+  WeatherProcessing::windCounts = 0;
 
 #ifdef CRYSTAL_FREQ
   timer2_t timer2State = TimerTwo::_crystalFailed ? TIMER2_OFF : TIMER2_ON;
@@ -595,17 +586,18 @@ void enterStasis()
     if (theseSeconds != lastSeconds)
     {
       lastSeconds = theseSeconds;
-      WeatherProcessing::tickCounts = 0;
+      WeatherProcessing::windCounts = 0;
     }
-    if (WeatherProcessing::tickCounts > 10)
+    if (WeatherProcessing::windCounts > 10)
       break;    
-    
+
     LowPower.powerSave(SLEEP_FOREVER,
         ADC_OFF,
         BOD_OFF,
         timer2State
       );
-  } 
+  }
+  WeatherProcessing::windCounts = 0;
 #ifdef SX_SWITCH
   digitalWrite(SX_SWITCH, HIGH);
 #endif

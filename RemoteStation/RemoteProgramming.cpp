@@ -163,10 +163,7 @@ namespace RemoteProgramming
   void handleDownloadQuery(int uniqueID)
   {
     byte buffer[254];
-    LoraMessageDestination msg(false, buffer, sizeof(buffer));
-      msg.appendByte2('K');
-    msg.appendByte2(stationID);
-    msg.appendByte2(uniqueID);
+    LoraMessageDestination msg(false, buffer, sizeof(buffer), 'K', uniqueID);
     msg.appendByte2('P');
     msg.appendByte2('Q');
     msg.appendT(expectedCRC);
@@ -199,11 +196,7 @@ namespace RemoteProgramming
       return false;
 
     byte buffer[20];
-    LoraMessageDestination msg(false, buffer, sizeof(buffer));
-
-    msg.appendByte2('K');
-    msg.appendByte2(stationID);
-    msg.appendByte2(uniqueID);
+    LoraMessageDestination msg(false, buffer, sizeof(buffer), 'K', uniqueID);
     msg.appendByte2('P');
     msg.appendByte2('C');
     msg.appendT(commandCRC);
@@ -261,10 +254,7 @@ namespace RemoteProgramming
   void sendAbortMessage()
   {
     byte buffer[20];
-    LoraMessageDestination msg(false, buffer, sizeof(buffer));
-    msg.appendByte2('K');
-    msg.appendByte2(stationID);
-    msg.appendByte2(MessageHandling::getUniqueID());
+    LoraMessageDestination msg(false, buffer, sizeof(buffer), 'K', MessageHandling::getUniqueID());
     msg.appendByte2('P');
     msg.append(F("Abort"), 5);
     msg.appendT(expectedCRC);

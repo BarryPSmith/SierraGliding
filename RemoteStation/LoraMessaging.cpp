@@ -409,6 +409,21 @@ MESSAGE_RESULT LoraMessageSource::seek(const byte newPosition)
   }
 }
 
+LoraMessageDestination::LoraMessageDestination(bool isOutbound,
+  byte* buffer, uint8_t bufferSize,
+  byte type, byte uniqueID)
+{
+  _isOutbound = isOutbound;
+  _outgoingBuffer = buffer;
+  outgoingBufferSize = bufferSize;
+
+  buffer[0] = 'X';
+  buffer[1] = type;
+  buffer[2] = stationID;
+  buffer[3] = uniqueID;
+  _currentLocation = 4;
+}
+
 #ifdef DEBUG
 void messageDebugAction()
 {

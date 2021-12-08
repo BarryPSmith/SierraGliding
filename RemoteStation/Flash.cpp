@@ -63,10 +63,7 @@ namespace Flash
       memType = 'E';
 
     byte msgBuffer[254];
-    LoraMessageDestination dest(false, msgBuffer, sizeof(msgBuffer));
-    dest.appendByte2('K');
-    dest.appendByte2(stationID);
-    dest.appendByte2(uniqueID);
+    LoraMessageDestination dest(false, msgBuffer, sizeof(msgBuffer), 'K', uniqueID);
     dest.appendByte2('F');
     dest.appendByte2('R');
     //FLASH_PRINTVAR(add);

@@ -279,7 +279,7 @@ namespace WeatherProcessing
   {
     unsigned long thisMillis = millis();
     unsigned long thisInterval = thisMillis - lastWindCountMillis;
-    // no counting in deep sleep / debounce the signal:
+    // no counting in deep sleep / debounce the signal (don't debounce in deep sleep because the timer is slowed):
     if (batteryMode == BatteryMode::DeepSleep || thisInterval < minWindIntervalTest)
       return;
     lastWindCountMillis = thisMillis;

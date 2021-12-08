@@ -107,7 +107,6 @@ namespace core_Receiver.Packets
                 DatabaseHeaderAdd = br.ReadUInt32();
                 DatabaseDataAdd = br.ReadUInt32();
                 DatabaseCycle = br.ReadByte();
-
             }
         }
 

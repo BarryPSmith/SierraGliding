@@ -265,15 +265,12 @@ namespace MessageHandling
     bool overflow = weatherRelayLength + dataSize + 2 > weatherRelayBufferSize;
     byte byteBuffer[254];
     byte buffer[sizeof(LoraMessageDestination)];
-    LoraMessageDestination* msgDump = overflow ? new (buffer) LoraMessageDestination(false, byteBuffer, sizeof(byteBuffer)) : 0;
+    LoraMessageDestination* msgDump = overflow ? new (buffer) LoraMessageDestination(false, byteBuffer, sizeof(byteBuffer), 'R', getUniqueID()) : 0;
     size_t offset = overflow ? 0 : weatherRelayLength;
     bool sourceFaulted = false;
       
     if (overflow)
     {
-      msgDump->appendByte2('R');
-      msgDump->appendByte2(stationID);
-      msgDump->appendByte2(getUniqueID());
       msgDump->appendByte2(weatherRelayBuffer[0]);
       msgDump->appendByte2(weatherRelayBuffer[1]);
     }
@@ -333,10 +330,7 @@ namespace MessageHandling
     //If there are multiple relay messages included, each has an extra 5 bytes.
   
     byte buffer[254];
-    LoraMessageDestination message(false, buffer, sizeof(buffer));
-    message.appendByte2('W');
-    message.appendByte2(stationID);
-    message.appendByte2(getUniqueID());
+    LoraMessageDestination message(false, buffer, sizeof(buffer), 'W', getUniqueID());
 
     WeatherProcessing::createWeatherData(message);
     message.append(weatherRelayBuffer, weatherRelayLength);

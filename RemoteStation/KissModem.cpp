@@ -139,6 +139,8 @@ int main()
     LoraMessageSource loraSrc;
     while (loraSrc.beginMessage())
     {
+      auto rssi = lora.getRSSI();
+      auto snr = lora.getSNR();
       KissMessageDestination dst;
       dst.appendData(loraSrc, maxPacketSize);
       if (dst.finishAndSend() == MESSAGE_END)
@@ -149,6 +151,16 @@ int main()
 #endif
         lastMessage = millis();
       }
+      dst.finishAndSend();
+
+      KissMessageDestination stats;
+      stats.appendByte('X');
+      stats.appendByte(0x07); //Message type
+      stats.appendByte(0x00); //Station ID
+      stats.appendByte(0x00); //Unique ID
+      stats.appendT(rssi);
+      stats.appendT(snr);
+      stats.finishAndSend();
     }
     
     auto thisMillis = millis();
@@ -166,7 +178,8 @@ int main()
     {
       if (kissSrc.getMessageType() == 0x00)
       {
-        LoraMessageDestination<254> dst(true);
+        byte buffer[254];
+        LoraMessageDestination dst(true, buffer, sizeof(buffer));
         auto result = dst.appendData(kissSrc, maxPacketSize);
         if (result != MESSAGE_END)
           dst.abort();

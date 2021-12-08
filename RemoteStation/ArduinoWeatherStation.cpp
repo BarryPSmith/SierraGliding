@@ -259,7 +259,8 @@ void setup() {
 extern uint8_t __stack;
 void sendStackTrace()
 {
-  MESSAGE_DESTINATION_SOLID<254> msg(false);
+  byte buffer[254];
+  LoraMessageDestination msg(false, buffer, sizeof(buffer));
   msg.appendByte('S');
   msg.appendByte(stationID);
   msg.appendByte(0x00);
@@ -286,7 +287,8 @@ void storeStackTrace()
 void sendNoPingMessage()
 {
   BASE_PRINTLN(F("Ping timeout message!"));
-  MESSAGE_DESTINATION_SOLID<20> msg(false);
+  byte buffer[20];
+  LoraMessageDestination msg(false, buffer, sizeof(buffer));
   msg.appendByte('K');
   msg.appendByte(stationID);
   msg.appendByte(MessageHandling::getUniqueID());
@@ -296,7 +298,8 @@ void sendNoPingMessage()
 void sendCrystalMessage(XtalInfo& result)
 {
   BASE_PRINTLN(F("Crystal Failed!"));
-  MESSAGE_DESTINATION_SOLID<20> msg(false);
+  byte buffer[20];
+  LoraMessageDestination msg(false, buffer, sizeof(buffer));
   msg.appendByte('K');
   msg.appendByte(stationID);
   msg.appendByte(MessageHandling::getUniqueID());

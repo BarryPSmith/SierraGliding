@@ -70,7 +70,12 @@ const PermanentVariables defaultVars PROGMEM =
   .safeFreezingChargeLevel_mV = 3750,
   .safeFreezingPwm = 85,
   .recordNonRelayedMessages = false,
-  .inboundPreambleLength = 8
+  .inboundPreambleLength = 8,
+#ifdef MODEM
+  .boostedRx = true,
+#else
+  .boostedRx = false
+#endif
 };
 
 void PermanentStorage::initialise()
@@ -91,10 +96,17 @@ void PermanentStorage::initialise()
   if (initialised)
   {
     //When upgrading from 2.4 to 2.5, we don't want to clear the entire memory. Just set the inbound preamble length and recalculate the CRC:
-    if (checkCRC(sizeof(PermanentVariables) - 2))
+    if (checkCRC(sizeof(PermanentVariables) - 3))
     {
       unsigned short inboundPreambleLength = 8;
       SET_PERMANENT_S(inboundPreambleLength);
+      bool boostedRx =
+#ifdef MODEM
+        true;
+#else
+        false;
+#endif
+      SET_PERMANENT_S(boostedRx);
       setCRC();
       completeCrc = true;
     }
@@ -129,6 +141,7 @@ void PermanentStorage::initialise()
     PRINT_VARIABLE(vars.batteryEmergencyThresh_mV);
     PRINT_VARIABLE(vars.tsOffset);
     PRINT_VARIABLE(vars.tsGain);
+    PRINT_VARIABLE(vars.boostedRx);
     #endif
   }
   else

@@ -75,6 +75,7 @@ class CSMAWrapper
       return ret;
     }
 
+    //transmit and transmit2 are separated to foce the compiler to not allocate as much stack
     int16_t __attribute__ ((noinline)) transmit2(uint8_t* data, byte len, uint16_t preambleLength)
     { 
       auto ret = _base->setPreambleLength(preambleLength);

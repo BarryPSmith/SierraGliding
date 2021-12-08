@@ -22,7 +22,7 @@ namespace WeatherProcessing
   void enterNormalMode();
 
   void processWeather();
-  void createWeatherData(MESSAGE_DESTINATION_SOLID<254>& message);
+  void createWeatherData(LoraMessageDestination& message);
   bool handleWeatherCommand(MessageSource& src);
   unsigned short readBattery();
   //ALS only:

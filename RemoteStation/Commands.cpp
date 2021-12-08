@@ -35,10 +35,8 @@ namespace Commands
   bool handleChargingCommand(MessageSource& msg);
   bool handleIDCommand(MessageSource& msg, byte uniqueID);
   bool handleQueryCommand(MessageSource& msg, byte uniqueID);
-  template<uint8_t outgoingBufferSize>
-  void handleQueryConfigCommand(MESSAGE_DESTINATION_SOLID<outgoingBufferSize>& response);
-  template<uint8_t outgoingBufferSize>
-  void handleQueryVolatileCommand(MESSAGE_DESTINATION_SOLID<outgoingBufferSize>& response);
+  void handleQueryConfigCommand(LoraMessageDestination& response);
+  void handleQueryVolatileCommand(LoraMessageDestination& response);
   void acknowledgeMessage(byte uniqueID, bool isSpecific, byte msgType);
 
   void handleCommandMessage(MessageSource& msg, byte uniqueID, bool isSpecific)
@@ -148,7 +146,8 @@ namespace Commands
 
     if (!handled)
     {
-      MESSAGE_DESTINATION_SOLID<20> response(false);
+      byte buffer[20];
+      LoraMessageDestination response(false, buffer, sizeof(buffer));
       response.appendByte('K');
       response.appendByte(stationID);
       response.appendByte(uniqueID);
@@ -360,7 +359,8 @@ namespace Commands
     if (msg.readByte(queryType) != MESSAGE_OK)
       queryType = 'C';
   
-    MESSAGE_DESTINATION_SOLID<254> response(false);
+    byte buffer[254];
+    LoraMessageDestination response(false, buffer, sizeof(buffer));
     byte headerStart[6];
     
 
@@ -391,8 +391,7 @@ namespace Commands
     return true;
   }
 
-  template<uint8_t outgoingBufferSize>
-  void handleQueryConfigCommand(MESSAGE_DESTINATION_SOLID<outgoingBufferSize>& response)
+  void handleQueryConfigCommand(LoraMessageDestination& response)
   {
     // Just throw the whole config at them.
 #if 0 //This takes too much memory
@@ -409,8 +408,7 @@ namespace Commands
 #endif
   }
 
-  template<uint8_t outgoingBufferSize>
-  void handleQueryVolatileCommand(MESSAGE_DESTINATION_SOLID<outgoingBufferSize>& response)
+  void handleQueryVolatileCommand(LoraMessageDestination& response)
   { 
     //So far used 17 bytes. 237 bytes remain
     response.appendByte('M'); //+1 = 1
@@ -469,7 +467,8 @@ namespace Commands
 
   void notifyNewID(byte uniqueID, byte newID)
   {
-    MESSAGE_DESTINATION_SOLID<20> reply(false);
+    byte buffer[20];
+    LoraMessageDestination reply(false, buffer, sizeof(buffer));
       reply.appendByte('K');
       reply.appendByte(stationID);
       reply.appendByte(uniqueID);
@@ -526,7 +525,8 @@ namespace Commands
     //if (!isSpecific)
       //return;
   
-    MESSAGE_DESTINATION_SOLID<20> response(false);
+    byte buffer[20];
+    LoraMessageDestination response(false, buffer, sizeof(buffer));
     response.appendByte('K');
     response.appendByte(stationID);
     response.appendByte(uniqueID);

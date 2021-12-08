@@ -77,8 +77,9 @@ namespace Database
   unsigned long _curSearchAddress;
   byte _messageTypeFilter;
   byte _messageSourceFilter;
-  byte _outgoingMessageBuffer[sizeof(LoraMessageDestination<254>)];
-  LoraMessageDestination<254>* _searchMessage;
+  byte _outgoingMessageBytes[254];
+  byte _outgoingMessageBuffer[sizeof(LoraMessageDestination)];
+  LoraMessageDestination* _searchMessage;
   unsigned long _lastSearchMessageMillis = 0;
   unsigned long _cleanAddressStart = 0;
   unsigned long _cleanAddressFat = 0;
@@ -431,7 +432,8 @@ namespace Database
 
   void prepSearchMessage()
   {
-    _searchMessage = new (_outgoingMessageBuffer) LoraMessageDestination<254>(false);
+    _searchMessage = new (_outgoingMessageBuffer) LoraMessageDestination(false,
+      _outgoingMessageBytes, sizeof(_outgoingMessageBytes));
     _searchMessage->appendByte('K');
     _searchMessage->appendByte(stationID);
     _searchMessage->appendByte(MessageHandling::getUniqueID());
@@ -495,7 +497,8 @@ namespace Database
     if (record.messageType & 0x80  || record.messageType == 0 ||
         record.address < messageDataStart || record.address >= messageDataEnd)
       return false;
-    LoraMessageDestination<254> dest(false);
+    byte msgBuffer[254];
+    LoraMessageDestination dest(false, msgBuffer, sizeof(msgBuffer));
     dest.appendByte('K');
     dest.appendByte(stationID);
     dest.appendByte(uniqueID);

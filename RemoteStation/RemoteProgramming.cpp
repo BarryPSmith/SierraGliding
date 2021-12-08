@@ -162,7 +162,8 @@ namespace RemoteProgramming
 
   void handleDownloadQuery(int uniqueID)
   {
-    LoraMessageDestination<254> msg(false);
+    byte buffer[254];
+    LoraMessageDestination msg(false, buffer, sizeof(buffer));
       msg.appendByte('K');
     msg.appendByte(stationID);
     msg.appendByte(uniqueID);
@@ -197,7 +198,8 @@ namespace RemoteProgramming
     if (getImageCRC() != expectedCRC)
       return false;
 
-    LoraMessageDestination<20> msg(false);
+    byte buffer[20];
+    LoraMessageDestination msg(false, buffer, sizeof(buffer));
 
     msg.appendByte('K');
     msg.appendByte(stationID);
@@ -258,7 +260,8 @@ namespace RemoteProgramming
 
   void sendAbortMessage()
   {
-    LoraMessageDestination<20> msg(false);
+    byte buffer[20];
+    LoraMessageDestination msg(false, buffer, sizeof(buffer));
     msg.appendByte('K');
     msg.appendByte(stationID);
     msg.appendByte(MessageHandling::getUniqueID());

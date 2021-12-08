@@ -72,6 +72,7 @@ namespace core_Receiver.Packets
             if (VersionNumber >= new Version(2, 4))
             {
                 InboundPreambleLength = br.ReadUInt16();
+                BoostedRx = br.ReadBoolean();
             }
         }
 
@@ -107,6 +108,8 @@ namespace core_Receiver.Packets
         public bool NonRelayRecording { get; set; }
 
         public UInt16 InboundPreambleLength { get; set; }
+
+        public bool BoostedRx { get; set; }
              
         public override string ToString()
         {
@@ -119,7 +122,8 @@ namespace core_Receiver.Packets
                 $" TsOffset:{TsOffset}, TSGain:{TsGain}, WdCalibMin:({WdCalib1x}, {WdCalib1y}), WdCalibMax:{WdCalib2}" + Environment.NewLine +
                 $" ChargeV: {ChargeVoltage_mV} mV, ChargeResponsitivity: {ChargeResponseRate}, FreezingChargeV: {SafeFreezingChargeLevel_mV} mV, FreezingPwm: {SafeFreezingPwm}" + Environment.NewLine +
                 $" Record Types: ({MessageRecordTypes.ToCsv()}) Non Relay Records: {NonRelayRecording}" + Environment.NewLine +
-                $" Outbound Preamble:{OutboundPreambleLength}, Inbound Preamble {InboundPreambleLength}";
+                $" Outbound Preamble:{OutboundPreambleLength}, Inbound Preamble {InboundPreambleLength}" + Environment.NewLine +
+                $" Boosted RX: {BoostedRx}";
         }
     }
 }

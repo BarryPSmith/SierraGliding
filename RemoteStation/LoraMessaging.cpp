@@ -165,6 +165,10 @@ void InitMessaging()
   csma.initBuffer();
   csma.setPByte(csmaP);
   csma.setTimeSlot(csmaTimeslot);
+
+  bool boostedRx;
+  GET_PERMANENT_S(boostedRx);
+  LORA_CHECK(lora.setRxGain(boostedRx));
 }
 
 bool handleMessageCommand(MessageSource& src, byte* desc)
@@ -290,6 +294,17 @@ bool handleMessageCommand(MessageSource& src, byte* desc)
     {
       state = ERR_NONE;
       SET_PERMANENT_S(inboundPreambleLength);
+    }
+    break;
+  case 'R':
+    bool boostedRx;
+    if (src.read(boostedRx))
+      state = ERR_UNKNOWN;
+    else
+    {
+      state = LORA_CHECK(lora.setRxGain(boostedRx));
+      if (state == ERR_NONE)
+        SET_PERMANENT_S(boostedRx);
     }
     break;
   default:

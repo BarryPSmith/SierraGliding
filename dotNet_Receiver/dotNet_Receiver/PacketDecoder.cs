@@ -54,6 +54,9 @@ namespace core_Receiver
                 case PacketTypes.Modem:
                     ret.packetData = new ModemResponse(bytes.AsSpan(dataStart));
                     break;
+                case PacketTypes.Stats:
+                    ret.packetData = new StatsResponse(bytes.AsSpan(dataStart));
+                    break;
                 case PacketTypes.Weather:
                     ret.packetData = DecodeWeatherPackets(bytes.AsSpan(cur));
                     ret.GetDataString = 
@@ -214,8 +217,8 @@ namespace core_Receiver
                     if (packet == null)
                         throw new NullReferenceException("Decode Weather Packet returned null");
                     // Something wrong with R packets... temporary fix
-                    if (packet.sendingStation < 49 || packet.sendingStation > 80 || packet.extras?.Length > 5)
-                        break;
+                    /*if (packet.sendingStation < 49 || packet.sendingStation > 80 || packet.extras?.Length > 5)
+                        break;*/
                     ret.Add(packet);
                     cur += len;
                 }

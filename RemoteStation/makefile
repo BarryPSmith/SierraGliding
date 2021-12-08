@@ -1,5 +1,5 @@
 #COM port for upload
-PORT=COM8
+PORT=COM19
 # If we're using the ISP, it's handy to keep different COM ports. Also baud is not board dependent.
 PORT_ISP=COM5
 ISP_BAUD=115200
@@ -11,7 +11,7 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 
 #Boards:
 # 0: Mt Tom Rev 1 (Not implemented)
-# 1: Breadboard Modem
+# 1: Breadboard Modem -- BROKEN --
 # 2: Moteino Modem
 # 3: Flynns Rev 1 -- NO LONGER USED --
 # 4: Flynns Rev 2 -- NO LONGER USED --
@@ -26,7 +26,7 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 12: Single board rev3
 # 13: Single board rev3 FCC Compliant @ 917MHz
 # 14: Dorji Modem @ 917MHz
-BOARD = 10
+BOARD = 2
 include Boards.makefile
 
 #Flags, etc.
@@ -41,8 +41,7 @@ else
 DEFINES += -DMIN_FREQ=420000000 -DMAX_FREQ=450000000
 $(info not FCC Complaint)
 endif
-#-DRADIOLIB_DEBUG 
-#-DRADIOLIB_VERBOSE
+#-DRADIOLIB_DEBUG  -DRADIOLIB_VERBOSE
 CFLAGS= -mcall-prologues -mmcu=$(MCU) -Os -fdata-sections -ffunction-sections -fno-exceptions -std=c++17 -g -flto
 LDFLAGS=-Wl,--gc-sections -Wl,--relax
 CC=avr-gcc

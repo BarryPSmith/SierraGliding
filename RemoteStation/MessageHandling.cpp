@@ -51,7 +51,7 @@ namespace MessageHandling
   void readMessages()
   {
     static bool ledWasOn = false;
-    MESSAGE_SOURCE_SOLID msg;
+    LoraMessageSource msg;
     /*MESSAGE_DESTINATION_SOLID::*/delayRequired = true;
     while (msg.beginMessage())
     {
@@ -242,7 +242,8 @@ namespace MessageHandling
   void relayMessage(MessageSource& msg, byte msgType, byte msgFirstByte, byte msgStatID, byte msgUniqueID)
   {
     //Outbound messages are 'C' or 'P'
-    MESSAGE_DESTINATION_SOLID<254> relay(msgType == 'C' || msgType == 'P');
+    byte buffer[254];
+    LoraMessageDestination relay(msgType == 'C' || msgType == 'P', buffer, sizeof(buffer));
     relay.appendByte(msgFirstByte);
     relay.appendByte(msgStatID);
     relay.appendByte(msgUniqueID);
@@ -262,8 +263,9 @@ namespace MessageHandling
     //we have to make sure to read the incomming message as we're sending out bytes,
     //or our buffers might overflow.
     bool overflow = weatherRelayLength + dataSize + 2 > weatherRelayBufferSize;
-    byte buffer[sizeof(MESSAGE_DESTINATION_SOLID<254>)];
-    MESSAGE_DESTINATION_SOLID<254>* msgDump = overflow ? new (buffer) MESSAGE_DESTINATION_SOLID<254>(false) : 0;
+    byte byteBuffer[254];
+    byte buffer[sizeof(LoraMessageDestination)];
+    LoraMessageDestination* msgDump = overflow ? new (buffer) LoraMessageDestination(false, byteBuffer, sizeof(byteBuffer)) : 0;
     size_t offset = overflow ? 0 : weatherRelayLength;
     bool sourceFaulted = false;
       
@@ -288,7 +290,7 @@ namespace MessageHandling
     if (overflow)
     {
       msgDump->append(weatherRelayBuffer + dataSize, weatherRelayLength - dataSize);
-      msgDump->~MESSAGE_DESTINATION_SOLID();
+      msgDump->~LoraMessageDestination();
       msgDump = 0; //We're done with it. Ensure we don't accidentally re-use it.
       weatherRelayLength = 0;
     }
@@ -330,7 +332,8 @@ namespace MessageHandling
     //W (Station ID) (Unique ID) (8) (WS) (WD) (Batt) : (StationR) (UidR) (WsR) (WdR) (BattR)
     //If there are multiple relay messages included, each has an extra 5 bytes.
   
-    MESSAGE_DESTINATION_SOLID<254> message(false);
+    byte buffer[254];
+    LoraMessageDestination message(false, buffer, sizeof(buffer));
     message.appendByte('W');
     message.appendByte(stationID);
     message.appendByte(getUniqueID());
@@ -345,8 +348,9 @@ namespace MessageHandling
   {
     //bool wasPrependCallsign = MessageDestination::s_prependCallsign;
     //MessageDestination::s_prependCallsign = true;
-    MESSAGE_DESTINATION_SOLID<254> msg(false, false);
-    if (!MESSAGE_DESTINATION_SOLID<254>::s_prependCallsign)
+    byte buffer[254];
+    LoraMessageDestination msg(false, buffer, sizeof(buffer), false);
+    if (!LoraMessageDestination::s_prependCallsign)
       msg.append((byte*)callSign, 6);
     msg.append(STATUS_MESSAGE, strlen_P((const char*)STATUS_MESSAGE));
     msg.appendByte(stationID);

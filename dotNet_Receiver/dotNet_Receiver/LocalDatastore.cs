@@ -42,6 +42,32 @@ namespace core_Receiver
                     Message TEXT NOT NULL
                 );
 
+                CREATE TABLE IF NOT EXISTS Packet_Stats(
+                    Timestamp INTEGER NOT NULL,
+                    Station_Id INTEGER NOT NULL,
+                    Type INTEGER NOT NULL,
+                    RSSI REAL NOT NULL,
+                    SNR REAL NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS id_stat_timestamp ON Packet_Stats(Timestamp);
+
+                CREATE VIEW IF NOT EXISTS View_PacketStats AS
+                SELECT
+                    DateTime(Timestamp, 'unixepoch', 'localtime') AS FriendlyTime,
+                    CASE WHEN (Station_ID BETWEEN 32 AND 126) THEN
+                        CHAR(Station_ID)
+                    ELSE
+                        NULL
+                    END                                                 AS Station_ID_Char,
+
+                    CASE WHEN (Type BETWEEN 32 AND 126) THEN
+                        CHAR(Type)
+                    ELSE
+                        NULL
+                    END                                                 AS Type_Char,
+                    *
+                FROM Packet_Stats;
+
                 CREATE VIEW IF NOT EXISTS View_All_Packets AS
                 SELECT
                     Timestamp AS TS_Num,
@@ -129,6 +155,23 @@ namespace core_Receiver
                     cmd.ExecuteNonQuery();
                 }
             }
+        }
+
+        public void RecordStats(Packet packet, StatsResponse stats)
+        {
+            if (_dbConn == null)
+                return;
+
+            using var cmd = _dbConn.CreateCommand();
+            cmd.CommandText = "INSERT INTO Packet_Stats " +
+                "(Timestamp, Station_ID, Type, RSSI, SNR) " +
+                "VALUES ($Timestamp, $Station_ID, $Type, $RSSI, $SNR)";
+            cmd.Parameters.AddWithValue("$Timestamp", DateTimeOffset.UtcNow.ToUniversalTime().ToUnixTimeSeconds());
+            cmd.Parameters.AddWithValue("$Station_ID", packet.sendingStation);
+            cmd.Parameters.AddWithValue("$Type", (byte)packet.type);
+            cmd.Parameters.AddWithValue("$RSSI", stats.RSSI);
+            cmd.Parameters.AddWithValue("$SNR", stats.SNR);
+            cmd.ExecuteNonQuery();
         }
     }
 }

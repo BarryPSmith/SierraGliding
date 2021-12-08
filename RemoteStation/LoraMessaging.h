@@ -43,20 +43,19 @@ class LoraMessageSource : public MessageSource
 
 extern bool delayRequired;
 
-template<uint8_t outgoingBufferSize>
 class LoraMessageDestination final : public MessageDestination
 {
-  static_assert(outgoingBufferSize <= 254);
-
   public:
-    LoraMessageDestination(bool isOutbound, bool prependX = true)
+    LoraMessageDestination(bool isOutbound,
+      byte* buffer, uint8_t bufferSize, bool prependX = true)
     {
+      _isOutbound = isOutbound;
+
       if (s_prependCallsign)
         append((byte*)callSign, 6);
       else if (prependX)
         appendByte('X');
   
-      _isOutbound = isOutbound;
     }
     ~LoraMessageDestination()
     {
@@ -152,6 +151,7 @@ class LoraMessageDestination final : public MessageDestination
     // and to avoid collisions if multiple stations try to transmit simultaneously (although multi-addressed messages generally aren't replied to).
     // static bool delayRequired;
   private:
-    byte _outgoingBuffer[outgoingBufferSize];
+    byte* _outgoingBuffer;
     bool _isOutbound;
+    uint8_t outgoingBufferSize;
 };

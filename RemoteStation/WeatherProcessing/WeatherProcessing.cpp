@@ -141,7 +141,7 @@ namespace WeatherProcessing
       return 255;
   }
 
-  void createWeatherData(MESSAGE_DESTINATION_SOLID<254>& message)
+  void createWeatherData(LoraMessageDestination& message)
   {
   #ifdef DEBUG
     unsigned long entryMicros = micros();

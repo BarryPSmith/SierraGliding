@@ -62,7 +62,8 @@ namespace Flash
     if (msg.read(memType))
       memType = 'E';
 
-    LoraMessageDestination<254> dest(false);
+    byte msgBuffer[254];
+    LoraMessageDestination dest(false, msgBuffer, sizeof(msgBuffer));
     dest.appendByte('K');
     dest.appendByte(stationID);
     dest.appendByte(uniqueID);

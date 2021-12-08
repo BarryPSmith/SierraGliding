@@ -79,9 +79,6 @@
 #define RX_DEBUG(...) do { } while (0)
 #endif
 
-#define MESSAGE_DESTINATION_SOLID LoraMessageDestination
-#define MESSAGE_SOURCE_SOLID LoraMessageSource
-
 #define ver_str "2.5." REV_ID "." XSTR(BOARD)
 #define ASW_VER F(ver_str)
 #define ver_size (sizeof(ver_str) - 1)

@@ -224,6 +224,7 @@ Arguments:
                 .ContinueWith(notUsed => FlushForever(str));
         }
 
+        static Packet _lastPacket;
         private static void OnPacketReceived(object sender, IList<byte> data)
         {
             DateTime receivedTime = DateTime.Now;
@@ -256,6 +257,12 @@ Arguments:
                     case PacketTypes.Ping:
                     case PacketTypes.Modem:
                         break;
+                    case PacketTypes.Stats:
+                        if (_lastPacket != null)
+                        {
+                            Task.Run(() => _dataStore?.RecordStats(_lastPacket, packet.packetData as StatsResponse));
+                        }
+                        break;
                     default:
                         //nps is often stdOut in debugging, don't write to it from multiple threads:
                         var localBytes = data.ToArray();
@@ -266,6 +273,7 @@ Arguments:
                         });
                         break;
                 }
+                _lastPacket = packet.type == PacketTypes.Stats || packet.type == PacketTypes.Modem ? null : packet;
                 Task.Run(() => _dataStore?.RecordPacket(packet));
                 
             }

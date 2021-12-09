@@ -257,40 +257,35 @@ namespace MessageHandling
   
     //Incomming message might be XW (SID) (UID) (Sz) (WD) (WS) - length = 7
     //In that case we need to append (SID) (UID) (Sz) (WD) (WS) - length = 5, 3 more to read (because we've already read SID and UID)
-    byte dataSize = msg.getMessageLength() - 2; //2 for the 'XW' or 'XR'
+    byte dataSize = msg.getMessageLength() - 2; //2 for the 'XW'
 
     //If we can't fit it in the relay buffer,
     //we have to make sure to read the incomming message as we're sending out bytes,
     //or our buffers might overflow.
     bool overflow = weatherRelayLength + dataSize + 2 > weatherRelayBufferSize;
-    byte byteBuffer[254];
+    byte byteBuffer[weatherRelayBufferSize + 4];
     byte buffer[sizeof(LoraMessageDestination)];
     LoraMessageDestination* msgDump = overflow ? new (buffer) LoraMessageDestination(false, byteBuffer, sizeof(byteBuffer), 'R', getUniqueID()) : 0;
-    size_t offset = overflow ? 0 : weatherRelayLength;
-    bool sourceFaulted = false;
-      
     if (overflow)
     {
-      msgDump->appendByte2(weatherRelayBuffer[0]);
-      msgDump->appendByte2(weatherRelayBuffer[1]);
-    }
-    weatherRelayBuffer[offset + 0] = msgStatID;
-    weatherRelayBuffer[offset + 1] = msgUniqueID;
-
-    for (int i = 2; i < dataSize; i++)
-    {
-      if (overflow)
-        msgDump->appendByte2(weatherRelayBuffer[i]);
-      sourceFaulted = sourceFaulted ||
-        msg.readByte(weatherRelayBuffer[offset + i]);
-    }
-    if (overflow)
-    {
-      msgDump->append(weatherRelayBuffer + dataSize, weatherRelayLength - dataSize);
-      msgDump->~LoraMessageDestination();
-      msgDump = 0; //We're done with it. Ensure we don't accidentally re-use it.
+      byte* toWrite;
+      msgDump->getBuffer(&toWrite, weatherRelayLength);
+      memcpy(toWrite, weatherRelayBuffer, weatherRelayLength);
       weatherRelayLength = 0;
     }
+
+    size_t offset = weatherRelayLength;
+    bool sourceFaulted = 
+      msg.seek(msg.getCurrentLocation() - 2) ||
+      msg.readBytes(weatherRelayBuffer + offset, dataSize);
+    
+    // We have to wait to dispose (=send) the overflow dump until we're done with the message because it can corrupt it.
+    if (overflow)
+    {
+      msgDump->~LoraMessageDestination();
+      msgDump = 0; //We're done with it. Ensure we don't accidentally re-use it.
+    }
+
     if (sourceFaulted)
       weatherRelayLength = 0;
     else

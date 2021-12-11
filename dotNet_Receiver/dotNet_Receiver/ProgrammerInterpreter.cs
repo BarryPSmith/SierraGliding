@@ -70,7 +70,7 @@ Adjust programmer settings
                 public ProgrammerWrapper(string fn, int id, ICommunicator comminucator)
                 {
                     Programmer = new RemoteProgrammer(fn, comminucator);
-                    File.WriteAllText(Path.ChangeExtension(Programmer.Fn, ".orig"), Programmer.DataAsSingleLineHex);
+                    //File.WriteAllText(Path.ChangeExtension(Programmer.Fn, ".orig"), Programmer.DataAsSingleLineHex);
                     ID = id;
                 }
 
@@ -216,7 +216,7 @@ Adjust programmer settings
                     if (Task != null)
                     {
                         ret += Environment.NewLine;
-                        ret += $"Last Command: {LastCommand} ({Task.Status})";
+                        ret += $"Last Command: {LastCommand} ({Task.Status}) / {Programmer.StatusMessage}";
                         if (Task.Status == TaskStatus.Faulted)
                         {
                             ret += Environment.NewLine;

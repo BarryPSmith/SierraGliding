@@ -46,6 +46,9 @@ namespace core_Receiver
             if (line.Length < 1)
                 return true;
 
+            if (line.Equals("Test", StringComparison.OrdinalIgnoreCase))
+                Program.DoTest();
+
             switch (line[0])
             {
                 case 'q': //Quit

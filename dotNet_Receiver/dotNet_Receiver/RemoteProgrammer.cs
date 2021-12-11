@@ -30,6 +30,8 @@ namespace core_Receiver
         private readonly string _fn;
         public string Fn => _fn;
 
+        public string StatusMessage { get; private set; }
+
         public UInt16 CRC { get; private set; }
 
         public int PacketSize { get; private set; }
@@ -263,8 +265,11 @@ namespace core_Receiver
                 _communicator.PacketReceived += packetReceived;
                 try
                 {
+                    int cycle = 1;
+                    int totalPackets = 0;
                     while (true)
                     {
+                        StatusMessage = $"Querying station status. Cycle {cycle}";
                         token.ThrowIfCancellationRequested();
                         // Get the station status:
                         OutWriter.WriteLine($"Programmer: Query status of {destinationStationID}");
@@ -283,19 +288,28 @@ namespace core_Receiver
                             if (!lastResponse.crcMatch)
                                 throw new ProgrammerException($"Station total CRC mistmatch."); //Nothing we can do at this point. Gotta fail.
                             else
+                            {
+                                StatusMessage = $"Upload complete. Required {totalPackets} packets ({(double)PacketCount / totalPackets:P1} efficiency). {cycle} cycles required.";
                                 return; //All there and CRC matches.
+                            }
                         }
                         if (lastResponse.receivedPackets.All(a => a))
                             throw new ProgrammerException("Packet doesn't report all there, but reports all packets received.");
                         // Send what's not done:
+                        int packetsToSend = lastResponse.receivedPackets.Take(PacketCount)
+                            .Count(b => !b);
+                        int packetsSent = 0;
                         for (int i = 0; i < PacketCount; i++)
                         {
                             token.ThrowIfCancellationRequested();
                             if (lastResponse.receivedPackets[i])
                                 continue;
+                            StatusMessage = $"Uploading packet {++packetsSent}/{PacketCount} ({(float)packetsSent / PacketCount:P0}). Cycle {cycle}";
                             SendImagePacket(destinationStationID, (byte)'C', i);
+                            totalPackets++;
                             Thread.Sleep(PacketInterval);
                         }
+                        cycle++;
                     }
                 }
                 finally

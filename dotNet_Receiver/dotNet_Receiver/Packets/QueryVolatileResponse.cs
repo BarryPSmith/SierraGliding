@@ -38,7 +38,7 @@ namespace core_Receiver.Packets
             Millis = br.ReadUInt32();
             if (VersionNumber >= new Version(2, 1))
                 LastPingAge = Millis - br.ReadUInt32();
-            if (VersionNumber <= new System.Version(2, 5))
+            if (VersionNumber < new System.Version(2, 5))
             {
                 OverrideDuration = br.ReadUInt32();
                 if (OverrideDuration > 0)
@@ -139,7 +139,7 @@ namespace core_Receiver.Packets
             return $"VOLATILE Version:{Version} Millis:{Millis}, {pingString}{overrideString}" + Environment.NewLine +
                 $" Recently Seen:({RecentlySeenStations.ToCsv(rss => $"{(char)rss.ID}:{rss.age}")})" + Environment.NewLine +
                 $" Recent Commands:({RecentlyHandledCommands.ToCsv(b => $"{b}:{(char)b}")})" + Environment.NewLine +
-                $" Recently Relayed:({RecentlyRelayedPackets.ToCsv()})" + Environment.NewLine +
+                $" Recently Relayed:({RecentlyRelayedPackets.ToCsv(p => p.IdentityString)})" + Environment.NewLine +
                 $" CRC Error Rate:{CRCErrorRate:P1}, Dropped Packet Rate:{DroppedPacketRate:P1}, Average Delay:{AverageDelayTime} us" + Environment.NewLine +
                 $" Station Time: {Time?.LocalDateTime}, Memory Low Water: {MemoryLowWater}, Free Memory: {FreeMemory}" + Environment.NewLine +
                 $" DB Header: {DatabaseHeaderAdd}, DB Data: {DatabaseDataAdd}, DB Cycle: {DatabaseCycle}";

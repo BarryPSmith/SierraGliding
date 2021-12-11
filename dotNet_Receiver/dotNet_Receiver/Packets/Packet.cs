@@ -16,7 +16,15 @@ namespace core_Receiver.Packets
         public override string ToString()
         {
             string dataString = SafeDataString;
-            return $"{CallSign} {(char)sendingStation} {uniqueID:X2} {(char)type} {RSSI,6:F1} {SNR,4:F1}{dataString}";
+            return $"{IdentityString} {RSSI,6:F1} {SNR,4:F1}{dataString}";
+        }
+
+        public string IdentityString
+        {
+            get
+            {
+                return $"{CallSign} {(char)sendingStation} {uniqueID:X2} {(char)type}";
+            }
         }
 
         public string SafeDataString

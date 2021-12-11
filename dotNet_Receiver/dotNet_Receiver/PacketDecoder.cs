@@ -170,8 +170,12 @@ namespace core_Receiver
             int cur = 3;
             var len = data[2];
             packetLen = len + 3; // +3: Station ID, message ID, length
+
             if (packetLen > data.Length)
+            {
+                var easyReading = data.ToArray().ToCsv(b => $"{b:X2} {GetChar(b)}");
                 throw new InvalidDataException("invalid packet length.");
+            }
 
             SingleWeatherData ret = new SingleWeatherData()
             {
@@ -204,11 +208,13 @@ namespace core_Receiver
 
         private static double GetTemp(byte tempByte)
             => (tempByte - 64.0) / 2;
+        static char GetChar(byte b) => 48 <= b && b <= 90 ? (char)b : '#';
 
         private static IList<SingleWeatherData> DecodeWeatherPackets(Span<byte> bytes)
         {
             int cur = 0;
             var ret = new List<SingleWeatherData>();
+            var easyReading = bytes.ToArray().ToCsv(b => $"{b:X2} {GetChar(b)}");
             while (cur < bytes.Length)
             {
                 try
@@ -228,6 +234,15 @@ namespace core_Receiver
                     break;
                 }
             }
+            var outOfOrderPackets = ret.Where((p, i) =>
+                ret
+                .Take(i)
+                .Any(p2 => p2.sendingStation == p.sendingStation &&
+                            p2.uniqueID > p.uniqueID))
+                .ToList();
+            if (outOfOrderPackets.Any())
+            { }
+
             return ret;
         }
     }

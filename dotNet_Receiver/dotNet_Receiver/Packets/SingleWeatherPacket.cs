@@ -21,7 +21,7 @@ namespace core_Receiver.Packets
 
         public override string ToString()
         {
-            var ret = $"ID:{sendingStation} WD:{windDirection:F1} WS:{windSpeed:F2}";
+            var ret = $"ID:{sendingStation}/{uniqueID:X2} WD:{windDirection:F1} WS:{windSpeed:F2}";
             if (gust.HasValue)
                 ret += $" G: {gust}";
             if (batteryLevelH.HasValue)

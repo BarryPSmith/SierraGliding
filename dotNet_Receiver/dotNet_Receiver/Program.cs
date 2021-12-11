@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Runtime.InteropServices;
 
 namespace core_Receiver
 {
@@ -261,15 +262,27 @@ Arguments:
                 ConsoleColor.White, ConsoleColor.Red, OutputWriter.WriteLine);
         }
 
+        static Dictionary<PacketTypes, ConsoleColor> PacketColours = new Dictionary<PacketTypes, ConsoleColor>
+        {
+            { PacketTypes.Response, ConsoleColor.Yellow },
+            { PacketTypes.Overflow, ConsoleColor.Gray },
+            { PacketTypes.Command, ConsoleColor.Blue }
+        };
+
         static void WritePacket(DateTime receivedTime, Packet packet)
         {
-            OutputWriter.Write($"Packet {receivedTime}: ");
-            WriteColoured(OutputWriter, $"{(char)packet.sendingStation} {packet.uniqueID:X2} {(char)packet.type}",
-                ConsoleColor.Black, ConsoleColor.White);
-            OutputWriter.Write(" ");
-            WriteColoured(OutputWriter, $"{packet.RSSI,6:F1} {packet.SNR,4:F1}",
-                ConsoleColor.Black, ConsoleColor.Cyan);
-            OutputWriter.WriteLine(packet.SafeDataString);
+            lock (_consoleLock)
+            {
+                if (!PacketColours.TryGetValue(packet.type, out var backColour))
+                    backColour = ConsoleColor.White;
+                OutputWriter.Write($"Packet {receivedTime}: ");
+                WriteColoured(OutputWriter, packet.IdentityString,
+                    ConsoleColor.Black, backColour);
+                OutputWriter.Write(" ");
+                WriteColoured(OutputWriter, $"{packet.RSSI,6:F1} {packet.SNR,4:F1}",
+                    ConsoleColor.Black, ConsoleColor.Cyan);
+                OutputWriter.WriteLine(packet.SafeDataString);
+            }
         }
 
         static Packet _lastPacket;
@@ -373,6 +386,27 @@ Arguments:
             StartPingLoop();
             return tasks;
         }
+
+        private static void ShowSuspended(char curChar)
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                var oldLeft = Console.CursorLeft;
+                Console.WriteLine();
+                Console.MoveBufferArea(0, Console.CursorTop - 1, Console.BufferWidth, 1, 0, Console.CursorTop);
+                Console.CursorTop--;
+                WriteColoured(Console.Out, "Output Suspended. Press enter to finish current line and resume", ConsoleColor.Yellow);
+                Console.CursorTop++;
+                Console.CursorLeft = oldLeft;
+            }
+            else
+            {
+                WriteColoured(Console.Out, "Output Suspended. Press enter to finish current line and resume", ConsoleColor.Yellow,
+                    null, Console.WriteLine);
+                Console.Write(curChar);
+            }
+        }
+
         private static void RunInteractive(bool npsIsStandardOut)
         {
             OutputWriter.WriteLine("Reading data. Type '/' followed by a command to send. Press q key to exit.");
@@ -386,7 +420,8 @@ Arguments:
                 Stream oldNps = null;
                 try
                 {
-                    var key = Console.ReadKey();
+                    var key = Console.ReadKey(false);
+                    ShowSuspended(key.KeyChar);
                     OutputWriter = sw;
                     //While we're doing this, 
                     ErrorWriter = sw;
@@ -423,6 +458,8 @@ Arguments:
                     interpreter.ProgrammerOutput = Console.Out;
                     sw.Flush();
                     Console.Write(sw.Encoding.GetString(ms.ToArray()));
+                    WriteColoured(Console.Out, "Output Resumed", ConsoleColor.Green);
+                    Console.WriteLine();
                 }
             }
         }
@@ -505,6 +542,24 @@ Arguments:
         {
             Console.WriteLine(e.Exception);
             e.SetObserved();
+        }
+
+        public static void DoTest()
+        {
+            byte[][] data = {
+                new byte []{ (byte)'W', (byte)'C', 1, 3, 0, 1, 2 },
+                new byte []{ (byte)'W', (byte)'C', 2, 3, 0, 2, 2 },
+                new byte []{ (byte)'W', (byte)'C', 3, 3, 0, 5, 2 },
+                new byte []{ (byte)'W', (byte)'C', 4, 3, 0, 100, 2 },
+                new byte []{ (byte)'W', (byte)'C', 5, 3, 0, 5, 2 },
+                new byte []{ (byte)'W', (byte)'C', 6, 3, 0, 3, 2 },
+            };
+            foreach (var packet in data)
+            {
+                _dataReceiver.Write(packet);
+                Console.WriteLine($"Sent {packet.ToCsv()}");
+                Thread.Sleep(2000);
+            }
         }
     }
 }

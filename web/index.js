@@ -216,6 +216,8 @@ function error(err, res) {
 }
 
 
+const defaultStatSize = 600;
+
 /**
  * Start the main Sierra Gliding webserver
  *
@@ -232,7 +234,6 @@ function main(db, cb) {
         return next();
     });
 
-    const defaultStatSize = 600;
 
     /**
      * Returns basic metadata about all stations
@@ -690,7 +691,7 @@ function main(db, cb) {
                 $statEnd: req.body.timestamp
             });
 
-            await checkCullInvalidWindspeed(db, req.params.id, req.body.wind_speed, req.body.timestamp, stats, wss);
+            await checkCullInvalidWindspeed(db, req.params.id, req.body.wind_speed, req.body.timestamp, wss);
 
             wss.clients.forEach((client) => {
                 client.send(JSON.stringify({
@@ -756,9 +757,11 @@ function main(db, cb) {
     });
 }
 
-async function checkCullInvalidWindspeed(db, id, windspeed, timestamp, stats, wss) {
+async function checkCullInvalidWindspeed(db, id, windspeed, timestamp, wss) {
     const dbAll = util.promisify(sqlite3.Database.prototype.all).bind(db);
     const dbRun = util.promisify(sqlite3.Database.prototype.run).bind(db);
+    const dbGet = util.promisify(sqlite3.Database.prototype.get).bind(db);
+
     const lastRecords = await dbAll(`
         SELECT timestamp timestamp, windspeed windspeed
         FROM station_data
@@ -773,16 +776,53 @@ async function checkCullInvalidWindspeed(db, id, windspeed, timestamp, stats, ws
     if (lastRecords.length < 2) {
         return;
     }
-    const distantRecords = lastRecords[1].timestamp < timestamp - 300 && lastRecords[0].timestamp < timestamp - 60;
-    const threshold1 = distantRecords ?
-        Math.max(lastRecords[1].windspeed, windspeed, 3) * 4
-        :
-        Math.max(lastRecords[1].windspeed, windspeed, 7) * 4 + 10;
-    const threshold2 = stats.windspeed_avg * 4;
-    const threshold3 = stats.windspeed_max;
-    if (lastRecords[0].windspeed < threshold1 || lastRecords[0].windspeed < threshold2 || lastRecords[0] < threshold3) {
+
+    const testSpeed = lastRecords[0].windspeed;
+
+    const closeToPrevious = lastRecords[1].timestamp > lastRecords[0].timestamp - 150;
+    const closeToCurrent = lastRecords[0].timestamp > timestamp - 150;
+    const distantFromBoth = !closeToPrevious && !closeToCurrent;
+
+    //Allow a certain amount of variance:
+    if (testSpeed < 12)
         return;
+    
+    if (closeToCurrent) {
+        const threshold = windspeed * 4;
+        if (testSpeed < threshold)
+            return;
     }
+    if (closeToPrevious) {
+        const threshold = lastRecords[1].windspeed * 4;
+        if (testSpeed < threshold)
+            return;
+        const stats = await dbGet(`
+            SELECT
+                MIN(windspeed) as windspeed_min,
+                MAX(windspeed) as windspeed_max,
+                AVG(windspeed) as windspeed_avg
+            FROM station_data
+            WHERE
+                Station_ID = $id
+                AND $statStart <= Timestamp
+                AND Timestamp <= $statEnd`,
+            {
+                $id: id,
+                $statStart: lastRecords[1].timestamp - defaultStatSize,
+                $statEnd: lastRecords[1].timestamp
+            });
+        const threshold2 = stats.windspeed_avg * 4;
+        const threshold3 = stats.windspeed_max;
+        if (testSpeed < threshold2 || testSpeed < threshold3)
+            return;
+    }
+    if (distantFromBoth) {
+        const threshold = Math.max(lastRecords[1].windspeed, windspeed, 7) * 4 + 10;
+        if (testSpeed < threshold) {
+            return;
+        }
+    }
+    
     const tsToDelete = lastRecords[0].timestamp;
     await dbRun(`INSERT INTO discarded_data SELECT * FROM station_data WHERE station_id = $id AND timestamp = $tsToDelete;`,
     {

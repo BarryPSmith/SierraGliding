@@ -527,7 +527,7 @@ function main(db, cb) {
         const end = req.query.end;
         const expectedSamples = req.query.sample || 4;
         const maxSamples = 100000;
-        if ((start - end) /expectedSamples > maxSamples) {
+        if ((end - start) /expectedSamples > maxSamples) {
             return res.status(413).json({
                 status: 413,
                 error: `exceeds maximum expected sample count of ${maxSamples}`
@@ -583,7 +583,7 @@ function main(db, cb) {
         `, {
             $id: req.params.id,
             $start: start,
-            $end: parseInt(req.query.end),
+            $end: end,
             $sample: parseFloat(req.query.sample),
             $stat_len: stat_len
         }, (err, data_points) => {

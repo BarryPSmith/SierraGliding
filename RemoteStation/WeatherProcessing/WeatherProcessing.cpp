@@ -43,8 +43,8 @@ namespace WeatherProcessing
   byte getCurWindDirection();
 
   volatile unsigned short windCounts = 0;
-  volatile unsigned short minInterval = 0xFFFF;
-  bool hasTicked = false;
+  volatile unsigned short minInterval_x4 = 0xFFFF;
+  byte gustCount;
 
   //We use unsigned long for these because they are involved in 32-bit calculations.
   constexpr unsigned long mV_Ref = REF_MV;
@@ -62,7 +62,9 @@ namespace WeatherProcessing
     = 10;
   #endif
 
-  unsigned long lastWindCountMillis;
+  // We can use shorts here rather than longs because we don't care if the wind is ticking less than once per minute.
+  unsigned short lastWindCountMillis;
+  unsigned short gustTickMillis;
   constexpr byte minWindIntervalTest = 3; //Debounce. 330 kph = broken station;
   constexpr byte windSampleShortTicks = 100 / TimerTwo::MillisPerTick;
   constexpr byte windSampleLongTicks = 1000 / TimerTwo::MillisPerTick;
@@ -97,45 +99,45 @@ namespace WeatherProcessing
     return ret;
   }
 
-  inline uint16_t getWindSpeed_x8()
+  inline uint16_t getWindSpeed_x2()
   {
     noInterrupts();
     short localCounts = windCounts;
     windCounts = 0;
     interrupts();
   #if defined(ARGENTDATA_WIND) || defined(ALS_WIND)
-    return (8UL * 2400 * localCounts) / weatherInterval;
+    return (2UL * 2400 * localCounts) / weatherInterval;
   #elif defined(DAVIS_WIND)
-    return (8UL * 3600 * localCounts) / weatherInterval;
+    return (2UL * 3600 * localCounts) / weatherInterval;
   #else
     #error Cannot get Wind Speed
   #endif
   }
 
-  inline uint16_t getWindGust_x8()
+  inline uint16_t getWindGust_x2()
   {
     noInterrupts();
-    unsigned short localInterval = minInterval;
-    minInterval = 0xFFFF;
+    unsigned short localInterval_x4 = minInterval_x4;
+    minInterval_x4 = 0xFFFF;
     interrupts();
   #if defined (ARGENTDATA_WIND) || defined(ALS_WIND)
-    return ((unsigned short)8 * 2400) / localInterval;
+    return ((unsigned short)2 * 4 * 2400) / localInterval_x4;
   #elif defined (DAVIS_WIND)
-    return ((unsigned short)8 * 3600) / localInterval;
+    return ((unsigned short)2 * 4 * 3600) / localInterval_x4;
   #else
     #error Cannot get wind gust
   #endif
   }
 
-  uint8_t getWindSpeedByte(const uint16_t windSpeed_x8)
+  uint8_t getWindSpeedByte(const uint16_t windSpeed_x2)
   {
     //Apply simple staged compression to the wsByte to allow accurate low wind while still capturing high wind.
-    if (windSpeed_x8 <= 400) //.5 km/h resolution to 50km/h. Max 100
-      return (byte)(windSpeed_x8 / 4); //windspeed = byte * 0.5
-    else if (windSpeed_x8 < 1000) // 1 km/h resultion to 125km/h. Max 175
-      return (byte)(windSpeed_x8 / 8 + 50); //windspeed = byte - 50
-    else if (windSpeed_x8 < 285 * 8) // 2 km/h resolution to 285km/h. Max 255
-      return (byte)(windSpeed_x8 / 16 + 113); //windspeed = (byte - 113) * 2
+    if (windSpeed_x2 <= 100) //.5 km/h resolution to 50km/h. Max 100
+      return (byte)(windSpeed_x2); //windspeed = byte * 0.5
+    else if (windSpeed_x2 < 250) // 1 km/h resultion to 125km/h. Max 175
+      return (byte)(windSpeed_x2 / 2 + 50); //windspeed = byte - 50
+    else if (windSpeed_x2 < 285) // 2 km/h resolution to 285km/h. Max 255
+      return (byte)(windSpeed_x2 / 4 + 113); //windspeed = (byte - 113) * 2
     else //We're just going to report 285km/h. It'll be a long search for the station.
       return 255;
   }
@@ -173,13 +175,11 @@ namespace WeatherProcessing
     //Message format is W(StationID)(UniqueID)(DirHex)(Spd * 2)(Voltage)
   
     WX_DEBUG(auto localCounts = windCounts);
-    uint16_t windSpeed_x8 = getWindSpeed_x8();
-    byte wsByte = getWindSpeedByte(windSpeed_x8);
+    uint16_t windSpeed_x2 = getWindSpeed_x2();
+    byte wsByte = getWindSpeedByte(windSpeed_x2);
 
-    auto localInterval = minInterval;
-
-    uint16_t windGust_x8 = getWindGust_x8();
-    byte wgByte = getWindSpeedByte(windGust_x8);
+    uint16_t windGust_x2 = getWindGust_x2();
+    byte wgByte = getWindSpeedByte(windGust_x2);
 
     //Update the send interval only after we calculate windSpeed, because windSpeed is dependent on weatherInterval
     unsigned short batt_mV = readBattery();
@@ -263,15 +263,19 @@ namespace WeatherProcessing
   {
     WX_PRINT(F("weather interval: "));
     WX_PRINTLN(weatherInterval);
+    cli();
     requiredTicks = weatherInterval / TimerTwo::MillisPerTick;
     if (requiredTicks < 1)
     {
-      WX_PRINTLN(F("Required ticks is zero!"));
       requiredTicks = 1;
     }
+    // Reset our counters or the windspeed calc gets messed up:
+    windCounts = 0;
+    tickCounts = 0;
+    sei();
+    weatherInterval = requiredTicks * TimerTwo::MillisPerTick;
     WX_PRINT(F("requiredTicks: "));
     WX_PRINTLN(requiredTicks);
-    weatherInterval = requiredTicks * TimerTwo::MillisPerTick;
   }
 
   void countWind()
@@ -279,13 +283,17 @@ namespace WeatherProcessing
     unsigned long thisMillis = millis();
     unsigned long thisInterval = thisMillis - lastWindCountMillis;
     // no counting in deep sleep / debounce the signal (don't debounce in deep sleep because the timer is slowed):
-    if (batteryMode == BatteryMode::DeepSleep || thisInterval < minWindIntervalTest)
+    if ((batteryMode == BatteryMode::DeepSleep || thisInterval < minWindIntervalTest)
+        && batteryMode != BatteryMode::Stasis)
       return;
     lastWindCountMillis = thisMillis;
-    if (hasTicked && thisInterval < minInterval)
-      minInterval = thisInterval;
-    hasTicked = true;
+    if (gustCount & 0b11 == 0)
+    {
+      minInterval_x4 = thisMillis - gustTickMillis;
+      gustTickMillis = thisMillis;
+    }
     windCounts++;
+    gustCount++;
   }
 
   void processWeather()

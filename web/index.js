@@ -626,9 +626,13 @@ function main(db, cb) {
             const wsOffset = await (dbGet('SELECT Wind_Direction_Offset FROM stations WHERE id = $id'
                 , { $id: req.params.id }))
             if (!wsOffset)  return error(`Station ${req.params.id} not found.`, res);
+
+            const invalidWindspeed = typeof(req.body.wind_gust) == 'number' && req.body.wind_speed > 2 * (req.body.wind_gust + 2)
+            const dest = invalidWindspeed ? 'Discarded_Data' : 'Station_Data';
+
             req.body.wind_direction = ((req.body.wind_direction + wsOffset.Wind_Direction_Offset) % 360 + 360) % 360;
             await dbRun(`
-                INSERT INTO Station_Data (
+                INSERT INTO ${dest} (
                     Station_ID,
                     Timestamp,
                     Windspeed,
@@ -664,6 +668,12 @@ function main(db, cb) {
                 $current: typeof(req.body.current) == 'number' ? req.body.current : null,
             });
 
+            if (invalidWindspeed) {
+                return res.status(422).json({
+                    status: 422,
+                    error: 'Invalid windspeed stronger than gust'
+                });
+            }
             res.json("success");
         } catch (err) {
             return error(err, res);

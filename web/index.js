@@ -518,9 +518,20 @@ function main(db, cb) {
             if (isNaN(req.query.sample)) {
                 return res.status(400).json({
                     status: 400,
-                    error: 'sample url param must be integer value'
+                    error: 'sample url param must be numeric value'
                 });
             }
+        }
+
+        const start = req.query.start;
+        const end = req.query.end;
+        const expectedSamples = req.query.sample || 4;
+        const maxSamples = 100000;
+        if ((start - end) /expectedSamples > maxSamples) {
+            return res.status(413).json({
+                status: 413,
+                error: `exceeds maximum expected sample count of ${maxSamples}`
+            });
         }
 
         const avg_wd_String = extensionLoaded ?
@@ -534,7 +545,6 @@ function main(db, cb) {
 
         let stat_len = parseFloat(req.query.stat_len);
         stat_len = Number.isNaN(stat_len) ? defaultStatSize : stat_len;
-        const start = parseInt(req.query.start)
         const dataSource = req.query.sample < 600 ? req.query.sample < 100 ? 'Station_Data' : 'Station_Data_100' : 'Station_Data_600';
         const gustCol = req.query.sample < 100 ? 'Windspeed' : 'Wind_Gust';
         db.all(`
@@ -754,7 +764,6 @@ async function checkCullInvalidWindspeed(db, id, windspeed, timestamp, stats, ws
         FROM station_data
         WHERE station_id = $id
         AND timestamp < $timestamp
-        AND timestamp > $timestamp - 15
         ORDER BY timestamp DESC
         LIMIT 2`,
         {
@@ -764,7 +773,11 @@ async function checkCullInvalidWindspeed(db, id, windspeed, timestamp, stats, ws
     if (lastRecords.length < 2) {
         return;
     }
-    const threshold1 = Math.max(lastRecords[1].windspeed, windspeed, 3) * 4;
+    const distantRecords = lastRecords[1].timestamp < timestamp - 300 && lastRecords[0].timestamp < timestamp - 60;
+    const threshold1 = distantRecords ?
+        Math.max(lastRecords[1].windspeed, windspeed, 3) * 4
+        :
+        Math.max(lastRecords[1].windspeed, windspeed, 7) * 4 + 10;
     const threshold2 = stats.windspeed_avg * 4;
     const threshold3 = stats.windspeed_max;
     if (lastRecords[0].windspeed < threshold1 || lastRecords[0].windspeed < threshold2 || lastRecords[0] < threshold3) {

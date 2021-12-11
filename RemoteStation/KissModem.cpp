@@ -133,7 +133,7 @@ int main()
   Serial.println(F("Starting..."));
 
   unsigned long lastMessage = 0;
-  const unsigned long messageInterval = 15000;
+  const unsigned long messageInterval = 6000;
 
   while (1)
   {

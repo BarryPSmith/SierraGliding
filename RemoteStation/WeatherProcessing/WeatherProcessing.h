@@ -22,6 +22,7 @@ namespace WeatherProcessing
   void enterDeepSleep();
   void enterBatterySave();
   void enterNormalMode();
+  void setTimerInterval();
 
   void processWeather();
   void createWeatherData(LoraMessageDestination& message);

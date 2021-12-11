@@ -245,6 +245,9 @@ namespace MessageHandling
     byte buffer[254];
     LoraMessageDestination relay(msgType == 'C' || msgType == 'P', buffer, sizeof(buffer));
     relay.appendByte2(msgFirstByte);
+    // Note: R's follow the same rules as K messages:
+    // They're controlled by the relay command array, not the relay weather array,
+    // so we leave the sender station ID
     relay.appendByte2(msgStatID);
     relay.appendByte2(msgUniqueID);
     relay.appendData(msg, 254);
@@ -259,9 +262,6 @@ namespace MessageHandling
     //In that case we need to append (SID) (UID) (Sz) (WD) (WS) - length = 5, 3 more to read (because we've already read SID and UID)
     byte dataSize = msg.getMessageLength() - 2; //2 for the 'XW'
 
-    //If we can't fit it in the relay buffer,
-    //we have to make sure to read the incomming message as we're sending out bytes,
-    //or our buffers might overflow.
     bool overflow = weatherRelayLength + dataSize + 2 > weatherRelayBufferSize;
     byte byteBuffer[weatherRelayBufferSize + 4];
     byte buffer[sizeof(LoraMessageDestination)];
@@ -274,9 +274,9 @@ namespace MessageHandling
       weatherRelayLength = 0;
     }
 
-    size_t offset = weatherRelayLength;
+    byte offset = weatherRelayLength;
     bool sourceFaulted = 
-      msg.seek(msg.getCurrentLocation() - 2) ||
+      msg.seek(2) ||
       msg.readBytes(weatherRelayBuffer + offset, dataSize);
     
     // We have to wait to dispose (=send) the overflow dump until we're done with the message because it can corrupt it.
@@ -338,7 +338,7 @@ namespace MessageHandling
     //bool wasPrependCallsign = MessageDestination::s_prependCallsign;
     //MessageDestination::s_prependCallsign = true;
     byte buffer[254];
-    LoraMessageDestination msg(false, buffer, sizeof(buffer));
+    LoraMessageDestination msg(false, buffer, sizeof(buffer), false);
     if (!LoraMessageDestination::s_prependCallsign)
       msg.append((byte*)callSign, 6);
     msg.append(STATUS_MESSAGE, strlen_P((const char*)STATUS_MESSAGE));

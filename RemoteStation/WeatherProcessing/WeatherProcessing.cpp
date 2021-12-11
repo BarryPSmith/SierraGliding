@@ -37,7 +37,6 @@ namespace WeatherProcessing
 
   void countWind();
   void timer2Tick();
-  void setTimerInterval();
   void setupWindCounter();
   byte getExternalTemperature();
   byte getInternalTemperature(short& reading);

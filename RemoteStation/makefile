@@ -26,7 +26,7 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 12: Single board rev3
 # 13: Single board rev3 FCC Compliant @ 917MHz
 # 14: Dorji Modem @ 917MHz
-BOARD = 5
+BOARD = 14
 include Boards.makefile
 
 #Flags, etc.
@@ -181,4 +181,4 @@ program: $(OBJFOLDER)/all.hex $(OBJFOLDER)/all.s
 
 .PHONY: save_outputs
 save_outputs: $(OBJFOLDER)/all.hex $(OBJFOLDER)/all.s | saved
-	save_outputs.cmd $(OBJFOLDER)
+	save_outputs.cmd $(OBJFOLDER) $(BOARD)

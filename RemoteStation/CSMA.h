@@ -48,7 +48,7 @@ enum class IdleStates : byte {
 template<class T, uint8_t bufferSize = 255, uint8_t maxQueue = 8>
 class CSMAWrapper
 {
-  static constexpr uint32_t MaxDelay = 1500000; // 1.5 seconds
+  static constexpr uint32_t MaxDelay = 2500000; // 2.5 seconds
   static constexpr uint16_t averagingPeriod = 256;
 
   public:

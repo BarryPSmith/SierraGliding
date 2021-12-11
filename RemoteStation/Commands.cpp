@@ -276,6 +276,11 @@ namespace Commands
 
     SET_PERMANENT_S(shortInterval);
     SET_PERMANENT_S(longInterval);
+    if (batteryMode == BatteryMode::Normal)
+      weatherInterval = shortInterval;
+    else
+      weatherInterval = longInterval;
+    WeatherProcessing::setTimerInterval();
     return true;
   }
 

@@ -7,5 +7,5 @@ set "fullstamp=%YYYY%-%MM%-%DD%_%HH%-%Min%-%Sec%"
 
 FOR /F "tokens=*" %%g IN ('git log "--pretty=format:%%h" -n 1') do (SET revid=%%g)
 
-echo F | xcopy %1\All.hex saved\All_%fullstamp%_%revid%.hex > nul
-echo F | xcopy %1\All.S saved\All_%fullstamp%_%revid%.S > nul
+echo F | xcopy %1\All.hex saved\All%2_%fullstamp%_%revid%.hex > nul
+echo F | xcopy %1\All.S saved\All%2_%fullstamp%_%revid%.S > nul

@@ -260,7 +260,7 @@ Arguments:
             bool corrupt)
         {
             var startStr = corrupt ? "Corrupt" : "Unhandled";
-            WriteColoured(OutputWriter, $"{receivedTime} {startStr} Packet: {OutputWriter.Encoding.GetString(localBytes)}",
+            WriteColoured(OutputWriter, $"{receivedTime} {startStr} Packet: {localBytes.ToAscii()}",
                 ConsoleColor.White, ConsoleColor.Red, OutputWriter.WriteLine);
         }
 

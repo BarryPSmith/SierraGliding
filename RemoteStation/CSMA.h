@@ -159,9 +159,9 @@ class CSMAWrapper
 
     // Note that buffer is possibly invalidateded by transmit, 
     // readIfPossible, and subsequent calls to dequeMessage.
-    int16_t dequeueMessage(uint8_t** buffer, uint8_t* length,
+    int16_t dequeueMessage(uint8_t** buffer, uint8_t* length
 #ifdef GET_CRC_FAILURES
-      bool* crcMismatch
+      ,bool* crcMismatch
 #endif
       ) {
       // handle any available packet from the modem if we have space:
@@ -224,8 +224,9 @@ class CSMAWrapper
 
       if (state == ERR_NONE
 #ifdef GET_CRC_FAILURES
-        || state == ERR_CRC_MISMATCH)
+        || state == ERR_CRC_MISMATCH
 #endif
+        )
       {
         RX_PRINTVAR(_writeBufferLenIdx);
         RX_PRINTVAR(packetSize);

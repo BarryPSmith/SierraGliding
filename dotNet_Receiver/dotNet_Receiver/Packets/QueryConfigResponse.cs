@@ -73,6 +73,14 @@ namespace core_Receiver.Packets
             {
                 InboundPreambleLength = br.ReadUInt16();
                 BoostedRx = br.ReadBoolean();
+                try
+                {
+                    CodingRate = br.ReadByte();
+                }
+                catch 
+                {
+                    // Bad versioning: Multiple versions of 2.5 out there, some of them don't have adjustable CR.
+                }
             }
         }
 
@@ -89,6 +97,7 @@ namespace core_Receiver.Packets
         public int Bandwidth_Hz { get; set; }
         public Int16 TxPower { get; set; }
         public byte SpreadingFactor { get; set; }
+        public byte CodingRate { get; set; } = 5;
         public byte CSMA_P { get; set; }
         public UInt32 CSMA_Timeslot { get; set; }
         public UInt16 OutboundPreambleLength { get; set; }

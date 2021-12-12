@@ -313,7 +313,7 @@ namespace core_Receiver
                             token.ThrowIfCancellationRequested();
                             if (lastResponse.receivedPackets[i])
                                 continue;
-                            StatusMessage = $"Uploading packet {++packetsSent}/{PacketCount} ({(float)packetsSent / PacketCount:P0}). Cycle {cycle}";
+                            StatusMessage = $"Uploading packet {++packetsSent}/{packetsToSend} ({(float)packetsSent / PacketCount:P0}). Cycle {cycle}";
                             SendImagePacket(destinationStationID, (byte)'C', i);
                             totalPackets++;
                             Thread.Sleep(PacketInterval);

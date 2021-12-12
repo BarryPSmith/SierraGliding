@@ -28,6 +28,12 @@ namespace core_Receiver
             _url = url;
         }
 
+        class ServerError
+        {
+            public string Error { get; set; }
+            public string Status { get; set; }
+        }
+
         public async Task SendWeatherDataAsync(Packet packet, DateTime receivedTime)
         {
             if (packet.type != PacketTypes.Weather && packet.type != PacketTypes.Overflow)
@@ -101,7 +107,8 @@ namespace core_Receiver
                     }
                     else
                     {
-                        OutputWriter.WriteLine($"Post of {packet.sendingStation}/{packet.type.ToChar()}{packet.uniqueID} to {url} failed ({response.StatusCode}): {response.ReasonPhrase}");
+                        var err = JsonConvert.DeserializeObject<ServerError>(await response.Content.ReadAsStringAsync());
+                        OutputWriter.WriteLine($"Post of {packet.sendingStation}/{packet.type.ToChar()}{packet.uniqueID:X2} to {url} failed ({response.StatusCode}): {err.Error}");
                         /*OutputWriter.WriteLine($"Content: {response.Content.ReadAsStringAsync().Result}");
                         OutputWriter.WriteLine($"JSON: {json}");*/
                     }

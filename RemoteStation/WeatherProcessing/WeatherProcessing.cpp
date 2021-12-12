@@ -280,14 +280,14 @@ namespace WeatherProcessing
 
   void countWind()
   {
-    unsigned long thisMillis = millis();
-    unsigned long thisInterval = thisMillis - lastWindCountMillis;
+    unsigned short thisMillis = millis();
+    unsigned short thisInterval = thisMillis - lastWindCountMillis;
     // no counting in deep sleep / debounce the signal (don't debounce in deep sleep because the timer is slowed):
     if ((batteryMode == BatteryMode::DeepSleep || thisInterval < minWindIntervalTest)
         && batteryMode != BatteryMode::Stasis)
       return;
     lastWindCountMillis = thisMillis;
-    if (gustCount & 0b11 == 0)
+    if ((gustCount & 0b11) == 0)
     {
       minInterval_x4 = thisMillis - gustTickMillis;
       gustTickMillis = thisMillis;

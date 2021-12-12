@@ -29,7 +29,7 @@ namespace core_Receiver
 #else
             if (checkX)
             {
-                if (cur++ != (byte)'X')
+                if (inBytes[cur++] != (byte)'X')
                     return null;
             }
 #endif
@@ -117,9 +117,9 @@ namespace core_Receiver
                     }
                     if (ret.packetData == null)
                     {
-                        if (bytes.ToAscii() == "OK")
+                        if (bytes.ToAscii(dataStart) == "OK")
                             ret.packetData = BasicResponse.OK;
-                        else if (bytes.ToAscii() == "IGNORED")
+                        else if (bytes.ToAscii(dataStart) == "IGNORED")
                             ret.packetData = BasicResponse.Ignored;
                         else
                             ret.packetData = bytes.Skip(dataStart).ToCsv(b => $"{b.ToChar()}:{b:X}");

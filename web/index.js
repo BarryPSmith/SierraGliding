@@ -209,10 +209,17 @@ function database(dbpath, drop, cb) {
  */
 function error(err, res) {
     console.error(err);
-    res.status(500).json({
-        status: 500,
-        error: 'Internal Server Error'
-    });
+    if (err.code == 'SQLITE_CONSTRAINT') {
+        res.status(422).json({
+            status: 422,
+            error: err.message
+        });
+    } else {
+        res.status(500).json({
+            status: 500,
+            error: 'Internal Server Error'
+        });
+    }
 }
 
 
@@ -625,7 +632,12 @@ function main(db, cb) {
         try {
             const wsOffset = await (dbGet('SELECT Wind_Direction_Offset FROM stations WHERE id = $id'
                 , { $id: req.params.id }))
-            if (!wsOffset)  return error(`Station ${req.params.id} not found.`, res);
+            if (!wsOffset) {
+                return res.status(404).json({
+                    status:404,
+                    error:`Station ${req.params.id} not found.`
+                });
+            }
 
             const invalidWindspeed = typeof(req.body.wind_gust) == 'number' && req.body.wind_speed > 2 * (req.body.wind_gust + 2)
             const dest = invalidWindspeed ? 'Discarded_Data' : 'Station_Data';

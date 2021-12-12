@@ -73,11 +73,11 @@ namespace core_Receiver
                     _receivedGuids.Enqueue(guid);
                     while (_receivedGuids.Count > 100)
                         _receivedGuids.TryDequeue(out var notUsed);
-
+                    bool corrupt = result.Buffer[16] != 0;
                     if (is6)
-                        PacketReceived6?.Invoke(this, result.Buffer.AsSpan(16).ToArray());
+                        PacketReceived6?.Invoke(this, result.Buffer.AsSpan(17).ToArray());
                     else
-                        PacketReceived?.Invoke(this, result.Buffer.AsSpan(16).ToArray());
+                        PacketReceived?.Invoke(this, (result.Buffer.AsSpan(17).ToArray(), corrupt));
                 }
                 catch (ObjectDisposedException) { }
                 catch (Exception ex)
@@ -96,24 +96,29 @@ namespace core_Receiver
         public void Write(byte[] data, byte writeType = 0)
         {
             int port;
+            byte corruptByte = 0;
             switch (writeType)
             {
                 case 0:
                     port = _sendPort;
                     break;
+                case 1:
+                    port = _sendPort;
+                    corruptByte = 1;
+                    break;
                 case 6:
                     port = _sendPort6;
                     break;
                 default:
-                    throw new InvalidOperationException("Can only write type 0 and 6");
+                    throw new InvalidOperationException("Can only write type 0, 1 and 6");
             }
             if (!_connected)
                 throw new ObjectDisposedException("SocketListener is already closed!");
-            var dataToSend = Guid.NewGuid().ToByteArray().Concat(data).ToArray();
+            var dataToSend = Guid.NewGuid().ToByteArray().Append(corruptByte).Concat(data).ToArray();
             _client.Send(dataToSend, dataToSend.Length, new IPEndPoint(IPAddress.Broadcast, port));
         }
 
-        public event EventHandler<IList<Byte>> PacketReceived;
+        public event EventHandler<(IList<Byte> data, bool corrupt)> PacketReceived;
         public event EventHandler<IList<Byte>> PacketReceived6;
 
         public void Disconnect()

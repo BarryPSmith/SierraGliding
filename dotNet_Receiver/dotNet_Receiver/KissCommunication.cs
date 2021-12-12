@@ -29,7 +29,7 @@ namespace core_Receiver
             return (byte)(Interlocked.Increment(ref _cmdUniqueID) & 0xFF);
         }
 
-        public event EventHandler<IList<Byte>> PacketReceived;
+        public event EventHandler<(IList<Byte> data, bool corrupt)> PacketReceived;
         public Action<string> StreamError { get; set; }
         public int MaxPacketSize { get; set; } = 30000; //Arbitrary maximum packet size to avoid consuming too much memory
 
@@ -143,6 +143,7 @@ namespace core_Receiver
             bool escaped = false;
             bool inPacket = false;
             bool awaitingNull = false;
+            bool corruptPacket = false;
             List<byte> curPacket = new List<byte>();
             if (!_writeQueue.TryAdd(stream, new ConcurrentQueue<(byte[] data, byte writeType)>()))
                 throw new InvalidOperationException($"Already connected to stream '{stream}.");
@@ -167,7 +168,7 @@ namespace core_Receiver
                         }
                         else if (inPacket && curPacket.Count > 0)
                         {
-                            PacketReceived?.Invoke(this, curPacket);
+                            PacketReceived?.Invoke(this, (curPacket, corruptPacket));
                             curPacket.Clear();
                             inPacket = false;
                         }
@@ -181,6 +182,13 @@ namespace core_Receiver
                     if (curByte == 0x00)
                     {
                         inPacket = true;
+                        corruptPacket = false;
+                        continue;
+                    }
+                    else if (curByte == 0x01)
+                    {
+                        inPacket = true;
+                        corruptPacket = true;
                         continue;
                     }
                 }

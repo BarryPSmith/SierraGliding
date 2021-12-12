@@ -21,7 +21,7 @@ class KissMessageDestination : public MessageDestination
   private:
 
   public:
-    KissMessageDestination();
+    KissMessageDestination(bool corrupt);
     ~KissMessageDestination();
     MESSAGE_RESULT finishAndSend() override;
     MESSAGE_RESULT appendByte(const byte data) override;

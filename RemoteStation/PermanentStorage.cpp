@@ -77,6 +77,7 @@ const PermanentVariables defaultVars PROGMEM =
   .boostedRx = false,
 #endif
   .stasisRequested = false,
+  .codingRate = 5
 };
 
 void PermanentStorage::initialise()
@@ -97,7 +98,7 @@ void PermanentStorage::initialise()
   if (initialised)
   {
     //When upgrading from 2.4 to 2.5, we don't want to clear the entire memory. Just set the inbound preamble length and recalculate the CRC:
-    if (checkCRC(sizeof(PermanentVariables) - 4))
+    if (checkCRC(sizeof(PermanentVariables) - 5))
     {
       unsigned short inboundPreambleLength = 8;
       SET_PERMANENT_S(inboundPreambleLength);
@@ -110,10 +111,20 @@ void PermanentStorage::initialise()
       SET_PERMANENT_S(boostedRx);
       stasisRequested = false;
       SET_PERMANENT_S(stasisRequested);
+      byte codingRate = 5;
+      SET_PERMANENT_S(codingRate);
+      setCRC();
+      completeCrc = true;
+    } 
+    else if (checkCRC(sizeof(PermanentVariables) - 1))
+    {
+      byte codingRate = 5;
+      SET_PERMANENT_S(codingRate);
       setCRC();
       completeCrc = true;
     }
-    completeCrc = checkCRC(sizeof(PermanentVariables));
+    else
+      completeCrc = checkCRC(sizeof(PermanentVariables));
   }
   if (completeCrc)
   {
@@ -145,6 +156,7 @@ void PermanentStorage::initialise()
     PRINT_VARIABLE(vars.tsOffset);
     PRINT_VARIABLE(vars.tsGain);
     PRINT_VARIABLE(vars.boostedRx);
+    PRINT_VARIABLE(vars.codingRate);
     #endif
   }
   else

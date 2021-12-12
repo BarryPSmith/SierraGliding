@@ -137,8 +137,8 @@ namespace core_Receiver.Packets
             var overrideString = OverrideDuration > 0 ? $"Override (Remaining:{OverrideDuration - (Millis - OverrideStart)}, short:{OverrideShort}), " : "";
             var pingString = LastPingAge.HasValue ? $"Ping Age:{LastPingAge}, " : "";
             return $"VOLATILE Version:{Version} Millis:{Millis}, {pingString}{overrideString}" + Environment.NewLine +
-                $" Recently Seen:({RecentlySeenStations.ToCsv(rss => $"{(char)rss.ID}:{rss.age}")})" + Environment.NewLine +
-                $" Recent Commands:({RecentlyHandledCommands.ToCsv(b => $"{b}:{(char)b}")})" + Environment.NewLine +
+                $" Recently Seen:({RecentlySeenStations.ToCsv(rss => $"{rss.ID.ToChar()}:{rss.age}")})" + Environment.NewLine +
+                $" Recent Commands:({RecentlyHandledCommands.ToCsv(b => $"{b}:{b.ToChar()}")})" + Environment.NewLine +
                 $" Recently Relayed:({RecentlyRelayedPackets.ToCsv(p => p.IdentityString)})" + Environment.NewLine +
                 $" CRC Error Rate:{CRCErrorRate:P1}, Dropped Packet Rate:{DroppedPacketRate:P1}, Average Delay:{AverageDelayTime} us" + Environment.NewLine +
                 $" Station Time: {Time?.LocalDateTime}, Memory Low Water: {MemoryLowWater}, Free Memory: {FreeMemory}" + Environment.NewLine +

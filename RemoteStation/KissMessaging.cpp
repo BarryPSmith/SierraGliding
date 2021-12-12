@@ -8,10 +8,10 @@ const size_t minPacketSize = 0; //15 for the argent data radioshield (station 1)
 //Ugh, come back to this to get rid of it. We're not that concerned about performance that we can't have virtual functions.
 #define STREAM Serial
 
-KissMessageDestination::KissMessageDestination()
+KissMessageDestination::KissMessageDestination(bool _corrupt)
 {
   STREAM.write(FEND);
-  STREAM.write((byte)0x00);
+  STREAM.write(_corrupt ? (byte)0x01 : (byte)0x00);
 
   if (s_prependCallsign)
     append((byte*)callSign, 6);

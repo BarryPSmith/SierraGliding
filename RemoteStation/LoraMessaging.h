@@ -37,6 +37,10 @@ class LoraMessageSource : public MessageSource
 
     MESSAGE_RESULT seek(const byte newPosition) override;
 
+#ifdef GET_CRC_FAILURES
+    bool _crcMismatch;
+#endif
+
   private:
     byte* _incomingBuffer;
     //byte _incomingMessageSize;

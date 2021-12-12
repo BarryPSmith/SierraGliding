@@ -114,11 +114,16 @@ namespace core_Receiver
             Dictionary<byte, AutoResetEvent> acksReceived = stationIDs
                 .ToDictionary(id => id, id => new AutoResetEvent(false));
             ConcurrentDictionary<byte, byte> unIds = new ConcurrentDictionary<byte, byte>();
-            void packetReceived(object sender, IList<byte> data)
+            void packetReceived(object sender, (IList<byte> data, bool corrupt) e)
             {
+                var data = e.data;
+                var corrupt = e.corrupt;
+                if (corrupt)
+                    return;
                 try
                 {
                     var packet = PacketDecoder.DecodeBytes(data.ToArray());
+
                     var packetSrc = packet.sendingStation;
                     if (packet.type == PacketTypes.Response &&
                         stationIDs.Any(id => id == packetSrc) &&
@@ -225,7 +230,7 @@ namespace core_Receiver
             var data = ms.ToArray().ToList();
             HashSet<char> nonCrcStations = new HashSet<char>() 
                 { '7', '8' };
-            if (!nonCrcStations.Contains((char)destinationStationID))
+            if (!nonCrcStations.Contains(destinationStationID.ToChar()))
                 CommandInterpreter.AddCrc(data);
             return data.ToArray();
         }
@@ -247,8 +252,12 @@ namespace core_Receiver
                 byte lastUniqueID = 0;
                 ProgrammingResponse lastResponse = null;
 
-                void packetReceived(object sender, IList<byte> data)
+                void packetReceived(object sender, (IList<byte> data, bool corrupt) e)
                 {
+                    var data = e.data;
+                    var corrupt = e.corrupt;
+                    if (corrupt)
+                        return;
                     try
                     {
                         var packet = PacketDecoder.DecodeBytes(data.ToArray());
@@ -523,8 +532,12 @@ namespace core_Receiver
             var replyReceived = new AutoResetEvent(false);
             return Task.Run(() =>
             {
-                void packetReceived(object sender, IList<byte> bytes)
+                void packetReceived(object sender, (IList<byte> data, bool corrupt) e)
                 {
+                    var bytes = e.data;
+                    var corrupt = e.corrupt;
+                    if (corrupt)
+                        return;
                     var packet = PacketDecoder.DecodeBytes(bytes.ToArray());
                     if (packet?.type == PacketTypes.Response && packet.uniqueID == lastUniqueID && packet.sendingStation == stationID)
                     {

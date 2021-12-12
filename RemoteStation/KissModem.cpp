@@ -142,7 +142,13 @@ int main()
     {
       auto rssi = lora.getRSSI();
       auto snr = lora.getSNR();
-      KissMessageDestination dst;
+      bool corrupt = false;
+#ifdef GET_CRC_FAILURES
+      corrupt = loraSrc._crcMismatch;
+#else
+      static_assert(false); //Because GET_CRC_FAILURES should be defined if MODEM is defined.
+#endif
+      KissMessageDestination dst(corrupt);
       dst.appendData(loraSrc, maxPacketSize);
       if (dst.finishAndSend() == MESSAGE_END)
       {
@@ -154,7 +160,7 @@ int main()
       }
       dst.finishAndSend();
 
-      KissMessageDestination stats;
+      KissMessageDestination stats(false);
       stats.appendByte('X');
       stats.appendByte(0x07); //Message type
       stats.appendByte(0x00); //Station ID
@@ -194,7 +200,7 @@ int main()
           Serial.println(F("Command SUCCESS"));
         else if (desc == 'I')
         {
-          KissMessageDestination reply;
+          KissMessageDestination reply(false);
           reply.appendByte('X');
           reply.appendByte(0x06); //Message type
           reply.appendByte(0x00); //Station ID

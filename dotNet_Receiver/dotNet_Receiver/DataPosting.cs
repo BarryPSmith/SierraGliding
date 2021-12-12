@@ -97,11 +97,11 @@ namespace core_Receiver
                     if (response.IsSuccessStatusCode)
                     {
                         if (LogSuccessfulPosts)
-                            OutputWriter.WriteLine($"Succesfully posted {subPacket.sendingStation}/{(char)packet.type}{subPacket.uniqueID} to {url}.");
+                            OutputWriter.WriteLine($"Succesfully posted {subPacket.sendingStation}/{packet.type.ToChar()}{subPacket.uniqueID} to {url}.");
                     }
                     else
                     {
-                        OutputWriter.WriteLine($"Post of {packet.sendingStation}/{(char)packet.type}{packet.uniqueID} to {url} failed ({response.StatusCode}): {response.ReasonPhrase}");
+                        OutputWriter.WriteLine($"Post of {packet.sendingStation}/{packet.type.ToChar()}{packet.uniqueID} to {url} failed ({response.StatusCode}): {response.ReasonPhrase}");
                         /*OutputWriter.WriteLine($"Content: {response.Content.ReadAsStringAsync().Result}");
                         OutputWriter.WriteLine($"JSON: {json}");*/
                     }

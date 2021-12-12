@@ -9,7 +9,7 @@ namespace core_Receiver
         TextWriter OutputWriter { get; }
         Action<string> StreamError { get; set; }
 
-        event EventHandler<IList<byte>> PacketReceived;
+        event EventHandler<(IList<Byte> data, bool corrupt)> PacketReceived;
 
         byte GetNextUniqueID();
         void Write(byte[] data, byte writeType = 0);

@@ -23,7 +23,7 @@ namespace core_Receiver.Packets
         {
             get
             {
-                return $"{CallSign} {(char)sendingStation} {uniqueID:X2} {(char)type}";
+                return $"{CallSign} {sendingStation.ToChar()} {uniqueID:X2} {type.ToChar()}";
             }
         }
 

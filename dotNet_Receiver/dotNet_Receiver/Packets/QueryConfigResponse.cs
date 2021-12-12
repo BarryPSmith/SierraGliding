@@ -21,7 +21,7 @@ namespace core_Receiver.Packets
             BinaryReader br = new BinaryReader(ms);
             Initialised = br.ReadBoolean();
             if (VersionNumber >= new Version(2, 1))
-                StationID = (char)br.ReadByte();
+                StationID = br.ReadByte().ToChar();
             ShortInterval = br.ReadUInt32();
             LongInterval = br.ReadUInt32();
             BatteryThreshold_mV = br.ReadUInt16();
@@ -65,7 +65,7 @@ namespace core_Receiver.Packets
                 {
                     var recordType = br.ReadByte();
                     if (recordType != 0)
-                        MessageRecordTypes.Add((char)recordType);
+                        MessageRecordTypes.Add(recordType.ToChar());
                 }
                 NonRelayRecording = br.ReadBoolean();
             }
@@ -116,8 +116,8 @@ namespace core_Receiver.Packets
             return $"CONFIG Version:{Version}" + Environment.NewLine +
                 $" S Interval:{ShortInterval}, L Interval:{LongInterval}, Batt Thresh:{BatteryThreshold_mV} " +
                 $"Batt E Thresh:{BatteryEmergencyThres_mV}, Demand Relay:{DemandRelay}" + Environment.NewLine +
-                $" Relay Commands:({StationsToRelayCommands.ToCsv(b => ((char)b).ToString())}) " + Environment.NewLine +
-                $" Relay Weather:({StationsToRelayWeather.ToCsv(b => ((char)b).ToString())})" + Environment.NewLine +
+                $" Relay Commands:({StationsToRelayCommands.ToCsv(b => (b.ToChar()).ToString())}) " + Environment.NewLine +
+                $" Relay Weather:({StationsToRelayWeather.ToCsv(b => (b.ToChar()).ToString())})" + Environment.NewLine +
                 $" Freq:{Frequency_Hz / 1.0E6:F3} Hz, BW:{Bandwidth_Hz/1.0E3:F3} kHz, TxPower:{TxPower}, SF:{SpreadingFactor}, CSMA_P:{CSMA_P}, CSMA_Slot:{CSMA_Timeslot} uS " + Environment.NewLine +
                 $" TsOffset:{TsOffset}, TSGain:{TsGain}, WdCalibMin:({WdCalib1x}, {WdCalib1y}), WdCalibMax:{WdCalib2}" + Environment.NewLine +
                 $" ChargeV: {ChargeVoltage_mV} mV, ChargeResponsitivity: {ChargeResponseRate}, FreezingChargeV: {SafeFreezingChargeLevel_mV} mV, FreezingPwm: {SafeFreezingPwm}" + Environment.NewLine +

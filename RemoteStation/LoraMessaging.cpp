@@ -93,10 +93,12 @@ void InitMessaging()
   short txPower;
   byte spreadingFactor, csmaP;
   unsigned long csmaTimeslot;
+  byte codingRate;
   GET_PERMANENT_S(txPower);
   GET_PERMANENT_S(spreadingFactor);
   GET_PERMANENT_S(csmaP);
   GET_PERMANENT_S(csmaTimeslot);
+  GET_PERMANENT_S(codingRate);
   
   int state = ERR_UNKNOWN;
   
@@ -130,7 +132,7 @@ void InitMessaging()
       frequency,
       bandwidth,
       spreadingFactor,
-      LORA_CR,
+      codingRate,
       SX126X_SYNC_WORD_PRIVATE,
       txPower,
       140, //currentLimit
@@ -311,6 +313,17 @@ bool handleMessageCommand(MessageSource& src, byte* desc)
         SET_PERMANENT_S(boostedRx);
     }
     break;
+  case 'E':
+    byte codingRate;
+    if (src.read(codingRate))
+      state = ERR_UNKNOWN;
+    else
+    {
+      state = LORA_CHECK(lora.setCodingRate(codingRate));
+      if (state == ERR_NONE)
+        SET_PERMANENT_S(codingRate);
+    }
+    break;
   default:
     state = ERR_UNKNOWN;
   }
@@ -333,7 +346,11 @@ LoraMessageSource::LoraMessageSource() : MessageSource()
 
 bool LoraMessageSource::beginMessage()
 {
-  LORA_CHECK(csma.dequeueMessage(&_incomingBuffer, &_length));
+  LORA_CHECK(csma.dequeueMessage(&_incomingBuffer, &_length
+#ifdef GET_CRC_FAILURES
+    , &_crcMismatch
+#endif
+  ));
   //we don't use state to determine whether to handle the message
   if (_length == 0)
     return false;

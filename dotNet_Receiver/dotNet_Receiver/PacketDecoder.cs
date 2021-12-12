@@ -29,8 +29,7 @@ namespace core_Receiver
 #else
             if (checkX)
             {
-                var x = Encoding.ASCII.GetChars(bytes, cur++, 1)[0];
-                if (x != 'X')
+                if (cur++ != (byte)'X')
                     return null;
             }
 #endif
@@ -73,7 +72,7 @@ namespace core_Receiver
                     try
                     {
                         subType = bytes[dataStart];
-                        switch ((char)responseType)
+                        switch (responseType.ToChar())
                         {
                             case 'Q':
                                 if (subType == 'C')
@@ -83,11 +82,11 @@ namespace core_Receiver
                                 break;
                             case 'P':
                                 if (subType == 'C')
-                                    ret.packetData = Encoding.ASCII.GetString(bytes.AsSpan(dataStart + 1));
+                                    ret.packetData = bytes.ToAscii(dataStart + 1);
                                 else if (subType == 'Q')
                                     ret.packetData = new ProgrammingResponse(bytes.AsSpan(dataStart + 1));
                                 else if (subType == 'A')
-                                    ret.packetData = Encoding.ASCII.GetString(bytes.AsSpan(dataStart));
+                                    ret.packetData = bytes.ToAscii(dataStart);
                                 break;
                             case 'U':
                                 ret.packetData = ChangeIdResponse.ParseChangeIdResponse(bytes.AsSpan(dataStart));
@@ -118,14 +117,12 @@ namespace core_Receiver
                     }
                     if (ret.packetData == null)
                     {
-                        if (bytes.Length >= dataStart + "OK".Length &&
-                                    Encoding.ASCII.GetString(bytes, dataStart, "OK".Length) == "OK")
+                        if (bytes.ToAscii() == "OK")
                             ret.packetData = BasicResponse.OK;
-                        else if (bytes.Length >= dataStart + "IGNORED".Length &&
-                            Encoding.ASCII.GetString(bytes, dataStart, "IGNORED".Length) == "IGNORED")
+                        else if (bytes.ToAscii() == "IGNORED")
                             ret.packetData = BasicResponse.Ignored;
                         else
-                            ret.packetData = bytes.Skip(dataStart).ToCsv(b => $"{(char)b}:{b:X}");
+                            ret.packetData = bytes.Skip(dataStart).ToCsv(b => $"{b.ToChar()}:{b:X}");
                     }
                     break;
                 default:
@@ -135,12 +132,7 @@ namespace core_Receiver
             return ret;
         }
 
-        public static string ToCsv<T>(this IEnumerable<T> source, Func<T, string> transformer = null, string separator = ", ")
-        {
-            if (transformer == null)
-                transformer = A => A.ToString();
-            return source?.Aggregate("", (run, cur) => run + (string.IsNullOrEmpty(run) ? "" : separator) + transformer(cur));
-        }
+
 
         private static double GetWindSpeed(byte wsByte)
         {
@@ -208,7 +200,7 @@ namespace core_Receiver
 
         private static double GetTemp(byte tempByte)
             => (tempByte - 64.0) / 2;
-        static char GetChar(byte b) => 48 <= b && b <= 90 ? (char)b : '#';
+        static char GetChar(byte b) => 48 <= b && b <= 90 ? b.ToChar() : '#';
 
         private static IList<SingleWeatherData> DecodeWeatherPackets(Span<byte> bytes)
         {

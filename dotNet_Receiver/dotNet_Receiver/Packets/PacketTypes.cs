@@ -4,7 +4,7 @@ using System.Text;
 
 namespace core_Receiver.Packets
 {
-    enum PacketTypes : byte
+    public enum PacketTypes : byte
     {
         Unknown = 0,
         Modem = 6,

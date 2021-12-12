@@ -10,8 +10,7 @@ namespace core_Receiver.Packets
         public byte newID;
         public static object ParseChangeIdResponse(Span<byte> data)
         {
-            if (data.Length >= 6 &&
-                Encoding.ASCII.GetString(data.Slice(0, 5)) == "NewId")
+            if (data.ToArray().ToAscii().StartsWith("NewId"))
             {
                 return new ChangeIdResponse { newID = data[5] };
             }
@@ -23,7 +22,7 @@ namespace core_Receiver.Packets
 
         public override string ToString()
         {
-            return $"New ID: {(char)newID} ({newID})";
+            return $"New ID: {newID.ToChar()} ({newID})";
         }
     }
 }

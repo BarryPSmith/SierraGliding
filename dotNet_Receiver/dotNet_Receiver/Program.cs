@@ -187,8 +187,8 @@ Arguments:
                 {
                     var udpListener = new SocketListener(_incomingPort.Value, _outgoingPort.Value, _incomingPort.Value + 2, true);
                     runTasks.AddRange(udpListener.StartAsync(_exitingSource.Token));
-                    communicator.PacketReceived += (sender, e) => udpListener.Write(e.ToArray());
-                    udpListener.PacketReceived += (sender, e) => communicator.Write(e.ToArray());
+                    communicator.PacketReceived += (sender, e) => udpListener.Write(e.Item1.ToArray(), (byte)(e.corrupt ? 1 : 0));
+                    udpListener.PacketReceived += (sender, e) => communicator.Write(e.data.ToArray());
                     udpListener.PacketReceived6 += (sender, e) => communicator.Write(e.ToArray(), 6);
                 }
             }
@@ -256,9 +256,11 @@ Arguments:
             }
         }
 
-        static void WriteUndecipherablePacket(DateTime receivedTime, byte[] localBytes)
+        static void WriteUndecipherablePacket(DateTime receivedTime, byte[] localBytes,
+            bool corrupt)
         {
-            WriteColoured(OutputWriter, $"{receivedTime} Unhandled Packet: {OutputWriter.Encoding.GetString(localBytes)}",
+            var startStr = corrupt ? "Corrupt" : "Unhandled";
+            WriteColoured(OutputWriter, $"{receivedTime} {startStr} Packet: {OutputWriter.Encoding.GetString(localBytes)}",
                 ConsoleColor.White, ConsoleColor.Red, OutputWriter.WriteLine);
         }
 
@@ -269,12 +271,17 @@ Arguments:
             { PacketTypes.Command, ConsoleColor.Blue }
         };
 
-        static void WritePacket(DateTime receivedTime, Packet packet)
+        static void WritePacket(DateTime receivedTime, Packet packet, bool corrupt)
         {
             lock (_consoleLock)
             {
                 if (!PacketColours.TryGetValue(packet.type, out var backColour))
                     backColour = ConsoleColor.White;
+                if (corrupt)
+                {
+                    backColour = ConsoleColor.Red;
+                    OutputWriter.Write("Corrupt ");
+                }
                 OutputWriter.Write($"Packet {receivedTime}: ");
                 WriteColoured(OutputWriter, packet.IdentityString,
                     ConsoleColor.Black, backColour);
@@ -286,8 +293,10 @@ Arguments:
         }
 
         static Packet _lastPacket;
-        private static void OnPacketReceived(object sender, IList<byte> data)
+        private static void OnPacketReceived(object sender, (IList<byte> data, bool corrupt) e)
         {
+            var data = e.data;
+            bool corrupt = e.corrupt;
             DateTime receivedTime = DateTime.Now;
             try
             {
@@ -295,8 +304,9 @@ Arguments:
                 if (packet == null)
                 {
                     var localBytes = data.ToArray();
-                    Task.Run(() => _dataStore?.RecordUndecipherable(localBytes));
-                    Task.Run(() => WriteUndecipherablePacket(receivedTime, localBytes));
+                    if (!corrupt)
+                        Task.Run(() => _dataStore?.RecordUndecipherable(localBytes));
+                    Task.Run(() => WriteUndecipherablePacket(receivedTime, localBytes, corrupt));
                     return;
                 }
                 //Do this in a Task to avoid waiting if we've scrolled up.
@@ -305,14 +315,15 @@ Arguments:
                     consoleTask = Task.Run(async () =>
                     {
                         await Task.Delay(100);
-                        WritePacket(receivedTime, packet);
+                        WritePacket(receivedTime, packet, corrupt);
                     });
                 switch (packet.type)
                 {
                     case PacketTypes.Weather:
                     case PacketTypes.Overflow:
-                        foreach (var serverPoster in _serverPosters)
-                            serverPoster?.SendWeatherDataAsync(packet, receivedTime);
+                        if (!corrupt)
+                            foreach (var serverPoster in _serverPosters)
+                                serverPoster?.SendWeatherDataAsync(packet, receivedTime);
                         break;
                     case PacketTypes.Response:
                     case PacketTypes.Command:
@@ -332,11 +343,12 @@ Arguments:
                     default:
                         //nps is often stdOut in debugging, don't write to it from multiple threads:
                         var localBytes = data.ToArray();
-                        consoleTask.ContinueWith(notUsed => WriteUndecipherablePacket(receivedTime, localBytes));
+                        consoleTask.ContinueWith(notUsed => WriteUndecipherablePacket(receivedTime, localBytes, corrupt));
                         break;
                 }
                 _lastPacket = packet.type == PacketTypes.Stats || packet.type == PacketTypes.Modem ? null : packet;
-                Task.Run(() => _dataStore?.RecordPacket(packet));
+                if (!corrupt)
+                    Task.Run(() => _dataStore?.RecordPacket(packet));
                 
             }
             catch (Exception ex)

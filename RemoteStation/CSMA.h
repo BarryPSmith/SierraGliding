@@ -159,7 +159,11 @@ class CSMAWrapper
 
     // Note that buffer is possibly invalidateded by transmit, 
     // readIfPossible, and subsequent calls to dequeMessage.
-    int16_t dequeueMessage(uint8_t** buffer, uint8_t* length) {
+    int16_t dequeueMessage(uint8_t** buffer, uint8_t* length,
+#ifdef GET_CRC_FAILURES
+      bool* crcMismatch
+#endif
+      ) {
       // handle any available packet from the modem if we have space:
       // (this function also resets the buffer pointers to zero if it is empty).
       int16_t state = readIfPossible();
@@ -173,6 +177,9 @@ class CSMAWrapper
 
       *buffer = _buffer + getStartOfBuffer();
       *length = _messageLengths[_readBufferLenIdx];
+#ifdef GET_CRC_FAILURES
+      *crcMismatch = _crcMismatches[_readBufferLenIdx];
+#endif
 
       _readBufferLenIdx++;
       if (_readBufferLenIdx == _writeBufferLenIdx) {
@@ -215,15 +222,21 @@ class CSMAWrapper
 
       updateReadStats(state);
 
-      if (state != ERR_NONE) {
-        return(state);
+      if (state == ERR_NONE
+#ifdef GET_CRC_FAILURES
+        || state == ERR_CRC_MISMATCH)
+#endif
+      {
+        RX_PRINTVAR(_writeBufferLenIdx);
+        RX_PRINTVAR(packetSize);
+        _messageLengths[_writeBufferLenIdx] = packetSize;
+#ifdef GET_CRC_FAILURES
+        _crcMismatches[_writeBufferLenIdx] = state == ERR_CRC_MISMATCH;
+#endif
+        _writeBufferLenIdx++;
       }
 
-      RX_PRINTVAR(_writeBufferLenIdx);
-      RX_PRINTVAR(packetSize);
-      _messageLengths[_writeBufferLenIdx] = packetSize;
-      _writeBufferLenIdx++;
-      return(ERR_NONE);
+      return state;
     }
 
     void __attribute__ ((noinline)) updateReadStats(uint16_t state)
@@ -291,6 +304,7 @@ class CSMAWrapper
   //private:
     uint8_t _buffer[bufferSize];
     uint8_t _messageLengths[maxQueue];
+    bool _crcMismatches[maxQueue];
     uint8_t _readBufferLenIdx = 0;
     uint8_t _writeBufferLenIdx = 0;
     uint8_t _lastPacketCounter = 0;

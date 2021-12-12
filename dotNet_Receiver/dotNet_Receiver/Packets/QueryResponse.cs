@@ -22,7 +22,7 @@ namespace core_Receiver.Packets
                     break;
                 i++;
             }
-            Version = Encoding.ASCII.GetString(inputData.Slice(0, i));
+            Version = inputData.Slice(0, i).ToArray().ToAscii();
             var secondDot = Version.IndexOf('.', Version.IndexOf('.') + 1);
             if (secondDot > 0)
                 VersionNumber = new Version(Version.Substring(1, secondDot - 1));

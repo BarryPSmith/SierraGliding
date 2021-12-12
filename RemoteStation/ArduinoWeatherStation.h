@@ -5,6 +5,10 @@
 #define STR(A) #A
 #define XSTR(A) STR(A)
 
+#ifdef MODEM
+#define GET_CRC_FAILURES
+#endif
+
 #ifdef DEBUG
 #define AWS_DEBUG_PRINT(...) do { \
                     Serial.print(__VA_ARGS__); \

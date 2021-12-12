@@ -190,7 +190,7 @@ Command starting characters:
         {
             Output.WriteLine("Command: ");
             for (int i = 0; i < data.Length; i++)
-                Output.Write($"{Encoding.ASCII.GetChars(data, i, 1)[0]} {data[i]:X2} ");
+                Output.Write($"{data[i].ToChar()} {data[i]:X2} ");
             Output.Write("Continue? ");
             var confirmation = Console.ReadLine();
             if (string.IsNullOrWhiteSpace(confirmation) ||
@@ -211,14 +211,14 @@ Command starting characters:
             //C 0x00 0x00 Q V 
             if (data.Length < 4 || data[0] != 'C')
                 return;
-            var cmdType = (char)data[3];
+            var cmdType = data[3].ToChar();
             string commandIdentifier = cmdType.ToString();
             switch (cmdType)
             {
                 case 'Q':
                     char queryType = 'C';
                     if (data.Length >= 5)
-                        queryType = (char)data[4];
+                        queryType = data[4].ToChar();
                     commandIdentifier += queryType;
                     break;
                 case 'P':
@@ -451,15 +451,6 @@ Command starting characters:
                 }
                 _curState = state;
             }
-        }
-    }
-    public static class Extensions
-    {
-        public static bool IsHex(this char c)
-        {
-            return (c >= '0' && c <= '9') ||
-                     (c >= 'a' && c <= 'f') ||
-                     (c >= 'A' && c <= 'F');
         }
     }
 

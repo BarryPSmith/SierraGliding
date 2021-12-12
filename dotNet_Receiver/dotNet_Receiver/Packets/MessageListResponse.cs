@@ -35,7 +35,7 @@ namespace core_Receiver.Packets
         {
             return "Search Result: " + Environment.NewLine +
                 Packets.ToCsv(
-                    p => $" {p.address} : {(char)p.recordType} {(char)p.stationID} {p.timestamp.ToLocalTime()}",
+                    p => $" {p.address} : {p.recordType.ToChar()} {p.stationID.ToChar()} {p.timestamp.ToLocalTime()}",
                     Environment.NewLine);
         }
     }

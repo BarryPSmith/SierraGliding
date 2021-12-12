@@ -127,6 +127,8 @@ namespace core_Receiver
         {
             if (_dbConn == null)
                 return;
+            if (p.type == PacketTypes.Stats)
+                return;
             if (p.type != PacketTypes.Weather || 
                 (p.packetData as IList<SingleWeatherData>)?.Any(pd => pd.extras?.Length > 0) == true)
             {
@@ -141,7 +143,7 @@ namespace core_Receiver
                     cmd.Parameters.AddWithValue("$Type", (byte)p.type);
                     cmd.Parameters.AddWithValue("$Unique_ID", p.uniqueID);
                     var dataString = p.GetDataString?.Invoke(p.packetData) ?? p.packetData?.ToString();
-                    dataString = dataString?.Replace((char)0, ' ');
+                    dataString = dataString?.Replace((char) 0, ' ');
 
                     cmd.Parameters.AddWithValue("$To_String", (object)dataString ?? DBNull.Value);
                     Packet interiorPacket = p;

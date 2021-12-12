@@ -73,8 +73,9 @@ typedef struct PermanentVariables
   byte messageTypesToRecord[messageTypeArraySize]; // V2.2 had a CRC here
   bool recordNonRelayedMessages;
   unsigned short inboundPreambleLength; //2.4 had a CRC here
-  bool boostedRx;
+  bool boostedRx; //2.5 had a CRC here
   bool stasisRequested;
+  byte codingRate;
   short crc;
 } PermanentVariables;
 

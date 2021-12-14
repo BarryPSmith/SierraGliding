@@ -1,5 +1,5 @@
 #COM port for upload
-PORT=COM19
+PORT=COM24
 # If we're using the ISP, it's handy to keep different COM ports. Also baud is not board dependent.
 PORT_ISP=COM5
 ISP_BAUD=115200
@@ -26,7 +26,7 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 12: Single board rev3
 # 13: Single board rev3 FCC Compliant @ 917MHz
 # 14: Dorji Modem @ 917MHz
-BOARD = 10
+BOARD = 13
 include Boards.makefile
 
 #Flags, etc.

@@ -27,8 +27,4 @@ namespace MessageHandling
   extern RecentlyRelayedMessage recentlyRelayedMessages[permanentArraySize]; //3 bytes per record: msg type, stationID, uniqueID. 60 bytes
   //Every message is given a unique ID. This is so other stations can keep track of them
   extern byte curUniqueID;
-
-  constexpr int weatherRelayBufferSize = 100;
-  extern byte weatherRelayBuffer[weatherRelayBufferSize];
-  extern byte weatherRelayLength;
 }

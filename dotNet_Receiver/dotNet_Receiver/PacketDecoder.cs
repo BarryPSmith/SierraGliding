@@ -20,7 +20,7 @@ namespace core_Receiver
         {
             if (inBytes.Length < 4)
                 return null;
-            var bytes = inBytes as byte[] ?? inBytes.ToArray();
+            var bytes = inBytes;
 
             int cur = 0;
 #if false
@@ -45,7 +45,8 @@ namespace core_Receiver
                 CallSign = "X",
                 type = (PacketTypes)type,
                 sendingStation = sendingStationID,
-                uniqueID = uniqueID
+                uniqueID = uniqueID,
+                originalData = bytes
             };
 
             switch (ret.type)
@@ -57,12 +58,13 @@ namespace core_Receiver
                     ret.packetData = new StatsResponse(bytes.AsSpan(dataStart));
                     break;
                 case PacketTypes.Weather:
-                    ret.packetData = DecodeWeatherPackets(bytes.AsSpan(cur));
+                case PacketTypes.Overflow2:
+                    (ret.packetData, ret.exception) = DecodeWeatherPackets(bytes.AsSpan(cur));
                     ret.GetDataString = 
                         data => (data as IList<SingleWeatherData>)?.ToCsv();
                     break;
                 case PacketTypes.Overflow:
-                    ret.packetData = DecodeWeatherPackets(bytes.AsSpan(dataStart));
+                    (ret.packetData, ret.exception) = DecodeWeatherPackets(bytes.AsSpan(dataStart));
                     ret.GetDataString =
                         data => (data as IList<SingleWeatherData>)?.ToCsv();
                     break;
@@ -168,6 +170,8 @@ namespace core_Receiver
                 var easyReading = data.ToArray().ToCsv(b => $"{b:X2} {GetChar(b)}");
                 throw new InvalidDataException("invalid packet length.");
             }
+            if (packetLen < 5)
+                throw new InvalidDataException("No weather packets");
 
             SingleWeatherData ret = new SingleWeatherData()
             {
@@ -202,8 +206,9 @@ namespace core_Receiver
             => (tempByte - 64.0) / 2;
         static char GetChar(byte b) => 48 <= b && b <= 90 ? b.ToChar() : '#';
 
-        private static IList<SingleWeatherData> DecodeWeatherPackets(Span<byte> bytes)
+        private static (IList<SingleWeatherData>, Exception) DecodeWeatherPackets(Span<byte> bytes)
         {
+            Exception exception = null;
             int cur = 0;
             var ret = new List<SingleWeatherData>();
             var easyReading = bytes.ToArray().ToCsv(b => $"{b:X2} {GetChar(b)}");
@@ -222,6 +227,7 @@ namespace core_Receiver
                 }
                 catch (Exception ex)
                 {
+                    exception = ex;
                     Console.Error.WriteLine($"Exception decoding weather packet: {ex}");
                     break;
                 }
@@ -235,7 +241,7 @@ namespace core_Receiver
             if (outOfOrderPackets.Any())
             { }
 
-            return ret;
+            return (ret, exception);
         }
     }
 }

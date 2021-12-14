@@ -12,6 +12,7 @@ inline void setHiNibble(uint8_t* dest, const uint8_t value) { *dest = getLowNibb
 
 #define NO_PACKET_AVAILABLE -1000
 #define NOT_ENOUGH_SPACE -1001
+#define REENTRY_NOT_SUPPORTED -1002
 
 #ifdef MODEM
 extern unsigned long lastFailMillis;
@@ -174,13 +175,21 @@ class CSMAWrapper
         
         return(state); //Receive error or NO_PACKET_AVAILABLE
       }
+      if (_checkedOut)
+        return REENTRY_NOT_SUPPORTED;
 
       *buffer = _buffer + getStartOfBuffer();
       *length = _messageLengths[_readBufferLenIdx];
 #ifdef GET_CRC_FAILURES
       *crcMismatch = _crcMismatches[_readBufferLenIdx];
 #endif
+      _checkedOut = true;
+      return(state);
+    }
 
+    void doneWithBuffer()
+    {
+      _checkedOut = false;
       _readBufferLenIdx++;
       if (_readBufferLenIdx == _writeBufferLenIdx) {
         clearBuffer();
@@ -188,8 +197,6 @@ class CSMAWrapper
       else if (_readBufferLenIdx > _writeBufferLenIdx) {
         RX_PRINTLN(F("ERROR: Read buffer ahead of write buffer!"));
       }
-      
-      return(state);
     }
 
     int16_t readIfPossible()
@@ -305,7 +312,10 @@ class CSMAWrapper
   //private:
     uint8_t _buffer[bufferSize];
     uint8_t _messageLengths[maxQueue];
+#ifdef GET_CRC_FAILURES
     bool _crcMismatches[maxQueue];
+#endif
+    bool _checkedOut = false;
     uint8_t _readBufferLenIdx = 0;
     uint8_t _writeBufferLenIdx = 0;
     uint8_t _lastPacketCounter = 0;

@@ -11,6 +11,7 @@ namespace core_Receiver.Packets
         Stats = 7,
         Weather = (byte)'W',
         Overflow = (byte)'R',
+        Overflow2 = (byte)'Q',
         Command = (byte)'C',
         Response = (byte)'K',
         Ping = (byte)'P',

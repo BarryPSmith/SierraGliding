@@ -12,6 +12,8 @@ namespace core_Receiver.Packets
         public PacketTypes type;
 
         public object packetData;
+        public byte[] originalData;
+        public Exception exception;
 
         public override string ToString()
         {
@@ -31,12 +33,16 @@ namespace core_Receiver.Packets
         {
             get
             {
+                string ret;
                 if (GetDataString != null)
-                    return $" {GetDataString?.Invoke(packetData)}";
+                    ret = $" {GetDataString?.Invoke(packetData)}";
                 else if (packetData != null)
-                    return $" {packetData}";
+                    ret = $" {packetData}";
                 else
-                    return "";
+                    ret = "";
+                if (exception != null)
+                    ret += $"!!{exception.Message}!!";
+                return ret;
             }
         }
 

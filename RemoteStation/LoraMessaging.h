@@ -29,6 +29,7 @@ class LoraMessageSource : public MessageSource
 {
   public:
     LoraMessageSource();
+    ~LoraMessageSource();
     LoraMessageSource& operator=(const LoraMessageSource) =delete;
     bool beginMessage() override;
     MESSAGE_RESULT endMessage() override;

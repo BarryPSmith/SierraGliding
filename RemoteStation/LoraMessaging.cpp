@@ -343,6 +343,11 @@ void appendMessageStatistics(MessageDestination& msg)
 LoraMessageSource::LoraMessageSource() : MessageSource()
 {}
 
+LoraMessageSource::~LoraMessageSource()
+{
+  csma.doneWithBuffer();
+}
+
 
 bool LoraMessageSource::beginMessage()
 {

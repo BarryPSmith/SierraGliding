@@ -1,6 +1,7 @@
 ﻿using core_Receiver.Packets;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.SQLite;
 using System.Linq;
 using System.Text;
@@ -9,6 +10,8 @@ namespace core_Receiver
 {
     class LocalDatastore
     {
+        public bool StoreWeather { get; set; }
+
         SQLiteConnection _dbConn;
         public LocalDatastore(string fn)
         {
@@ -129,7 +132,7 @@ namespace core_Receiver
                 return;
             if (p.type == PacketTypes.Stats)
                 return;
-            if (p.type != PacketTypes.Weather || 
+            if (StoreWeather || p.type != PacketTypes.Weather || 
                 (p.packetData as IList<SingleWeatherData>)?.Any(pd => pd.extras?.Length > 0) == true)
             {
                 using (var cmd = _dbConn.CreateCommand())
@@ -153,7 +156,7 @@ namespace core_Receiver
                     if (interiorPacket.packetData is IEnumerable<byte> data)
                         cmd.Parameters.AddWithValue("$Data", data.ToArray());
                     else
-                        cmd.Parameters.AddWithValue("$Data", DBNull.Value);
+                        cmd.Parameters.AddWithValue("$Data", (object)p.originalData ?? DBNull.Value);
                     cmd.ExecuteNonQuery();
                 }
             }

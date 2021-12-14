@@ -35,6 +35,7 @@ Arguments:
  --callsign <Callsign>  The callsign to use. Must match station callsign for ping to work.
  --pingInterval <seconds> Specify a custom ping interval. Default is 5 minutes (300)
  --noping               Specify that the software should not send pings
+ --logWeather           Specify that the local db will store weather packets
 "
 );
         }
@@ -54,6 +55,7 @@ Arguments:
         static string _serialAddress = null;
         static string _npsFn = null;
         static int _offset = 0;
+        static bool _logWeather = false;
 
         static readonly CancellationTokenSource _exitingSource = new CancellationTokenSource();
 
@@ -113,6 +115,9 @@ Arguments:
                 _pingInterval = TimeSpan.FromSeconds(int.Parse(args[pingIntervalIndex + 1]));
             }
 
+            if (args.Contains("--logWeather", StringComparer.OrdinalIgnoreCase))
+                _logWeather = true;
+
             if (args.Contains("--noPing", StringComparer.OrdinalIgnoreCase))
                 _sendPing = false;
         }
@@ -141,7 +146,10 @@ Arguments:
             bool npsIsStandardOut = true;
 
             if (!string.IsNullOrEmpty(_dbFn))
-                _dataStore = new LocalDatastore(_dbFn);
+                _dataStore = new LocalDatastore(_dbFn)
+                {
+                    StoreWeather = _logWeather
+                };
 
             List<Task> runTasks;
 
@@ -321,6 +329,7 @@ Arguments:
                 {
                     case PacketTypes.Weather:
                     case PacketTypes.Overflow:
+                    case PacketTypes.Overflow2:
                         if (!corrupt)
                             foreach (var serverPoster in _serverPosters)
                                 serverPoster?.SendWeatherDataAsync(packet, receivedTime);

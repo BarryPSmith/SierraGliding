@@ -34,7 +34,7 @@ namespace MessageHandling
   bool shouldRelay(byte msgType, byte msgStatID, byte msgUniqueID);
   bool shouldRecord(byte msgType, bool relayRequired,
     MessageSource& msg);
-  void recordWeatherForRelay(MessageSource& message, byte msgStatID, byte msgUniqueID);
+  bool recordWeatherForRelay(MessageSource& message, byte msgStatID, byte msgUniqueID);
   void relayMessage(MessageSource& message, byte msgType, byte msgFirstByte, byte msgStatID, byte msgUniqueID);
   void recordMessageRelay(byte msgType, byte msgStatID, byte msgUniqueID);
   void checkPing(MessageSource& message);
@@ -45,7 +45,10 @@ namespace MessageHandling
   byte recentlyRelayedMessageIndex = 0;
   byte curUniqueID = 0;
 
-  byte weatherRelayBuffer[weatherRelayBufferSize]; //100
+  constexpr int weatherRelayBufferSize = 100;
+  constexpr int headerSize = 4; //'XR1#'
+  byte weatherRelayBufferBase[weatherRelayBufferSize + headerSize];//104
+  byte* const weatherRelayBuffer = weatherRelayBufferBase + headerSize;
   byte weatherRelayLength = 0;
 
   void readMessages()
@@ -125,9 +128,17 @@ namespace MessageHandling
           continue;
         }
 
+        bool relayed = false;
         if (msgType == 'W')
-          recordWeatherForRelay(msg, msgStatID, msgUniqueID);
-        else 
+        {
+          // Record for sending with the next weather packet.
+          // If it's too long to be recorded, change it to be a Q packet and send it on.
+          if (recordWeatherForRelay(msg, msgStatID, msgUniqueID))
+            relayed = true;
+          else
+            msgFirstByte = 'Q';
+        }
+        if (!relayed) 
           relayMessage(msg, msgType, msgFirstByte, msgStatID, msgUniqueID);
 
         recordMessageRelay(msgType, msgStatID, msgUniqueID);
@@ -182,7 +193,8 @@ namespace MessageHandling
   bool shouldRelay(byte msgType, byte msgStatID, byte msgUniqueID)
   {
     //Check if the source or destination is in our relay list:
-    if (msgType == 'C' || msgType == 'K' || msgType == 'R' || msgType == 'P' || msgType == 'S')
+    if (msgType == 'C' || msgType == 'K' || msgType == 'R' || msgType == 'P' || msgType == 'S'
+      || msgType == 'Q')
     {
       byte stationsToRelayCommands[permanentArraySize];
       GET_PERMANENT(stationsToRelayCommands);
@@ -253,7 +265,8 @@ namespace MessageHandling
     relay.appendData(msg, 254);
   }
 
-  void recordWeatherForRelay(MessageSource& msg, byte msgStatID, byte msgUniqueID)
+  
+  bool __attribute__((noinline)) recordWeatherForRelay(MessageSource& msg, byte msgStatID, byte msgUniqueID)
   { 
     //Note: We must be careful when setting up the network that there are not multiple paths for weather messages to get relayed
     //it won't necessarily cause problems, but it will use unnecessary bandwidth
@@ -261,16 +274,17 @@ namespace MessageHandling
     //Incomming message might be XW (SID) (UID) (Sz) (WD) (WS) - length = 7
     //In that case we need to append (SID) (UID) (Sz) (WD) (WS) - length = 5, 3 more to read (because we've already read SID and UID)
     byte dataSize = msg.getMessageLength() - 2; //2 for the 'XW'
+    // If our data is larger than our buffer, we can't do anything with it.
+    if (dataSize > weatherRelayBufferSize)
+      return false;
 
     bool overflow = weatherRelayLength + dataSize + 2 > weatherRelayBufferSize;
-    byte byteBuffer[weatherRelayBufferSize + 4];
-    byte buffer[sizeof(LoraMessageDestination)];
-    LoraMessageDestination* msgDump = overflow ? new (buffer) LoraMessageDestination(false, byteBuffer, sizeof(byteBuffer), 'R', getUniqueID()) : 0;
     if (overflow)
     {
-      byte* toWrite;
-      msgDump->getBuffer(&toWrite, weatherRelayLength);
-      memcpy(toWrite, weatherRelayBuffer, weatherRelayLength);
+      LoraMessageDestination msgDump(false, weatherRelayBufferBase, sizeof(weatherRelayBufferBase), 'R', getUniqueID());
+      byte* notUsed;
+      if (msgDump.getBuffer(&notUsed, weatherRelayLength) != MESSAGE_OK)
+        msgDump.abort();
       weatherRelayLength = 0;
     }
 
@@ -278,18 +292,12 @@ namespace MessageHandling
     bool sourceFaulted = 
       msg.seek(2) ||
       msg.readBytes(weatherRelayBuffer + offset, dataSize);
-    
-    // We have to wait to dispose (=send) the overflow dump until we're done with the message because it can corrupt it.
-    if (overflow)
-    {
-      msgDump->~LoraMessageDestination();
-      msgDump = 0; //We're done with it. Ensure we don't accidentally re-use it.
-    }
 
     if (sourceFaulted)
       weatherRelayLength = 0;
     else
       weatherRelayLength += dataSize;
+    return true;
   }
 
   void recordHeardStation(byte msgStatID)

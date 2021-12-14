@@ -260,6 +260,7 @@ void setup() {
 }
 
 extern uint8_t __stack;
+__attribute__((noinline))
 void sendStackTrace()
 {
   byte buffer[254];
@@ -272,6 +273,7 @@ void sendStackTrace()
   msg.append((byte*)&oldStack, size);
 }
 
+__attribute__((noinline))
 void storeStackTrace()
 {
   byte buffer[STACK_DUMP_SIZE + 2];
@@ -311,7 +313,7 @@ void testCrystal(bool sendAnyway)
     sendCrystalMessage(xtalRes);
 #endif
 }
-
+__attribute__((noinline))
 void loop() {
   //BASE(auto loopMicros = micros());
   static byte counter = 0;

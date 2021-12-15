@@ -80,6 +80,12 @@ namespace core_Receiver
                 if (IsPacketDoubleReceived(identifier, now))
                     continue;
                 receivedPacketTimes[identifier] = now;
+#if DEBUG
+                var sortedTimes = receivedPacketTimes.OrderBy(kvp => kvp.Key.ToString())
+                    .ToList();
+                if (subPacket.sendingStation == 49)
+                { }
+#endif
 
                 var toSerialize = new
                 {

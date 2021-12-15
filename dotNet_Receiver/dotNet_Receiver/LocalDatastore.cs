@@ -145,8 +145,8 @@ namespace core_Receiver
                     cmd.Parameters.AddWithValue("$Station_ID", p.sendingStation);
                     cmd.Parameters.AddWithValue("$Type", (byte)p.type);
                     cmd.Parameters.AddWithValue("$Unique_ID", p.uniqueID);
-                    var dataString = p.GetDataString?.Invoke(p.packetData) ?? p.packetData?.ToString();
-                    dataString = dataString?.Replace((char) 0, ' ');
+                    var dataString = p.SafeDataString;
+                    dataString = dataString?.Replace((char) 0, ' ').Trim();
 
                     cmd.Parameters.AddWithValue("$To_String", (object)dataString ?? DBNull.Value);
                     Packet interiorPacket = p;

@@ -29,9 +29,9 @@ class LoraMessageSource : public MessageSource
 {
   public:
     LoraMessageSource();
-    ~LoraMessageSource();
     LoraMessageSource& operator=(const LoraMessageSource) =delete;
     bool beginMessage() override;
+    void doneWithMessage();
     MESSAGE_RESULT endMessage() override;
     MESSAGE_RESULT readByte(byte& dest) override;
     MESSAGE_RESULT accessBytes(byte** dest, byte bytesToRead) override;

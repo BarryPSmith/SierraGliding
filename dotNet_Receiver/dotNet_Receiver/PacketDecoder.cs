@@ -228,7 +228,6 @@ namespace core_Receiver
                 catch (Exception ex)
                 {
                     exception = ex;
-                    Console.Error.WriteLine($"Exception decoding weather packet: {ex}");
                     break;
                 }
             }

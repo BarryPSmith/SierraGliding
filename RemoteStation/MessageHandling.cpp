@@ -38,6 +38,7 @@ namespace MessageHandling
   void relayMessage(MessageSource& message, byte msgType, byte msgFirstByte, byte msgStatID, byte msgUniqueID);
   void recordMessageRelay(byte msgType, byte msgStatID, byte msgUniqueID);
   void checkPing(MessageSource& message);
+  void readMessage(LoraMessageSource& msg);
 
   //These arrays use 320 bytes.
   RecentlySeenStation recentlySeenStations[permanentArraySize]; //100
@@ -53,105 +54,110 @@ namespace MessageHandling
 
   void readMessages()
   {
-    static bool ledWasOn = false;
     LoraMessageSource msg;
-    /*MESSAGE_DESTINATION_SOLID::*/delayRequired = true;
+    delayRequired = true;
     while (msg.beginMessage())
     {
-      if (!MessageSource::s_discardCallsign)
-      {
-        byte zerothByte;
-        //Filter: First byte must be X if we're discarding callsign.
-        if (msg.readByte(zerothByte) || zerothByte != 'X')
-          continue;
-      }
-      byte msgFirstByte;
-      if (msg.readByte(msgFirstByte))
-        continue; //= incomingBuffer[0] & 0x7F;
-      //Determine the originating or destination station:
-      byte msgType = msgFirstByte & 0x7F;
-      byte msgStatID;
-      byte msgUniqueID;
-      if (msgType == 'C' || msgType == 'K' || msgType == 'W' || msgType == 'R'
-        || msgType == 'P' || msgType == 'S')
-      {
-        if (msg.readByte(msgStatID) ||
-          msg.readByte(msgUniqueID))
-        {
-          MSGPROC_PRINTLN(F("Unable to read message header."));
-          SIGNALERROR();
-          continue;
-        }
-      }
-      else
-      {
-        MSGPROC_PRINT(F("Unknown message type: "));
-        MSGPROC_PRINTLN(msgType);
-        SIGNALERROR();
-        continue;
-      }
-
-      byte afterHeader = msg.getCurrentLocation();
-
-      MSGPROC_PRINT(F("Message Received. Type: "));
-      MSGPROC_PRINT((char)msgType);
-      MSGPROC_PRINT(F(", stationID: "));
-      MSGPROC_PRINT((char)msgStatID);
-      MSGPROC_PRINT(F(", ID: "));
-      MSGPROC_PRINTLN(msgUniqueID);
-
-      if (msgType == 'P')
-        checkPing(msg);
-        
-      //If it's one of our messages relayed back to us, ignore it:
-      if (msgType != 'C' && msgStatID == stationID)
-        continue;
-
-      //If it's a command addressed to us (or global), handle it:
-      if (msgType == 'C' && (msgStatID == stationID || msgStatID == 0))
-        Commands::handleCommandMessage(msg, msgUniqueID, msgStatID != 0);
-
-      //Record the weather stations we hear:
-      if (msgType == 'W')
-        recordHeardStation(msgStatID);
-
-      //Otherwise, relay it if necessary:
-      bool relayRequired = 
-        msgStatID != stationID 
-        &&
-        (shouldRelay(msgType, msgStatID, msgUniqueID));
-      if (relayRequired && !haveRelayed(msgType, msgStatID, msgUniqueID))
-      {
-        if (msg.seek(afterHeader))
-        {
-          MSGPROC_PRINTLN(F("Unable to seek to afterHeader"));
-          continue;
-        }
-
-        bool relayed = false;
-        if (msgType == 'W')
-        {
-          // Record for sending with the next weather packet.
-          // If it's too long to be recorded, change it to be a Q packet and send it on.
-          if (recordWeatherForRelay(msg, msgStatID, msgUniqueID))
-            relayed = true;
-          else
-            msgFirstByte = 'Q';
-        }
-        if (!relayed) 
-          relayMessage(msg, msgType, msgFirstByte, msgStatID, msgUniqueID);
-
-        recordMessageRelay(msgType, msgStatID, msgUniqueID);
-      }
-#ifndef NO_STORAGE
-      if (shouldRecord(msgType, relayRequired, msg))
-      {
-        msg.seek(afterHeader);
-        Database::storeMessage(msgType, msgStatID, msg);
-      }
-#endif // !NO_STORAGE
+      readMessage(msg);
+      msg.doneWithMessage();
     }
-    /*MESSAGE_DESTINATION_SOLID::*/delayRequired = false;
+    delayRequired = false;
+  }
+
+  void readMessage(LoraMessageSource& msg)
+  {
+    if (!MessageSource::s_discardCallsign)
+    {
+      byte zerothByte;
+      //Filter: First byte must be X if we're discarding callsign.
+      if (msg.readByte(zerothByte) || zerothByte != 'X')
+        return;
+    }
+    byte msgFirstByte;
+    if (msg.readByte(msgFirstByte))
+      return; //= incomingBuffer[0] & 0x7F;
+    //Determine the originating or destination station:
+    byte msgType = msgFirstByte & 0x7F;
+    byte msgStatID;
+    byte msgUniqueID;
+    if (msgType == 'C' || msgType == 'K' || msgType == 'W' || msgType == 'R'
+      || msgType == 'P' || msgType == 'S' || msgType == 'Q')
+    {
+      if (msg.readByte(msgStatID) ||
+        msg.readByte(msgUniqueID))
+      {
+        MSGPROC_PRINTLN(F("Unable to read message header."));
+        SIGNALERROR();
+        return;
+      }
+    }
+    else
+    {
+      MSGPROC_PRINT(F("Unknown message type: "));
+      MSGPROC_PRINTLN(msgType);
+      SIGNALERROR();
+      return;
+    }
+
+    byte afterHeader = msg.getCurrentLocation();
+
+    MSGPROC_PRINT(F("Message Received. Type: "));
+    MSGPROC_PRINT((char)msgType);
+    MSGPROC_PRINT(F(", stationID: "));
+    MSGPROC_PRINT((char)msgStatID);
+    MSGPROC_PRINT(F(", ID: "));
+    MSGPROC_PRINTLN(msgUniqueID);
+
+    if (msgType == 'P')
+      checkPing(msg);
+
+    //If it's one of our messages relayed back to us, ignore it:
+    if (msgType != 'C' && msgStatID == stationID)
+      return;
+
+    //If it's a command addressed to us (or global), handle it:
+    if (msgType == 'C' && (msgStatID == stationID || msgStatID == 0))
+      Commands::handleCommandMessage(msg, msgUniqueID, msgStatID != 0);
+
+    //Record the weather stations we hear:
+    if (msgType == 'W')
+      recordHeardStation(msgStatID);
+
+    //Otherwise, relay it if necessary:
+    bool relayRequired =
+      msgStatID != stationID
+      &&
+      (shouldRelay(msgType, msgStatID, msgUniqueID));
+    if (relayRequired && !haveRelayed(msgType, msgStatID, msgUniqueID))
+    {
+      if (msg.seek(afterHeader))
+      {
+        MSGPROC_PRINTLN(F("Unable to seek to afterHeader"));
+        return;
+      }
+
+      bool relayed = false;
+      if (msgType == 'W')
+      {
+        // Record for sending with the next weather packet.
+        // If it's too long to be recorded, change it to be a Q packet and send it on.
+        if (recordWeatherForRelay(msg, msgStatID, msgUniqueID))
+          relayed = true;
+        else
+          msgFirstByte = 'Q';
+      }
+      if (!relayed)
+        relayMessage(msg, msgType, msgFirstByte, msgStatID, msgUniqueID);
+
+      recordMessageRelay(msgType, msgStatID, msgUniqueID);
+    }
+#ifndef NO_STORAGE
+    if (shouldRecord(msgType, relayRequired, msg))
+    {
+      msg.seek(afterHeader);
+      Database::storeMessage(msgType, msgStatID, msg);
+    }
+#endif // !NO_STORAGE
   }
 
   bool shouldRecord(byte msgType, bool relayRequired,

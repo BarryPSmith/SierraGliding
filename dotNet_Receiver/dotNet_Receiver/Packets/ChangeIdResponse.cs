@@ -10,13 +10,13 @@ namespace core_Receiver.Packets
         public byte newID;
         public static object ParseChangeIdResponse(Span<byte> data)
         {
-            if (data.ToArray().ToAscii().StartsWith("NewId"))
+            if (data.ToArray().ToAscii().StartsWith("NewID"))
             {
                 return new ChangeIdResponse { newID = data[5] };
             }
             else
             {
-                throw new InvalidDataException();
+                return null;
             }
         }
 

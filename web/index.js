@@ -185,6 +185,48 @@ function database(dbpath, drop, cb) {
                         AND Station_ID = NEW.Station_ID;
                     END;
             `);
+
+            db.run(`CREATE TEMP TRIGGER IF NOT EXISTS 
+                    Trg_Station_Data_Del_${interval} 
+                    AFTER DELETE ON main.Station_Data
+                    BEGIN
+                        INSERT OR REPLACE INTO Station_Data_${interval}
+                            (Station_ID, Timestamp, Windspeed, 
+                            Wind_Direction, Battery_Level,
+                            Internal_Temp, External_Temp, Wind_Gust, Pwm, Current)
+                        SELECT
+                            OLD.Station_ID,
+                            CEIL(OLD.Timestamp/${interval}.0) * ${interval} AS Timestamp,
+                            AVG(windspeed) AS Windspeed,
+                            (DEGREES(ATAN2(AVG(SIN(RADIANS(Wind_Direction))), AVG(COS(RADIANS(Wind_Direction))))) + 360) % 360 AS Wind_Direction,
+                            AVG(Battery_Level) AS Battery_Level,
+                            AVG(Internal_Temp) AS Internal_Temp,
+                            AVG(External_Temp) AS External_Temp,
+                            MAX(Windspeed) AS Wind_Gust,
+                            AVG(Pwm) AS Pwm,
+                            AVG(Current) AS Current
+                        FROM
+                            Station_Data
+                        WHERE 
+                            (CEIL(OLD.Timestamp/${interval}.0) - 1) * ${interval} < Timestamp
+                            AND Timestamp <= CEIL(OLD.Timestamp/${interval}.0) * ${interval}
+                            AND Station_ID = OLD.Station_ID;
+
+                        DELETE FROM 
+                            Station_Data_${interval}
+                        WHERE 
+                            Station_ID = OLD.Station_ID
+                            AND Timestamp = CEIL(OLD.Timestamp/${interval}.0) * ${interval}
+                            AND NOT EXISTS (
+                                SELECT 1
+                                FROM Station_Data
+                                WHERE                         
+                                    (CEIL(OLD.Timestamp/${interval}.0) - 1) * ${interval} < Timestamp
+                                    AND Timestamp <= CEIL(OLD.Timestamp/${interval}.0) * ${interval}
+                                    AND Station_ID = OLD.Station_ID
+                                );
+                    END;`
+            );
         }
 
         db.run(`

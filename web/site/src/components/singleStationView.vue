@@ -2,18 +2,18 @@
     <div class="border-b border--gray-light">
         <div v-on:click="title_click"
              class="rightGridSingle cursor-pointer">
-            <div class='flex-parent flex-parent--center-cross' style="grid-column:1">
-                <h2 class="ml12 flex-child txt-h4" v-text="station.name" />
+            <div class='flex flex--center-cross' style="grid-column:1">
+                <h2 class="ml12 txt-h4" v-text="station.name" />
             </div>
-            <div v-if="collapsed" class="flex-parent flex-parent--center-cross mr12"
+            <div v-if="collapsed" class="flex-parent flex--center-cross mr12"
                 style="grid-column:2">
-                <div class='flex-child' style="height: 40px;">
+                <div style="height: 40px;">
                     <curWindDirIndicator :dataManager="dataManager"
                                          :legend="station.Wind_Dir_Legend"
                                          :detailed="false"
                                          :strokeWidth="3"/>
                 </div>
-                <div class='flex-child'>
+                <div>
                     <curWindSpdIndicator v-bind:dataManager="dataManager"
                                          :legend="station.Wind_Speed_Legend"
                                          :detailed="false"

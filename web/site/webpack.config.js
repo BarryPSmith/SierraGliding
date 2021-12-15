@@ -32,7 +32,7 @@ var config = {
 	]
   },
   plugins: [ 
-    new webPack.IgnorePlugin(/^\.\/locale$/, /moment$/),
+    new webPack.IgnorePlugin({ resourceRegExp: /^\.\/locale$/, contextRegExp: /moment$/ }),
     new VueLoaderPlugin(), 
 	new HTMLWebpackPlugin({
 	  showErrors: true,

@@ -154,7 +154,7 @@ class LoraMessageDestination final : public MessageDestination
       else //Flash the TX/RX LEDs to indicate an error condition:
       {
     #if !defined(DEBUG) && !defined(MODEM)
-        signalError();
+        signalError(state);
     #endif
         // If a message failed to send, try to re-initialise:
         // We use a global flag to do this on the next loop rather than immediately,

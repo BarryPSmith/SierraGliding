@@ -289,7 +289,9 @@ namespace WeatherProcessing
     lastWindCountMillis = thisMillis;
     if ((gustCount & 0b11) == 0)
     {
-      minInterval_x4 = thisMillis - gustTickMillis;
+      auto thisInterval = thisMillis - gustTickMillis;
+      if (thisInterval < minInterval_x4)
+        minInterval_x4 = thisInterval;
       gustTickMillis = thisMillis;
     }
     windCounts++;

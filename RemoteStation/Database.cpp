@@ -330,7 +330,7 @@ namespace Database
             _currentAction = ProcessingActions::Sending;
             return;
           default:
-            SIGNALERROR();
+            SIGNALERROR(DATABASE_UNKNOWN_CUR_ACTION);
             endSearch();
             return;
           }

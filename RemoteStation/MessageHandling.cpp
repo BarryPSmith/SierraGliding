@@ -87,7 +87,7 @@ namespace MessageHandling
         msg.readByte(msgUniqueID))
       {
         MSGPROC_PRINTLN(F("Unable to read message header."));
-        SIGNALERROR();
+        SIGNALERROR(MESSAGING_CANNOT_READ_HEADER);
         return;
       }
     }
@@ -95,7 +95,7 @@ namespace MessageHandling
     {
       MSGPROC_PRINT(F("Unknown message type: "));
       MSGPROC_PRINTLN(msgType);
-      SIGNALERROR();
+      SIGNALERROR(MESSAGING_UNKNOWN_TYPE);
       return;
     }
 
@@ -368,14 +368,14 @@ namespace MessageHandling
     if (msg.readBytes(callSignBuffer, sizeof(callSignBuffer)) != MESSAGE_OK)
     {
       MSGPROC_PRINTLN(F("Ping: can't read callsign"));
-      SIGNALERROR();
+      SIGNALERROR(MESSAGING_CANT_READ_CALLSIGN);
     }
     else if (memcmp(callSignBuffer, callSign, sizeof(callSignBuffer)) != 0)
     {
       MSGPROC_PRINT(F("Ping: callsign mismatch: "));
       for (int i = 0; i < sizeof(callSignBuffer); i++)
         MSGPROC_PRINTLN((char)callSignBuffer[i]);
-      SIGNALERROR();
+      SIGNALERROR(MESSAGING_CALLSIGN_MISMATCH);
     }
     else
     {

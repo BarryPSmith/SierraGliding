@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 namespace core_Receiver
 {
 
-    enum BasicResponse { OK, Ignored };
+    enum BasicResponse { OK, Ignored, Timeout };
 
     static class PacketDecoder
     {
@@ -123,6 +123,8 @@ namespace core_Receiver
                             ret.packetData = BasicResponse.OK;
                         else if (bytes.ToAscii(dataStart) == "IGNORED")
                             ret.packetData = BasicResponse.Ignored;
+                        else if (bytes.ToAscii(dataStart) == "Timeout")
+                            ret.packetData = BasicResponse.Timeout;
                         else
                             ret.packetData = bytes.Skip(dataStart).ToCsv(b => $"{b.ToChar()}:{b:X}");
                     }

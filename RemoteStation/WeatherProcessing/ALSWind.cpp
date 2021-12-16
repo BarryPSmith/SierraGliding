@@ -230,7 +230,7 @@ namespace WeatherProcessing
     tY /= sampleCount;
     if (tX > 127 || tX < -128 || tY > 127 || tY < -128)
     {
-      SIGNALERROR();
+      SIGNALERROR(WX_CALIBRATION_FAILED);
       WX_PRINTLN("Calibration Failed!");
       return;
     }

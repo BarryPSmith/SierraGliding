@@ -1,6 +1,7 @@
 #pragma once
 #include <Arduino.h>
 #include "revid.h"
+#include "ErrorCodes.h"
 
 #define STR(A) #A
 #define XSTR(A) STR(A)
@@ -151,25 +152,21 @@ inline void signalOff()
   digitalWrite(LED_PIN1, LED_OFF);
 }
 
-inline void signalError(const byte count = 5, const unsigned long delay_ms = 70)
+inline void signalError(uint16_t ErrorCode, const byte delay_ms = 125)
 {
-  bool zeroHigh = true;
-  for (byte i = 0; i < count; i++)
-  {
-    delay(delay_ms);
-    if (zeroHigh)
-    {
-      digitalWrite(LED_PIN0, LED_OFF);
-      digitalWrite(LED_PIN1, LED_ON);
-    }
-    else
-    {
-      digitalWrite(LED_PIN0, LED_ON);
-      digitalWrite(LED_PIN1, LED_OFF);
-    }
-    zeroHigh = !zeroHigh;
-  }
+  digitalWrite(LED_PIN0, LED_ON);
   delay(delay_ms);
+  //Shorten it to 11 bits (=-1024 to + 1023)
+  for (int i = 0; i < 11; i++)
+  {
+    digitalWrite(LED_PIN0, (i & 1) ? LED_OFF : LED_ON);
+    digitalWrite(LED_PIN1, (ErrorCode & 1) ? LED_ON : LED_OFF);
+    ErrorCode = ErrorCode >> 1;
+    delay(delay_ms);
+  }
+  // Write the sign bit
+  digitalWrite(LED_PIN0, LED_OFF);
+  digitalWrite(LED_PIN1, ErrorCode & (0x800 >> 11) ? LED_ON : LED_OFF);
   signalOff();
 }
 #define SIGNALERROR(...) signalError(__VA_ARGS__)

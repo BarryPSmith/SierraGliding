@@ -160,7 +160,7 @@ void InitMessaging()
 #endif //!USE_FP
     if (state != ERR_NONE)
     {
-      SIGNALERROR(4, 150);
+      SIGNALERROR(RADIO_STARTUP_ERROR, 50);
 #ifdef DETAILED_LORA_CHECK
       AWS_DEBUG_PRINTLN(F("==========="));
 #endif

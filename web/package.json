@@ -6,7 +6,7 @@
   "main": "index.js",
   "scripts": {
     "test": "yarn lint && tape ./test/*.test.js",
-    "lint": "eslint index.js test/"
+    "lint": "eslint index.js test/**.js lib/**.js"
   },
   "engines": {
     "node": ">= 10"
@@ -21,7 +21,7 @@
     "prompt": "^1.0.0",
     "request": "^2.88.0",
     "simple-statistics": "^7.0.5",
-    "sqlite3": "^4.1.0",
+    "sqlite3": "^5.0.2",
     "tape": "^4.11.0",
     "ws": "^7.4.6"
   },

@@ -1,5 +1,4 @@
 #! /usr/bin/env node
-'use strict';
 
 const OS = require('os');
 const path = require('path');
@@ -23,7 +22,7 @@ if ((!args.unit && !args.mock) || args.help) {
     console.log('  Run unit tests or create a mock server instances');
     console.log();
     console.log('  Usage: test/server.test.js [--mock] [--test] [--help]');
-    console.log()
+    console.log();
     console.log('  Options:');
     console.log('  --mock       Start a mock server, feeding it fake data to test UI changes');
     console.log('  --unit       Run unit tests against the server');
@@ -66,7 +65,7 @@ test('Stations', (t) => {
                 name: 'Windy Ridge',
                 lon: -118.44926834106445,
                 lat: 37.335497334999936,
-                windspeedlegend: [{top:10, color:"Blue"}, {top:20, color:"Green"}, {top:25, color:"Yellow"}, {top:30, color:"Red"}]
+                windspeedlegend: [{ top:10, color:'Blue' }, { top:20, color:'Green' }, { top:25, color:'Yellow' }, { top:30, color:'Red' }]
             })
         }, (err, res) => {
             q.error(err);
@@ -80,26 +79,26 @@ test('Stations', (t) => {
             q.error(err);
             q.deepEquals(JSON.parse(res.body), {
                 type: 'FeatureCollection',
-                bbox: [ -118.49418410527042, 37.299776417065324, -118.40435257685847, 37.371201273908426 ],
+                bbox: [-118.49418410527042, 37.299776417065324, -118.40435257685847, 37.371201273908426],
                 features: [{
                     id: 1,
                     type: 'Feature',
-                    bbox: [ -118.45375991748506, 37.331926007166906, -118.44477676464385, 37.339068493042674 ],
+                    bbox: [-118.45375991748506, 37.331926007166906, -118.44477676464385, 37.339068493042674],
                     properties: {
                         name: 'Windy Ridge',
                         legend: {
-                            wind_speed: [ 
-                                    {top:10, color:"Blue"},
-                                    {top:20, color:"Green"}, 
-                                    {top:25, color:"Yellow"},
-                                    {top:30, color:"Red"}
-                                ],
+                            wind_speed: [
+                                { top:10, color:'Blue' },
+                                { top:20, color:'Green' },
+                                { top:25, color:'Yellow' },
+                                { top:30, color:'Red' }
+                            ],
                             wind_dir: []
                         }
                     },
                     geometry: {
                         type: 'Point',
-                        coordinates: [ -118.44926834106445, 37.335497334999936 ]
+                        coordinates: [-118.44926834106445, 37.335497334999936]
                     }
                 }]
             });
@@ -119,7 +118,7 @@ test('Stations', (t) => {
                 name: 'Bishop Centre',
                 lon: -118.4044647216797,
                 lat: 37.36633719814676,
-                windspeedlegend: [{top: 5, color: "Blue"}, {top:10, color:"Green"}, {top:50, color:"Yellow"}, {top:80, color:"Red"}]
+                windspeedlegend: [{ top: 5, color: 'Blue' }, { top:10, color:'Green' }, { top:50, color:'Yellow' }, { top:80, color:'Red' }]
             })
         }, (err, res) => {
             q.error(err);
@@ -160,7 +159,7 @@ test('Stations', (t) => {
                 name: 'White Mountains',
                 lon: -118.2403564453125,
                 lat: 37.55764242679522,
-                windspeedlegend: [{top: 15, color: "Blue"}, {top:16, color:"Green"}, {top:19, color:"Yellow"}, {top:22, color:"Red"}]
+                windspeedlegend: [{ top: 15, color: 'Blue' }, { top:16, color:'Green' }, { top:19, color:'Yellow' }, { top:22, color:'Red' }]
             })
         }, (err, res) => {
             q.error(err);
@@ -206,7 +205,7 @@ test('Stations', (t) => {
 });
 
 function data(cb) {
-    let timestamp = moment();
+    const timestamp = moment();
 
     if (tick < 0) {
         timestamp.subtract(tick * -4, 'seconds');

@@ -267,7 +267,7 @@ function main(db, cb) {
      * Returns basic metadata about all stations
      * managed in the database as a GeoJSON FeatureCollection
      */
-    router.get('/stationFeatures', (req, res) => {
+    router.get('/stationFeatures', (req, res, next) => {
         db.all(`
             SELECT
                 ID AS id,
@@ -281,7 +281,7 @@ function main(db, cb) {
             WHERE
                 id >= 0;
         `, (err, stations) => {
-            if (err) return error(err, res);
+            if (err) return next(err);
 
             const pts = [];
 
@@ -321,7 +321,7 @@ function main(db, cb) {
         });
     });
 
-    router.get('/stations', (req, res) => {
+    router.get('/stations', (req, res, next) => {
         db.all(`
             SELECT
                 ID AS id,
@@ -342,11 +342,11 @@ function main(db, cb) {
         `,
         {
             $specificId: req.query.stationID,
-            $showAll: req.query.all == 'true' ? 1 : 0,
-            $groupName: req.query.groupName,
+            $showAll: req.query.all === 'true' ? 1 : 0,
+            $groupName: req.query.groupName
         }
         , (err, stations) => {
-            if (err) return error(err, res);
+            if (err) return next(err);
 
             for (const idx in stations) {
                 try {
@@ -406,7 +406,7 @@ function main(db, cb) {
                 }
                 const entry = req.body.windspeedlegend[idx];
                 if (entry.top === undefined || entry.color === undefined) {
-                    return next(new HTTPError(400, 'Each Wind Speed Legend entry must have "top" and "color" defined.'))
+                    return next(new HTTPError(400, 'Each Wind Speed Legend entry must have "top" and "color" defined.'));
                 }
 
                 if (entry.top <= lastVal) {
@@ -444,7 +444,7 @@ function main(db, cb) {
             $windspeed: JSON.stringify(req.body.windspeedlegend ? req.body.windspeedlegend : []),
             $winddir: JSON.stringify(req.body.winddirlegend ? req.body.winddirlegend : [])
         }, (err) => {
-            if (err) return error(err, res);
+            if (err) return next(err);
 
             res.status(200).json(true);
         });
@@ -453,7 +453,7 @@ function main(db, cb) {
     /**
      * Get all information about a single station
      */
-    router.get('/station/:id', (req, res) => {
+    router.get('/station/:id', (req, res, next) => {
         db.all(`
             SELECT
                 ID AS id,
@@ -471,7 +471,7 @@ function main(db, cb) {
         `, {
             $id: req.params.id
         }, (err, station) => {
-            if (err) return error(err, res);
+            if (err) return next(err);
 
             if (!station.length) {
                 return next(new HTTPError(404, 'No station by that ID found'));
@@ -490,7 +490,7 @@ function main(db, cb) {
     /**
      * Get data from a given station for a given time period
      */
-    router.get('/station/:id/data', (req, res) => {
+    router.get('/station/:id/data', (req, res, next) => {
         for (const key of ['start', 'end']) {
             if (!req.query[key]) {
                 return next(new HTTPError(400, `${key} url param required`));
@@ -578,7 +578,7 @@ function main(db, cb) {
             $sample: parseFloat(req.query.sample),
             $stat_len: stat_len
         }, (err, data_points) => {
-            if (err) return error(err, res);
+            if (err) return next(err);
             return res.json(data_points.filter((p) => p.timestamp > start));
         });
     });
@@ -586,7 +586,7 @@ function main(db, cb) {
     /**
      * Save a new data point to a a given station
      */
-    router.post('/station/:id/data', async(req, res) => {
+    router.post('/station/:id/data', async(req, res, next) => {
         if (!req.body) return next(new HTTPError(400, 'request body required'));
 
         for (const key of ['timestamp', 'wind_speed', 'wind_direction']) {
@@ -654,7 +654,7 @@ function main(db, cb) {
             }
             res.json('success');
         } catch (err) {
-            return error(err, res);
+            return next(err);
         }
 
         try {
@@ -705,7 +705,7 @@ function main(db, cb) {
     /**
      * Return the latest datapoint for a given station
      */
-    router.get('/station/:id/data/latest', (req, res) => {
+    router.get('/station/:id/data/latest', (req, res, next) => {
         db.all(`
             SELECT
                 Station_ID AS id,
@@ -724,7 +724,7 @@ function main(db, cb) {
         `, {
             $id: req.params.id
         }, (err, data) => {
-            if (err) return error(err, res);
+            if (err) return next(err);
 
             res.json(data);
         });

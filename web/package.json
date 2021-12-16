@@ -13,6 +13,10 @@
   },
   "license": "ISC",
   "dependencies": {
+    "@babel/eslint-parser": "^7.16.5",
+    "@babel/eslint-plugin": "^7.16.5",
+    "@babel/plugin-syntax-class-properties": "^7.12.13",
+    "@babel/preset-env": "^7.16.5",
     "@turf/turf": "^5.1.6",
     "bcrypt": "^5.0.0",
     "express": "^4.17.1",
@@ -26,11 +30,7 @@
     "ws": "^7.4.6"
   },
   "devDependencies": {
-    "@mapbox/eslint-config-geocoding": "^2.0.2",
     "eslint": "^8.4.1",
-    "eslint-plugin-node": "^10.0.0"
-  },
-  "eslintConfig": {
-    "extends": "@mapbox/eslint-config-geocoding"
+    "eslint-plugin-node": "^11.0.0"
   }
 }

@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 
-'use strict';
-
 const moment = require('moment');
 const turf = require('@turf/turf');
 const WebSocketServer = require('ws').Server;
@@ -12,7 +10,6 @@ const {
 const express = require('express');
 const sqlite3 = require('sqlite3');
 const path = require('path');
-const url = require('url');
 const util = require('util');
 const args = require('minimist')(process.argv, {
     string: ['db', 'port'],
@@ -33,7 +30,6 @@ app.set('json replacer', standardReplacer);
 app.use('/api/', router);
 app.use('/[^\.]+', express.static(path.resolve(__dirname, 'site/dist')));
 app.use(HTTPErrorMiddleware);
-
 
 if (require.main === module) {
     if (!args.db || args.help) {
@@ -650,7 +646,7 @@ function main(db, cb) {
                 $external_temp: typeof(req.body.external_temp) == 'number' ? req.body.external_temp : null,
                 $wind_gust: typeof(req.body.wind_gust) == 'number' ? req.body.wind_gust : req.body.wind_speed,
                 $pwm: typeof(req.body.pwm) == 'number' ? req.body.pwm : null,
-                $current: typeof(req.body.current) == 'number' ? req.body.current : null,
+                $current: typeof(req.body.current) == 'number' ? req.body.current : null
             });
 
             if (invalidWindspeed) {
@@ -726,7 +722,7 @@ function main(db, cb) {
             LIMIT 1
 
         `, {
-            $id: req.params.id,
+            $id: req.params.id
         }, (err, data) => {
             if (err) return error(err, res);
 

@@ -233,7 +233,7 @@ void setup() {
   if (!Flash::flashInit())
   {
     BASE_PRINTLN(F("!! Remote programming failed to initialise !!"));
-    SIGNALERROR();
+    SIGNALERROR(REMOTE_PROGRAM_INITALISATION_FAILURE);
   }
   Database::initDatabase();
 
@@ -415,7 +415,7 @@ void restart()
   {
     AWS_DEBUG_PRINT(F("RESTARTING!")); //By including this in the loop we will flash the LEDs in debug mode too.
     delay(500);
-    SIGNALERROR(3, 200);
+    SIGNALERROR(RESTARTING);
   }
 }
 

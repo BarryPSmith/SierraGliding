@@ -10,9 +10,7 @@ inline uint8_t getHiNibble(const uint8_t input) { return (input >> 4) & 0xF0; }
 inline void setLowNibble(uint8_t* dest, const uint8_t value) { *dest = getHiNibble(*dest) & getLowNibble(value); }
 inline void setHiNibble(uint8_t* dest, const uint8_t value) { *dest = getLowNibble(*dest) & getHiNibble(value); }
 
-#define NO_PACKET_AVAILABLE -1000
-#define NOT_ENOUGH_SPACE -1001
-#define REENTRY_NOT_SUPPORTED -1002
+
 
 #ifdef MODEM
 extern unsigned long lastFailMillis;
@@ -24,7 +22,7 @@ inline int16_t lora_check(const int16_t result, const __FlashStringHelper* msg)
   {
     AWS_DEBUG_PRINT(msg);
     AWS_DEBUG_PRINTLN(result);
-    SIGNALERROR();
+    SIGNALERROR(result);
 #ifdef MODEM
     lastFailMillis = millis();
 #endif
@@ -191,11 +189,11 @@ class CSMAWrapper
     {
       _checkedOut = false;
       _readBufferLenIdx++;
-      if (_readBufferLenIdx == _writeBufferLenIdx) {
+      if (_readBufferLenIdx >= _writeBufferLenIdx) {
         clearBuffer();
-      }
-      else if (_readBufferLenIdx > _writeBufferLenIdx) {
+      } else if (_readBufferLenIdx > _writeBufferLenIdx) {
         RX_PRINTLN(F("ERROR: Read buffer ahead of write buffer!"));
+        SIGNALERROR(CSMA_POINTER_INVERSION);
       }
     }
 

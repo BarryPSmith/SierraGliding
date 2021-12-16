@@ -335,6 +335,10 @@ Arguments:
                                 serverPoster?.SendWeatherDataAsync(packet, receivedTime);
                         break;
                     case PacketTypes.Response:
+                        if (packet.packetData.Equals(BasicResponse.Timeout)
+                            && DateTimeOffset.Now - _lastPing > TimeSpan.FromSeconds(5))
+                            _pingEvent.Set();
+                        break;
                     case PacketTypes.Command:
                     case PacketTypes.Ping:
                     case PacketTypes.Modem:
@@ -485,7 +489,9 @@ Arguments:
             }
         }
 
+        private static AutoResetEvent _pingEvent = new AutoResetEvent(false);
         private static TimeSpan _pingInterval = TimeSpan.FromMinutes(5);
+        private static DateTimeOffset _lastPing;
         private static bool _sendPing = true;
         private static void PingLoop()
         {
@@ -507,7 +513,8 @@ Arguments:
                             i++;
                         }
                     }
-                    Thread.Sleep(_pingInterval);
+                    _lastPing = DateTimeOffset.Now;
+                    _pingEvent.WaitOne(_pingInterval);
                 }
                 catch (Exception ex)
                 {

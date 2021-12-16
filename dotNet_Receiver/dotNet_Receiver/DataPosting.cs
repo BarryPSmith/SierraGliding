@@ -77,15 +77,12 @@ namespace core_Receiver
                     uniqueID = subPacket.uniqueID
                 };
 
-                if (IsPacketDoubleReceived(identifier, now))
+                if (IsPacketDoubleReceived(identifier, subPacket.calculatedTime ?? now))
                     continue;
-                receivedPacketTimes[identifier] = now;
-#if DEBUG
-                var sortedTimes = receivedPacketTimes.OrderBy(kvp => kvp.Key.ToString())
-                    .ToList();
-                if (subPacket.sendingStation == 49)
-                { }
-#endif
+                if (subPacket.sendingStation != packet.sendingStation)
+                    subPacket.calculatedTime = EstimatePacketArrival(identifier, subPacket.calculatedTime ?? now,
+                        now);
+                receivedPacketTimes[identifier] = subPacket.calculatedTime ?? now;
 
                 var toSerialize = new
                 {

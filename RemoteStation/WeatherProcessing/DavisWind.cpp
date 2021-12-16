@@ -57,7 +57,7 @@ namespace WeatherProcessing
         if (pwrVoltage == 0)
         {
           WX_PRINTLN(F("Power voltage is zero!"));
-          SIGNALERROR();
+          SIGNALERROR(WX_CALIBRATION_BAD_VOLTAGE);
           continue;
         }
       #endif
@@ -82,7 +82,7 @@ namespace WeatherProcessing
     }
     else
     {
-      SIGNALERROR();
+      SIGNALERROR(WX_CALIBRATION_FAILED);
       WX_PRINTLN(F("Calibration failed!"));
     }
     WX_PRINTLN(F("Calibration Result: "));

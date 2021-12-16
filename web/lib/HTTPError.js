@@ -1,16 +1,30 @@
 /**
  * @class
- * @param {Number}  status  HTTP Status Code
- * @param {Error}   err     Original Error
- * @param {String}  human   Human Readable Error Message
+ * @param {Number}          status  HTTP Status Code
+ * @param {Error|String}    err     Original Error or Human Readable message if no error is present
+ * @param {String}          human   Human Readable Error Message
+ *
+ * @prop {Number}           status  HTTP Status Code
+ * @prop {Error}            err     Original Error Object
+ * @prop {String}           human   Human readable string
  */
 class HTTPError {
     constructor(status, err, human) {
         console.error(err);
 
         this.status = status;
-        this.err = err;
-        this.human = human;
+
+        if (err instanceof Error) {
+            this.err = err;
+        }
+
+        if (typeof err === 'string') {
+            this.human = err;
+        } else if (!human) {
+            this.human = 'Unknown Error';
+        } else {
+            this.human = err;
+        }
     }
 
     respond(res) {

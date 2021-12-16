@@ -1,21 +1,18 @@
 #!/usr/bin/env node
 
-'use strict';
-
 const moment = require('moment');
 const turf = require('@turf/turf');
 const WebSocketServer = require('ws').Server;
 const express = require('express');
 const sqlite3 = require('sqlite3');
 const path = require('path');
-const url = require('url');
 const util = require('util');
 const args = require('minimist')(process.argv, {
     string: ['db', 'port'],
     boolean: ['help']
 });
 
-let extensionLoaded = true;
+const extensionLoaded = true;
 
 const app = express();
 const router = new express.Router();
@@ -23,13 +20,11 @@ const router = new express.Router();
 app.disable('x-powered-by');
 
 app.use(express.static(path.resolve(__dirname, 'site/dist')));
-//app.use('/all', express.static(path.resolve(__dirname, 'site/dist')));
+// app.use('/all', express.static(path.resolve(__dirname, 'site/dist')));
 app.use(express.json());
 app.set('json replacer', standardReplacer);
 app.use('/api/', router);
 app.use('/[^\.]+', express.static(path.resolve(__dirname, 'site/dist')));
-
-
 
 if (require.main === module) {
     if (!args.db || args.help) {
@@ -77,14 +72,14 @@ function database(dbpath, drop, cb) {
     const db = new sqlite3.Database(dbpath);
 
     db.serialize(() => {
-        db.run("PRAGMA foreign_keys = ON");
-        db.run("PRAGMA journal_mode = WAL");
-        db.run("PRAGMA busy_timeout = 1000");
+        db.run('PRAGMA foreign_keys = ON');
+        db.run('PRAGMA journal_mode = WAL');
+        db.run('PRAGMA busy_timeout = 1000');
 
-        db.loadExtension(`sqlite3_ext/extension-functions`, (err, res) => {
+        db.loadExtension('sqlite3_ext/extension-functions', (err, res) => {
             if (err) {
                 console.error(err);
-                var extensionLoaded = false;
+                const extensionLoaded = false;
             }
         });
 
@@ -158,12 +153,12 @@ function database(dbpath, drop, cb) {
         }
 
         for (const interval of ['100', '600']) {
-            db.run(`CREATE TRIGGER IF NOT EXISTS 
-                    Trg_Station_Data_${interval} 
+            db.run(`CREATE TRIGGER IF NOT EXISTS
+                    Trg_Station_Data_${interval}
                     AFTER INSERT ON Station_Data
                     BEGIN
                       INSERT OR REPLACE INTO Station_Data_${interval}
-                        (Station_ID, Timestamp, Windspeed, 
+                        (Station_ID, Timestamp, Windspeed,
                         Wind_Direction, Battery_Level,
                         Internal_Temp, External_Temp, Wind_Gust, Pwm, Current)
                       SELECT
@@ -179,7 +174,7 @@ function database(dbpath, drop, cb) {
                         AVG(Current) AS Current
                       FROM
                         Station_Data
-                      WHERE 
+                      WHERE
                         (CEIL(NEW.Timestamp/${interval}.0) - 1) * ${interval} < Timestamp
                         AND Timestamp <= CEIL(NEW.Timestamp/${interval}.0) * ${interval}
                         AND Station_ID = NEW.Station_ID;
@@ -234,7 +229,7 @@ function database(dbpath, drop, cb) {
             AS SELECT * FROM station_data LIMIT 0;
         `);
 
-        db.get(`SELECT sqlite_version() AS ver`, (err, res) => {
+        db.get('SELECT sqlite_version() AS ver', (err, res) => {
             if (err) console.error(err);
             else (console.error('Sqlite3 Version: ' + res.ver));
         });
@@ -311,12 +306,12 @@ function main(db, cb) {
                 let wdLegend = null;
                 try {
                     wsLegend = JSON.parse(station.windspeedlegend);
-                } catch(err) {
+                } catch (err) {
                     console.error(err);
                 }
                 try {
                     wdLegend = JSON.parse(station.winddirlegend);
-                } catch(err) {
+                } catch (err) {
                     console.error(err);
                 }
 
@@ -361,23 +356,23 @@ function main(db, cb) {
                     OR
                     1 = $showAll)
         `,
-            { 
-                $specificId: req.query.stationID,
-                $showAll: req.query.all == "true" ? 1 : 0,
-                $groupName: req.query.groupName,
-            }
+        {
+            $specificId: req.query.stationID,
+            $showAll: req.query.all === 'true' ? 1 : 0,
+            $groupName: req.query.groupName
+        }
         , (err, stations) => {
             if (err) return error(err, res);
 
             for (const idx in stations) {
                 try {
                     stations[idx].Wind_Speed_Legend = JSON.parse(stations[idx].Wind_Speed_Legend);
-                } catch(err) {
+                } catch (err) {
                     console.error(err);
                 }
                 try {
                     stations[idx].Wind_Dir_Legend = JSON.parse(stations[idx].Wind_Dir_Legend);
-                } catch(err) {
+                } catch (err) {
                     console.error(err);
                 }
                 try {
@@ -389,7 +384,7 @@ function main(db, cb) {
             }
 
             res.json(stations);
-        })
+        });
     });
 
     /**
@@ -425,7 +420,7 @@ function main(db, cb) {
             let lastVal = 0;
             const colors = ['Blue', 'Green', 'Yellow', 'Red'];
             for (const idx in req.body.windspeedlegend) {
-                //If we're given numbers, just use the default colours:
+                // If we're given numbers, just use the default colours:
                 if (!isNaN(parseFloat(req.body.windspeedlegend[idx]))) {
                     if (idx > 3) {
                         return res.status(400).json({
@@ -554,7 +549,7 @@ function main(db, cb) {
 
             try {
                 moment.unix(req.query[key]);
-            } catch(err) {
+            } catch (err) {
                 return res.status(400).json({
                     status: 400,
                     error: `${key} url param must be integer of seconds since unix epoch`
@@ -638,7 +633,7 @@ function main(db, cb) {
             $stat_len: stat_len
         }, (err, data_points) => {
             if (err) return error(err, res);
-            return res.json(data_points.filter(p => p.timestamp > start));
+            return res.json(data_points.filter((p) => p.timestamp > start));
         });
     });
 
@@ -663,7 +658,7 @@ function main(db, cb) {
 
             try {
                 moment.unix(req.body.timestamp);
-            } catch(err) {
+            } catch (err) {
                 return res.status(400).json({
                     status: 400,
                     error: 'timestamp must be an integer (unix) date'
@@ -719,7 +714,7 @@ function main(db, cb) {
                 $external_temp: typeof(req.body.external_temp) == 'number' ? req.body.external_temp : null,
                 $wind_gust: typeof(req.body.wind_gust) == 'number' ? req.body.wind_gust : req.body.wind_speed,
                 $pwm: typeof(req.body.pwm) == 'number' ? req.body.pwm : null,
-                $current: typeof(req.body.current) == 'number' ? req.body.current : null,
+                $current: typeof(req.body.current) == 'number' ? req.body.current : null
             });
 
             if (invalidWindspeed) {
@@ -776,7 +771,7 @@ function main(db, cb) {
         } catch (err) {
             console.error(err);
         }
-    }); //declare post /station/:id/data
+    }); // declare post /station/:id/data
 
     /**
      * Return the latest datapoint for a given station
@@ -798,7 +793,7 @@ function main(db, cb) {
             LIMIT 1
 
         `, {
-            $id: req.params.id,
+            $id: req.params.id
         }, (err, data) => {
             if (err) return error(err, res);
 
@@ -833,10 +828,10 @@ async function checkCullInvalidWindspeed(db, id, windspeed, timestamp, wss) {
         AND timestamp < $timestamp
         ORDER BY timestamp DESC
         LIMIT 2`,
-        {
-            $id: id,
-            $timestamp: timestamp
-        });
+    {
+        $id: id,
+        $timestamp: timestamp
+    });
     if (lastRecords.length < 2) {
         return;
     }
@@ -888,17 +883,17 @@ async function checkCullInvalidWindspeed(db, id, windspeed, timestamp, wss) {
     }
     
     const tsToDelete = lastRecords[0].timestamp;
-    await dbRun(`INSERT INTO discarded_data SELECT * FROM station_data WHERE station_id = $id AND timestamp = $tsToDelete;`,
-    {
-        $id: id,
-        $tsToDelete: tsToDelete
-    });
-    await dbRun(`DELETE FROM station_data WHERE station_id = $id AND timestamp = $tsToDelete;`,
-    {
-        $id: id,
-        $tsToDelete: tsToDelete
-    });
-    wss.clients.forEach(client => {
+    await dbRun('INSERT INTO discarded_data SELECT * FROM station_data WHERE station_id = $id AND timestamp = $tsToDelete;',
+        {
+            $id: id,
+            $tsToDelete: tsToDelete
+        });
+    await dbRun('DELETE FROM station_data WHERE station_id = $id AND timestamp = $tsToDelete;',
+        {
+            $id: id,
+            $tsToDelete: tsToDelete
+        });
+    wss.clients.forEach((client) => {
         client.send(JSON.stringify({
             id: id,
             timestamp: tsToDelete,

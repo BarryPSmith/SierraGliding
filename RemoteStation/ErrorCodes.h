@@ -8,6 +8,7 @@ constexpr short NO_PACKET_AVAILABLE = -1000;
 constexpr short NOT_ENOUGH_SPACE = -1001;
 constexpr short REENTRY_NOT_SUPPORTED = -1002;
 constexpr short CSMA_POINTER_INVERSION = -1003;
+constexpr short CSMA_UNEXPECTED_ZERO_LENGTH = -1004;
 
 constexpr short WX_CALIBRATION_FAILED = 0x11;
 constexpr short WX_CALIBRATION_FAILED_BAD_VOLTAGE = 0x12;
@@ -24,5 +25,4 @@ constexpr short MESSAGING_CANNOT_READ_HEADER = 0x61;
 constexpr short MESSAGING_UNKNOWN_TYPE = 0x62;
 constexpr short MESSAGING_CANT_READ_CALLSIGN = 0x63;
 constexpr short MESSAGING_CALLSIGN_MISMATCH = 0x64;
-
 #endif

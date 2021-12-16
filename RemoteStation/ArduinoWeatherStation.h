@@ -148,25 +148,57 @@ extern unsigned long lastPingMillis;
 #define LED_ON LOW
 inline void signalOff()
 {
-  digitalWrite(LED_PIN0, LED_OFF);
-  digitalWrite(LED_PIN1, LED_OFF);
+  static_assert(LED_PIN0 == 0);
+  static_assert(LED_PIN1 == 1);
+  static_assert(LED_ON == LOW);
+  static_assert(LED_OFF == HIGH);
+  PORTD |= _BV(PD0);
+  PORTD |= _BV(PD1);
+  //digitalWrite(LED_PIN0, LED_OFF);
+  //digitalWrite(LED_PIN1, LED_OFF);
 }
 
 inline void signalError(uint16_t ErrorCode, const byte delay_ms = 125)
 {
-  digitalWrite(LED_PIN0, LED_ON);
-  delay(delay_ms);
+  static_assert(LED_PIN0 == 0);
+  static_assert(LED_PIN1 == 1);
+  static_assert(LED_ON == LOW);
+  static_assert(LED_OFF == HIGH);
+  auto delay2 = delay_ms / 4;
+  PORTD &= ~(_BV(PD0) | _BV(PD1));
+  //digitalWrite(LED_PIN0, LED_ON);
+  //digitalWrite(LED_PIN1, LED_ON);
+  delay(delay2);
+  PORTD |= _BV(PD1);//digitalWrite(LED_PIN1, LED_OFF);
+  delay(delay2);
+  PORTD &= ~_BV(PD1); //digitalWrite(LED_PIN1, LED_ON);
+  delay(delay2);
+  PORTD |= _BV(PD1); //digitalWrite(LED_PIN1, LED_OFF);
+  delay(delay2);
   //Shorten it to 11 bits (=-1024 to + 1023)
-  for (int i = 0; i < 11; i++)
+  for (byte i = 0; i < 11; i++)
   {
-    digitalWrite(LED_PIN0, (i & 1) ? LED_OFF : LED_ON);
-    digitalWrite(LED_PIN1, (ErrorCode & 1) ? LED_ON : LED_OFF);
+    if (i & 1)
+      PORTD |= _BV(PD0);
+    else
+      PORTD &= ~_BV(PD0);
+    //digitalWrite(LED_PIN0, (i & 1) ? LED_OFF : LED_ON);
+    if (ErrorCode & 1)
+      PORTD &= ~_BV(PD1);
+    else
+      PORTD |= _BV(PD1);
+    //digitalWrite(LED_PIN1, (ErrorCode & 1) ? LED_ON : LED_OFF);
     ErrorCode = ErrorCode >> 1;
     delay(delay_ms);
   }
   // Write the sign bit
-  digitalWrite(LED_PIN0, LED_OFF);
-  digitalWrite(LED_PIN1, ErrorCode & (0x800 >> 11) ? LED_ON : LED_OFF);
+  //digitalWrite(LED_PIN0, LED_OFF);
+  //digitalWrite(LED_PIN1, ErrorCode & (0x800 >> 11) ? LED_ON : LED_OFF);
+  if (ErrorCode & (0x800 >> 11))
+    PORTD &= ~_BV(PD1);
+  else
+    PORTD |= _BV(PD1);
+  PORTD |= _BV(PD0);
   signalOff();
 }
 #define SIGNALERROR(...) signalError(__VA_ARGS__)

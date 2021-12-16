@@ -182,6 +182,15 @@ class CSMAWrapper
       *crcMismatch = _crcMismatches[_readBufferLenIdx];
 #endif
       _checkedOut = true;
+      if (length == 0)
+      {
+        // We shouldn't end up here - but we have in the past,
+        // and it caused re-entry problems because the calling code 
+        // was using length to determine if it needed to call doneWithBuffer
+        RX_PRINTLN(F("CSMA_UNEXPECTED_ZERO_LENGTH"));
+        SIGNALERROR(CSMA_UNEXPECTED_ZERO_LENGTH);
+        doneWithBuffer();
+      }
       return(state);
     }
 
@@ -189,11 +198,12 @@ class CSMAWrapper
     {
       _checkedOut = false;
       _readBufferLenIdx++;
-      if (_readBufferLenIdx >= _writeBufferLenIdx) {
-        clearBuffer();
-      } else if (_readBufferLenIdx > _writeBufferLenIdx) {
+      if (_readBufferLenIdx > _writeBufferLenIdx) {
         RX_PRINTLN(F("ERROR: Read buffer ahead of write buffer!"));
         SIGNALERROR(CSMA_POINTER_INVERSION);
+      }
+      if (_readBufferLenIdx >= _writeBufferLenIdx) {
+        clearBuffer();
       }
     }
 
@@ -215,14 +225,20 @@ class CSMAWrapper
       if (_writeBufferLenIdx == maxQueue) {
         return(NOT_ENOUGH_SPACE);
       }
+      // Put the radio into standby to avoid a race condition
+      // where we receive another packet between getPacketLength and readData
+      LORA_CHECK(_base->standby());
+      reenterRequired = true;
       uint8_t bufferWriteOffset = getBufferWriteOffset();
       uint8_t packetSize = _base->getPacketLength(false);
+      if (packetSize == 0) {
+        return NO_PACKET_AVAILABLE;
+      }
       if (bufferSize - bufferWriteOffset < packetSize) {
         return(NOT_ENOUGH_SPACE);
       }
 
       int16_t state = _base->readData(_buffer + bufferWriteOffset, packetSize);
-      reenterRequired = true;
       s_packetWaiting = false;
 
       updateReadStats(state);

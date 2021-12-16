@@ -356,7 +356,10 @@ bool LoraMessageSource::beginMessage()
     , &_crcMismatch
 #endif
   ));
-  //we don't use state to determine whether to handle the message
+  // The result of dequeueMessage is actually the result of readIfPossible
+  // But regardless of what that function returned, we might have read 
+  // something out of the buffer.
+  // So we don't use state to determine whether to handle the message
   if (_length == 0)
     return false;
   

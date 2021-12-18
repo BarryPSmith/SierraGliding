@@ -18,10 +18,15 @@ namespace core_Receiver.Packets
         public byte? current;
         public byte[] extras;
         public DateTimeOffset? calculatedTime;
+        public byte? timestampByte;
+        public DateTimeOffset? timeStamp;
+        public ushort? lastErrorTSShort;
+        public DateTimeOffset? lastErrorTimestamp;
+        public short? lastErrorCode;
 
         public override string ToString()
         {
-            var ret = $"ID:{sendingStation}/{uniqueID:X2} WD:{windDirection:F1} WS:{windSpeed:F2}";
+            var ret = $"ID:{sendingStation}/{uniqueID:X2} WD:{windDirection:F1} WS:{windSpeed:F1}";
             if (gust.HasValue)
                 ret += $" G: {gust}";
             if (batteryLevelH.HasValue)
@@ -34,6 +39,15 @@ namespace core_Receiver.Packets
                 ret += $" PWM:{pwmValue:X}";
             if (current.HasValue)
                 ret += $" Cur:{current}";
+            if (timeStamp.HasValue)
+                ret += $" Delay:{(DateTimeOffset.Now - timeStamp).Value.TotalSeconds:F0}s";
+            if (lastErrorCode.HasValue)
+                ret += $" ERR:{lastErrorCode}";
+            if (lastErrorTimestamp.HasValue)
+            {
+                var spacing = (lastErrorTimestamp - timeStamp).Value.TotalSeconds;
+                ret += $" ({spacing}s)";
+            }
             if (extras?.Length > 0)
                 ret += $" ({extras.ToCsv(b => b.ToString("X2"), " ")})";
             return ret;

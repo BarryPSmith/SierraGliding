@@ -16,7 +16,7 @@ namespace core_Receiver
     {
         public static Dictionary<byte, string> RecentCommands { get; } = new Dictionary<byte, string>();
 
-        public static Packet DecodeBytes(byte[] inBytes, bool checkX = true)
+        public static Packet DecodeBytes(byte[] inBytes, DateTimeOffset receivedTime, bool checkX = true)
         {
             if (inBytes.Length < 4)
                 return null;
@@ -59,12 +59,12 @@ namespace core_Receiver
                     break;
                 case PacketTypes.Weather:
                 case PacketTypes.Overflow2:
-                    (ret.packetData, ret.exception) = DecodeWeatherPackets(bytes.AsSpan(cur));
+                    (ret.packetData, ret.exception) = DecodeWeatherPackets(bytes.AsSpan(cur), receivedTime);
                     ret.GetDataString = 
                         data => (data as IList<SingleWeatherData>)?.ToCsv();
                     break;
                 case PacketTypes.Overflow:
-                    (ret.packetData, ret.exception) = DecodeWeatherPackets(bytes.AsSpan(dataStart));
+                    (ret.packetData, ret.exception) = DecodeWeatherPackets(bytes.AsSpan(dataStart), receivedTime);
                     ret.GetDataString =
                         data => (data as IList<SingleWeatherData>)?.ToCsv();
                     break;
@@ -83,12 +83,7 @@ namespace core_Receiver
                                     ret.packetData = new QueryVolatileResponse(bytes.AsSpan(dataStart + 1));
                                 break;
                             case 'P':
-                                if (subType == 'C')
-                                    ret.packetData = bytes.ToAscii(dataStart + 1);
-                                else if (subType == 'Q')
-                                    ret.packetData = new ProgrammingResponse(bytes.AsSpan(dataStart + 1));
-                                else if (subType == 'A')
-                                    ret.packetData = bytes.ToAscii(dataStart);
+                                ret.packetData = ProgrammingResponse.DecodeProgrammingResponse(bytes.AsSpan(dataStart));
                                 break;
                             case 'U':
                                 ret.packetData = ChangeIdResponse.ParseChangeIdResponse(bytes.AsSpan(dataStart));
@@ -104,7 +99,7 @@ namespace core_Receiver
                                 if (subType == 'L')
                                     ret.packetData = new MessageListResponse(bytes.AsSpan(dataStart + 1));
                                 else if (subType == 'R')
-                                    ret.packetData = DecodeBytes(bytes.Skip(dataStart + 1).ToArray(), false);
+                                    ret.packetData = DecodeBytes(bytes.Skip(dataStart + 1).ToArray(), receivedTime, false);
                                 break;
                             case 'X':
                                 ret.packetData = new CrystalInfo(bytes.AsSpan(dataStart));
@@ -155,7 +150,9 @@ namespace core_Receiver
             return wdByte * 360 / 256.0;
         }
 
-        private static SingleWeatherData DecodeWeatherPacket(Span<byte> data, out int packetLen)
+        static HashSet<int> timestampStations = new HashSet<int> { 49, 50, 51, 68, 71 };
+        private static SingleWeatherData DecodeWeatherPacket(
+            Span<byte> data, out int packetLen, DateTimeOffset now)
         {
             if (data.Length < 3)
             {
@@ -189,6 +186,12 @@ namespace core_Receiver
             if (ret.gust > ret.windSpeed * 2.5 && ret.gust > 15)
                 ret.gust = null;
 
+            if (timestampStations.Contains(ret.sendingStation))
+            {
+                ret.timestampByte = data[cur++];
+                ret.timeStamp = GetTimeStamp(ret.timestampByte.Value, now);
+            }
+
             if (packetLen > cur)
                 ret.batteryLevelH = data[cur++] / 255.0 * 7.5; //5 (^6)
             if (packetLen > cur)
@@ -199,6 +202,20 @@ namespace core_Receiver
                 ret.pwmValue = data[cur++];
             if (packetLen > cur)
                 ret.current = data[cur++];
+            if (timestampStations.Contains(ret.sendingStation))
+            {
+                if (packetLen > cur + 1)
+                {
+                    ret.lastErrorTSShort = BitConverter.ToUInt16(data.Slice(cur));
+                    ret.lastErrorTimestamp = GetTimeStamp(ret.lastErrorTSShort.Value, now);
+                    cur += sizeof(UInt16);
+                }
+                if (packetLen > cur + 1)
+                {
+                    ret.lastErrorCode = BitConverter.ToInt16(data.Slice(cur));
+                    cur += sizeof(UInt16);
+                }
+            }
             if (packetLen > cur)
                 ret.extras = data[cur..packetLen].ToArray(); //8 (^9)
             return ret;
@@ -208,7 +225,8 @@ namespace core_Receiver
             => (tempByte - 64.0) / 2;
         static char GetChar(byte b) => 48 <= b && b <= 90 ? b.ToChar() : '#';
 
-        private static (IList<SingleWeatherData>, Exception) DecodeWeatherPackets(Span<byte> bytes)
+        private static (IList<SingleWeatherData>, Exception) DecodeWeatherPackets(Span<byte> bytes,
+            DateTimeOffset now)
         {
             Exception exception = null;
             int cur = 0;
@@ -218,7 +236,7 @@ namespace core_Receiver
             {
                 try
                 {
-                    var packet = DecodeWeatherPacket(bytes.Slice(cur), out var len);
+                    var packet = DecodeWeatherPacket(bytes.Slice(cur), out var len, now);
                     if (packet == null)
                         throw new NullReferenceException("Decode Weather Packet returned null");
                     // Something wrong with R packets... temporary fix
@@ -243,6 +261,26 @@ namespace core_Receiver
             { }
 
             return (ret, exception);
+        }
+
+        private static DateTimeOffset GetTimeStamp(byte lastByte, DateTimeOffset now)
+        {
+            var nowTs = now.ToUnixTimeSeconds();
+            var curLastByte = (byte)nowTs;
+            if (curLastByte < lastByte)
+                nowTs -= 0x100;
+            var ts = (nowTs & ~(long)0xFF) | lastByte;
+            return DateTimeOffset.FromUnixTimeSeconds(ts);
+        }
+
+        private static DateTimeOffset GetTimeStamp(ushort lastBytes, DateTimeOffset now)
+        {
+            var nowTs = now.ToUnixTimeSeconds();
+            var curLastBytes = (ushort)nowTs;
+            if (curLastBytes < lastBytes)
+                nowTs -= 0x10000;
+            var ts = (nowTs & ~(long)0xFFFF) | lastBytes;
+            return DateTimeOffset.FromUnixTimeSeconds(ts);
         }
     }
 }

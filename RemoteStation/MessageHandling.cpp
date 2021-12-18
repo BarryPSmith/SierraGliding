@@ -61,6 +61,8 @@ namespace MessageHandling
       readMessage(msg);
       msg.doneWithMessage();
     }
+    if (msg._lastBeginError == REENTRY_NOT_SUPPORTED)
+      csma.clearBuffer();
     delayRequired = false;
   }
 
@@ -108,7 +110,7 @@ namespace MessageHandling
     MSGPROC_PRINT(F(", ID: "));
     MSGPROC_PRINTLN(msgUniqueID);
 
-    if (msgType == 'P')
+    if (msgType == 'P' && Commands::checkCommandUID(msgUniqueID))
       checkPing(msg);
 
     //If it's one of our messages relayed back to us, ignore it:

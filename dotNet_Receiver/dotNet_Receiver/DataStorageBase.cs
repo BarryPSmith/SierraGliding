@@ -1,4 +1,5 @@
-﻿using System;
+﻿using core_Receiver.Packets;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -44,10 +45,32 @@ namespace core_Receiver
             => receivedPacketTimes.TryGetValue(identifier, out var lastReceivedTime) &&
                 lastReceivedTime + InvalidationTime > now;
 
-        protected DateTimeOffset EstimatePacketArrival(PacketIdentifier identifier, DateTimeOffset expected, DateTimeOffset now)
+        // All of this probably doesn't belong here.
+        const double maxSpan = 40;
+        protected DateTimeOffset? EstimatePacketArrival(
+            SingleWeatherData subPacket,
+            DateTimeOffset now, bool isSendingStation)
         {
+            if (now - subPacket.timeStamp < TimeSpan.FromSeconds(maxSpan))
+                return subPacket.timeStamp.Value;
+            else if (isSendingStation)
+                return null;
+            else
+                return EstimatePacketArrivalNoTs(subPacket, now);
+        }
+
+        private DateTimeOffset EstimatePacketArrivalNoTs(
+            SingleWeatherData subPacket, DateTimeOffset now)
+        {
+            var identifier = new PacketIdentifier()
+            {
+                packetType = 'W',
+                stationID = subPacket.sendingStation,
+                uniqueID = subPacket.uniqueID
+            };
+            var expected = subPacket.calculatedTime ?? now;
+
             TimeSpan maxSearch = TimeSpan.FromMinutes(5);
-            double maxSpan = 40;
 
             var test = identifier;
             List<(int uid, DateTimeOffset received)> toTest = new List<(int, DateTimeOffset)>(20);
@@ -95,8 +118,8 @@ namespace core_Receiver
             var diff = calculated - expected;
             if (bestFitParams.a < 3 || (bestFitParams.a > 4.5 && bestFitParams.a < 28))
             { }
-            Debug.WriteLine($"{identifier.stationID}, {identifier.uniqueID}, {calculated.ToUnixTimeSeconds()}, {expected.ToUnixTimeSeconds()}, {now.ToUnixTimeSeconds()}, {diff.TotalSeconds}, {calculated}, " +
-                $"{bestFitParams.a}");
+            /*Debug.WriteLine($"{identifier.stationID}, {identifier.uniqueID}, {calculated.ToUnixTimeSeconds()}, {expected.ToUnixTimeSeconds()}, {now.ToUnixTimeSeconds()}, {diff.TotalSeconds}, {calculated}, " +
+                $"{bestFitParams.a}");*/
             if (Math.Abs(diff.TotalSeconds) > maxSpan)
                 return expected;
             // We cannot give it a time greater than the present.

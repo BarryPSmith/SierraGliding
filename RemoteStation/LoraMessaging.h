@@ -38,6 +38,7 @@ class LoraMessageSource : public MessageSource
 
     MESSAGE_RESULT seek(const byte newPosition) override;
 
+    uint16_t _lastBeginError;
 #ifdef GET_CRC_FAILURES
     bool _crcMismatch;
 #endif

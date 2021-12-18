@@ -34,15 +34,9 @@ namespace core_Receiver
             public string Status { get; set; }
         }
 
-        public async Task SendWeatherDataAsync(Packet packet, DateTime receivedTime)
+        void CalculatePacketTimes(IList<SingleWeatherData> subPackets,
+            DateTimeOffset now, byte sendingStation)
         {
-            if (packet.type != PacketTypes.Weather && packet.type != PacketTypes.Overflow
-                && packet.type != PacketTypes.Overflow2)
-                throw new InvalidOperationException();
-
-            var now = new DateTimeOffset(receivedTime).ToUniversalTime();
-
-            var subPackets = packet.packetData as IList<SingleWeatherData>;
             var groupedPackets = subPackets.GroupBy(p => p.sendingStation);
             foreach (var grp in groupedPackets.Where(grp => grp.Count() > 1))
             {
@@ -60,7 +54,7 @@ namespace core_Receiver
                 }
                 var lastId = grp.OrderBy(p => spaceAfter(p)).Last().uniqueID;
                 TimeSpan timeBetweenPackets = TimeSpan.FromSeconds(4);
-                foreach(var subPacket in grp)
+                foreach (var subPacket in grp)
                 {
                     byte idSpace = (byte)(lastId - subPacket.uniqueID);
                     var packetTime = now - idSpace * timeBetweenPackets;
@@ -76,13 +70,35 @@ namespace core_Receiver
                     stationID = subPacket.sendingStation,
                     uniqueID = subPacket.uniqueID
                 };
+                subPacket.calculatedTime = EstimatePacketArrival(
+                    subPacket, now, subPacket.sendingStation == sendingStation);
+            }
+        }
+
+        public async Task SendWeatherDataAsync(Packet packet, DateTimeOffset receivedTime)
+        {
+            if (packet.type != PacketTypes.Weather && packet.type != PacketTypes.Overflow
+                && packet.type != PacketTypes.Overflow2)
+                throw new InvalidOperationException();
+
+            var now = receivedTime.ToUniversalTime();
+
+            var subPackets = packet.packetData as IList<SingleWeatherData>;
+            CalculatePacketTimes(subPackets, receivedTime, packet.sendingStation);
+
+            foreach (var subPacket in subPackets.OrderBy(p => p.calculatedTime ?? now))
+            {
+                var identifier = new PacketIdentifier()
+                {
+                    packetType = 'W',
+                    stationID = subPacket.sendingStation,
+                    uniqueID = subPacket.uniqueID
+                };
 
                 if (IsPacketDoubleReceived(identifier, subPacket.calculatedTime ?? now))
                     continue;
-                if (subPacket.sendingStation != packet.sendingStation)
-                    subPacket.calculatedTime = EstimatePacketArrival(identifier, subPacket.calculatedTime ?? now,
-                        now);
                 receivedPacketTimes[identifier] = subPacket.calculatedTime ?? now;
+
 
                 var toSerialize = new
                 {

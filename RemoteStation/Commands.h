@@ -4,4 +4,5 @@
 namespace Commands
 {
   void handleCommandMessage(MessageSource& message, byte uniqueID, bool isSpecific);
+  bool checkCommandUID(byte uniqueId);
 }

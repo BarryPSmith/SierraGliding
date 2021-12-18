@@ -351,7 +351,7 @@ void LoraMessageSource::doneWithMessage()
 
 bool LoraMessageSource::beginMessage()
 {
-  LORA_CHECK(csma.dequeueMessage(&_incomingBuffer, &_length
+  _lastBeginError = LORA_CHECK(csma.dequeueMessage(&_incomingBuffer, &_length
 #ifdef GET_CRC_FAILURES
     , &_crcMismatch
 #endif

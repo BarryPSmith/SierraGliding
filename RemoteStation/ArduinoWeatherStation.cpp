@@ -29,6 +29,8 @@ SleepModes dbSleepEnabled = SleepModes::powerSave;
 BatteryMode batteryMode = BatteryMode::Normal;
 unsigned short batteryReading_mV;
 bool stasisRequested;
+unsigned short lastErrorSeconds;
+short lastErrorCode;
 
 #ifdef DEBUG
 extern volatile bool windTicked;
@@ -609,4 +611,54 @@ void enterStasis()
   TimerTwo::initialise();
   wdt_enable(WDTO_8S);
   enterNormalMode();
+}
+
+void signalError(uint16_t errorCode, const byte delay_ms)
+{
+  // Don't bother with CRC mismatch, it's an expected condition;
+  // it wastes battery to flash and masks potentially more interesting faults.
+  if (errorCode == ERR_CRC_MISMATCH)
+    return;
+  lastErrorSeconds = TimerTwo::seconds();
+  lastErrorCode = errorCode;
+  static_assert(LED_PIN0 == 0);
+  static_assert(LED_PIN1 == 1);
+  static_assert(LED_ON == LOW);
+  static_assert(LED_OFF == HIGH);
+  auto delay2 = delay_ms / 4;
+  PORTD &= ~(_BV(PD0) | _BV(PD1));
+  //digitalWrite(LED_PIN0, LED_ON);
+  //digitalWrite(LED_PIN1, LED_ON);
+  delay(delay2);
+  PORTD |= _BV(PD1);//digitalWrite(LED_PIN1, LED_OFF);
+  delay(delay2);
+  PORTD &= ~_BV(PD1); //digitalWrite(LED_PIN1, LED_ON);
+  delay(delay2);
+  PORTD |= _BV(PD1); //digitalWrite(LED_PIN1, LED_OFF);
+  delay(delay2);
+  //Shorten it to 11 bits (=-1024 to + 1023)
+  for (byte i = 0; i < 11; i++)
+  {
+    if (i & 1)
+      PORTD |= _BV(PD0);
+    else
+      PORTD &= ~_BV(PD0);
+    //digitalWrite(LED_PIN0, (i & 1) ? LED_OFF : LED_ON);
+    if (errorCode & 1)
+      PORTD &= ~_BV(PD1);
+    else
+      PORTD |= _BV(PD1);
+    //digitalWrite(LED_PIN1, (errorCode & 1) ? LED_ON : LED_OFF);
+    errorCode = errorCode >> 1;
+    delay(delay_ms);
+  }
+  // Write the sign bit
+  //digitalWrite(LED_PIN0, LED_OFF);
+  //digitalWrite(LED_PIN1, errorCode & (0x800 >> 11) ? LED_ON : LED_OFF);
+  if (errorCode & (0x800 >> 11))
+    PORTD &= ~_BV(PD1);
+  else
+    PORTD |= _BV(PD1);
+  PORTD |= _BV(PD0);
+  signalOff();
 }

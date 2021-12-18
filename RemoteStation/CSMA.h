@@ -174,7 +174,11 @@ class CSMAWrapper
         return(state); //Receive error or NO_PACKET_AVAILABLE
       }
       if (_checkedOut)
+      {
+        *buffer = 0;
+        *length = 0;
         return REENTRY_NOT_SUPPORTED;
+      }
 
       *buffer = _buffer + getStartOfBuffer();
       *length = _messageLengths[_readBufferLenIdx];
@@ -231,15 +235,16 @@ class CSMAWrapper
       reenterRequired = true;
       uint8_t bufferWriteOffset = getBufferWriteOffset();
       uint8_t packetSize = _base->getPacketLength(false);
-      if (packetSize == 0) {
-        return NO_PACKET_AVAILABLE;
-      }
       if (bufferSize - bufferWriteOffset < packetSize) {
         return(NOT_ENOUGH_SPACE);
       }
+      s_packetWaiting = false;
+      if (packetSize == 0) {
+        return NO_PACKET_AVAILABLE;
+      }
 
       int16_t state = _base->readData(_buffer + bufferWriteOffset, packetSize);
-      s_packetWaiting = false;
+      
 
       updateReadStats(state);
 
@@ -282,6 +287,7 @@ class CSMAWrapper
       RX_PRINTLN(F("Buffer Cleared"));
       _readBufferLenIdx = 0;
       _writeBufferLenIdx = 0;
+      _checkedOut = false;
     }
 
     int16_t setIdleState(IdleStates newState)

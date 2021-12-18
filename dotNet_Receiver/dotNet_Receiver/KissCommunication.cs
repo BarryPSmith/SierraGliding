@@ -26,7 +26,10 @@ namespace core_Receiver
         private int _cmdUniqueID = new Random().Next();
         public byte GetNextUniqueID()
         {
-            return (byte)(Interlocked.Increment(ref _cmdUniqueID) & 0xFF);
+            var ret = (byte)(Interlocked.Increment(ref _cmdUniqueID) & 0xFF);
+            if (ret == 0)
+                return GetNextUniqueID();
+            return ret;
         }
 
         public event EventHandler<(IList<Byte> data, bool corrupt)> PacketReceived;

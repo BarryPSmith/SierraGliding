@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 
 namespace core_Receiver
 {
@@ -281,6 +282,7 @@ Arguments:
 
         static void WritePacket(DateTime receivedTime, Packet packet, bool corrupt)
         {
+            var errorRegex = new Regex(@"ERR:-?\d+ \(-?\d+s\)");
             lock (_consoleLock)
             {
                 if (!PacketColours.TryGetValue(packet.type, out var backColour))
@@ -296,7 +298,17 @@ Arguments:
                 OutputWriter.Write(" ");
                 WriteColoured(OutputWriter, $"{packet.RSSI,6:F1} {packet.SNR,4:F1}",
                     ConsoleColor.Black, ConsoleColor.Cyan);
-                OutputWriter.WriteLine(packet.SafeDataString);
+                var safeDataString = packet.SafeDataString;
+                var prevIdx = 0;
+                for (Match m = errorRegex.Match(safeDataString); m.Success; m = m.NextMatch())
+                {
+                    OutputWriter.Write(safeDataString.Substring(prevIdx, m.Index - prevIdx));
+                    prevIdx = m.Index + m.Length;
+                    WriteColoured(OutputWriter, m.Value, ConsoleColor.Black, ConsoleColor.Yellow);
+                }
+                if (prevIdx < safeDataString.Length)
+                    OutputWriter.Write(safeDataString.Substring(prevIdx, safeDataString.Length - prevIdx));
+                OutputWriter.WriteLine();
             }
         }
 
@@ -305,16 +317,16 @@ Arguments:
         {
             var data = e.data;
             bool corrupt = e.corrupt;
-            DateTime receivedTime = DateTime.Now;
+            DateTimeOffset receivedTime = DateTimeOffset.Now;
             try
             {
-                var packet = PacketDecoder.DecodeBytes(data as byte[] ?? data.ToArray());
+                var packet = PacketDecoder.DecodeBytes(data as byte[] ?? data.ToArray(), receivedTime);
                 if (packet == null)
                 {
                     var localBytes = data.ToArray();
                     if (!corrupt)
                         Task.Run(() => _dataStore?.RecordUndecipherable(localBytes));
-                    Task.Run(() => WriteUndecipherablePacket(receivedTime, localBytes, corrupt));
+                    Task.Run(() => WriteUndecipherablePacket(receivedTime.LocalDateTime, localBytes, corrupt));
                     return;
                 }
                 //Do this in a Task to avoid waiting if we've scrolled up.
@@ -322,8 +334,9 @@ Arguments:
                 if (packet.type != PacketTypes.Stats)
                     consoleTask = Task.Run(async () =>
                     {
+                        // Delay for 100ms to allow the modem to send through RSSI & SNR
                         await Task.Delay(100);
-                        WritePacket(receivedTime, packet, corrupt);
+                        WritePacket(receivedTime.LocalDateTime, packet, corrupt);
                     });
                 switch (packet.type)
                 {
@@ -356,7 +369,7 @@ Arguments:
                     default:
                         //nps is often stdOut in debugging, don't write to it from multiple threads:
                         var localBytes = data.ToArray();
-                        consoleTask.ContinueWith(notUsed => WriteUndecipherablePacket(receivedTime, localBytes, corrupt));
+                        consoleTask.ContinueWith(notUsed => WriteUndecipherablePacket(receivedTime.LocalDateTime, localBytes, corrupt));
                         break;
                 }
                 _lastPacket = packet.type == PacketTypes.Stats || packet.type == PacketTypes.Modem ? null : packet;

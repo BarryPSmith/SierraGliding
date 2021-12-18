@@ -39,23 +39,26 @@ namespace Commands
   void handleQueryVolatileCommand(LoraMessageDestination& response);
   void acknowledgeMessage(byte uniqueID, bool isSpecific, byte msgType);
 
+  bool checkCommandUID(byte uniqueID)
+  {
+    for (byte i = 0; i < permanentArraySize; i++)
+    {
+      if (recentlyHandledCommands[i] == uniqueID)
+        return false;
+    }
+    recentlyHandledCommands[curCmdIndex++] = uniqueID;
+    if (curCmdIndex >= permanentArraySize)
+      curCmdIndex = 0;
+    return true;
+  }
+
   void handleCommandMessage(MessageSource& msg, byte uniqueID, bool isSpecific)
   {
     static bool acknowledge = true;
 
     //Check if we've already handled this command:
-    if (uniqueID != 0)
-    {
-      for (int i = 0; i < permanentArraySize; i++)
-      {
-        if (recentlyHandledCommands[i] == uniqueID)
-          return;
-      }
-      //Remember that we've handled this command:
-      recentlyHandledCommands[curCmdIndex++] = uniqueID;
-      if (curCmdIndex >= permanentArraySize)
-        curCmdIndex = 0;
-    }
+    if (!checkCommandUID(uniqueID))
+      return;
 
     //Can't delay with streaming messages. Perhaps a short delay before committing our response.
 

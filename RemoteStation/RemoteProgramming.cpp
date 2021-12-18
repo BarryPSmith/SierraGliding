@@ -36,9 +36,10 @@ namespace RemoteProgramming
   void resetDownload();
   bool handleBeginUpdateInternal(MessageSource& msg);
   bool handleBeginUpdateInternal(MessageSource& msg);
-  bool handleImagePacket(MessageSource& msg);
+  bool handleImagePacket(MessageSource& msg, byte uniqueID);
   void handleDownloadQuery(int uniqueID);
   bool handleProgramConfirm(MessageSource& src, byte uniqueID);
+  void sendImagePacketFailure(byte uniqueID, byte reason);
   uint16_t getImageCRC();
   bool isItAllHere();
   void sendAbortMessage();
@@ -57,7 +58,9 @@ namespace RemoteProgramming
     switch (type)
     {
     case 'B': return handleBeginUpdate(msg);
-    case 'I': return handleImagePacket(msg);
+    case 'I': 
+      *ackRequired = handleImagePacket(msg, uniqueID);
+      return true;
     case 'Q': handleDownloadQuery(uniqueID);
       *ackRequired = false;
       return true;
@@ -101,7 +104,7 @@ namespace RemoteProgramming
     return true;
   }
 
-  bool handleImagePacket(MessageSource& msg)
+  bool handleImagePacket(MessageSource& msg, byte uniqueID)
   {
     byte packetIndex;
     if (msg.readByte(packetIndex))
@@ -109,6 +112,7 @@ namespace RemoteProgramming
     //If out of bounds:
     if (packetIndex >= totalExpectedPackets)
     {
+      sendImagePacketFailure(uniqueID, 0x01);
       PROGRAM_PRINTLN(F("RP: Out Of Range"));
       return false;
     }
@@ -117,6 +121,7 @@ namespace RemoteProgramming
     byte testBit = 1 << (packetIndex % 8);
     if (((*packetIdentifier) & testBit) != 0)
     {
+      sendImagePacketFailure(uniqueID, 0x02);
       PROGRAM_PRINTLN(F("RP: Duplicate"));
       return false;
     }
@@ -124,6 +129,7 @@ namespace RemoteProgramming
     uint16_t imageCRC;
     if (msg.read(imageCRC) || imageCRC != expectedCRC)
     {
+      sendImagePacketFailure(uniqueID, 0x03);
       PROGRAM_PRINTLN(F("RP: CRC mismatch"));
       return false;
     }
@@ -132,6 +138,7 @@ namespace RemoteProgramming
     auto msgLoc = msg.getCurrentLocation();
     if (msgLen - msgLoc != bytesPerPacket)
     {
+      sendImagePacketFailure(uniqueID, 0x04);
       PROGRAM_PRINTLN(F("RP: Length mismatch"));
       PROGRAM_PRINTVAR(msgLen);
       PROGRAM_PRINTVAR(msgLoc);
@@ -158,6 +165,16 @@ namespace RemoteProgramming
     *packetIdentifier |= testBit;
 
     return true;
+  }
+
+  void sendImagePacketFailure(byte uniqueID, byte reason)
+  {
+    byte buffer[20];
+    LoraMessageDestination msg(false, buffer, sizeof(buffer), 'K', uniqueID);
+    msg.appendByte('P');
+    msg.appendByte('I');
+    msg.appendByte(0);
+    msg.appendByte(reason);
   }
 
   void handleDownloadQuery(int uniqueID)

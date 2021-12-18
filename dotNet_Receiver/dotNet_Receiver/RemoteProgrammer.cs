@@ -39,7 +39,7 @@ namespace core_Receiver
 
         public TimeSpan PacketInterval { get; set; } = TimeSpan.FromSeconds(1);
 
-        public TimeSpan ResponseTimeout { get; set; } = TimeSpan.FromSeconds(20);
+        public TimeSpan ResponseTimeout { get; set; } = TimeSpan.FromSeconds(5);
 
         public TextWriter OutWriter { get; set; } = Console.Out;
         
@@ -122,7 +122,7 @@ namespace core_Receiver
                     return;
                 try
                 {
-                    var packet = PacketDecoder.DecodeBytes(data.ToArray());
+                    var packet = PacketDecoder.DecodeBytes(data.ToArray(), DateTimeOffset.Now);
 
                     var packetSrc = packet.sendingStation;
                     if (packet.type == PacketTypes.Response &&
@@ -260,7 +260,7 @@ namespace core_Receiver
                         return;
                     try
                     {
-                        var packet = PacketDecoder.DecodeBytes(data.ToArray());
+                        var packet = PacketDecoder.DecodeBytes(data.ToArray(), DateTimeOffset.Now);
                         if (packet?.type == PacketTypes.Response && packet.uniqueID == lastUniqueID && packet.sendingStation == destinationStationID)
                         {
                             lastResponse = packet.packetData as ProgrammingResponse;
@@ -282,6 +282,7 @@ namespace core_Receiver
                         token.ThrowIfCancellationRequested();
                         // Get the station status:
                         OutWriter.WriteLine($"Programmer: Query status of {destinationStationID}");
+                        replyReceived.Reset();
                         lastUniqueID = QueryStationProgramming(destinationStationID);
                         if (WaitHandle.WaitAny(new WaitHandle[] { replyReceived, token.WaitHandle }, ResponseTimeout) == WaitHandle.WaitTimeout ||
                             lastResponse == null)
@@ -313,7 +314,7 @@ namespace core_Receiver
                             token.ThrowIfCancellationRequested();
                             if (lastResponse.receivedPackets[i])
                                 continue;
-                            StatusMessage = $"Uploading packet {++packetsSent}/{packetsToSend} ({(float)packetsSent / PacketCount:P0}). Cycle {cycle}";
+                            StatusMessage = $"Uploading packet {++packetsSent}/{packetsToSend} ({(float)packetsSent / packetsToSend:P0}). Cycle {cycle}";
                             SendImagePacket(destinationStationID, (byte)'C', i);
                             totalPackets++;
                             Thread.Sleep(PacketInterval);
@@ -538,7 +539,7 @@ namespace core_Receiver
                     var corrupt = e.corrupt;
                     if (corrupt)
                         return;
-                    var packet = PacketDecoder.DecodeBytes(bytes.ToArray());
+                    var packet = PacketDecoder.DecodeBytes(bytes.ToArray(), DateTimeOffset.Now);
                     if (packet?.type == PacketTypes.Response && packet.uniqueID == lastUniqueID && packet.sendingStation == stationID)
                     {
                         lastData = (byte[])packet.packetData;

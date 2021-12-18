@@ -90,7 +90,14 @@ namespace core_Receiver
         private int _cmdUniqueID = new Random().Next();
         public byte GetNextUniqueID()
         {
-            return (byte)(Interlocked.Increment(ref _cmdUniqueID) & 0xFF);
+            // Avoid zero IDs:
+            // on initialisation the stations have an array filled with zeros 
+            // so they will ignore any zero ID commands until they have had at least 20 other commands.
+            var ret = (byte)(Interlocked.Increment(ref _cmdUniqueID) & 0xFF);
+            if (ret == 0)
+                return GetNextUniqueID();
+            else
+                return ret;
         }
 
         public void Write(byte[] data, byte writeType = 0)

@@ -43,6 +43,7 @@ namespace WeatherProcessing
   byte getCurWindDirection();
 
   volatile unsigned short windCounts = 0;
+  volatile unsigned short windCountStored = 0;
   volatile unsigned short minInterval_x4 = 0xFFFF;
   byte gustCount;
 
@@ -102,8 +103,8 @@ namespace WeatherProcessing
   inline uint16_t getWindSpeed_x2()
   {
     noInterrupts();
-    short localCounts = windCounts;
-    windCounts = 0;
+    short localCounts = windCountStored;
+    windCountStored = 0;
     interrupts();
   #if defined(ARGENTDATA_WIND) || defined(ALS_WIND)
     return (2UL * 2400 * localCounts) / weatherInterval;
@@ -155,7 +156,15 @@ namespace WeatherProcessing
 
     bool isComplex = simpleMessagesSent >= complexMessageFrequency - 1;
 
-    byte length = isComplex ? 8 : 3;
+    byte length = isComplex ? 9 : 4;
+
+    static short lastErrorSecondsSent = 0;
+    bool errorOccurred = lastErrorSecondsSent != lastErrorSeconds;
+    if (errorOccurred && isComplex)
+    {
+      length += 4;
+      lastErrorSecondsSent = lastErrorSeconds;
+    }
 
     if (isComplex)
     {
@@ -174,7 +183,7 @@ namespace WeatherProcessing
 
     //Message format is W(StationID)(UniqueID)(DirHex)(Spd * 2)(Voltage)
   
-    WX_DEBUG(auto localCounts = windCounts);
+    WX_DEBUG(auto localCounts = windCountStored);
     uint16_t windSpeed_x2 = getWindSpeed_x2();
     byte wsByte = getWindSpeedByte(windSpeed_x2);
 
@@ -185,26 +194,37 @@ namespace WeatherProcessing
     unsigned short batt_mV = readBattery();
     
     byte windDirection = getWindDirection();
-    message.appendByte2(windDirection);
+    message.appendByte2(windDirection); //1
 
-    message.appendByte2(wsByte);
-    message.appendByte2(wgByte);
+    message.appendByte2(wsByte); //2
+    message.appendByte2(wgByte); //3
+
+    message.appendT((byte)TimerTwo::seconds()); //4
+#ifdef DEBUG_WEATHER_TIMING
+    message.appendT((short)millis());
+#endif
     
     byte batteryByte, externalTempByte, internalTempByte;
     if (isComplex)
     {
       batteryByte = (byte)(255UL * batt_mV / MaxBatt_mV);
-      message.appendByte2(batteryByte);
+      message.appendByte2(batteryByte); //5
 
       externalTempByte = getExternalTemperature();
-      message.appendByte2(externalTempByte);
+      message.appendByte2(externalTempByte); //6
 
       short iTReading;
       internalTempByte = getInternalTemperature(iTReading);
-      message.appendByte2(internalTempByte);
+      message.appendByte2(internalTempByte); //7
 
-      message.appendByte2(PwmSolar::solarPwmValue);
-      message.appendByte2(PwmSolar::curCurrent_mA_x6/6);
+      message.appendByte2(PwmSolar::solarPwmValue); //8
+      message.appendByte2(PwmSolar::curCurrent_mA_x6/6); //9
+
+      if (errorOccurred)
+      {
+        message.appendT(lastErrorSeconds); //11
+        message.appendT(lastErrorCode); //13
+      }
 #ifdef DEBUG_IT
       message.appendT(iTReading);
 #endif
@@ -521,6 +541,8 @@ namespace WeatherProcessing
     {
       tickCounts = 0;
       weatherRequired = true;
+      windCountStored = windCounts;
+      windCounts = 0;
     }
 #ifdef WIND_DIR_AVERAGING
     if (windSampleTicks == 0 || tickCounts % windSampleTicks == 0)

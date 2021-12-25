@@ -130,7 +130,8 @@ function database(dbpath, drop, cb) {
                 Display_Level           INTEGER NOT NULL DEFAULT 1, -- If we want to have some stations that are not usually displayed. 0 = Hidden, 1 = Public, 2 = Private (TODO: Figure out admin stuff)
                 Status_Message          TEXT NULL, --If we want to temporarily display a status message when e.g. a station has a hardware fault
                 Battery_Range           TEXT NULL,
-                Group_ID                INTEGER NULL REFERENCES station_groups ON DELETE SET NULL ON UPDATE CASCADE
+                Group_ID                INTEGER NULL REFERENCES station_groups ON DELETE SET NULL ON UPDATE CASCADE,
+                Missing_Features        TEXT NULL --JSON list of features this station does not report (e.g. ["external_temp", "current"])
             );
         `);
 
@@ -344,7 +345,8 @@ function main(db, cb) {
                 Name AS name,
                 Wind_Speed_Legend,
                 Wind_Dir_Legend,
-                Battery_Range
+                Battery_Range,
+                Missing_Features
             FROM
                 stations
             WHERE
@@ -604,7 +606,9 @@ function main(db, cb) {
                 ${avg_wd_windowed} AS wind_direction_avg,
                 battery_level,
                 internal_temp,
-                external_temp
+                external_temp,
+                current,
+                pwm
                 FROM (
                     SELECT
                         timestamp,
@@ -614,7 +618,9 @@ function main(db, cb) {
                         ` + avg_wd_String + ` AS wind_direction,
                         AVG(Battery_Level) AS battery_level,
                         AVG(Internal_Temp) as internal_temp,
-                        AVG(External_Temp) as external_temp
+                        AVG(External_Temp) as external_temp,
+                        AVG(Current) as current,
+                        AVG(PWM) as pwm
                     FROM
                         ${dataSource}
                     WHERE
@@ -765,7 +771,9 @@ function main(db, cb) {
                     wind_direction_avg: stats.wind_direction_avg,
                     battery_level: req.body.battery,
                     internal_temp: req.body.internal_temp,
-                    external_temp: req.body.external_temp
+                    external_temp: req.body.external_temp,
+                    current: req.body.current,
+                    pwm: req.body.pwm,
                 }, standardReplacer));
             });
         } catch (err) {

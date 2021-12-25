@@ -14,6 +14,8 @@ export default class DataManager {
         this.batteryData= [];
         this.internalTempData = [];
         this.externalTempData = [];
+        this.currentData = [];
+        this.pwmData = [];
         
         // Resolution properties=
         this.desiredResolution= 2000;
@@ -195,6 +197,7 @@ export default class DataManager {
                 this.windspeedMinData.splice(i, 0, ...this.get_distinct_ws_entries(newStationData, 'windspeed_min'));
                 this.windspeedMaxData.splice(i, 0, ...this.get_distinct_ws_entries(newStationData, 'windspeed_max'));
                 this.batteryData.splice(i, 0, ...this.get_batt_entries(...newStationData));
+                this.currentData.splice(i, 0, ...this.get_current_entries(...newStationData));
                 this.internalTempData.splice(i, 0, ...this.get_internalTemp_entries(...newStationData));
                 this.externalTempData.splice(i, 0, ...this.get_externalTemp_entries(...newStationData));
 
@@ -242,7 +245,8 @@ export default class DataManager {
         return [this.windDirectionData, this.windspeedData, 
                             this.windspeedAvgData, this.windspeedMinData, this.windspeedMaxData,
                             this.batteryData,
-                           this.internalTempData, this.externalTempData];
+                           this.internalTempData, this.externalTempData,
+                           this.currentData, this.pwmData];
     }
 
     findPrevIdx(arr, comp)
@@ -281,14 +285,9 @@ export default class DataManager {
         this.spliceBefore(this.batteryData, pt => pt.x > jsTimestamp, this.get_batt_entries(newDataPoint));
         this.spliceBefore(this.internalTempData, pt => pt.x > jsTimestamp, this.get_internalTemp_entries(newDataPoint));
         this.spliceBefore(this.externalTempData, pt => pt.x > jsTimestamp, this.get_externalTemp_entries(newDataPoint));
-        /*this.stationData.splice(idx, 0, newDataPoint);
-        //this.stationData.push(newDataPoint);
-        this.windDirectionData.push(this.get_wind_dir_entry(newDataPoint));
-        this.windspeedData.push(this.get_wind_spd_entry(newDataPoint));
-        this.batteryData.push(...this.get_batt_entries(newDataPoint));
-        this.internalTempData.push(...this.get_internalTemp_entries(newDataPoint));
-        this.externalTempData.push(...this.get_externalTemp_entries(newDataPoint));*/
-
+        this.spliceBefore(this.currentData, pt => pt.x > jsTimestamp, this.get_current_entries(newDataPoint));
+        this.spliceBefore(this.pwmData, pt => pt.x > jsTimestamp, this.get_pwm_entries(newDataPoint));
+        
         const wsAvgEntry = this.get_entry(newDataPoint, 'windspeed_avg', this.wsFactor());
         if (this.windspeedAvgData.length >= 2 
             && this.windspeedAvgData[this.windspeedAvgData.length - 2].x + this.avgDecimation < wsAvgEntry.x) {
@@ -417,6 +416,24 @@ export default class DataManager {
                 y: entry.external_temp,
             }});
     }
+
+    get_current_entries() {
+        return Array.from(arguments)
+            .filter(entry => typeof(entry.current) == 'number')
+            .map(entry => { return {
+                x: new Date(entry.timestamp * 1000),
+                y: entry.current,
+            }});
+    }
+
+    get_pwm_entries() {
+        return Array.from(arguments)
+            .filter(entry => typeof(entry.current) == 'number')
+            .map(entry => { return {
+                x: new Date(entry.timestamp * 1000),
+                y: entry.pwm,
+            }});
+    }
     
     load_data(start, end, actualEnd) {
         //Ensure that any updates that have been requested based on the previous data discard their results:
@@ -441,6 +458,8 @@ export default class DataManager {
                     this.batteryData = this.get_batt_entries(...newStationData);
                     this.internalTempData = this.get_internalTemp_entries(...newStationData);
                     this.externalTempData = this.get_externalTemp_entries(...newStationData);
+                    this.currentData = this.get_current_entries(...newStationData);
+                    this.pwmData = this.get_pwm_entries(...newStationData);
 
                     this.data_updated();
 

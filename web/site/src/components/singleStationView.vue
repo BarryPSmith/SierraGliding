@@ -63,7 +63,7 @@
                               :range="station.Battery_Range" 
                               :id="station.id"/>
             </div>
-            <div v-if="detailed" :style="{ height: tempHeight, marginRight: '150px' }"
+            <div v-if="detailed && etAvailable" :style="{ height: tempHeight, marginRight: '150px' }"
                  v-on:click="temp_click">
                 <chartBattery :dataManager="dataManager"
                               :duration="duration"
@@ -73,13 +73,22 @@
                               :label="'External Temperature'"
                               :id="station.id"/>
             </div>
-            <div v-if="detailed" style="margin-right:150px">
+            <div v-if="detailed && itAvailable" style="margin-right:150px">
                 <chartBattery :dataManager="dataManager"
                               :duration="duration"
                               :chartEnd.sync="chartEnd"
                               :range="{min:-15, max:45}"
                               :dataSource="'internalTempData'"
                               :label="'Case Temperature'"
+                              :id="station.id"/>
+            </div>
+            <div v-if="detailed && currentAvailable" style="margin-right:150px">
+                <chartBattery :dataManager="dataManager"
+                              :duration="duration"
+                              :chartEnd.sync="chartEnd"
+                              :range="{min:0, max:100}"
+                              :dataSource="'currentData'"
+                              :label="'Charge Current'"
                               :id="station.id"/>
             </div>
         </div>
@@ -179,6 +188,24 @@ export default {
                 return "500px";
             else
                 return "150px";
+        },
+
+        currentAvailable() {
+            return this.station &&
+                   (!this.station.Missing_Features ||
+                    !this.station.Missing_Features.includes('Current'));
+        },
+
+        itAvailable() {
+            return this.station &&
+                    (!this.station.Missing_Features ||
+                     !this.station.Missing_Features.includes('Internal_Temperature'));
+        },
+
+        etAvailable() {
+            return this.station &&
+                   (!this.station.Missing_Features ||
+                    !this.station.Missing_Features.includes('External_Temperature'));
         }
     },
 

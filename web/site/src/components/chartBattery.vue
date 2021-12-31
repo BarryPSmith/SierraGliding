@@ -59,8 +59,19 @@ export default {
                 battOpts.scales.xAxes[0].afterFit = this.xAxis_afterFit;
                 battOpts.scales.xAxes[0].afterUpdate = this.xAxis_afterUpdate;
 
+                battOpts.scales.yAxes[1] = JSON.parse(JSON.stringify(battOpts.scales.yAxes[0]));
+                battOpts.scales.yAxes[1].type = 'linear';
+                battOpts.scales.yAxes[1].id = 'secondaryY';
+                battOpts.scales.yAxes[1].ticks.display = false;
+                battOpts.scales.yAxes[1].ticks.max = 256;
+                battOpts.scales.yAxes[1].gridLines = {
+                    display: false,
+                };
+
                 const ptColor = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ?
                     'cyan' : 'black';
+                const ptColor2 = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ?
+                    'rgba(255,255,0,0.5)' : 'rgba(0,255,0,0.5)';
 
                 this.chart = new Chart(battElem, {
                     type: 'line',
@@ -75,6 +86,16 @@ export default {
                             fill: false,
                             //data: this.dataManager.batteryData,
                             lineTension: 0
+                        }, {
+                            pointBackgroundColor: ptColor2,
+                            pointBorderColor: ptColor2,
+                            pointRadius: 0,
+                            borderColor: ptColor2,
+                            borderJoinStyle: 'round',
+                            fill: false,
+                            //data: this.dataManager.batteryData,
+                            lineTension: 0,
+                            yAxisID: 'secondaryY',
                         }]
                     },
                     options: battOpts,

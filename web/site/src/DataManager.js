@@ -198,6 +198,7 @@ export default class DataManager {
                 this.windspeedMaxData.splice(i, 0, ...this.get_distinct_ws_entries(newStationData, 'windspeed_max'));
                 this.batteryData.splice(i, 0, ...this.get_batt_entries(...newStationData));
                 this.currentData.splice(i, 0, ...this.get_current_entries(...newStationData));
+                this.pwmData.splice(i, 0, ...this.get_pwm_entries(...newStationData));
                 this.internalTempData.splice(i, 0, ...this.get_internalTemp_entries(...newStationData));
                 this.externalTempData.splice(i, 0, ...this.get_externalTemp_entries(...newStationData));
 

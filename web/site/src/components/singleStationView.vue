@@ -87,7 +87,7 @@
                               :duration="duration"
                               :chartEnd.sync="chartEnd"
                               :range="{min:0, max:100}"
-                              :dataSource="'currentData'"
+                              :dataSource="['currentData', 'pwmData']"
                               :label="'Charge Current'"
                               :id="station.id"/>
             </div>

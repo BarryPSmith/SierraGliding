@@ -13,6 +13,8 @@ namespace MessageHandling
   {
     byte id;
     unsigned long millis; 
+    byte rssi_xn2;
+    int8_t snr_x4;
   };
 
   struct RecentlyRelayedMessage

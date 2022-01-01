@@ -419,10 +419,11 @@ namespace Commands
     unsigned long curMillis = millis();
 #if 1
     byte* buffer;
-    const byte messageSize = 33
+    constexpr byte messageSize = 33
       + sizeof(MessageHandling::recentlySeenStations)
       + sizeof(recentlyHandledCommands)
       + sizeof(MessageHandling::recentlyRelayedMessages);
+    static_assert(messageSize < 250);
     response.getBuffer(&buffer, messageSize);
     *(unsigned long*)buffer = curMillis; //+4 = 4
     buffer += 4;

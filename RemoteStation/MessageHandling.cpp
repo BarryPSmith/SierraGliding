@@ -275,10 +275,7 @@ namespace MessageHandling
 
   
   bool __attribute__((noinline)) recordWeatherForRelay(MessageSource& msg, byte msgStatID, byte msgUniqueID)
-  { 
-    //Note: We must be careful when setting up the network that there are not multiple paths for weather messages to get relayed
-    //it won't necessarily cause problems, but it will use unnecessary bandwidth
-  
+  {   
     //Incomming message might be XW (SID) (UID) (Sz) (WD) (WS) - length = 7
     //In that case we need to append (SID) (UID) (Sz) (WD) (WS) - length = 5, 3 more to read (because we've already read SID and UID)
     byte dataSize = msg.getMessageLength() - 2; //2 for the 'XW'
@@ -286,7 +283,7 @@ namespace MessageHandling
     if (dataSize > weatherRelayBufferSize)
       return false;
 
-    bool overflow = weatherRelayLength + dataSize + 2 > weatherRelayBufferSize;
+    bool overflow = weatherRelayLength + dataSize > weatherRelayBufferSize;
     if (overflow)
     {
       LoraMessageDestination msgDump(false, weatherRelayBufferBase, sizeof(weatherRelayBufferBase), 'R', getUniqueID());
@@ -310,6 +307,8 @@ namespace MessageHandling
 
   void recordHeardStation(byte msgStatID)
   { 
+    uint32_t packetStatus = lora.getPacketStatus();
+
     RecentlySeenStation* cur = recentlySeenStations;
     RecentlySeenStation* end = recentlySeenStations + permanentArraySize;
     uint32_t oldest = 0;
@@ -330,6 +329,8 @@ namespace MessageHandling
       cur = oldestRecord;
     cur->id = msgStatID;
     cur->millis = curMillis;
+    cur->rssi_xn2 = packetStatus & 0xFF;
+    cur->snr_x4 = (packetStatus >> 8) & 0xFF;
   }
 
   void sendWeatherMessage()

@@ -154,7 +154,7 @@ namespace WeatherProcessing
     delayMicroseconds(1000); //use delayuS instead of standard to avoid putting the device to sleep.
   #endif
 
-    bool isComplex = simpleMessagesSent >= complexMessageFrequency - 1;
+    bool isComplex = simpleMessagesSent >= complexMessageFrequency - 1 || batteryMode == BatteryMode::DeepSleep;
 
     byte length = isComplex ? 9 : 4;
 
@@ -388,6 +388,7 @@ namespace WeatherProcessing
   void enterDeepSleep()
   {
     GET_PERMANENT2(&weatherInterval, longInterval);
+    weatherInterval *= complexMessageFrequency;
     WeatherProcessing::setTimerInterval();
 #ifdef ALS_WIND
     sleepWind();

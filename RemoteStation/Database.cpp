@@ -59,15 +59,13 @@ namespace Database
   unsigned long findCurrentBlock();
   bool checkEndsOfBlocks(byte byteCount);
   byte getHeaderChunk(void* buffer);
-  MESSAGE_RESULT appendRecord(const MessageRecord& record, const unsigned short address);
+  MESSAGE_RESULT appendRecord(LoraMessageDestination& searchMessage,
+    const MessageRecord& record, const unsigned short address);
   void doSearch();
   void startSearch(byte typeFilter, byte sourceFilter);
-  void prepSearchMessage();
-  void endSearchMessage();
   void endSearch();
   bool retrieveMessage(const unsigned short headerAddress,
     byte uniqueID);
-  void sendSearchMessage();
 
   unsigned long _curHeaderAddress;
   unsigned long _curWriteAddress = messageDataStart;
@@ -77,9 +75,9 @@ namespace Database
   unsigned long _curSearchAddress;
   byte _messageTypeFilter;
   byte _messageSourceFilter;
-  byte _outgoingMessageBytes[254];
+  /*byte _outgoingMessageBytes[254];
   byte _outgoingMessageBuffer[sizeof(LoraMessageDestination)];
-  LoraMessageDestination* _searchMessage;
+  LoraMessageDestination* _searchMessage;*/
   unsigned long _lastSearchMessageMillis = 0;
   unsigned long _cleanAddressStart = 0;
   unsigned long _cleanAddressFat = 0;
@@ -248,7 +246,7 @@ namespace Database
 
   enum class ProcessingActions
   {
-    Idle, Searching, Sending, Cleaning
+    Idle, Searching, Cleaning
   };
   ProcessingActions _currentAction = ProcessingActions::Idle;
   void doProcessing()
@@ -263,23 +261,32 @@ namespace Database
     case ProcessingActions::Searching:
       doSearch();
       break;
-    case ProcessingActions::Sending:
-      sendSearchMessage();
     }
   }
 
   void doSearch()
   {
-    if (!_searchMessage)
+    if (_currentAction == ProcessingActions::Searching &&
+        millis() - _lastSearchMessageMillis < minMessageInterval)
       return;
+
+    byte msgBuffer[254];
+    LoraMessageDestination searchMessage(true, msgBuffer, sizeof(msgBuffer), 'K', MessageHandling::getUniqueID());
+      //LoraMessageDestination::StaticMessage;
+    if (_currentAction == ProcessingActions::Searching)
+    {
+      //searchMessage.initialise('K', MessageHandling::getUniqueID());
+      searchMessage.appendByte2('D');
+      searchMessage.appendByte2('L');
+    }
+    bool anyFound = false;
 
     Flash::flash.wakeup();
     unsigned long entryMillis = millis();
     MessageRecord buffer[maxMesagesToRead];
-    while (1)
+    bool noOverrun = true;
+    while (millis() - entryMillis > maxProcessingTime && noOverrun)
     {
-      if (millis() - entryMillis > maxProcessingTime)
-        return;
       byte bytesRead = getHeaderChunk(buffer);
       unsigned short baseAddress = _curSearchAddress - bytesRead - messageFatStart;
       byte recordsRead = bytesRead / sizeof(MessageRecord);
@@ -317,18 +324,19 @@ namespace Database
           continue;
         if (_currentAction == ProcessingActions::Searching)
         {
-          if (_messageTypeFilter && record.messageType != _messageTypeFilter)
+          if (_messageTypeFilter && (record.messageType != _messageTypeFilter))
             continue;
-          if (_messageSourceFilter && record.stationID != _messageSourceFilter)
+          if (_messageSourceFilter && (record.stationID != _messageSourceFilter))
             continue;
-          switch (appendRecord(record, address))
+          anyFound = true;
+          switch (appendRecord(searchMessage, record, address))
           {
           case MESSAGE_OK:
             continue;
           case MESSAGE_BUFFER_OVERRUN:
             _curSearchAddress = messageFatStart + address;
-            _currentAction = ProcessingActions::Sending;
-            return;
+            noOverrun = false;
+            break;
           default:
             SIGNALERROR(DATABASE_UNKNOWN_CUR_ACTION);
             endSearch();
@@ -349,15 +357,32 @@ namespace Database
         }
       }
     }
+    if (_currentAction == ProcessingActions::Searching)
+    {
+      if (!anyFound)
+      {
+        // Disable sleep so we do this loop again immediately
+        dbSleepEnabled = SleepModes::disabled;
+        searchMessage.abort();
+      }
+      else
+      {
+        dbSleepEnabled = SleepModes::powerSave;
+        _lastSearchMessageMillis = millis();
+      }
+    }
+    else
+      searchMessage.abort();
     Flash::flash.sleep();
   }
 
-  MESSAGE_RESULT appendRecord(const MessageRecord& record, const unsigned short address)
+  MESSAGE_RESULT appendRecord(LoraMessageDestination& searchMessage,
+    const MessageRecord& record, const unsigned short address)
   {
-    MESSAGE_RESULT ok = _searchMessage->appendT(record.messageType); //1
-    if (ok == MESSAGE_OK) ok = _searchMessage->appendT(record.stationID); //1
-    if (ok == MESSAGE_OK) ok = _searchMessage->appendT(record.timestamp); //4
-    if (ok == MESSAGE_OK) ok = _searchMessage->appendT(address); //2
+    MESSAGE_RESULT ok = searchMessage.appendT(record.messageType); //1
+    if (ok == MESSAGE_OK) ok = searchMessage.appendT(record.stationID); //1
+    if (ok == MESSAGE_OK) ok = searchMessage.appendT(record.timestamp); //4
+    if (ok == MESSAGE_OK) ok = searchMessage.appendT(address); //2
     return ok;
   }
 
@@ -395,11 +420,6 @@ namespace Database
   {
     _cleanAddressFat = fatStart;
     _cleanAddressStart = dataStart;
-    if (_searchMessage)
-    {
-      _searchMessage->abort();
-      _searchMessage = nullptr;
-    }
     _currentAction = ProcessingActions::Cleaning;
   }
 
@@ -409,46 +429,13 @@ namespace Database
     _messageSourceFilter = sourceFilter;
     _curSearchAddress = messageFatStart + 4;
     _currentAction = ProcessingActions::Searching;
-    prepSearchMessage();
-    dbSleepEnabled = SleepModes::disabled;
     // Ensure that we wait before we start to send the search results.
     // Otherwise our results will likely collide with the relay of our acknowledge
     _lastSearchMessageMillis = millis(); 
   }
 
-  void sendSearchMessage()
-  {
-    if (millis() - _lastSearchMessageMillis < minMessageInterval)
-    {
-      dbSleepEnabled = SleepModes::powerSave;
-      return;
-    }
-    endSearchMessage();
-    prepSearchMessage();
-    _lastSearchMessageMillis = millis();
-    _currentAction = ProcessingActions::Searching;
-    dbSleepEnabled = SleepModes::disabled;
-  }
-
-  void prepSearchMessage()
-  {
-    _searchMessage = new (_outgoingMessageBuffer) LoraMessageDestination(false,
-      _outgoingMessageBytes, sizeof(_outgoingMessageBytes), 'K', MessageHandling::getUniqueID());
-    _searchMessage->appendByte2('D');
-    _searchMessage->appendByte2('L');
-  }
-
-  void endSearchMessage()
-  {
-    if (!_searchMessage)
-      return;
-    _searchMessage->~LoraMessageDestination();
-    _searchMessage = nullptr;
-  }
-
   void endSearch()
   {
-    endSearchMessage();
     _currentAction = ProcessingActions::Idle;
     dbSleepEnabled = SleepModes::powerSave;
   }
@@ -502,7 +489,7 @@ namespace Database
     dest.appendByte2(record.stationID);
     dest.appendByte2(0);
     byte* buffer;
-    byte maxSize = 254 - dest.getCurrentLocation();
+    byte maxSize = sizeof(msgBuffer) - dest.getCurrentLocation();
     if (maxSize > record.length)
       maxSize = record.length;
     if (dest.getBuffer(&buffer, maxSize))

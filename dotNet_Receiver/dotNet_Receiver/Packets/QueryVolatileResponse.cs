@@ -56,8 +56,23 @@ namespace core_Receiver.Packets
                     break;
                 UInt32 seenMillis = br.ReadUInt32();
                 var age = Millis - seenMillis;
+                RecentlySeenStation station = new RecentlySeenStation
+                {
+                    Id = stationID,
+                    Age = age,
+                    Date = DateTimeOffset.Now - TimeSpan.FromMilliseconds(age)
+                };
+
+                if (VersionNumber > new Version(2, 5))
+                {
+                    sbyte rssiByte = br.ReadSByte();
+                    sbyte snrByte = br.ReadSByte();
+                    station.RSSI = rssiByte / 2.0;
+                    station.SNR = snrByte / 4.0;
+                }
+
                 if (stationID != 0)
-                    RecentlySeenStations.Add((stationID, age, DateTimeOffset.Now - TimeSpan.FromMilliseconds(age)));
+                    RecentlySeenStations.Add(station);
             }
             CheckZeroMarker(true);
             CheckMarker('C');
@@ -116,7 +131,19 @@ namespace core_Receiver.Packets
         public UInt32 OverrideDuration { get; set; }
         public UInt32? OverrideStart { get; set; }
         public bool OverrideShort { get; set; }
-        public List<(byte ID, UInt32 age, DateTimeOffset date)> RecentlySeenStations { get; set; } = new List<(byte ID, uint age, DateTimeOffset date)>();
+
+        public struct RecentlySeenStation
+        {
+            public byte Id;
+            public UInt32 Age;
+            public DateTimeOffset Date;
+            public double RSSI;
+            public double SNR;
+
+            public override string ToString()
+                => $"{Id}:{RSSI}/{SNR}/{Age / 1000.0:F1}";
+        }
+        public List<RecentlySeenStation> RecentlySeenStations { get; set; } = new List<RecentlySeenStation>();
 
         public List<byte> RecentlyHandledCommands { get; set; } = new List<byte>();
         public List<Packet> RecentlyRelayedPackets { get; set; } = new List<Packet>();
@@ -137,7 +164,7 @@ namespace core_Receiver.Packets
             var overrideString = OverrideDuration > 0 ? $"Override (Remaining:{OverrideDuration - (Millis - OverrideStart)}, short:{OverrideShort}), " : "";
             var pingString = LastPingAge.HasValue ? $"Ping Age:{LastPingAge}, " : "";
             return $"VOLATILE Version:{Version} Millis:{Millis}, {pingString}{overrideString}" + Environment.NewLine +
-                $" Recently Seen:({RecentlySeenStations.ToCsv(rss => $"{rss.ID.ToChar()}:{rss.age}")})" + Environment.NewLine +
+                $" Recently Seen:({RecentlySeenStations.ToCsv()})" + Environment.NewLine +
                 $" Recent Commands:({RecentlyHandledCommands.ToCsv(b => $"{b}:{b.ToChar()}")})" + Environment.NewLine +
                 $" Recently Relayed:({RecentlyRelayedPackets.ToCsv(p => p.IdentityString)})" + Environment.NewLine +
                 $" CRC Error Rate:{CRCErrorRate:P1}, Dropped Packet Rate:{DroppedPacketRate:P1}, Average Delay:{AverageDelayTime} us" + Environment.NewLine +

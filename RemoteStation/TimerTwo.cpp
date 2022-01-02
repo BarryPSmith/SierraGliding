@@ -8,6 +8,9 @@ void timer2InterruptAction(void) {}
 
 #ifdef CRYSTAL_FREQ
 bool TimerTwo::_crystalFailed = false;
+#if F_CPU > 1000000
+byte TimerTwo::_subTicks = 0;
+#endif
 #endif
 
 XtalInfo TimerTwo::testFailedOsc()

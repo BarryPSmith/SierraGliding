@@ -176,6 +176,12 @@ Adjust programmer settings
                                 .ContinueWith(task => File.WriteAllText(Path.ChangeExtension(Programmer.Fn, ".remote"),
                                     task.Result.ToCsv(b => b.ToString("X2"), Environment.NewLine)));
                             break;
+                        case nameof(RemoteProgrammer.FullBandwidth):
+                        case "FB":
+                            if (args.Length < 1 || !bool.TryParse(args[0], out var fb))
+                                throw new CommandException("Cannot parse full bandwidth value (must be True or False).");
+                            Programmer.FullBandwidth = fb;
+                            break;
                         default:
                             throw new CommandException($"Command {cmd} not recognised.");
                     }

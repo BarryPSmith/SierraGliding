@@ -337,7 +337,7 @@ void appendMessageStatistics(MessageDestination& msg)
 {
   msg.appendT(csma._crcErrorRate); //2 bytes
   msg.appendT(csma._droppedPacketRate); //2 bytes
-  msg.appendT(csma._averageDelayTime); //4 bytes
+  msg.appendT(csma._averageDelayTime / csma.averagingPeriod); //4 bytes
 }
 
 LoraMessageSource::LoraMessageSource() : MessageSource()
@@ -351,7 +351,8 @@ void LoraMessageSource::doneWithMessage()
 
 bool LoraMessageSource::beginMessage()
 {
-  _lastBeginError = LORA_CHECK(csma.dequeueMessage(&_incomingBuffer, &_length
+  _lastBeginError = LORA_CHECK(csma.dequeueMessage(&_incomingBuffer, &_length,
+    &_timestamp
 #ifdef GET_CRC_FAILURES
     , &_crcMismatch
 #endif

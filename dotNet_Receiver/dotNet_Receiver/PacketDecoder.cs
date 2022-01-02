@@ -150,7 +150,7 @@ namespace core_Receiver
             return wdByte * 360 / 256.0;
         }
 
-        static HashSet<int> timestampStations = new HashSet<int> { 49, 50, 51, 68, 71 };
+        static HashSet<int> timestampStations = new HashSet<int> { 49, 50, 51, 54, 68, 71 };
         private static SingleWeatherData DecodeWeatherPacket(
             Span<byte> data, out int packetLen, DateTimeOffset now)
         {

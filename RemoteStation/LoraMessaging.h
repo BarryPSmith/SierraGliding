@@ -39,6 +39,7 @@ class LoraMessageSource : public MessageSource
     MESSAGE_RESULT seek(const byte newPosition) override;
 
     uint16_t _lastBeginError;
+    uint16_t _timestamp;
 #ifdef GET_CRC_FAILURES
     bool _crcMismatch;
 #endif
@@ -53,9 +54,18 @@ extern bool delayRequired;
 class LoraMessageDestination final : public MessageDestination
 {
   public:
+    LoraMessageDestination() {}
+
     LoraMessageDestination(bool isOutbound,
       byte* buffer, uint8_t bufferSize, bool prependX = true)
     {
+      init(isOutbound, buffer, bufferSize, prependX);
+    }
+
+    void init(bool isOutbound, 
+      byte* buffer, uint8_t bufferSize, bool prependX = true)
+    {
+      _sent = false;
       _isOutbound = isOutbound;
       _outgoingBuffer = buffer;
       outgoingBufferSize = bufferSize;
@@ -115,7 +125,7 @@ class LoraMessageDestination final : public MessageDestination
     }
     MESSAGE_RESULT finishAndSend() override
     {
-      if (_currentLocation == 255)
+      if (_currentLocation == 255 || _sent)
         return MESSAGE_NOT_IN_MESSAGE;
 
       uint16_t preambleLength = 8;
@@ -142,8 +152,12 @@ class LoraMessageDestination final : public MessageDestination
 
       TX_DEBUG(auto beforeTxMicros = micros());
       if (delayRequired)
-        delayMicroseconds(lora._tcxoDelay * random(1,5));
-      auto state = LORA_CHECK(csma.transmit(_outgoingBuffer, _currentLocation, preambleLength));
+      {
+        unsigned short delay_ms = 10 * (stationID & 0b11);
+        delay(delay_ms);
+      }
+      auto state = LORA_CHECK(csma.transmit(_outgoingBuffer, _currentLocation, preambleLength,
+        delayRequired));
       TX_PRINTVAR(micros() - beforeTxMicros);
 
       if (state == ERR_NONE)
@@ -165,7 +179,8 @@ class LoraMessageDestination final : public MessageDestination
 
       bool ret = state == ERR_NONE;
 
-      _currentLocation = 255;
+      //_currentLocation = 255;
+      _sent = true;
       if (ret)
         return MESSAGE_OK;
       else
@@ -174,6 +189,11 @@ class LoraMessageDestination final : public MessageDestination
     void abort()
     {
       _currentLocation = 255;
+    }
+    MESSAGE_RESULT resend()
+    {
+      _sent = false;
+      return finishAndSend();
     }
     MESSAGE_RESULT getBuffer(byte** buffer, byte bytesToAdd)
     {

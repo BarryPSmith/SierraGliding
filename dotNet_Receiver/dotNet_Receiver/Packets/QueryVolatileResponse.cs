@@ -65,9 +65,9 @@ namespace core_Receiver.Packets
 
                 if (VersionNumber > new Version(2, 5))
                 {
-                    sbyte rssiByte = br.ReadSByte();
+                    byte rssiByte = br.ReadByte();
                     sbyte snrByte = br.ReadSByte();
-                    station.RSSI = rssiByte / 2.0;
+                    station.RSSI = rssiByte / -2.0;
                     station.SNR = snrByte / 4.0;
                 }
 
@@ -141,7 +141,7 @@ namespace core_Receiver.Packets
             public double SNR;
 
             public override string ToString()
-                => $"{Id}:{RSSI}/{SNR}/{Age / 1000.0:F1}";
+                => $"{Id.ToChar()}:{RSSI:F1}/{SNR:F2}/{Age / 1000.0:F1}";
         }
         public List<RecentlySeenStation> RecentlySeenStations { get; set; } = new List<RecentlySeenStation>();
 

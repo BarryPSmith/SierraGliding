@@ -270,8 +270,9 @@ namespace Database
         millis() - _lastSearchMessageMillis < minMessageInterval)
       return;
 
-    byte msgBuffer[254];
-    LoraMessageDestination searchMessage(true, msgBuffer, sizeof(msgBuffer), 'K', MessageHandling::getUniqueID());
+    //byte msgBuffer[254];
+    MessageHandling::_relayNeedsResend = false;
+    LoraMessageDestination searchMessage(true, MessageHandling::_relayBuffer, sizeof(MessageHandling::_relayBuffer), 'K', MessageHandling::getUniqueID());
       //LoraMessageDestination::StaticMessage;
     if (_currentAction == ProcessingActions::Searching)
     {

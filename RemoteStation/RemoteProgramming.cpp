@@ -148,20 +148,13 @@ namespace RemoteProgramming
     unsigned int packetStart = packetIndex * bytesPerPacket + imageOffset;
     unsigned int packetEnd = packetStart + bytesPerPacket;
     Flash::flash.wakeup();
-    for (unsigned int i = packetStart; i < packetEnd; i++)
-    {
-      byte b;
-      if (msg.readByte(b))
-      {
-        resetDownload();
-        sendAbortMessage();
-        Flash::flash.sleep();
-        PROGRAM_PRINTLN(F("RP: read failed"));
-        return false;
-      }
-      Flash::flash.writeByte(i, b);
-    }
+    byte* b;
+    if (msg.accessBytes(&b, bytesPerPacket))
+      sendImagePacketFailure(uniqueID, 0x05);
+    else
+      Flash::flash.writeBytes(packetStart, b, bytesPerPacket);
     Flash::flash.sleep();
+    // Record that we have the packet:
     *packetIdentifier |= testBit;
 
     return true;

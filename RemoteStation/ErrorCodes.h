@@ -21,6 +21,11 @@ constexpr short DATABASE_UNKNOWN_CUR_ACTION = 0x41;
 
 constexpr short RADIO_STARTUP_ERROR = 0x555;
 
+constexpr short ALTERNATE_FLASH = 0xAAA;
+constexpr short SYNC_FLASH = 0x555;
+constexpr short SOLID = 0xFFF;
+constexpr short OFF = 0x000;
+
 constexpr short MESSAGING_CANNOT_READ_HEADER = 0x61;
 constexpr short MESSAGING_UNKNOWN_TYPE = 0x62;
 constexpr short MESSAGING_CANT_READ_CALLSIGN = 0x63;

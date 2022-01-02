@@ -28,14 +28,15 @@ void initADC();
 
 void delayTimerOne(unsigned long ms)
 {
+  if (ms == 0)
+    return;
   // We're going to use timer1 to delay.
   // This protects us from an undetected oscillator failure causing it to hang up here.
   // We can count up to 65k -> 8 second delay at 8MHz.
   // (That matches the watchdog we shouldn't delay that long anyway.)
   PRR &= ~_BV(PRTIM1);
-  TCNT1 = 1;
-  // Clear any interrupt flags:
-  TIFR1 = _BV(ICF1) | _BV(OCF1B) | _BV(OCF1A) | _BV(TOV1);
+  auto oldSreg = SREG;
+  cli();
   // We're just going to watch TIFR rather than using an interrupt.
   TIMSK1 = 0;
   OCR1A = 1 + (unsigned short)(ms * (F_CPU / 1000000));
@@ -43,6 +44,11 @@ void delayTimerOne(unsigned long ms)
   //1024 prescaler (~1ms per oscillation at 1MHz)
   TCCR1A = 0;
   TCCR1B = _BV(WGM12) | _BV(CS10) | _BV(CS12);
+
+  TCNT1 = 1;
+  // Clear any interrupt flags:
+  TIFR1 = _BV(ICF1) | _BV(OCF1B) | _BV(OCF1A) | _BV(TOV1);
+  SREG = oldSreg;
 
   while (!(TIFR1 & _BV(OCF1A)))
     yield();

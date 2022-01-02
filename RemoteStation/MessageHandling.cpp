@@ -39,6 +39,8 @@ namespace MessageHandling
   void recordMessageRelay(byte msgType, byte msgStatID, byte msgUniqueID);
   void checkPing(MessageSource& message);
   void readMessage(LoraMessageSource& msg);
+  void resendRelayIfNecessary();
+  void updateRelayResend(byte msgType, byte msgUniqueID, unsigned short msgTimestamp);
 
   //These arrays use 320 bytes.
   RecentlySeenStation recentlySeenStations[permanentArraySize]; //100
@@ -52,6 +54,23 @@ namespace MessageHandling
   byte* const weatherRelayBuffer = weatherRelayBufferBase + headerSize;
   byte weatherRelayLength = 0;
 
+  // When transmitting programming packets, the next relay may take half a second to get their packet onto the air
+  // So we wait for that long (+ a bit) before deciding to resend the packet
+  constexpr unsigned short relayListenPeriod = 600;
+  // Once we stop listening to confirm the packet has been sent, we don't immediately resend:
+  // Given CSMA delays and all, the next station in the chain might hear us repeat and think 
+  // that the packet it sent has been received by the +2 station, so then it wouldn't try to resend.
+  // Instead, we wait a little while to ensure that the next staiton will only hear from downstream 
+  // stations during its wait period.
+  // (If we detect a reply in this extra time, we don't resend, because the packet has obviously reached its destination)
+  constexpr byte relayDelay = 200;
+  byte _relayId;
+  byte _relayType;
+  unsigned short _relayTimestamp;
+  LoraMessageDestination _relayMessage;
+  byte _relayBuffer[254];
+  bool _relayNeedsResend;
+
   void readMessages()
   {
     LoraMessageSource msg;
@@ -63,6 +82,7 @@ namespace MessageHandling
     }
     if (msg._lastBeginError == REENTRY_NOT_SUPPORTED)
       csma.clearBuffer();
+    resendRelayIfNecessary();
     delayRequired = false;
   }
 
@@ -83,7 +103,7 @@ namespace MessageHandling
     byte msgStatID;
     byte msgUniqueID;
     if (msgType == 'C' || msgType == 'K' || msgType == 'W' || msgType == 'R'
-      || msgType == 'P' || msgType == 'S' || msgType == 'Q')
+      || msgType == 'P' || msgType == 'S' || msgType == 'Q' || msgType == 'L')
     {
       if (msg.readByte(msgStatID) ||
         msg.readByte(msgUniqueID))
@@ -124,6 +144,8 @@ namespace MessageHandling
     //Record the weather stations we hear:
     if (msgType == 'W')
       recordHeardStation(msgStatID);
+
+    updateRelayResend(msgType, msgUniqueID, msg._timestamp);
 
     //Otherwise, relay it if necessary:
     bool relayRequired =
@@ -259,18 +281,53 @@ namespace MessageHandling
     return curUniqueID++;
   }
 
+  void resendRelayIfNecessary()
+  {
+    if (_relayNeedsResend && 
+        millis16() - _relayTimestamp > relayListenPeriod + relayDelay)
+    {
+      _relayMessage.resend();
+      _relayNeedsResend = false;
+    }
+  }
+
+  void updateRelayResend(byte msgType, byte msgUniqueID, unsigned short msgTimestamp)
+  {
+    if (_relayNeedsResend)
+    {
+      bool typeMatch = msgType == _relayType;
+      bool idMatch = msgUniqueID == _relayId;
+      bool repeated = idMatch && msgTimestamp - _relayTimestamp < relayListenPeriod;
+      bool replied = (_relayType == 'C' && msgType == 'K') || msgType == 'L'; 
+      
+      if (idMatch && ((typeMatch && repeated) || replied))
+      {
+        _relayNeedsResend = false;
+      }
+    }
+  }
+
   void relayMessage(MessageSource& msg, byte msgType, byte msgFirstByte, byte msgStatID, byte msgUniqueID)
   {
     //Outbound messages are 'C' or 'P'
     byte buffer[254];
-    LoraMessageDestination relay(msgType == 'C' || msgType == 'P', buffer, sizeof(buffer));
-    relay.appendByte2(msgFirstByte);
+    //LoraMessageDestination relay(msgType == 'C' || msgType == 'P', buffer, sizeof(buffer));
+    _relayMessage.init(msgType == 'C' || msgType == 'P', _relayBuffer, sizeof(_relayBuffer));
+    _relayMessage.appendByte2(msgFirstByte);
     // Note: R's follow the same rules as K messages:
     // They're controlled by the relay command array, not the relay weather array,
     // so we leave the sender station ID
-    relay.appendByte2(msgStatID);
-    relay.appendByte2(msgUniqueID);
-    relay.appendData(msg, 254);
+    _relayMessage.appendByte2(msgStatID);
+    _relayMessage.appendByte2(msgUniqueID);
+    _relayMessage.appendData(msg, 254);
+    _relayMessage.finishAndSend();
+    // Our relay timestamp only starts after the message is sent.
+    // This means we will not consider messages received before we have sent as confirmation
+    // 
+    _relayTimestamp = millis16();
+    _relayNeedsResend = msgType == 'C' || msgType == 'K';
+    _relayId = msgUniqueID;
+    _relayType = msgType;
   }
 
   

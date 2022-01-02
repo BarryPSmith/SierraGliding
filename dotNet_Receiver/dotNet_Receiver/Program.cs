@@ -348,6 +348,7 @@ Arguments:
                                 serverPoster?.SendWeatherDataAsync(packet, receivedTime);
                         break;
                     case PacketTypes.Response:
+                        AcknowledgeResponse(packet.uniqueID, packet.sendingStation);
                         if (packet.packetData.Equals(BasicResponse.Timeout)
                             && DateTimeOffset.Now - _lastPing > TimeSpan.FromSeconds(5))
                             _pingEvent.Set();
@@ -381,6 +382,18 @@ Arguments:
             {
                 ErrorWriter.WriteLine($"Error {DateTime.Now}: {ex}");
             }
+        }
+
+        private static void AcknowledgeResponse(byte uniqueID, byte stationID)
+        {
+            // We acknowledge the response to stop stations from sending the K packet a second time.
+            // We probably waste more airtime by replying with our long preamble,
+            // but this way we control it and (hopefully) avoid a repeat K colliding with our next outgoing C.
+            // We only acknowledge if we're the primary receiver
+            if (_connectUDP)
+                return;
+            byte[] data = { (byte)'L', stationID, uniqueID };
+            _dataReceiver.Write(data);
         }
 
         private static void StartPingLoop()

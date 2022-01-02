@@ -141,6 +141,11 @@ extern unsigned long lastStatusMillis;
 
 extern unsigned long lastPingMillis;
 
+inline unsigned short millis16()
+{
+  return (unsigned short)millis();
+}
+
 #if !defined(DEBUG) && !defined(MODEM)
 #define LED_PIN0 0
 #define LED_PIN1 1
@@ -158,13 +163,14 @@ inline void signalOff()
   //digitalWrite(LED_PIN1, LED_OFF);
 }
 
-extern unsigned short lastErrorSeconds;
-extern short lastErrorCode;
 void signalError(uint16_t errorCode, const byte delay_ms = 100);
 #define SIGNALERROR(...) signalError(__VA_ARGS__)
 #else
 #define SIGNALERROR(...) do {} while (0)
 #endif // !DEBUG
+extern bool silentSignal; 
+extern unsigned short lastErrorSeconds;
+extern short lastErrorCode;
 
 #ifdef ATMEGA328PB
   const byte PRUSART1 = 4;

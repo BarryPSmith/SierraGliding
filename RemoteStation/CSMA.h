@@ -47,10 +47,10 @@ enum class IdleStates : byte {
 template<class T, uint8_t bufferSize = 255, uint8_t maxQueue = 8>
 class CSMAWrapper
 {
-  static constexpr uint32_t MaxDelay = 2500000; // 2.5 seconds
-  static constexpr uint16_t averagingPeriod = 256;
-
   public:
+    static constexpr uint16_t MaxDelay = 2500; // 2.5 seconds
+    static constexpr uint16_t averagingPeriod = 256;
+
     CSMAWrapper(T* base) {
       _base = base;
       setP(100); //0.4
@@ -65,9 +65,13 @@ class CSMAWrapper
       _base->setRxDoneAction(rxDoneActionStatic);
     }
 
-    int16_t transmit(uint8_t* data, byte len, uint16_t preambleLength) {
+    int16_t transmit(uint8_t* data, byte len, uint16_t preambleLength,
+        bool initialWait) {
       TX_DEBUG(auto entryMicros = micros());
-      LORA_CHECK(delayCSMA());
+      // Set this flag to stop CSMA flashing, the delay messes with the logic.
+      silentSignal = true;
+      LORA_CHECK(delayCSMA(initialWait));
+      silentSignal = false;
       TX_DEBUG(auto delayMicros = micros() - entryMicros);
       auto ret = transmit2(data, len, preambleLength);
       enterIdleState();
@@ -94,33 +98,34 @@ class CSMAWrapper
       return ret;
     }
 
-    void __attribute__ ((noinline)) updateAverageDelay(uint32_t entryMicros)
+    void __attribute__ ((noinline)) updateAverageDelay(uint16_t entryMillis)
     {
-      uint32_t delayTime = micros() - entryMicros;
+      uint16_t delayTime = millis16() - entryMillis;
       _averageDelayTime = _averageDelayTime * (averagingPeriod - 1) / (averagingPeriod)
         +
-        delayTime / averagingPeriod;
+        delayTime;
     }
 
-    #define CHECK_TIMEOUT() do { if(micros() - entryMicros > MaxDelay) return(ERR_RX_TIMEOUT); } while (0)
+    #define CHECK_TIMEOUT() do { if(millis16() - entryMillis > MaxDelay) return(ERR_RX_TIMEOUT); } while (0)
     // see http://www.ax25.net/kiss.aspx section 6 for CSMA implementation.
     // this is a blocking function that will queue any messages received while it waits.
-    int16_t delayCSMA()
+    int16_t delayCSMA(bool initialWait)
     {
-      uint32_t entryMicros = micros();
+      uint16_t entryMillis = millis16();
       //uint32_t beforeIsChannelBusy, afterIsChannelBusy;
-      bool wasBusy = false;
+      bool wasBusy = initialWait;
       do
       {
-        CHECK_TIMEOUT();
-        if(wasBusy && (random(0, 255)) > _p) {
-          uint32_t startMicros = micros();
-          while (micros() - startMicros < _timeSlot) {
+        //Wait an random amount of time, exponentially distributed
+        while (wasBusy && (rand() & 0xFF) > _p) {
+          uint16_t startMillis = millis16();
+          while (millis16() - startMillis < _timeSlot) {
             CHECK_TIMEOUT();
             readIfPossible();
           }
         }
-        int16_t state = _base->isChannelBusy(true, false);
+
+        int16_t state = _base->isChannelBusy(_idleState != IdleStates::ContinuousReceive, false);
         wasBusy = (state == LORA_DETECTED);
         while(state == LORA_DETECTED) {
           delay(10); // If we spam the modem with detectCAD, it can never receieve a message.
@@ -128,20 +133,20 @@ class CSMAWrapper
           CHECK_TIMEOUT();
           readIfPossible();
           //We use CAD in case the modem is halfway through receiving a message...
-          state = _base->isChannelBusy(true, false);
+          state = _base->isChannelBusy(_idleState != IdleStates::ContinuousReceive, false);
         }
         if(state != CHANNEL_FREE) {
           return(state);
         }
       } while(wasBusy);
 
-      updateAverageDelay(entryMicros);
+      updateAverageDelay(entryMillis);
 
       return ERR_NONE;
     }
 
     void setTimeSlot(const uint32_t newValue) {
-      _timeSlot = newValue;
+      _timeSlot = newValue / 1000;
     }
 
     int16_t setP(const float newValue) {
@@ -152,13 +157,14 @@ class CSMAWrapper
       return(ERR_NONE);
     }
 
-    void setPByte(const int8_t newValue) {
+    void setPByte(const uint8_t newValue) {
       _p = newValue;
     }
 
     // Note that buffer is possibly invalidateded by transmit, 
     // readIfPossible, and subsequent calls to dequeMessage.
-    int16_t dequeueMessage(uint8_t** buffer, uint8_t* length
+    int16_t dequeueMessage(uint8_t** buffer, uint8_t* length,
+      uint16_t* timestamp
 #ifdef GET_CRC_FAILURES
       ,bool* crcMismatch
 #endif
@@ -182,6 +188,7 @@ class CSMAWrapper
 
       *buffer = _buffer + getStartOfBuffer();
       *length = _messageLengths[_readBufferLenIdx];
+      *timestamp = _messageTimestamps[_readBufferLenIdx];
 #ifdef GET_CRC_FAILURES
       *crcMismatch = _crcMismatches[_readBufferLenIdx];
 #endif
@@ -257,6 +264,7 @@ class CSMAWrapper
         RX_PRINTVAR(_writeBufferLenIdx);
         RX_PRINTVAR(packetSize);
         _messageLengths[_writeBufferLenIdx] = packetSize;
+        _messageTimestamps[_writeBufferLenIdx] = millis16();
 #ifdef GET_CRC_FAILURES
         _crcMismatches[_writeBufferLenIdx] = state == ERR_CRC_MISMATCH;
 #endif
@@ -332,6 +340,7 @@ class CSMAWrapper
   //private:
     uint8_t _buffer[bufferSize];
     uint8_t _messageLengths[maxQueue];
+    uint16_t _messageTimestamps[maxQueue];
 #ifdef GET_CRC_FAILURES
     bool _crcMismatches[maxQueue];
 #endif
@@ -362,7 +371,7 @@ class CSMAWrapper
       return ret;
     }
 
-    uint32_t _timeSlot;
+    uint16_t _timeSlot;
     uint8_t _p;
 
     static volatile bool s_packetWaiting;

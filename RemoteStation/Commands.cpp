@@ -439,7 +439,7 @@ namespace Commands
     buffer += 2;
     *(unsigned short*)buffer = csma._droppedPacketRate; // +2 = 12
     buffer += 2;
-    *(unsigned long*)buffer = csma._averageDelayTime; // +4 = 16
+    *(unsigned long*)buffer = csma._averageDelayTime / csma.averagingPeriod; // +4 = 16
     buffer += 4;
     *(unsigned long*)buffer = TimerTwo::seconds(); // +4 = 20
     buffer += 4;
@@ -479,7 +479,7 @@ namespace Commands
       do
       {
         duplicate = false;
-        newID = random(1, 127);
+        newID = rand() & 0x7F;
         for (int i = 0; i < permanentArraySize; i++)
         {
           if (MessageHandling::recentlySeenStations[i].id == newID)

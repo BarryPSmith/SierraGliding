@@ -37,7 +37,9 @@ namespace core_Receiver
         public int PacketSize { get; private set; }
         public int PacketCount { get; private set; }
 
-        public TimeSpan PacketInterval { get; set; } = TimeSpan.FromSeconds(1);
+        public bool FullBandwidth { get; set; } = true;
+
+        public TimeSpan PacketInterval { get; set; } = TimeSpan.FromSeconds(3);
 
         public TimeSpan ResponseTimeout { get; set; } = TimeSpan.FromSeconds(5);
 
@@ -206,7 +208,7 @@ namespace core_Receiver
             }, token);
         }
 
-        private void SendImagePacket(byte destinationStationID, byte cmdByte, int i)
+        private byte SendImagePacket(byte destinationStationID, byte cmdByte, int i)
         {
             var ms = new MemoryStream();
             var writer = new BinaryWriter(ms, Encoding.ASCII);
@@ -223,6 +225,7 @@ namespace core_Receiver
             var data = AppendCommandCrc(destinationStationID, ms);
             PacketDecoder.RecentCommands[uniqueID] = "P";
             _communicator.Write(data);
+            return uniqueID;
         }
 
         private static byte[] AppendCommandCrc(byte destinationStationID, MemoryStream ms)
@@ -263,7 +266,7 @@ namespace core_Receiver
                         var packet = PacketDecoder.DecodeBytes(data.ToArray(), DateTimeOffset.Now);
                         if (packet?.type == PacketTypes.Response && packet.uniqueID == lastUniqueID && packet.sendingStation == destinationStationID)
                         {
-                            lastResponse = packet.packetData as ProgrammingResponse;
+                            lastResponse = packet.packetData as ProgrammingResponse ?? lastResponse;
                             replyReceived.Set();
                         }
                     }
@@ -315,9 +318,21 @@ namespace core_Receiver
                             if (lastResponse.receivedPackets[i])
                                 continue;
                             StatusMessage = $"Uploading packet {++packetsSent}/{packetsToSend} ({(float)packetsSent / packetsToSend:P0}). Cycle {cycle}";
-                            SendImagePacket(destinationStationID, (byte)'C', i);
+                            lastUniqueID = SendImagePacket(destinationStationID, (byte)'C', i);
                             totalPackets++;
-                            Thread.Sleep(PacketInterval);
+
+                            if (FullBandwidth)
+                            {
+                                replyReceived.Reset();
+                                Stopwatch sw = new Stopwatch();
+                                sw.Start();
+                                Console.WriteLine($"Waiting for {lastUniqueID:X2}");
+                                replyReceived.WaitOne(PacketInterval);
+                                sw.Stop();
+                                Console.WriteLine($"Response time: {sw.ElapsedMilliseconds} ms");
+                            }
+                            else
+                                Thread.Sleep(PacketInterval);
                         }
                         cycle++;
                     }
@@ -518,7 +533,7 @@ namespace core_Receiver
         public override string ToString()
         {
             return $"Packet Size: {PacketSize}, Packet Count: {PacketCount}, CRC: {CRC:X}, Size: {_image.Count}, " +
-                $"Interval: {PacketInterval.TotalSeconds}, Timeout: {ResponseTimeout.TotalSeconds}, Source: {_fn}";
+                $"Interval: {PacketInterval.TotalSeconds}, Timeout: {ResponseTimeout.TotalSeconds}, Source: {_fn}, Full Bandwidth: {FullBandwidth}";
         }
 
         public string DataAsSingleLineHex => _image.ToCsv(i => i.ToString("X2"), Environment.NewLine);

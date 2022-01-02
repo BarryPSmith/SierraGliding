@@ -25,6 +25,7 @@ class MessageDestination
 {  
   protected:
     byte _currentLocation = 0;
+    bool _sent = false;
   
   public:
     const static bool s_prependCallsign;

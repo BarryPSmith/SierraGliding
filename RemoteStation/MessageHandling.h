@@ -8,6 +8,9 @@ namespace MessageHandling
   void sendWeatherMessage();
   byte getUniqueID();
 
+  extern byte _relayBuffer[254];
+  extern bool _relayNeedsResend;
+
   //We keep track of recently seen stations to allow network debugging / optimisation
   struct RecentlySeenStation
   {

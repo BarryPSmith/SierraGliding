@@ -31,6 +31,7 @@ unsigned short batteryReading_mV;
 bool stasisRequested;
 unsigned short lastErrorSeconds;
 short lastErrorCode;
+bool silentSignal = false;
 
 #ifdef DEBUG
 extern volatile bool windTicked;
@@ -80,8 +81,9 @@ int main()
   init();
   TimerTwo::initialise();
 
-  setup();
   //TestBoard();
+
+  setup();
 
   while (1)
   {
@@ -105,7 +107,7 @@ constexpr byte CalcClockDividerByte()
 #endif
 void savePower()
 {
-#if defined(CLOCK_DIVIDER) && CLOCK_DIVIDER != 1
+#if defined(CLOCK_DIVIDER)// && CLOCK_DIVIDER != 1
   CLKPR = _BV(CLKPCE);
   CLKPR = CalcClockDividerByte();
 #endif
@@ -158,31 +160,29 @@ void savePower()
 extern SX1262 lora;
 void TestBoard()
 {
+#if 0
   wdt_disable();
-  LORA_CHECK(lora.setOutputPower(22));
-  LORA_CHECK(lora.setFrequency_i(425200000));
-  LORA_CHECK(lora.sleep());
-  while (1)
+  Serial.begin(serialBaud);
+  for (int i = 0; i < 256; i++)
   {
-    for (int i = 0; i < 3; i++)
-    {
-      AWS_DEBUG_PRINTLN("Not Transmitting...");
-      delay(100);
-    }
-    delay(1000);
+    byte b;
+    PermanentStorage::getBytes((void*)i, 1, &b);
+    Serial.write(b);
   }
+  while (1);
+#endif
 }
 
 void seedRandom()
 {
-  unsigned long seed = (unsigned long)analogRead(BATT_PIN); 
+  unsigned short seed = analogRead(BATT_PIN); 
 #ifdef WIND_DIR_PIN
-  seed |= analogRead(WIND_DIR_PIN) << 10 ;
+  seed ^= analogRead(WIND_DIR_PIN) << 3 ;
 #endif
 #ifdef TEMP_SENSE
-  seed |= (unsigned long)analogRead(TEMP_SENSE) << 20;
+  seed ^= analogRead(TEMP_SENSE) << 6;
 #endif
-  randomSeed(seed);
+  srand(seed);
 }
 
 void setup() {
@@ -323,7 +323,7 @@ void loop() {
 
   if (++counter == cystalTestInterval)
   {
-    if (random(20) == 1)
+    if ((rand() & 0x0F) == 1)
     {
       testCrystal(false);
     }
@@ -481,7 +481,6 @@ void sleep(adc_t adc_state)
   }
   else if (sleepMode == SleepModes::idle)
   {
-    digitalWrite(LED_PIN0, LED_ON);
     // note that these *_ON just tell LowPower not to mess with the PRR, they don't actually turn things on. 
     // TODO: Test what happens if we turn off SPI & TWI.
     LowPower.idle(SLEEP_FOREVER,
@@ -492,7 +491,6 @@ void sleep(adc_t adc_state)
                   SPI_OFF,
                   USART0_ON, 
                   TWI_OFF);
-    digitalWrite(LED_PIN0, LED_OFF);
   }
   // Ensure that any calls to millis will work properly, 
   // and that we won't have problems returning to sleep.
@@ -621,6 +619,9 @@ void signalError(uint16_t errorCode, const byte delay_ms)
     return;
   lastErrorSeconds = TimerTwo::seconds();
   lastErrorCode = errorCode;
+  if (silentSignal)
+    return;
+#ifndef DEBUG
   static_assert(LED_PIN0 == 0);
   static_assert(LED_PIN1 == 1);
   static_assert(LED_ON == LOW);
@@ -660,5 +661,7 @@ void signalError(uint16_t errorCode, const byte delay_ms)
   else
     PORTD |= _BV(PD1);
   PORTD |= _BV(PD0);
+  delay(delay_ms);
   signalOff();
+#endif
 }

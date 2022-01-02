@@ -419,7 +419,7 @@ namespace Commands
     unsigned long curMillis = millis();
 #if 1
     byte* buffer;
-    constexpr byte messageSize = 33
+    constexpr byte messageSize = 35
       + sizeof(MessageHandling::recentlySeenStations)
       + sizeof(recentlyHandledCommands)
       + sizeof(MessageHandling::recentlyRelayedMessages);
@@ -453,6 +453,9 @@ namespace Commands
     *(unsigned long*)buffer = Database::_curWriteAddress; //+4 = 32
     buffer += 4;
     *buffer = Database::_curCycle; //+1 = 33
+    buffer += 1;
+    *(unsigned short*)buffer = MessageHandling::_relayResendRate; //+2 = 35
+    buffer += 2;
     return;
 #endif
   }

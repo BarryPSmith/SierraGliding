@@ -324,6 +324,16 @@ bool handleMessageCommand(MessageSource& src, byte* desc)
         SET_PERMANENT_S(codingRate);
     }
     break;
+  case 'A':
+    unsigned short relayListenPeriod;
+    if (src.read(relayListenPeriod))
+      state == ERR_UNKNOWN;
+    else
+    {
+      SET_PERMANENT_S(relayListenPeriod);
+      state = ERR_NONE;
+    }
+    break;
   default:
     state = ERR_UNKNOWN;
   }

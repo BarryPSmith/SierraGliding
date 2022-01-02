@@ -54,9 +54,8 @@ namespace MessageHandling
   byte* const weatherRelayBuffer = weatherRelayBufferBase + headerSize;
   byte weatherRelayLength = 0;
 
-  // When transmitting programming packets, the next relay may take half a second to get their packet onto the air
-  // So we wait for that long (+ a bit) before deciding to resend the packet
-  constexpr unsigned short relayListenPeriod = 600;
+  
+  unsigned short relayListenPeriod;
   // Once we stop listening to confirm the packet has been sent, we don't immediately resend:
   // Given CSMA delays and all, the next station in the chain might hear us repeat and think 
   // that the packet it sent has been received by the +2 station, so then it wouldn't try to resend.
@@ -70,6 +69,7 @@ namespace MessageHandling
   LoraMessageDestination _relayMessage;
   byte _relayBuffer[254];
   bool _relayNeedsResend;
+  unsigned short _relayResendRate = 0;
 
   void readMessages()
   {
@@ -281,6 +281,15 @@ namespace MessageHandling
     return curUniqueID++;
   }
 
+  void updateResendStats(bool sent)
+  {
+    constexpr unsigned short averagingPeriod = 64;
+    unsigned short val = sent ? 0xFFFF / averagingPeriod : 0;
+    _relayResendRate = (uint32_t)_relayResendRate * (averagingPeriod - 1) / averagingPeriod
+      +
+      val;
+  }
+
   void resendRelayIfNecessary()
   {
     if (_relayNeedsResend && 
@@ -288,6 +297,7 @@ namespace MessageHandling
     {
       _relayMessage.resend();
       _relayNeedsResend = false;
+      updateResendStats(true);
     }
   }
 
@@ -303,6 +313,7 @@ namespace MessageHandling
       if (idMatch && ((typeMatch && repeated) || replied))
       {
         _relayNeedsResend = false;
+        updateResendStats(false);
       }
     }
   }
@@ -325,7 +336,8 @@ namespace MessageHandling
     // This means we will not consider messages received before we have sent as confirmation
     // 
     _relayTimestamp = millis16();
-    _relayNeedsResend = msgType == 'C' || msgType == 'K';
+    GET_PERMANENT_S(relayListenPeriod);
+    _relayNeedsResend = relayListenPeriod && (msgType == 'C' || msgType == 'K');
     _relayId = msgUniqueID;
     _relayType = msgType;
   }

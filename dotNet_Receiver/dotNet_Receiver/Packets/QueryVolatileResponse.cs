@@ -123,6 +123,12 @@ namespace core_Receiver.Packets
                 DatabaseDataAdd = br.ReadUInt32();
                 DatabaseCycle = br.ReadByte();
             }
+
+            if (VersionNumber >= new System.Version(2,6))
+            {
+                ushort repeatShort = br.ReadUInt16();
+                RelayRepeatRate = repeatShort / (double)0xFFFF;
+            }
         }
 
         public UInt32 Millis { get; set; }
@@ -159,6 +165,8 @@ namespace core_Receiver.Packets
         public UInt32 DatabaseHeaderAdd { get; set; }
         public UInt32 DatabaseDataAdd { get; set; }
         public byte DatabaseCycle { get; set; }
+
+        public double RelayRepeatRate { get; set; }
         public override string ToString()
         {
             var overrideString = OverrideDuration > 0 ? $"Override (Remaining:{OverrideDuration - (Millis - OverrideStart)}, short:{OverrideShort}), " : "";
@@ -167,7 +175,8 @@ namespace core_Receiver.Packets
                 $" Recently Seen:({RecentlySeenStations.ToCsv()})" + Environment.NewLine +
                 $" Recent Commands:({RecentlyHandledCommands.ToCsv(b => $"{b}:{b.ToChar()}")})" + Environment.NewLine +
                 $" Recently Relayed:({RecentlyRelayedPackets.ToCsv(p => p.IdentityString)})" + Environment.NewLine +
-                $" CRC Error Rate:{CRCErrorRate:P1}, Dropped Packet Rate:{DroppedPacketRate:P1}, Average Delay:{AverageDelayTime} us" + Environment.NewLine +
+                $" CRC Error Rate:{CRCErrorRate:P1}, Dropped Packet Rate:{DroppedPacketRate:P1}, Average Delay:{AverageDelayTime}" + Environment.NewLine +
+                $" Relay Repeat Rate: {RelayRepeatRate:P1}" + Environment.NewLine +
                 $" Station Time: {Time?.LocalDateTime}, Memory Low Water: {MemoryLowWater}, Free Memory: {FreeMemory}" + Environment.NewLine +
                 $" DB Header: {DatabaseHeaderAdd}, DB Data: {DatabaseDataAdd}, DB Cycle: {DatabaseCycle}";
         }

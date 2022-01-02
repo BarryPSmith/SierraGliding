@@ -70,12 +70,13 @@ typedef struct PermanentVariables
   unsigned short safeFreezingChargeLevel_mV;
   byte safeFreezingPwm;
 
-  byte messageTypesToRecord[messageTypeArraySize]; // V2.2 had a CRC here
+  byte messageTypesToRecord[messageTypeArraySize];
   bool recordNonRelayedMessages;
-  unsigned short inboundPreambleLength; //2.4 had a CRC here
-  bool boostedRx; //2.5 had a CRC here
+  unsigned short inboundPreambleLength; 
+  bool boostedRx;
   bool stasisRequested;
   byte codingRate;
+  short relayListenPeriod;
   short crc;
 } PermanentVariables;
 

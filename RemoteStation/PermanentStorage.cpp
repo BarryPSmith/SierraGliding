@@ -77,7 +77,10 @@ const PermanentVariables defaultVars PROGMEM =
   .boostedRx = false,
 #endif
   .stasisRequested = false,
-  .codingRate = 5
+  .codingRate = 5,
+  // When transmitting programming packets, the next relay may take half a second to get their packet onto the air
+  // So we wait for that long (+ a bit) before deciding to resend the packet
+  .relayListenPeriod = 600
 };
 
 void PermanentStorage::initialise()
@@ -95,36 +98,29 @@ void PermanentStorage::initialise()
     //SET_PERMANENT_S(stationID);
   }
   bool completeCrc = false;
+  static_assert(sizeof(PermanentVariables) < 0xFF);
   if (initialised)
   {
-    //When upgrading from 2.4 to 2.5, we don't want to clear the entire memory. Just set the inbound preamble length and recalculate the CRC:
-    if (checkCRC(sizeof(PermanentVariables) - 5))
+    completeCrc = checkCRC(sizeof(PermanentVariables));
+    if (!completeCrc)
     {
-      unsigned short inboundPreambleLength = 8;
-      SET_PERMANENT_S(inboundPreambleLength);
-      bool boostedRx =
-#ifdef MODEM
-        true;
-#else
-        false;
-#endif
-      SET_PERMANENT_S(boostedRx);
-      stasisRequested = false;
-      SET_PERMANENT_S(stasisRequested);
-      byte codingRate = 5;
-      SET_PERMANENT_S(codingRate);
-      setCRC();
-      completeCrc = true;
-    } 
-    else if (checkCRC(sizeof(PermanentVariables) - 1))
-    {
-      byte codingRate = 5;
-      SET_PERMANENT_S(codingRate);
-      setCRC();
-      completeCrc = true;
+      for (byte i = offsetof(PermanentVariables, inboundPreambleLength);
+        i < sizeof(PermanentVariables) - 1; i++)
+      {
+        if (checkCRC(i))
+        {
+          i -= 2;
+          for (; i < offsetof(PermanentVariables, crc); i++)
+          {
+            byte b = pgm_read_byte((byte*)&defaultVars + i);
+            setBytes((void*)i, 1, &b);
+          }
+          setCRC();
+          completeCrc = true;
+          break;
+        }
+      }
     }
-    else
-      completeCrc = checkCRC(sizeof(PermanentVariables));
   }
   if (completeCrc)
   {

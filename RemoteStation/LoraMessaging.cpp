@@ -282,7 +282,7 @@ bool handleMessageCommand(MessageSource& src, byte* desc)
   {
     uint16_t outboundPreambleLength;
 
-    if (src.read(outboundPreambleLength))
+    if (src.read(outboundPreambleLength) || outboundPreambleLength > 2048)
       state = ERR_UNKNOWN;
     else
     {
@@ -294,7 +294,7 @@ bool handleMessageCommand(MessageSource& src, byte* desc)
   }
   case 'I':
     uint16_t inboundPreambleLength;
-    if (src.read(inboundPreambleLength))
+    if (src.read(inboundPreambleLength) || inboundPreambleLength > 1024)
       state = ERR_UNKNOWN;
     else
     {

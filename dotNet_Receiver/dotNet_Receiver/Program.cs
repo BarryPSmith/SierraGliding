@@ -37,6 +37,7 @@ Arguments:
  --pingInterval <seconds> Specify a custom ping interval. Default is 5 minutes (300)
  --noping               Specify that the software should not send pings
  --logWeather           Specify that the local db will store weather packets
+ --nts <list>           [Temporary] List of stations that do not send timestamped messages (pre-2.5)
 "
 );
         }
@@ -116,6 +117,13 @@ Arguments:
                 _pingInterval = TimeSpan.FromSeconds(int.Parse(args[pingIntervalIndex + 1]));
             }
 
+            int ntsIndex = Array.FindIndex(args, arg => arg.Equals("--nts", StringComparison.OrdinalIgnoreCase));
+            if (ntsIndex >= 0)
+            {
+                _ntsStations = args[ntsIndex + 1].Split(',').Select(str => 
+                    str.Length > 1 ? int.Parse(str) : (int)str[0]).ToHashSet();
+            }
+
             if (args.Contains("--logWeather", StringComparer.OrdinalIgnoreCase))
                 _logWeather = true;
 
@@ -142,6 +150,8 @@ Arguments:
             AppDomain.CurrentDomain.ProcessExit += CurrentDomain_ProcessExit;
 
             ParseArgs(args);
+
+            PacketDecoder.NtsStations = _ntsStations;
 
             FileStream npsFs = null;
             bool npsIsStandardOut = true;
@@ -517,6 +527,7 @@ Arguments:
 
         private static AutoResetEvent _pingEvent = new AutoResetEvent(false);
         private static TimeSpan _pingInterval = TimeSpan.FromMinutes(5);
+        static HashSet<int> _ntsStations;
         private static DateTimeOffset _lastPing;
         private static bool _sendPing = true;
         private static void PingLoop()

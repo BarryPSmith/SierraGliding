@@ -60,7 +60,7 @@ namespace core_Receiver
                 case PacketTypes.Weather:
                 case PacketTypes.Overflow2:
                     (ret.packetData, ret.exception) = DecodeWeatherPackets(bytes.AsSpan(cur), receivedTime);
-                    ret.GetDataString = 
+                    ret.GetDataString =
                         data => (data as IList<SingleWeatherData>)?.ToCsv();
                     break;
                 case PacketTypes.Overflow:
@@ -150,7 +150,8 @@ namespace core_Receiver
             return wdByte * 360 / 256.0;
         }
 
-        static HashSet<int> timestampStations = new HashSet<int> { 49, 50, 51, 54, 68, 71 };
+        public static HashSet<int> NtsStations { get; set; }
+        //static HashSet<int> timestampStations = new HashSet<int> { 49, 50, 51, 54, 68, 71 };
         private static SingleWeatherData DecodeWeatherPacket(
             Span<byte> data, out int packetLen, DateTimeOffset now)
         {
@@ -186,7 +187,7 @@ namespace core_Receiver
             if (ret.gust > ret.windSpeed * 2.5 && ret.gust > 15)
                 ret.gust = null;
 
-            if (timestampStations.Contains(ret.sendingStation))
+            if (!NtsStations.Contains(ret.sendingStation))
             {
                 ret.timestampByte = data[cur++];
                 ret.timeStamp = GetTimeStamp(ret.timestampByte.Value, now);
@@ -202,7 +203,7 @@ namespace core_Receiver
                 ret.pwmValue = data[cur++];
             if (packetLen > cur)
                 ret.current = data[cur++];
-            if (timestampStations.Contains(ret.sendingStation))
+            if (!NtsStations.Contains(ret.sendingStation))
             {
                 if (packetLen > cur + 1)
                 {

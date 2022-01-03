@@ -143,8 +143,9 @@ class LoraMessageDestination final : public MessageDestination
         preambleLength = inboundPreambleLength;
       }
 
-
     #if !defined(DEBUG) && !defined(MODEM)
+      if (preambleLength > 2048)
+        preambleLength = 2048;
       //If we're not in debug there is no visual indication of a message being sent at the station
       //So we light up the TX light on the board:
       digitalWrite(LED_PIN0, LED_ON);

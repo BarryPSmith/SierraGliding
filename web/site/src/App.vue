@@ -55,10 +55,7 @@ export default {
             if (window.location.pathname.toLowerCase().indexOf("all") >= 0) {
                 url.searchParams.append('all', true);
             } else if (window.location.pathname.length > 1) {
-                const gr = window.location.pathname.replace(/^\/+|\/+$/g, '');
-                if (gr == 'teapot')
-                    alert('teapot!');
-                groupName = gr;
+                groupName = window.location.pathname.replace(/^\/+|\/+$/g, '');
             } else if (splitHost.length > 2) {
                 groupName = splitHost[0];
             }

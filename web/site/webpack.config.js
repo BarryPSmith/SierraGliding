@@ -37,7 +37,8 @@ var config = {
 	new HTMLWebpackPlugin({
 	  showErrors: true,
 	  cache: true,
-	  template: './index.html'
+	  template: './index.html',
+	  publicPath: '/'
 	})
   ]
 };

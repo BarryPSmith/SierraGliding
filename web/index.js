@@ -24,7 +24,7 @@ app.use(express.static(path.resolve(__dirname, 'site/dist')));
 app.use(express.json());
 app.set('json replacer', standardReplacer);
 app.use('/api/', router);
-app.use('/[^\.]+', express.static(path.resolve(__dirname, 'site/dist')));
+//app.use('/[^\.]+', express.static(path.resolve(__dirname, 'site/dist')));
 
 if (require.main === module) {
     if (!args.db || args.help) {
@@ -270,6 +270,7 @@ const defaultStatSize = 600;
  * @param {Function} cb Callback
  */
 function main(db, cb) {
+    const dbAll = util.promisify(sqlite3.Database.prototype.all).bind(db);
     const dbGet = util.promisify(sqlite3.Database.prototype.get).bind(db);
     const dbRun = util.promisify(sqlite3.Database.prototype.run).bind(db);
 
@@ -807,6 +808,35 @@ function main(db, cb) {
 
             res.json(data);
         });
+    });
+
+    router.get('/groups', async (req, res) => {
+        try {
+            const ret = await dbAll(`SELECT id, name FROM Station_Groups 
+                WHERE $Name IS NULL
+                OR Name = $Name`, {
+                    $Name: req.query.name
+                });
+            res.json(ret);
+        } catch(err) {
+            return error(err, res);
+        }
+    });
+
+    app.get('/:group', async (req, res) => {
+        try {
+            const stationThere = await dbGet('SELECT 1 FROM Station_Groups WHERE Name = $name', {
+                $name: req.params.group
+            });
+            if (!!stationThere) {
+                const fn = path.resolve(__dirname, 'site/dist/index.html');
+                return res.sendFile(fn);
+            }
+            else
+                return res.sendStatus(404);
+        } catch (err) {
+            return error(err, res);
+        }
     });
 
     if (!args.port) args.port = 4000;

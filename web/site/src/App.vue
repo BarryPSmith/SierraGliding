@@ -20,6 +20,9 @@ export default {
     },
     components: { stationList },
     computed: {
+        urlBase() {
+            return `${window.location.protocol}//${window.location.host}`;
+        }
     },
     mounted: function(e) {
         this.fetch_stations();
@@ -28,16 +31,38 @@ export default {
     watch: {
     },
     methods: {
+        async update_title(groupName)
+        {
+            try {
+                // Fetch the properly capitlised title from the server:
+                const url = new URL(`${this.urlBase}/api/groups`);
+                url.searchParams.append('name', groupName);
+                const res = await fetch(url);
+                if (!res.ok) return;
+                const groups = await res.json();
+                const group = groups[0];
+                if (group && group.Name) {
+                    document.title = `${group.Name} Wind | Sierra Gliding`;
+                }
+            } catch {}
+        },
         fetch_stations: function() {
-            const url = new URL(`${window.location.protocol}//${window.location.host}/api/stations`);
+            const url = new URL(`${this.urlBase}/api/stations`);
 
             const splitHost = window.location.hostname.split('.');
-            if (window.location.pathname.toLowerCase().indexOf("all") >= 0)
+            let groupName;
+
+            if (window.location.pathname.toLowerCase().indexOf("all") >= 0) {
                 url.searchParams.append('all', true);
-            else if (window.location.pathname.length > 1)
-                url.searchParams.append('groupName', window.location.pathname.replace(/^\/+|\/+$/g, ''));
-            else if (splitHost.length > 2)
-                url.searchParams.append('groupName', splitHost[0]);
+            } else if (window.location.pathname.length > 1) {
+                groupName = window.location.pathname.replace(/^\/+|\/+$/g, '')
+            } else if (splitHost.length > 2) {
+                groupName = splitHost[0];
+            }
+            if (groupName) {
+                this.update_title(groupName);
+                url.searchParams.append('groupName', groupName);
+            }
 
             return fetch(url, {
                 method: 'GET',

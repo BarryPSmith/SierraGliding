@@ -314,7 +314,7 @@ export default class DataManager {
         const viewStart = this.get_actual_end() - this.lastEnsureSpan * 1000;
 
         for (const cur of [this.stationData, ...this.allDatasets()]) {
-            const startIdx = bs(cur, viewStart, (element, needle) => (element.x === undefined ? element.timestamp * 1000 : element.x) - needle);
+            let startIdx = bs(cur, viewStart, (element, needle) => (element.x === undefined ? element.timestamp * 1000 : element.x) - needle);
             if (startIdx < 0)
                 startIdx = ~startIdx;
             // If we've got so much data that we're overloading the chart,

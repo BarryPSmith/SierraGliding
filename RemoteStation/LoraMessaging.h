@@ -146,9 +146,13 @@ class LoraMessageDestination final : public MessageDestination
     #if !defined(DEBUG) && !defined(MODEM)
       if (preambleLength > 2048)
         preambleLength = 2048;
+      if (preambleLength < 8)
+        preambleLength = 8;
       //If we're not in debug there is no visual indication of a message being sent at the station
       //So we light up the TX light on the board:
+#ifndef DARK
       digitalWrite(LED_PIN0, LED_ON);
+#endif
     #endif //DEBUG
 
       TX_DEBUG(auto beforeTxMicros = micros());
@@ -163,7 +167,7 @@ class LoraMessageDestination final : public MessageDestination
 
       if (state == ERR_NONE)
       {
-    #if !defined(DEBUG) && !defined(MODEM)
+    #if !defined(DEBUG) && !defined(MODEM) && !defined(DARK)
         digitalWrite(LED_PIN0, LED_OFF);
     #endif
       }

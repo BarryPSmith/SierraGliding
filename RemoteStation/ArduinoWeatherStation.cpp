@@ -421,11 +421,6 @@ void restart()
   }
 }
 
-#ifndef DEBUG
-//Export signalError here.
-extern inline void signalError(byte count, unsigned long delay_ms);
-#endif
-
 void yield()
 {
   //We leave the ADC_ON to hopefully get a less pronounced effect as the LDO goes from low current to running current.
@@ -619,6 +614,9 @@ void signalError(uint16_t errorCode, const byte delay_ms)
     return;
   lastErrorSeconds = TimerTwo::seconds();
   lastErrorCode = errorCode;
+#ifdef DARK
+  return;
+#endif
   if (silentSignal)
     return;
 #ifndef DEBUG

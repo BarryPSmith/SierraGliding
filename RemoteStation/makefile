@@ -26,13 +26,14 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 12: Single board rev3
 # 13: Single board rev3 FCC Compliant @ 917MHz
 # 14: Dorji Modem @ 917MHz
-BOARD = 10
+BOARD = 9
 include Boards.makefile
 
 #Flags, etc.
 DEFINES=$(BOARD_DEFINES) -DARDUINO=100 \
     -DTWI_BUFFER_LENGTH=10 \
-	-DBOARD=$(BOARD)
+	-DBOARD=$(BOARD) \
+	#-DDARK
 
 ifeq ($(FCC_COMPLIANT), 1)
 DEFINES += -DMIN_FREQ=903000000 -DMAX_FREQ=927000000 -DFCC_COMPLIANT
@@ -170,9 +171,9 @@ $(OBJFOLDER)/all_with_bootloader.hex: $(OBJFOLDER)/all.hex
 .PHONY: isp_program
 isp_program: $(OBJFOLDER)/all_with_bootloader.hex $(OBJFOLDER)/all.s
 	program_fuses.cmd $(PORT_ISP) $(ISP_BAUD) $(ISP_TYPE)
-	avrdude -c $(ISP_TYPE) -p $(MCU) -P $(PORT_ISP) -b $(ISP_BAUD) -U eeprom:r:$(OBJFOLDER)/eeprom.hex:i
-	avrdude -c $(ISP_TYPE) -p $(MCU) -P $(PORT_ISP) -b $(ISP_BAUD) -U $(OBJFOLDER)/all_with_bootloader.hex
-	avrdude -c $(ISP_TYPE) -p $(MCU) -P $(PORT_ISP) -b $(ISP_BAUD) -U eeprom:w:$(OBJFOLDER)/eeprom.hex:i
+	avrdude -c $(ISP_TYPE) -p $(MCU) -P $(PORT_ISP) -b $(ISP_BAUD) -U eeprom:r:$(OBJFOLDER)/eeprom.hex:i -F
+	avrdude -c $(ISP_TYPE) -p $(MCU) -P $(PORT_ISP) -b $(ISP_BAUD) -U $(OBJFOLDER)/all_with_bootloader.hex -F
+	avrdude -c $(ISP_TYPE) -p $(MCU) -P $(PORT_ISP) -b $(ISP_BAUD) -U eeprom:w:$(OBJFOLDER)/eeprom.hex:i -F
 
 .PHONY: program
 program: $(OBJFOLDER)/all.hex $(OBJFOLDER)/all.s

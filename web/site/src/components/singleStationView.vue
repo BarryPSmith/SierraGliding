@@ -28,7 +28,7 @@
                               v-bind:duration="duration"
                               v-bind:chartEnd.sync="chartEnd"
                               v-bind:legend="station.Wind_Speed_Legend" 
-                              :id="station.id"/>
+                              :station="station"/>
             </div>
             <div style="grid-row:1; grid-column:2; display:flex;
                     justify-content:center; align-items:center">
@@ -42,7 +42,7 @@
                               v-bind:chartEnd.sync="chartEnd"
                               v-bind:legend="windDirLegend"
                               v-bind:centre="windDirCentre"
-                              :id="station.id"/>
+                              :station="station"/>
             </div>
             <div style="grid-row:2; grid-column:2; display:flex;
                     justify-content:center; align-items:center">
@@ -61,7 +61,7 @@
                               :duration="duration"
                               :chartEnd.sync="chartEnd"
                               :range="station.Battery_Range" 
-                              :id="station.id"/>
+                              :station="station"/>
             </div>
             <div v-if="detailed && etAvailable" :style="{ height: tempHeight, marginRight: '150px' }"
                  v-on:click="temp_click">
@@ -71,7 +71,7 @@
                               :range="{min:-15, max:45}"
                               :dataSource="'externalTempData'"
                               :label="'External Temperature'"
-                              :id="station.id"/>
+                              :station="station"/>
             </div>
             <div v-if="detailed && itAvailable" style="margin-right:150px">
                 <chartBattery :dataManager="dataManager"
@@ -80,7 +80,8 @@
                               :range="{min:-15, max:45}"
                               :dataSource="'internalTempData'"
                               :label="'Case Temperature'"
-                              :id="station.id"/>
+                              :station="station"
+                              />
             </div>
             <div v-if="detailed && currentAvailable" style="margin-right:150px">
                 <chartBattery :dataManager="dataManager"
@@ -89,7 +90,7 @@
                               :range="{min:0, max:100}"
                               :dataSource="['currentData', 'pwmData']"
                               :label="'Charge Current'"
-                              :id="station.id"/>
+                              :station="station"/>
             </div>
         </div>
     </div>

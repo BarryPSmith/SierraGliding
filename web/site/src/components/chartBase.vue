@@ -95,7 +95,7 @@ export default {
         };
     },
 
-    props: [ 'duration', 'chartEnd', 'dataManager', 'id' ],
+    props: [ 'duration', 'chartEnd', 'dataManager', 'station'],
 
     computed: {
         dataSetCount: function() {
@@ -104,6 +104,18 @@ export default {
                 this.dataSource.length
                 :
                 1;
+        },
+        id() {
+            return this.station.id;
+        },
+        lat() {
+            return this.station.lat;
+        },
+        lon() {
+            return this.station.lon;
+        },
+        elevation() {
+            return this.station.elevation || 2000;
         }
     },
 
@@ -291,8 +303,7 @@ export default {
             const oneDay = 86400000;
             if (end - start < oneDay * 100) {
                 for (let day = start; day < +end + 2 * oneDay; day += oneDay) {
-                    //TODO: Proper lat/long/elevation here
-                    const times = SunCalc.getTimes(day, 37.4, -118.3, 2000);
+                    const times = SunCalc.getTimes(day, this.lat, this.lon, this.elevation);
                     if (times.sunrise > start) {
                         annotations.push({
                             type: 'box',

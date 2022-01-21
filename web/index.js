@@ -347,7 +347,10 @@ function main(db, cb) {
                 Wind_Speed_Legend,
                 Wind_Dir_Legend,
                 Battery_Range,
-                Missing_Features
+                Missing_Features,
+                Lat as lat,
+                Lon as lon,
+                Elevation as elevation
             FROM
                 stations
             WHERE

@@ -280,51 +280,68 @@ function main(db, cb) {
         return next();
     });
 
+    const getAllStations = async req =>
+    {
+        const stations = await dbAll(`
+        SELECT
+            ID AS id,
+            Name AS name,
+            Wind_Speed_Legend,
+            Wind_Dir_Legend,
+            Battery_Range,
+            Missing_Features,
+            Lat as lat,
+            Lon as lon,
+            Elevation as elevation
+        FROM
+            stations
+        WHERE
+            id >= 0
+            AND (
+                    (Group_ID IS (SELECT ID FROM station_groups WHERE Name = $groupName)
+                    AND
+                    Display_Level <= 1)
+                OR
+                1 = $showAll)
+        `,
+        {
+            $specificId: req.query.stationID,
+            $showAll: req.query.all === 'true' ? 1 : 0,
+            $groupName: req.query.groupName
+        });
+        for (const idx in stations) {
+            try {
+                stations[idx].Wind_Speed_Legend = JSON.parse(stations[idx].Wind_Speed_Legend);
+            } catch (err) {
+                console.error(err);
+            }
+            try {
+                stations[idx].Wind_Dir_Legend = JSON.parse(stations[idx].Wind_Dir_Legend);
+            } catch (err) {
+                console.error(err);
+            }
+            try {
+                stations[idx].Battery_Range = JSON.parse(stations[idx].Battery_Range);
+            } catch (err) {
+                console.error(err);
+            }
+        }
+        return stations;
+    }
 
     /**
      * Returns basic metadata about all stations
      * managed in the database as a GeoJSON FeatureCollection
      */
-    router.get('/stationFeatures', (req, res) => {
-        db.all(`
-            SELECT
-                ID AS id,
-                Name AS name,
-                Lon AS lon,
-                Lat AS lat,
-                Wind_Speed_Legend AS windspeedlegend,
-                Wind_Dir_Legend AS winddirlegend
-            FROM
-                stations
-            WHERE
-                id >= 0;
-        `, (err, stations) => {
-            if (err) return error(err, res);
+    router.get('/stationFeatures', async (req, res) => {
+        try {
+            const stations = await getAllStations(req);
+            const pts = stations.map(station => [station.lon, station.lat]);
 
-            const pts = [];
-
-            stations = turf.featureCollection(stations.map((station) => {
-                let wsLegend = null;
-                let wdLegend = null;
-                try {
-                    wsLegend = JSON.parse(station.windspeedlegend);
-                } catch (err) {
-                    console.error(err);
-                }
-                try {
-                    wdLegend = JSON.parse(station.winddirlegend);
-                } catch (err) {
-                    console.error(err);
-                }
-
-                pts.push([station.lon, station.lat]);
-
+            const stationFeatures = turf.featureCollection(stations.map((station) => {
                 return turf.point([station.lon, station.lat], {
                     name: station.name,
-                    legend: {
-                        wind_speed: wsLegend,
-                        wind_dir: wdLegend
-                    }
+                    station: station
                 },{
                     id: station.id,
                     bbox: turf.bbox(turf.buffer(turf.point([station.lon, station.lat]), 0.5))
@@ -332,65 +349,22 @@ function main(db, cb) {
             }));
 
             if (pts.length) {
-                stations.bbox = turf.bbox(turf.buffer(turf.multiPoint(pts), 5));
+                stationFeatures.bbox = turf.bbox(turf.buffer(turf.multiPoint(pts), 5));
             }
 
-            res.json(stations);
-        });
+            res.json(stationFeatures);
+        } catch (err) {
+            return error(err, res);
+        }
     });
 
-    router.get('/stations', (req, res) => {
-        db.all(`
-            SELECT
-                ID AS id,
-                Name AS name,
-                Wind_Speed_Legend,
-                Wind_Dir_Legend,
-                Battery_Range,
-                Missing_Features,
-                Lat as lat,
-                Lon as lon,
-                Elevation as elevation
-            FROM
-                stations
-            WHERE
-                id >= 0
-                AND (
-                        (Group_ID IS (SELECT ID FROM station_groups WHERE Name = $groupName)
-                        AND
-                        Display_Level <= 1)
-                    OR
-                    1 = $showAll)
-        `,
-        {
-            $specificId: req.query.stationID,
-            $showAll: req.query.all === 'true' ? 1 : 0,
-            $groupName: req.query.groupName
-        }
-        , (err, stations) => {
-            if (err) return error(err, res);
-
-            for (const idx in stations) {
-                try {
-                    stations[idx].Wind_Speed_Legend = JSON.parse(stations[idx].Wind_Speed_Legend);
-                } catch (err) {
-                    console.error(err);
-                }
-                try {
-                    stations[idx].Wind_Dir_Legend = JSON.parse(stations[idx].Wind_Dir_Legend);
-                } catch (err) {
-                    console.error(err);
-                }
-                try {
-                    stations[idx].Battery_Range = JSON.parse(stations[idx].Battery_Range);
-                } catch (err) {
-                    console.error(err);
-                }
-
-            }
-
+    router.get('/stations', async (req, res) => {
+        try {
+            const stations = await getAllStations(req);
             res.json(stations);
-        });
+        } catch (err) {
+            return error(err, res);
+        }
     });
 
     /**

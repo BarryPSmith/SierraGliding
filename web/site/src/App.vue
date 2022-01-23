@@ -1,13 +1,29 @@
 <template>
-    <div class='h-viewport-full foreColor'>
-        <stationList :stations="stations"/>
+    <div class='h-full foreColor'>
+        <div class='absolute left top z1 h24 round'>
+            <button @click='mode = "list"' 
+                    class='bg-white my6 mx6 btn btn--s btn--stroke btn--gray round fr h24'
+                    v-if="mode != 'list'">
+                <svg class='icon'><use href='#icon-menu'/></svg>
+            </button>
+            <button @click='mode = "map"' 
+                    class='bg-white my6 mx6 btn btn--s btn--stroke btn--gray round fr h24'
+                    v-else>
+                <svg class='icon'><use href='#icon-map'/></svg>
+            </button>
+        </div>
+        <stationList v-if="mode=='list'" :stations="stations"/>
+        <sgMap v-else :stations="stations"
+               :stationDict="stationDict"/>
     </div>
 </template>
 
 <script>
 // === Components ===
 import stationList from './components/stationList.vue';
+import sgMap from './components/map.vue';
 import { EventBus } from './eventBus.js';
+import DataManager from './DataManager';
 
 export default {
     name: 'app',
@@ -16,9 +32,11 @@ export default {
             ws: null,
             stations: null,
             timer: null,
+            stationDict: null,
+            mode: 'list',
         }
     },
-    components: { stationList },
+    components: { stationList, sgMap },
     computed: {
         urlBase() {
             return `${window.location.protocol}//${window.location.host}`;
@@ -46,14 +64,16 @@ export default {
                 }
             } catch {}
         },
-        fetch_stations: function() {
+        async fetch_stations() {
             const url = new URL(`${this.urlBase}/api/stations`);
+            const urlFeatures = new URL(`${this.urlBase}/api/stationfeatures`);
 
             const splitHost = window.location.hostname.split('.');
             let groupName;
 
             if (window.location.pathname.toLowerCase().indexOf("all") >= 0) {
                 url.searchParams.append('all', true);
+                urlFeatures.searchParams.append('all', true);
             } else if (window.location.pathname.length > 1) {
                 groupName = window.location.pathname.replace(/^\/+|\/+$/g, '');
             } else if (splitHost.length > 2) {
@@ -62,17 +82,24 @@ export default {
             if (groupName) {
                 this.update_title(groupName);
                 url.searchParams.append('groupName', groupName);
+                urlFeatures.searchParams.append('groupName', groupName);
             }
 
-            return fetch(url, {
+            const response = await fetch(url, {
                 method: 'GET',
                 credentials: 'same-origin'
-            }).then((response) => {
-                const ret = response.json();
-                return ret;
-            }).then((stations) => {
-                this.stations = stations;
             });
+            const stations = await response.json();
+            for (const station of stations)
+            {
+                station.dataManager = new DataManager(station.id);
+                station.dataManager.ensure_data(+new Date() - 60000, null);
+            }
+            this.stations = stations;
+            this.stationDict = Object.fromEntries(stations.map(s => [s.id, s]));
+
+            const featureResponse = await fetch(urlFeatures);
+            const features = await featureResponse.json();
         },
 
         init_socket: function() {
@@ -89,9 +116,16 @@ export default {
             // Sometimes if we leave the site open in the background all day we come back to find it frozen.
             // It seems it's in a rush to catch up a bunch of old socket messages.
             // So..
-            // Only accept things from the past 30 seconds:
-            if (msgData.timestamp > (+new Date() / 1000 - 30))
+            // Only accept things from the past 60 seconds:
+            if (msgData.timestamp > (+new Date() / 1000 - 60)) {
                 EventBus.$emit('socket-message', msgData);
+                const dataManager = this.stationDict &&
+                    this.stationDict[msgData.id] &&
+                    this.stationDict[msgData.id].dataManager;
+                if (dataManager) {
+                    dataManager.push_if_appropriate(msgData);
+                }
+            }
         }
     }
 }

@@ -5,7 +5,7 @@
             <div class='flex flex--center-cross' style="grid-column:1">
                 <h2 class="ml12 txt-h4" v-text="station.name" />
             </div>
-            <div v-if="collapsed" class="flex-parent flex--center-cross mr12"
+            <div v-if="collapsed" class="flex flex--center-cross mr12"
                 style="grid-column:2">
                 <div style="height: 40px;">
                     <curWindDirIndicator :dataManager="dataManager"
@@ -22,7 +22,8 @@
             </div>
         </div>
         <div v-if="!collapsed" class="rightGridDouble">
-            <div style="grid-row:1; height:300px; max-height: 300px"
+            <div style="grid-row:1; max-height: 300px"
+                :style="{ height: chartHeight + 'px' }"
                  display:block>
                 <chartWindSpd v-bind:dataManager="dataManager"
                               v-bind:duration="duration"
@@ -33,9 +34,11 @@
             <div style="grid-row:1; grid-column:2; display:flex;
                     justify-content:center; align-items:center">
                 <curWindSpdIndicator v-bind:dataManager="dataManager"
-                                     :legend="station.Wind_Speed_Legend"/>
+                                     :legend="station.Wind_Speed_Legend"
+                                     :detailed="!compact"/>
             </div>
-            <div style="grid-row: 2; height:300px; max-height: 300px"
+            <div style="grid-row: 2; max-height: 300px"
+                :style="{ height: chartHeight + 'px' }"
                  display:block>
                 <chartWindDir v-bind:dataManager="dataManager"
                               v-bind:duration="duration"
@@ -46,9 +49,10 @@
             </div>
             <div style="grid-row:2; grid-column:2; display:flex;
                     justify-content:center; align-items:center">
-                <curWindDirIndicator style="width:150px" 
+                <curWindDirIndicator :style="dirIndicatorStyle"
                                      v-bind:dataManager="dataManager"
-                                     :legend="windDirLegend"/>
+                                     :legend="windDirLegend"
+                                     :detailed="!compact"/>
             </div>
         </div>
         <div v-if="!collapsed">
@@ -56,14 +60,15 @@
                class="cursor-pointer txt-xs">[[ Show Details ]]</p>
             <p v-if="detailed" v-on:click="detailed_click"
                class="cursor-pointer txt-xs">[[ Hide Details ]]</p>
-            <div v-if="detailed" style="margin-right:150px">
+            <div v-if="detailed" :style="batteryMargin">
                 <chartBattery :dataManager="dataManager"
                               :duration="duration"
                               :chartEnd.sync="chartEnd"
                               :range="station.Battery_Range" 
                               :station="station"/>
             </div>
-            <div v-if="detailed && etAvailable" :style="{ height: tempHeight, marginRight: '150px' }"
+            <div v-if="detailed && etAvailable" 
+                    :style="tempStyle"
                  v-on:click="temp_click">
                 <chartBattery :dataManager="dataManager"
                               :duration="duration"
@@ -73,7 +78,7 @@
                               :label="'External Temperature'"
                               :station="station"/>
             </div>
-            <div v-if="detailed && itAvailable" style="margin-right:150px">
+            <div v-if="detailed && itAvailable" :style="batteryMargin">
                 <chartBattery :dataManager="dataManager"
                               :duration="duration"
                               :chartEnd.sync="chartEnd"
@@ -83,7 +88,7 @@
                               :station="station"
                               />
             </div>
-            <div v-if="detailed && currentAvailable" style="margin-right:150px">
+            <div v-if="detailed && currentAvailable" :style="batteryMargin">
                 <chartBattery :dataManager="dataManager"
                               :duration="duration"
                               :chartEnd.sync="chartEnd"
@@ -102,21 +107,31 @@ import chartWindDir from './chartWindDir.vue';
 import chartWindSpd from './chartWindSpd.vue';
 import curWindSpdIndicator from './curWindSpdIndicator.vue';
 import curWindDirIndicator from './curWindDirIndicator.vue';
-import DataManager from '../DataManager';
 import { EventBus } from '../eventBus.js';
 
 export default {
     name: 'singleStationView',
     //render: h => h(App),
-    props: [ 'station', 'dataType', 'duration', 'chartEnd', ],
+    props:
+    { 
+        'station': Object, 
+        'duration': Number,
+        'chartEnd': Number, 
+        collapsedProp: {
+            type: Boolean,
+            default: true
+        },
+        compact: {
+            type: Boolean,
+            default: false,
+        },
+    },
     data: function() {
         return {
             legend: {
                 winddir: []
                 },
             timer: false,
-            dataManager: null,
-            collapsed: true,
             detailed: false,
             tempLarge: false
         };
@@ -126,7 +141,6 @@ export default {
         if (this.station && (this.hash_present() || (window.location.hash == '#' + this.station.id)))
             this.collapsed = false;
         this.init_dataManager();
-        EventBus.$on('socket-message', this.on_socket_message);
     },
 
     watch: {
@@ -162,6 +176,36 @@ export default {
     },
 
     computed: {
+        dirIndicatorStyle() {
+            return this.compact ?
+             { height: '40px' } :
+             { width: '150px' };
+        },
+        batteryMargin() {
+            return this.compact ?
+                { 'margin-right': '40px' }
+                :
+                { 'margin-right': '150px' }
+        },
+        tempStyle() {
+            return {
+                height: this.tempHeight,
+                'margin-right': this.compact ? '40px' : '150px',
+            };
+        },
+        chartHeight() {
+            return this.compact ? 120 : 300;
+        },
+        collapsed: {
+            get() { return this.collapsedProp; },
+            set(value) {
+                this.collapsedProp = value;
+                this.$emit('update:collapsed', value);
+            }
+        },
+        dataManager() {
+            return this.station && this.station.dataManager;
+        },
         windDirLegend: function() {
             if (this.station) {
                 const ret = this.station.Wind_Dir_Legend;
@@ -258,14 +302,10 @@ export default {
         },
 
         init_dataManager() {
-            if (this.station && this.station.id) {
-                this.dataManager = new DataManager(this.station.id);
+            if (this.dataManager) {
                 if (!this.collapsed) {
                     //Load all necessary data
                     this.dataManager.ensure_data(this.cur_start(), this.chartEnd);
-                } else {
-                    //Load the last 60 seconds of data to get the current info displaying
-                    this.dataManager.ensure_data(+new Date() - 60000, null);
                 }
             }
         },
@@ -286,12 +326,12 @@ export default {
             this.dataManager.ensureData(this.cur_start(), this.cur_end());
         },
 
-        on_socket_message: function(msg) {
+        /*on_socket_message: function(msg) {
             if (msg.id != this.station.id) {
                 return;
             }
             this.dataManager.push_if_appropriate(msg);
-        }
+        }*/
     }
 }
 </script>

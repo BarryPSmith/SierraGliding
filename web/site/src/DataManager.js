@@ -4,6 +4,7 @@ import bs from 'binary-search' //'../../node_modules/binary-search/index.js';
 export default class DataManager {
     constructor(station_id) {
         this.emitter = new NanoEvents();
+        this.stationId = station_id;
 
         // Sets that contain the data:
         this.windspeedData= [];
@@ -52,7 +53,7 @@ export default class DataManager {
     }
 
     data_updated() {
-        this.emitter.emit('data_updated');
+        this.emitter.emit('data_updated', this.stationId);
     }
         
     //Ensures that data is available from start until end with an acceptable resolution.

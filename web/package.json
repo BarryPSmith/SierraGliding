@@ -27,6 +27,7 @@
     "simple-statistics": "^7.0.5",
     "sqlite3": "^4.1.0",
     "tape": "^4.11.0",
+    "vue": "^2.6.14",
     "ws": "^7.4.6"
   },
   "devDependencies": {

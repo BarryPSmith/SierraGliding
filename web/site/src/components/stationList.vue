@@ -16,9 +16,10 @@
         </span>
         <div class='h-full w-full'>
             <div class='align-center border-b border--gray h36 my6'>
-                <h1 class='txt-h4'>Active Stations</h1>
+                <h1 class='txt-h4'>Stations</h1>
             </div>
             <singleStationView v-for='cstation in stations'
+                               :key="cstation.id"
                                :station="cstation"
                                :duration="duration"
                                v-bind:chartEnd.sync="chartEnd" />

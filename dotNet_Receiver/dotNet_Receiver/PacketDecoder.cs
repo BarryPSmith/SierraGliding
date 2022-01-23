@@ -187,7 +187,7 @@ namespace core_Receiver
             if (ret.gust > ret.windSpeed * 2.5 && ret.gust > 15)
                 ret.gust = null;
 
-            if (!NtsStations.Contains(ret.sendingStation))
+            if (NtsStations == null || !NtsStations.Contains(ret.sendingStation))
             {
                 ret.timestampByte = data[cur++];
                 ret.timeStamp = GetTimeStamp(ret.timestampByte.Value, now);
@@ -203,7 +203,7 @@ namespace core_Receiver
                 ret.pwmValue = data[cur++];
             if (packetLen > cur)
                 ret.current = data[cur++];
-            if (!NtsStations.Contains(ret.sendingStation))
+            if (NtsStations == null || !NtsStations.Contains(ret.sendingStation))
             {
                 if (packetLen > cur + 1)
                 {

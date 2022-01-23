@@ -232,7 +232,7 @@ namespace core_Receiver
         {
             var data = ms.ToArray().ToList();
             HashSet<char> nonCrcStations = new HashSet<char>() 
-                { '7', '8' };
+                {  };
             if (!nonCrcStations.Contains(destinationStationID.ToChar()))
                 CommandInterpreter.AddCrc(data);
             return data.ToArray();
@@ -501,33 +501,72 @@ namespace core_Receiver
 
         public static UInt16 crc_ccitt_update2(UInt16 crc, byte data)
         {
+            List<bool> facts = new List<bool>();
             //You know you've fucked up when you're writing assembly in C#.
             byte crcLo = (byte)(crc & 0xFF);
             byte crcHi = (byte)(crc >> 8);
 
+            byte loin = crcLo;
+            byte hiin = crcHi;
+
+            byte tmpReg;
+
             crcLo ^= data;
-            byte tmpReg = crcLo;
+            var h = tmpReg = crcLo;
             swapNibbles(ref crcLo);
-            crcLo &= 0xF0;
-            crcLo ^= tmpReg;
+            var g = crcLo &= 0xF0;
+            var c = crcLo ^= tmpReg;
 
             tmpReg = crcHi;
 
             crcHi = crcLo;
 
             swapNibbles(ref crcLo);
-            crcLo &= 0x0F;
-            tmpReg ^= crcLo;
+            var e = crcLo &= 0x0F;
+            var b = tmpReg ^= crcLo;
 
-            crcLo >>= 1;
+            var d = crcLo >>= 1;
+
+            // hi = hi^lo
+            // lo = former hi
             crcHi ^= crcLo;
-
             crcLo ^= crcHi;
-            crcLo <<= 3;
+
+            var a = crcLo <<= 3;
             crcLo ^= tmpReg;
+
+            facts.Add(crcHi == (d ^ c));
+            facts.Add(crcLo == (a ^ b));
+            facts.Add(a == ((c << 3) & 0xFF));
+            facts.Add(c == (g ^ h));
+            facts.Add(g == (getSwapNibbles(h) & 0xF0));
+            facts.Add(b == ((byte)(crc >> 8) ^ e));
+            facts.Add(e == (getSwapNibbles(c) & 0x0F));
+            facts.Add(d == e >> 1);
+
+            facts.Add(bit(crcLo, 0) == (bit(hiin, 0) ^ bit(h, 0) ^ bit(h, 4)));
+            facts.Add(bit(crcLo, 1) == (bit(hiin, 1) ^ bit(h, 1) ^ bit(h, 5)));
+            facts.Add(bit(crcLo, 2) == (bit(hiin, 2) ^ bit(h, 2) ^ bit(h, 6)));
+            facts.Add(bit(crcLo, 3) == (bit(hiin, 3) ^ bit(h, 3) ^ bit(h, 7)) ^ bit(h, 0));
+            facts.Add(bit(crcLo, 4) == (bit(hiin, 4) ^ bit(h, 1)));
+            facts.Add(bit(crcLo, 5) == (bit(hiin, 5) ^ bit(h, 2)));
+            facts.Add(bit(crcLo, 6) == (bit(hiin, 6) ^ bit(h, 3)));
+            facts.Add(bit(crcLo, 7) == (bit(hiin, 7) ^ bit(h, 4) ^ bit(h, 0)));
+            facts.Add(bit(crcHi, 0) == (bit(h, 0) ^ bit(h, 1) ^ bit(h, 5)));
+            facts.Add(bit(crcHi, 1) == (bit(h, 1) ^ bit(h, 2) ^ bit(h, 6)));
+            facts.Add(bit(crcHi, 2) == (bit(h, 2) ^ bit(h, 3) ^ bit(h, 7)));
+            facts.Add(bit(crcHi, 3) == (bit(h, 3)));
+            facts.Add(bit(crcHi, 4) == (bit(h, 4) ^ bit(h, 0)));
+            facts.Add(bit(crcHi, 5) == (bit(h, 5) ^ bit(h, 1)));
+            facts.Add(bit(crcHi, 6) == (bit(h, 6) ^ bit(h, 2)));
+            facts.Add(bit(crcHi, 7) == (bit(h, 7) ^ bit(h, 3)));
+            bool allTrue = facts.All(f => f);
+
             return (ushort)((crcHi << 8) | crcLo);
         }
         static byte swapNibbles(ref byte b) => b = (byte)((b << 4) | (b >> 4));
+        static byte getSwapNibbles(byte b) => b = (byte)((b << 4) | (b >> 4));
+        static bool bit(byte b, int bit) => ((b >> bit) & 0x01) == 1;
         #endregion Methods
 
         public override string ToString()

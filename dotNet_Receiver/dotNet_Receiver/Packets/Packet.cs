@@ -41,7 +41,7 @@ namespace core_Receiver.Packets
                 else
                     ret = "";
                 if (exception != null)
-                    ret += $"!!{exception.Message}!!";
+                    ret += $"!!{exception}!!";
                 return ret;
             }
         }

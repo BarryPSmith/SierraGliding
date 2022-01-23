@@ -3,11 +3,13 @@
         <div class='absolute left top z1 h24 round'>
             <button @click='mode = "list"' 
                     class='bg-white my6 mx6 btn btn--s btn--stroke btn--gray round fr h24'
+                    style="font-size:16px"
                     v-if="mode != 'list'">
                 <svg class='icon'><use href='#icon-menu'/></svg>
             </button>
             <button @click='mode = "map"' 
                     class='bg-white my6 mx6 btn btn--s btn--stroke btn--gray round fr h24'
+                    style="font-size:16px"
                     v-else>
                 <svg class='icon'><use href='#icon-map'/></svg>
             </button>

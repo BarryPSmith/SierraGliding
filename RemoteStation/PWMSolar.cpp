@@ -3,6 +3,7 @@
 #include "ArduinoWeatherStation.h"
 #include "PWMSolar.h"
 #include "WeatherProcessing/WeatherProcessing.h"
+#include "TimerTwo.h"
 
 #ifdef DEBUG_SOLAR
 byte loopCount;
@@ -178,7 +179,22 @@ namespace PwmSolar
   byte readCurrentAndCalcMaxPwm(bool applyLimits)
   {
 #ifndef CURRENT_SENSE
-    return applyLimits ? safeFreezingPwm : 255;
+    if (applyLimits)
+    {
+      constexpr byte timeZone = -8;
+      unsigned long seconds = TimerTwo::seconds();
+      unsigned long hours = seconds / 3600;
+      byte hourInDay = hours % 24;
+      hourInDay += timeZone;
+      if (hourInDay > 24)
+        hourInDay += 24;
+      if (hourInDay < 6 || hourInDay > 18)
+        return 255;
+      else
+        return safeFreezingPwm;
+    }
+    else
+      return 255;
 #else
     //We can use shorts for all these millis values because the intervals are much less than 65 seconds.
     static unsigned short powerUpMillis;

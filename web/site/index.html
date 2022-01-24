@@ -40,10 +40,19 @@
             -webkit-text-stroke-color: black
         }
 
+        .outlineTextBlack {
+            -webkit-text-stroke-width: 1px;
+            -webkit-text-stroke-color: black
+        }
+
         .contrastColor {
             color: black;
             stroke: black;
             fill: black;
+        }
+
+        .backColor {
+            background-color: white;
         }
 
         @media (prefers-color-scheme: dark) {
@@ -56,6 +65,10 @@
                 color: cyan;
                 stroke: cyan;
                 fill: cyan;
+            }
+
+            .backColor {
+                background-color: black;
             }
 
             .foreColor {

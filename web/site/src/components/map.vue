@@ -1,10 +1,77 @@
 <template>
-    <div id="map" class="h-full"></div>
+    <div class="h-full">
+        <div id="map" class="h-full"></div>
+        <!--div class="align-center outlineTextBlack txt-h4 txt-bold absolute top left right color-white">
+            {{title}}
+        </div-->
+        <div class="absolute bottom left mb30 ml6">
+            <button class="block outlineTextBlack txt-bold color-white" @click="optionsVisible = !optionsVisible">
+                {{optionsVisible ? 'Hide' : 'Show'}} Options
+            </button>
+            <div v-if="optionsVisible" class="flex flex--column">
+                <button class="outlineTextBlack txt-bold color-white" @click="legendVisible = !legendVisible">
+                    <p>{{legendVisible ? 'Hide' : 'Show'}} Legend</p>
+                </button>
+                <div class="backColor foreColor px3 py3 border border--gray-light"
+                    v-if="legendVisible">
+                <ul @click="legendVisible = false" 
+                    class="txt-ul">
+                    <li>Arrows show the direction the wind is blowing from.</li>
+                    <li>Inntermost circle is instantaneous wind speed</li>
+                    <li>Next circle is average windspeed over the last 5 minutes.</li>
+                    <li>Outermost circle is strongest gust in the last 5 minutes.</li>
+                    <li>Click on a station for recent history graphs</li>
+                </ul>
+                </div>
+                <label class='checkbox-container outlineTextBlack txt-bold color-white'>
+                    <input type='checkbox' v-model="showRoads"/>
+                    <div class='checkbox mr6'>
+                        <svg class='icon'><use xlink:href='#icon-check' /></svg>
+                    </div>
+                    Places and Roads
+                </label>
+                <label class='checkbox-container outlineTextBlack txt-bold color-white'>
+                    <input type='checkbox' v-model="stationNames"/>
+                    <div class='checkbox mr6'>
+                        <svg class='icon'><use xlink:href='#icon-check' /></svg>
+                    </div>
+                    Launch Names
+                </label>
+                <label class='checkbox-container outlineTextBlack txt-bold color-white'>
+                    <input type='checkbox' v-model="windDirections"/>
+                    <div class='checkbox mr6'>
+                        <svg class='icon'><use xlink:href='#icon-check' /></svg>
+                    </div>
+                    Wind Direction Names
+                </label>
+            </div>
+        </div>
+    </div>
 </template>
 
 <script>
 import singleStationView from './singleStationView.vue';
 import Vue from 'vue';
+
+const directionNames = {
+    0: 'N',
+    22.5: 'NNE',
+    45: 'NE',
+    67.5: 'ENE',
+    90: 'E',
+    112.5: 'ESE',
+    135: 'SE',
+    157.5: 'SSE',
+    180: 'S',
+    202.5: 'SSW',
+    225: 'SW',
+    247.5: 'WSW',
+    270: 'W',
+    292.5: 'WNW',
+    315: 'NW',
+    337.5: 'NNW',
+    360: 'N'
+};
 
 export default {
     name: 'sgMap',
@@ -18,11 +85,23 @@ export default {
                 map: 'pk.eyJ1IjoiaW5nYWxscyIsImEiOiJjam42YjhlMG4wNTdqM2ttbDg4dmh3YThmIn0.uNAoXsEXts4ljqf2rKWLQg',
             },
             mapLoaded: false,
+            title: 'Sierra Gliding',
+            showRoads: null,
+            map: null,
+            loaded: false,
+            legendVisible: false,
+            optionsVisible: false,
+            stationNames: null,
+            windDirections: null,
         };
     },
     mounted() {
+        this.showRoads = window.localStorage.getItem('showRoads') != 'false';
+        this.stationNames = window.localStorage.getItem('stationNames') != 'false';
+        this.windDirections = window.localStorage.getItem('windDirections') == 'true';
         this.map_init();
         this.onFeaturesChanged();
+        this.loaded = true;
     },
     watch: {
         stationFeatures() {
@@ -31,6 +110,31 @@ export default {
         },
         stationDict() {
             this.onFeaturesChanged();
+        },
+        showRoads(newVal, oldVal) {
+            if (oldVal == null) return;
+            if (this.map) {
+                if (this.showRoads) {
+                    this.map.setStyle('mapbox://styles/mapbox/satellite-streets-v11');
+                } else {
+                    this.map.setStyle('mapbox://styles/mapbox/satellite-v9');
+                }
+            }
+            window.localStorage.setItem('showRoads', this.showRoads.toString());
+        },
+        stationNames(newVal, oldVal) {
+            if (oldVal == null) return;
+            if (this.mapLoaded) {
+                this.map.setLayoutProperty('stationNames', 'visibility', this.stationNames ? 'visible' : 'none');
+            }
+            window.localStorage.setItem('stationNames', this.stationNames.toString());
+        },
+        windDirections(newVal, oldVal) {
+            if (oldVal == null) return;
+            if (this.mapLoaded) {
+                this.map.setLayoutProperty('windDirNames', 'visibility', this.windDirections ? 'visible' : 'none');
+            }
+            window.localStorage.setItem('windDirections', this.windDirections.toString());
         }
     },
     computed: {
@@ -88,15 +192,26 @@ export default {
                 feature.properties.gustColor = this.get_color(mostRecent.windspeed_max, legend);
                 feature.properties.avgColor = this.get_color(mostRecent.windspeed_avg, legend);
                 feature.properties.instColor = this.get_color(mostRecent.windspeed, legend);
+                feature.properties.windDirName = this.getName(mostRecent.wind_direction_avg);
+                feature.properties.windDirColor = this.get_direction_color(mostRecent.wind_direction_avg, station.Wind_Dir_Legend);
             }
         },
+        getName(direction) {
+            let closest = 360;
+            let ret = 'N';
+            for (const testDir in directionNames) {
+                const test = Math.abs(direction - testDir);
+                if (test < closest) {
+                    closest = test;
+                    ret = directionNames[testDir];
+                }
+            }
+            return ret;
+        },
         get_color(value, legend) {
-            const ptColor = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ?
-                'white' : 'black';
-
             if (typeof (value) != "number"
                 || !legend) {
-                return ptColor;
+                return 'black';
             }
             for (const entry of legend) {
                 if (entry.top >= value) {
@@ -105,6 +220,21 @@ export default {
             }
             return legend[legend.length - 1].color;
         },
+        get_direction_color(value, legend)
+        {
+            if (typeof (value) != "number"
+                || !legend) {
+                return 'white';
+            }
+
+            for (const entry of legend) {
+                if ((entry.start < entry.end && entry.start <= value && value <= entry.end) ||
+                    (entry.start > entry.end && (entry.start <= value || value <= entry.end))) {
+                    return entry.color;
+                }
+            }
+            return 'red';
+        },
         map_init() {
             try {
                 mapboxgl.accessToken = this.credentials.map;
@@ -112,7 +242,8 @@ export default {
                     hash: false,
                     container: 'map',
                     attributionControl: false,
-                    style: 'mapbox://styles/mapbox/satellite-streets-v11',
+                    style: this.showRoads ? 'mapbox://styles/mapbox/satellite-streets-v11'
+                        : 'mapbox://styles/mapbox/satellite-v9',
                     center: [-118.41064453125, 37.3461426132468],
                     zoom: 11
                 }).addControl(new mapboxgl.AttributionControl({
@@ -194,6 +325,45 @@ export default {
                         'icon-opacity': 0.4,
                     },
                 });
+                this.map.addLayer({
+                    id: 'windDirNames',
+                    type: 'symbol',
+                    source: 'stations',
+                    layout: {
+                        'text-field': ['get', 'windDirName'],
+                        'text-anchor': 'bottom',
+                        'text-size': 12,
+                        'text-font': ["Open Sans Bold","Arial Unicode MS Regular"],
+                        'text-ignore-placement': true,
+                        'visibility': this.windDirections ? 'visible' : 'none'
+                    },
+                    paint: {
+                        'text-color': ['get', 'windDirColor'],
+                        'text-translate': [0, -20],
+                        'text-halo-blur': 1,
+                        'text-halo-width': 1,
+                        'text-halo-color': 'black'
+                    },
+                });
+                this.map.addLayer({
+                    id: 'stationNames',
+                    type: 'symbol',
+                    source: 'stations',
+                    layout: {
+                        'text-field': ['get', 'name'],
+                        'text-anchor': 'top',
+                        'text-size': 12,
+                        'text-font': ["Open Sans Bold","Arial Unicode MS Regular"],
+                        'text-ignore-placement': true,
+                        'visibility': this.stationNames ? 'visible' : 'none'
+                    },
+                    paint: {
+                        'text-translate': [0, 20],
+                        'text-halo-blur': 1,
+                        'text-halo-width': 1,
+                        'text-halo-color': 'white'
+                    },
+                });
             });
         },
         setupSources() {
@@ -208,7 +378,7 @@ export default {
                     data: this.stationFeatures
                 }); 
             }
-            if (this.stations)
+            if (this.stations && !this.stationsFitted)
             {
                 const lats = this.stations.map(s => s.lat);
                 const lons = this.stations.map(s => s.lon);
@@ -222,6 +392,7 @@ export default {
                     padding: 40,
                     animate: false,
                 });
+                this.stationsFitted = true;
             }
         },
         onMapClick(e) {
@@ -246,7 +417,7 @@ export default {
                     propsData: {
                         station: station,
                         dataType: '',
-                        duration: 300,
+                        duration: 900,
                         chartEnd: null,
                         collapsedProp: false,
                         compact: true,

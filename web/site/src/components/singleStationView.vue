@@ -10,13 +10,13 @@
                 <div style="height: 40px;">
                     <curWindDirIndicator :dataManager="dataManager"
                                          :legend="station.Wind_Dir_Legend"
-                                         :detailed="false"
+                                         :detailLevel="0"
                                          :strokeWidth="3"/>
                 </div>
                 <div>
                     <curWindSpdIndicator v-bind:dataManager="dataManager"
                                          :legend="station.Wind_Speed_Legend"
-                                         :detailed="false"
+                                         :detailLevel="0"
                                          style="width:70px"/>
                 </div>
             </div>
@@ -35,7 +35,7 @@
                     justify-content:center; align-items:center">
                 <curWindSpdIndicator v-bind:dataManager="dataManager"
                                      :legend="station.Wind_Speed_Legend"
-                                     :detailed="!compact"/>
+                                     :detailLevel="compact ? 1 : 2"/>
             </div>
             <div style="grid-row: 2; max-height: 300px"
                 :style="{ height: chartHeight + 'px' }"
@@ -52,7 +52,7 @@
                 <curWindDirIndicator :style="dirIndicatorStyle"
                                      v-bind:dataManager="dataManager"
                                      :legend="windDirLegend"
-                                     :detailed="!compact"/>
+                                     :detailLevel="compact ? 1 : 2"/>
             </div>
         </div>
         <div v-if="!collapsed">
@@ -178,7 +178,7 @@ export default {
     computed: {
         dirIndicatorStyle() {
             return this.compact ?
-             { height: '40px' } :
+             { /*height: '40px'*/ } :
              { width: '150px' };
         },
         batteryMargin() {

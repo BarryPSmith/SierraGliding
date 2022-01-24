@@ -6,7 +6,13 @@
             {{ curVal | number1 }}
         </div>
         <div class="align-center align-mid outlineText"
-            v-if="!detailed"
+            v-if="detailLevel == 1"
+            :class="text_size"
+            :style="{ color: gustColor }">
+            A{{ curAvg | number1 }}
+        </div>
+        <div class="align-center align-mid outlineText"
+            v-if="detailLevel <= 1"
             :class="text_size"
             :style="{ color: gustColor }">
             G{{ curGust | number1 }}
@@ -15,16 +21,16 @@
         <h1 class="align-center align-mid outlineText"
             :class="text_size"
             :style="{ color: color }"
-            v-if="detailed">
+            v-if="detailLevel == 2">
             {{ dataManager ? dataManager.unit : '' }}
         </h1>
 
-        <div v-if="detailed"
+        <div v-if="detailLevel == 2"
              class="align-center align-mid outlineText txt-h4 txt-bold mt12"
              :style="{ color: avgColor }">
             Avg: {{ curAvg | number1 }} {{ dataManager && dataManager.unit }}
         </div>
-        <div v-if="detailed"
+        <div v-if="detailLevel == 2"
              class="align-center align-mid outlineText txt-h4 txt-bold"
              :style="{ color: gustColor }">
             Gust: {{ curGust | number1 }} {{ dataManager && dataManager.unit }}
@@ -47,9 +53,9 @@ export default {
     props: { 
         dataManager: undefined, 
         legend: undefined,
-        detailed: {
-            type: Boolean,
-            default: true
+        detailLevel: {
+            type: Number,
+            default: 2
         }
     },
 
@@ -59,7 +65,7 @@ export default {
 
     computed: {
         curVal() {
-            if (this.detailed) {
+            if (this.detailLevel > 0) {
                 return this.curInst;
             } else {
                 return this.curAvg;
@@ -76,7 +82,7 @@ export default {
         },
 
         text_size: function() {
-            if (this.detailed)
+            if (this.detailLevel == 2)
                 return "txt-h2";
             else
                 return "txt-h4 txt-bold";

@@ -1,5 +1,5 @@
 <template>
-    <div style='height: 100%'>
+    <div>
         <svg viewBox="0 0 100 100"
              :style="image_style">
             <legendArc v-for="entry in legend"
@@ -50,9 +50,9 @@
                   :stroke-width="strokeWidth"
                   :transform="'rotate(' + curAvg + ', 50, 50)'" />
         </svg>
-        <h1 v-if="detailed" class="txt-h2 align-center"> {{ curVal | number0 }} &deg; </h1>
-        <p v-if="detailed" class="align-center">Avg: {{ curAvg | number0 }}&deg ({{ getName(curAvg) }})</p>
-        <p v-if="detailed">Arrow points in the direction the wind is coming from.</p>
+        <h1 v-if="detailLevel >= 1" class="align-center" :class="detailLevel >= 2 ? 'txt-h2' : ''"> {{ curVal | number0 }} &deg; </h1>
+        <p v-if="detailLevel >= 1" class="align-center">{{detailLevel == 2 ? 'Avg: ' : 'A:'}}{{ curAvg | number0 }}&deg; ({{ getName(curAvg) }})</p>
+        <p v-if="detailLevel >= 2">Arrow points in the direction the wind is coming from.</p>
     </div>
 </template>
 <script>
@@ -92,9 +92,9 @@ export default {
     props: {
         dataManager: undefined,
         legend: undefined,
-        detailed: {
-            type: Boolean,
-            default: true
+        detailLevel: {
+            type: Number,
+            default: 2
         },
         strokeWidth: {
             type: Number,
@@ -112,7 +112,7 @@ export default {
 
     computed: {
         image_style: function() {
-            if (!this.detailed) return 'height: 100%;';
+            if (this.detailLevel == 0) return 'height: 100%;';
             else return '';
         },
     },

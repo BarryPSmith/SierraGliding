@@ -805,7 +805,7 @@ function main(db, cb) {
             const stationThere = await dbGet('SELECT 1 FROM Station_Groups WHERE Name = $name', {
                 $name: req.params.group
             });
-            if (!!stationThere) {
+            if (!!stationThere || req.params.group == 'all') {
                 const fn = path.resolve(__dirname, 'site/dist/index.html');
                 return res.sendFile(fn);
             }

@@ -4,14 +4,18 @@
             <button @click='mode = "list"' 
                     class='bg-white my6 mx6 btn btn--s btn--stroke btn--gray round fr h30'
                     style="font-size:18px"
-                    v-if="mode != 'list'">
-                <svg class='icon'><use href='#icon-menu'/></svg>
+                    v-if="mode != 'list'"
+                    title="List Display">
+                <svg class='icon' title="List Display"><use href='#icon-menu'/></svg>
             </button>
             <button @click='mode = "map"' 
                     class='bg-white my6 mx6 btn btn--s btn--stroke btn--gray round fr h30'
                     style="font-size:18px"
+                    title="Map Display"
                     v-else>
-                <svg class='icon'><use href='#icon-map'/></svg>
+                <svg class='icon'>
+                    <use href='#icon-map'/>
+                </svg>
             </button>
         </div>
         <stationList v-if="mode=='list'" :stations="stations"/>

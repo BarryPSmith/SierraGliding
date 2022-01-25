@@ -11,7 +11,8 @@
                     <curWindDirIndicator :dataManager="dataManager"
                                          :legend="station.Wind_Dir_Legend"
                                          :detailLevel="0"
-                                         :strokeWidth="3"/>
+                                         :strokeWidth="3"
+                                         style="height:40px"/>
                 </div>
                 <div>
                     <curWindSpdIndicator v-bind:dataManager="dataManager"

@@ -130,8 +130,8 @@ namespace core_Receiver.Packets
             return $"CONFIG Version:{Version}" + Environment.NewLine +
                 $" S Interval:{ShortInterval}, L Interval:{LongInterval}, Batt Thresh:{BatteryThreshold_mV} " +
                 $"Batt E Thresh:{BatteryEmergencyThres_mV}, Demand Relay:{DemandRelay}" + Environment.NewLine +
-                $" Relay Commands:({StationsToRelayCommands.ToCsv(b => (b.ToChar()).ToString())}) " + Environment.NewLine +
-                $" Relay Weather:({StationsToRelayWeather.ToCsv(b => (b.ToChar()).ToString())})" + Environment.NewLine +
+                $" Relay Commands:({StationsToRelayCommands.ToCsv(b => b.ToCharOrNumber())}) " + Environment.NewLine +
+                $" Relay Weather:({StationsToRelayWeather.ToCsv(b => b.ToCharOrNumber())})" + Environment.NewLine +
                 $" Relay Repeat Interval: {RelayRepeatInterval}" + Environment.NewLine +
                 $" Freq:{Frequency_Hz / 1.0E6:F3} Hz, BW:{Bandwidth_Hz/1.0E3:F3} kHz, TxPower:{TxPower}, SF:{SpreadingFactor}, CSMA_P:{CSMA_P}, CSMA_Slot:{CSMA_Timeslot} uS, Coding Rate: {CodingRate}" + Environment.NewLine +
                 $" TsOffset:{TsOffset}, TSGain:{TsGain}, WdCalibMin:({WdCalib1x}, {WdCalib1y}), WdCalibMax:{WdCalib2}" + Environment.NewLine +

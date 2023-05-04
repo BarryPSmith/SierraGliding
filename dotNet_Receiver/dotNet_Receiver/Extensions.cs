@@ -30,6 +30,19 @@ namespace core_Receiver
                 return '#';
         }
 
+        public static string ToCharOrNumber(this byte b)
+        {
+            if (b >= 32 && b < 128)
+                return $"{(char)b}";
+            else
+                return $"[{b}]";
+        }
+
+        public static bool IsPrintableChar(this byte b)
+        {
+            return b >= 32 && b < 128;
+        }
+
         public static char ToChar(this PacketTypes packet)
             => ((byte)packet).ToChar();
 

@@ -259,7 +259,7 @@ function main(db, cb) {
      */
     router.get('/station/:id', async (req, res) => {
         try {
-            const station = await dball(`
+            let station = await dbAll(`
                 SELECT
                     ID AS id,
                     Name AS name,
@@ -613,7 +613,7 @@ function main(db, cb) {
                 $name: req.params.group
             });
 
-            if (!!stationThere || req.params.group == 'all') {
+            if (!!stationThere || req.params.group === 'all') {
                 const fn = new URL('./site/dist/index.html', import.meta.url).pathname;
                 return res.sendFile(fn);
             } else {

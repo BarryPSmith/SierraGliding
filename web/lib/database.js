@@ -15,11 +15,8 @@ export default function database(dbpath, drop, cb) {
         db.run('PRAGMA journal_mode = WAL');
         db.run('PRAGMA busy_timeout = 1000');
 
-        db.loadExtension('sqlite3_ext/extension-functions', (err, res) => {
-            if (err) {
-                console.error(err);
-                const extensionLoaded = false;
-            }
+        db.loadExtension('sqlite3_ext/extension-functions', (err) => {
+            if (err) console.error(err);
         });
 
         if (drop) {

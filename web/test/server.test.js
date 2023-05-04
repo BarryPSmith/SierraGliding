@@ -189,7 +189,7 @@ test('Stations', (t) => {
             process.exit();
         });
     } else {
-        t.test('Stations - Server Running', (q) => {
+        t.test('Stations - Server Running', () => {
             console.log('ok - Server: http://localhost:4000/');
             console.log('ok - CTRL + C to stop server');
 
@@ -223,7 +223,7 @@ function data(cb) {
             wind_direction: 100,
             battery: Math.sin(tick)
         })
-    }, (err, res) => {
+    }, (err) => {
         if (err) throw err;
 
         if (cb) cb();

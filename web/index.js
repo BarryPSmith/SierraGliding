@@ -168,7 +168,7 @@ function main(db, cb) {
     /**
      * Create a new station
      */
-    router.post('/station', (req, res) => {
+    router.post('/station', async (req, res) => {
         try {
             if (!req.body) throw new Err(400, null, 'request body required');
 

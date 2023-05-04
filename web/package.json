@@ -7,7 +7,7 @@
     "main": "index.js",
     "scripts": {
         "test": "yarn lint && tape ./test/*.test.js",
-        "lint": "eslint index.js test/"
+        "lint": "eslint index.js test/*.js lib/*.js"
     },
     "engines": {
         "node": ">= 10"
@@ -18,11 +18,13 @@
         "@babel/eslint-plugin": "^7.16.5",
         "@babel/plugin-syntax-class-properties": "^7.12.13",
         "@babel/preset-env": "^7.16.5",
+        "@openaddresses/batch-error": "^2.1.4",
         "@turf/turf": "^5.1.6",
         "bcrypt": "^5.0.0",
         "express": "^4.17.1",
         "minimist": "^1.2.3",
         "moment": "^2.24.0",
+        "morgan": "^1.10.0",
         "prompt": "^1.0.0",
         "request": "^2.88.0",
         "simple-statistics": "^7.0.5",
@@ -30,8 +32,8 @@
         "ws": "^8.0.0"
     },
     "devDependencies": {
-        "tape": "^5.6.0",
         "eslint": "^8.4.1",
-        "eslint-plugin-node": "^11.0.0"
+        "eslint-plugin-node": "^11.0.0",
+        "tape": "^5.6.0"
     }
 }

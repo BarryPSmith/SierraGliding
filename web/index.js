@@ -1,13 +1,15 @@
-#!/usr/bin/env node
+#!usr/bin/env node
 
-const moment = require('moment');
-const turf = require('@turf/turf');
-const WebSocketServer = require('ws').Server;
-const express = require('express');
-const sqlite3 = require('sqlite3');
-const path = require('path');
-const util = require('util');
-const args = require('minimist')(process.argv, {
+import moment from 'moment';
+import turf from '@turf/turf';
+import { WebSocketServer } from 'ws';
+import express from 'express';
+import sqlite3 from 'sqlite3';
+import path from 'path';
+import util from 'util';
+import minimist from 'minimist';
+
+const args = minimist(process.argv, {
     string: ['db', 'port'],
     boolean: ['help']
 });
@@ -19,30 +21,25 @@ const router = new express.Router();
 
 app.disable('x-powered-by');
 
-app.use(express.static(path.resolve(__dirname, 'site/dist')));
-// app.use('/all', express.static(path.resolve(__dirname, 'site/dist')));
+app.use(express.static(new URL('./site/dist', import.meta.url).pathname));
+
 app.use(express.json());
 app.set('json replacer', standardReplacer);
 app.use('/api/', router);
-//app.use('/[^\.]+', express.static(path.resolve(__dirname, 'site/dist')));
 
-if (require.main === module) {
+if (import.meta.url === `file://${process.argv[1]}`) {
     if (!args.db || args.help) {
-        return help();
+        help();
+    } else {
+        database(path.resolve(args.db), false, (err, db) => {
+            if (err) throw err;
+
+            return main(db);
+        });
     }
-
-    database(path.resolve(args.db), false, (err, db) => {
-        if (err) throw err;
-
-        return main(db);
-    });
-} else {
-    module.exports = {
-        main: main,
-        database: database,
-        help: help
-    };
 }
+
+export { main, database, help };
 
 /**
  * Print server CLI help documentation to STDOUT
@@ -182,12 +179,12 @@ function database(dbpath, drop, cb) {
                     END;
             `);
 
-            db.run(`CREATE TEMP TRIGGER IF NOT EXISTS 
-                    Trg_Station_Data_Del_${interval} 
+            db.run(`CREATE TEMP TRIGGER IF NOT EXISTS
+                    Trg_Station_Data_Del_${interval}
                     AFTER DELETE ON main.Station_Data
                     BEGIN
                         INSERT OR REPLACE INTO Station_Data_${interval}
-                            (Station_ID, Timestamp, Windspeed, 
+                            (Station_ID, Timestamp, Windspeed,
                             Wind_Direction, Battery_Level,
                             Internal_Temp, External_Temp, Wind_Gust, Pwm, Current)
                         SELECT
@@ -203,20 +200,20 @@ function database(dbpath, drop, cb) {
                             AVG(Current) AS Current
                         FROM
                             Station_Data
-                        WHERE 
+                        WHERE
                             (CEIL(OLD.Timestamp/${interval}.0) - 1) * ${interval} < Timestamp
                             AND Timestamp <= CEIL(OLD.Timestamp/${interval}.0) * ${interval}
                             AND Station_ID = OLD.Station_ID;
 
-                        DELETE FROM 
+                        DELETE FROM
                             Station_Data_${interval}
-                        WHERE 
+                        WHERE
                             Station_ID = OLD.Station_ID
                             AND Timestamp = CEIL(OLD.Timestamp/${interval}.0) * ${interval}
                             AND NOT EXISTS (
                                 SELECT 1
                                 FROM Station_Data
-                                WHERE                         
+                                WHERE
                                     (CEIL(OLD.Timestamp/${interval}.0) - 1) * ${interval} < Timestamp
                                     AND Timestamp <= CEIL(OLD.Timestamp/${interval}.0) * ${interval}
                                     AND Station_ID = OLD.Station_ID
@@ -789,7 +786,7 @@ function main(db, cb) {
 
     router.get('/groups', async (req, res) => {
         try {
-            const ret = await dbAll(`SELECT id, name FROM Station_Groups 
+            const ret = await dbAll(`SELECT id, name FROM Station_Groups
                 WHERE $Name IS NULL
                 OR Name = $Name`, {
                     $Name: req.query.name
@@ -806,7 +803,7 @@ function main(db, cb) {
                 $name: req.params.group
             });
             if (!!stationThere || req.params.group == 'all') {
-                const fn = path.resolve(__dirname, 'site/dist/index.html');
+                const fn = new URL('./site/dist/index.html', import.meta.url).pathname;
                 return res.sendFile(fn);
             }
             else
@@ -860,7 +857,7 @@ async function checkCullInvalidWindspeed(db, id, windspeed, timestamp, wss) {
     //Allow a certain amount of variance:
     if (testSpeed < 12)
         return;
-    
+
     if (closeToCurrent) {
         const threshold = windspeed * 4;
         if (testSpeed < threshold)
@@ -896,7 +893,7 @@ async function checkCullInvalidWindspeed(db, id, windspeed, timestamp, wss) {
             return;
         }
     }
-    
+
     const tsToDelete = lastRecords[0].timestamp;
     await dbRun('INSERT INTO discarded_data SELECT * FROM station_data WHERE station_id = $id AND timestamp = $tsToDelete;',
         {

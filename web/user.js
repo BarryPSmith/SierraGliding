@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
-'use strict';
+import sqlite3 from 'sqlite3';
+import prompt from 'prompt';
+import bcrypt from 'bcrypt';
+import path from 'path';
+import minimist from 'minimist';
 
-const sqlite3 = require('sqlite3');
-const prompt = require('prompt');
-const bcrypt = require('bcrypt');
-const path = require('path');
-const args = require('minimist')(process.argv, {
+const args = minimist(process.argv, {
     string: ['db'],
     boolean: ['help']
 });

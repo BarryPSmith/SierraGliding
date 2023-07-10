@@ -137,7 +137,7 @@ namespace WeatherProcessing
       return (byte)(windSpeed_x2); //windspeed = byte * 0.5
     else if (windSpeed_x2 < 250) // 1 km/h resultion to 125km/h. Max 175
       return (byte)(windSpeed_x2 / 2 + 50); //windspeed = byte - 50
-    else if (windSpeed_x2 < 285) // 2 km/h resolution to 285km/h. Max 255
+    else if (windSpeed_x2 < 530) // 2 km/h resolution to 285km/h. Max 255
       return (byte)(windSpeed_x2 / 4 + 113); //windspeed = (byte - 113) * 2
     else //We're just going to report 285km/h. It'll be a long search for the station.
       return 255;

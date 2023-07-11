@@ -76,8 +76,14 @@ namespace core_Receiver.Packets
                     return "Remote Programming: CRC Mismatch";
                 case 4:
                     return "Remote Programming: Length Mismatch";
+                case 5:
+                    return "Remote Programming: Unable to read bytes-per-packet.";
+                case 6:
+                    return "Remote Programming: Unrecognised message subtype.";
+                case 7:
+                    return "Remote Programming: Unable to get message subtype.";
                 default:
-                    return "Remote Programming: Unknown Failure";
+                    return $"Remote Programming: Unknown Failure ({data[2]})";
             }
         }
     }

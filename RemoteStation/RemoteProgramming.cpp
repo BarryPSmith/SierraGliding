@@ -54,7 +54,10 @@ namespace RemoteProgramming
 
     byte type;
     if (msg.readByte(type))
-      return false;
+    {
+      *ackRequired = false;
+      sendImagePacketFailure(uniqueID, 0x07)
+    }
     switch (type)
     {
     case 'B': return handleBeginUpdate(msg);
@@ -65,7 +68,9 @@ namespace RemoteProgramming
       *ackRequired = false;
       return true;
     case 'C': return handleProgramConfirm(msg, uniqueID);
-    default: return false;
+    default: sendImagePacketFailure(uniqueID, 0x06);
+      *ackRequired = false;
+      return false;
     }
   }
 

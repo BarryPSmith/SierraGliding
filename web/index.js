@@ -11,6 +11,7 @@ import path from 'path';
 import util from 'util';
 import minimist from 'minimist';
 import database from './lib/database.js';
+import url from 'url';
 
 const args = minimist(process.argv, {
     string: ['db', 'port'],
@@ -30,7 +31,9 @@ app.use(express.json());
 app.set('json replacer', standardReplacer);
 app.use('/api/', router);
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+const metaurl = import.meta.url;
+
+if (import.meta.url == url.pathToFileURL(process.argv[1]).toString()) {
     if (!args.db || args.help) {
         help();
     } else {
@@ -380,7 +383,7 @@ function main(db, cb) {
                     pwm
                     FROM (
                         SELECT
-                            timestamp,
+                            CEIL(Timestamp/CAST($sample AS REAL)) * $sample AS timestamp,
                             AVG(Windspeed) as windspeed,
                             MIN(Windspeed) as windspeed_sample_min,
                             MAX(${gustCol}) as windspeed_sample_max,
@@ -396,7 +399,7 @@ function main(db, cb) {
                             Station_ID = $id
                             AND timestamp > $start - $stat_len
                             AND timestamp < $end
-                        GROUP BY ROUND(Timestamp / $sample)
+                        GROUP BY CEIL(Timestamp/CAST($sample AS REAL))
                     )
                     WINDOW stat_wind AS (ORDER BY Timestamp ASC RANGE $stat_len PRECEDING)
                     ORDER BY Timestamp ASC

@@ -9,7 +9,7 @@
                 style="grid-column:2">
                 <div style="height: 40px;">
                     <curWindDirIndicator :dataManager="dataManager"
-                                         :legend="station.Wind_Dir_Legend"
+                                         :legend="windDirLegend"
                                          :detailLevel="0"
                                          :strokeWidth="3"
                                          style="height:40px"/>

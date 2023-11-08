@@ -82,7 +82,7 @@ export default {
     data() {
         return {
             credentials: {
-                map: 'pk.eyJ1IjoiaW5nYWxscyIsImEiOiJjam42YjhlMG4wNTdqM2ttbDg4dmh3YThmIn0.uNAoXsEXts4ljqf2rKWLQg',
+                map: 'pk.eyJ1IjoiaW5nYWxscyIsImEiOiJjbG12OWE1eTIwZmoxMm1wZWdnNnJiNXYxIn0.VnEsi3jdemHZbOcQQAL1hQ',
             },
             mapLoaded: false,
             title: 'Sierra Gliding',

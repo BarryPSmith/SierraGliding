@@ -34,7 +34,8 @@ export default {
         'centre': function() {
             this.chart.options.scales.yAxes[0].ticks.max = this.centre + 180;
             this.chart.options.scales.yAxes[0].ticks.min = this.centre - 180;
-            this.update_chart();
+            //this.update_chart();
+            this.set_direction_annotations();
         }
     },
 
@@ -55,7 +56,7 @@ export default {
                     || entry.color === undefined) {
                     continue;
                 }
-                let subEntries = [entry];
+                let subEntries = null;
                 const start = this.map_y(entry.start);
                 const end = this.map_y(entry.end);
                 if (start > end) {
@@ -66,6 +67,13 @@ export default {
                     }, {
                         start: start,
                         end: 360,
+                        color: entry.color
+                    }];
+                }
+                else {
+                    subEntries = [{
+                        start: start,
+                        end: end,
                         color: entry.color
                     }];
                 }

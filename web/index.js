@@ -25,7 +25,7 @@ const router = new express.Router();
 
 app.disable('x-powered-by');
 
-app.use(express.static(new URL('./site/dist', import.meta.url).pathname));
+app.use(express.static(url.fileURLToPath(new URL('./site/dist', import.meta.url))));
 
 app.use(express.json());
 app.set('json replacer', standardReplacer);
@@ -617,7 +617,8 @@ function main(db, cb) {
             });
 
             if (!!stationThere || req.params.group === 'all') {
-                const fn = new URL('./site/dist/index.html', import.meta.url).pathname;
+                const theUrl = new URL('./site/dist/index.html', import.meta.url);
+                const fn = url.fileURLToPath(theUrl);
                 return res.sendFile(fn);
             } else {
                 throw new Err(404, null, 'Group Not Found');

@@ -92,7 +92,8 @@ function main(db, cb) {
                 Missing_Features,
                 Lat as lat,
                 Lon as lon,
-                Elevation as elevation
+                Elevation as elevation,
+                Info as info
             FROM
                 stations
             WHERE
@@ -158,6 +159,19 @@ function main(db, cb) {
             return Err.respond(err, res);
         }
     });
+
+    router.get('/mapGeometry', async (req, res) => {
+        try {
+            let query = "SELECT Geometry FROM Map_Geometry";
+            if (req.query["groupId"] != undefined)
+                query += " WHERE Group_ID = $groupId"
+            const dbRet = await dbAll(query, { groupId: req.query["groupId"] })
+            return res.json(dbRet);
+        } catch (err) {
+            return Err.respond(err, res);
+        }
+    });
+
 
     router.get('/stations', async (req, res) => {
         try {

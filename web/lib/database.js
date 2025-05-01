@@ -166,6 +166,12 @@ export default function database(dbpath, drop, cb) {
             AS SELECT * FROM station_data LIMIT 0;
         `);
 
+        db.run(`CREATE TABLE IF NOT EXISTS Map_Geometry (
+                ID INTEGER PRIMARY KEY,
+                Group_ID INTEGER NULL REFERENCES station_groups(ID),
+                Geometry TEXT NOT NULL
+            );`)
+
         db.get('SELECT sqlite_version() AS ver', (err, res) => {
             if (err) console.error(err);
             else (console.error('Sqlite3 Version: ' + res.ver));

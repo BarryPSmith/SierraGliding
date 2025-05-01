@@ -22,7 +22,8 @@
                                :key="cstation.id"
                                :station="cstation"
                                :duration="duration"
-                               v-bind:chartEnd.sync="chartEnd" />
+                               v-bind:chartEnd.sync="chartEnd" 
+                               @switch_to_maps="$emit('switch_to_maps')"/>
         </div>
     </div>
 </template>

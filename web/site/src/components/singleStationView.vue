@@ -31,6 +31,11 @@
         </div>
         <div v-if="showInfo" v-html="stationInfo"
             class="ml12 mr12"/>
+        <div v-if="showInfo && !compact" class="ml12 mr12">
+            <p>Switch to map view (top left <svg class='icon inline-block'>
+                    <use href='#icon-map'/>
+                </svg>) for approach visualisation</p>
+        </div>
         <div v-if="!collapsed" class="rightGridDouble">
             <!-- Wind Speed Chart -->
             <div style="grid-row:1; max-height: 300px"
@@ -325,7 +330,9 @@ export default {
         detailed_click: function() {
             this.detailed = !this.detailed;
         },
-
+        switch_to_maps() {
+            this.$emit("switch_to_maps");
+        },
         temp_click: function() {
             this.tempLarge = !this.tempLarge;
         },

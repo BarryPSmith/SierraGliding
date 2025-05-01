@@ -18,7 +18,8 @@
                 </svg>
             </button>
         </div>
-        <stationList v-if="mode=='list'" :stations="stations"/>
+        <stationList v-if="mode=='list'" :stations="stations"
+                @switch_to_maps="mode = 'map'"/>
         <sgMap v-else :stations="stations"
                :stationDict="stationDict"
                :mapGeometry="mapGeometry"/>

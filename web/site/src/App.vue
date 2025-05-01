@@ -20,7 +20,8 @@
         </div>
         <stationList v-if="mode=='list'" :stations="stations"/>
         <sgMap v-else :stations="stations"
-               :stationDict="stationDict"/>
+               :stationDict="stationDict"
+               :mapGeometry="mapGeometry"/>
     </div>
 </template>
 
@@ -40,6 +41,7 @@ export default {
             timer: null,
             stationDict: null,
             mode: null,
+            mapGeometry: null,
         }
     },
     components: { stationList, sgMap },
@@ -51,6 +53,7 @@ export default {
     mounted: function(e) {
         this.mode = window.localStorage.getItem('mode') == 'map' ? 'map' : 'list';
         this.fetch_stations();
+        this.fetch_mapGeometry();
         this.init_socket();
     },
     watch: {
@@ -75,16 +78,34 @@ export default {
                 }
             } catch {}
         },
+        async fetch_mapGeometry() {
+            const url = new URL(`${this.urlBase}/api/mapGeometry`);
+
+            const splitHost = window.location.hostname.split('.');
+            let groupName;
+            if (window.location.pathname.length > 1) {
+                groupName = window.location.pathname.replace(/^\/+|\/+$/g, '');
+            } else if (splitHost.length > 2) {
+                groupName = splitHost[0];
+            }
+            if (groupName) {
+                url.searchParams.append('groupName', groupName);
+            }
+            const response = await fetch(url, {
+                method: 'GET',
+                credentials: 'same-origin'
+            });
+            const geometry = await response.json();
+            this.mapGeometry = geometry;
+        },
         async fetch_stations() {
             const url = new URL(`${this.urlBase}/api/stations`);
-            const urlFeatures = new URL(`${this.urlBase}/api/stationfeatures`);
 
             const splitHost = window.location.hostname.split('.');
             let groupName;
 
             if (window.location.pathname.toLowerCase().indexOf("all") >= 0) {
                 url.searchParams.append('all', true);
-                urlFeatures.searchParams.append('all', true);
             } else if (window.location.pathname.length > 1) {
                 groupName = window.location.pathname.replace(/^\/+|\/+$/g, '');
             } else if (splitHost.length > 2) {
@@ -93,7 +114,6 @@ export default {
             if (groupName) {
                 this.update_title(groupName);
                 url.searchParams.append('groupName', groupName);
-                urlFeatures.searchParams.append('groupName', groupName);
             }
 
             const response = await fetch(url, {
@@ -108,9 +128,6 @@ export default {
             }
             this.stations = stations;
             this.stationDict = Object.fromEntries(stations.map(s => [s.id, s]));
-
-            const featureResponse = await fetch(urlFeatures);
-            const features = await featureResponse.json();
         },
 
         init_socket: function() {

@@ -93,7 +93,8 @@ function main(db, cb) {
                 Lat as lat,
                 Lon as lon,
                 Elevation as elevation,
-                Info as info
+                Info as info,
+                Info_Is_Link as infoIsLink
             FROM
                 stations
             WHERE
@@ -134,6 +135,7 @@ function main(db, cb) {
     /**
      * Returns basic metadata about all stations
      * managed in the database as a GeoJSON FeatureCollection
+     * Not used - we just convert to features client side.
      */
     router.get('/stationFeatures', async (req, res) => {
         try {
@@ -163,10 +165,16 @@ function main(db, cb) {
     router.get('/mapGeometry', async (req, res) => {
         try {
             let query = "SELECT Geometry FROM Map_Geometry";
-            if (req.query["groupId"] != undefined)
-                query += " WHERE Group_ID = $groupId"
-            const dbRet = await dbAll(query, { groupId: req.query["groupId"] })
-            return res.json(dbRet);
+            let params = {};
+            if (req.query["groupName"] != undefined) {
+                query += " WHERE Group_ID IS (SELECT ID FROM station_groups WHERE Name = $groupName)"
+                params = { $groupName: req.query["groupName"] }
+            }
+            const dbRet = await dbAll(query, params);
+            return res.json({
+                features: dbRet.map(a => JSON.parse(a["Geometry"])["features"]).flat(),
+                type: "FeatureCollection"
+            });
         } catch (err) {
             return Err.respond(err, res);
         }

@@ -67,7 +67,9 @@ export default function database(dbpath, drop, cb) {
                 Status_Message          TEXT NULL, --If we want to temporarily display a status message when e.g. a station has a hardware fault
                 Battery_Range           TEXT NULL,
                 Group_ID                INTEGER NULL REFERENCES station_groups ON DELETE SET NULL ON UPDATE CASCADE,
-                Missing_Features        TEXT NULL --JSON list of features this station does not report (e.g. ["external_temp", "current"])
+                Missing_Features        TEXT NULL, --JSON list of features this station does not report (e.g. ["external_temp", "current"])
+                Info                    TEXT NULL,
+                Info_is_Link            BIT NULL
             );
         `);
 

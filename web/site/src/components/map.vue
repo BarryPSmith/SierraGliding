@@ -78,7 +78,7 @@ export default {
     components: {
         singleStationView,
     },
-    props: ['stations', 'stationDict'],
+    props: ['stations', 'stationDict', 'mapGeometry'],
     data() {
         return {
             credentials: {
@@ -107,6 +107,9 @@ export default {
         stationFeatures() {
             this.onFeaturesChanged();
             this.setupSources();
+        },
+        mapGeometry() {
+            this.setupGeometrySources();
         },
         stationDict() {
             this.onFeaturesChanged();
@@ -255,6 +258,7 @@ export default {
             this.map.on('style.load', () => {
                 this.mapLoaded = true;
                 this.setupSources();
+                this.setupGeometrySources();
                 this.setupLayers();
             });
             this.map.on('click', 'stationCircles', this.onMapClick);
@@ -262,6 +266,15 @@ export default {
         setupLayers() {
             this.map.loadImage('/arrow.png', (err, img) =>
             {
+                this.map.addLayer({
+                    id: 'geometryLines',
+                    type: 'line',
+                    source: 'geometry',
+                    paint: {
+                        "line-width": 2,
+                        "line-color": ['get', 'stroke']
+                    }
+                });
                 this.map.addLayer({
                     id: 'stationCircles',
                     type: 'circle',
@@ -365,6 +378,19 @@ export default {
                     },
                 });
             });
+        },
+        async setupGeometrySources() {
+            if (!this.map || !this.mapLoaded) return;
+
+            const existing = this.map.getSource('geometry');
+            if (existing) {
+                existing.setData(this.mapGeometry);
+            } else {
+                this.map.addSource('geometry', {
+                    type: 'geojson',
+                    data: this.mapGeometry
+                });
+            }
         },
         setupSources() {
             if (!this.map || !this.mapLoaded) return;

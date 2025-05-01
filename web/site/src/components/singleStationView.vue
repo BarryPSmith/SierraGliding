@@ -282,7 +282,11 @@ export default {
         },
         info_click(ev) {
             ev.stopPropagation();
-            this.showInfo = !this.showInfo;
+            if (this.station.infoIsLink) {
+                window.open(this.station.info, '_blank');
+            } else {
+                this.showInfo = !this.showInfo;
+            }
         },
 
         hash_present() {

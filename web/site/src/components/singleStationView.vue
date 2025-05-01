@@ -31,10 +31,10 @@
         </div>
         <div v-if="showInfo" v-html="stationInfo"
             class="ml12 mr12"/>
-        <div v-if="showInfo && !compact" class="ml12 mr12">
-            <p>Switch to map view (top left <svg class='icon inline-block'>
+        <div v-if="showInfo" class="ml12 mr12">
+            <p><span v-if="!compact">Switch to map view (top left <svg class='icon inline-block'>
                     <use href='#icon-map'/>
-                </svg>) for approach visualisation</p>
+                </svg>) for approach visualisation,</span> or <a class="link" target="_blank" href="https://caltopo.com/m/HPL7G0S">open approach map in CalTopo</a></p>
         </div>
         <div v-if="!collapsed" class="rightGridDouble">
             <!-- Wind Speed Chart -->

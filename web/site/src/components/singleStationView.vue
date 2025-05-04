@@ -276,13 +276,25 @@ export default {
                     !this.station.Missing_Features.includes('External_Temperature'));
         },
         stationInfo() {
-            return this.station.info.replaceAll('<a', '<a class="link" taget="_blank"');
+            let info = this.station.info;
+            if (!info) {
+                return info;
+            }
+            info = info.replaceAll('<a', '<a class="link" taget="_blank"');
+            info = info.replaceAll(/\-?\d+\.\d+,\s\-?\d+\.\d+/g,
+                match => `${match} <button onClick="copyButtonClicked(this, '${match}')" class="px3">&#x2398;</button>`);
+                // &#x1f5d0;
+                // 
+            return info
         }
     },
 
     methods: {
         title_click: function() {
             this.collapsed = !this.collapsed;
+            if (this.collapsed) {
+                this.showInfo = false;
+            }
             this.set_hash();
         },
         info_click(ev) {

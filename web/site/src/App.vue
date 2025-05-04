@@ -57,6 +57,9 @@ export default {
         this.fetch_mapGeometry();
         this.init_socket();
     },
+    created() {
+        window.copyButtonClicked = this.copyButtonClicked
+    },
     watch: {
         mode(oldValue, newValue) {
             if (newValue == null) return;
@@ -64,6 +67,26 @@ export default {
         }
     },
     methods: {
+        copyButtonClicked(sender, text) {
+            let msg = "Copied to clipboard";
+            try
+            {
+                navigator.clipboard.writeText(text);
+            } catch (ex) {
+                if (window.location.protocol=='https:') {
+                    msg = "Unable to copy.";
+                } else {
+                    msg = "Unable to copy. Try connecting by HTTPS.";
+                }
+            }
+            const newDiv = document.createElement('div');
+            const newContent = document.createTextNode(msg);
+            newDiv.appendChild(newContent);
+            newDiv.classList.add("inline-block", "round", "border", "ml6", "px6", "animation-fade-out");
+            sender.insertAdjacentElement('afterend', newDiv);
+            setTimeout(() => newDiv.parentElement.removeChild(newDiv), 1500);
+            
+        },
         async update_title(groupName)
         {
             try {

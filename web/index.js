@@ -11,6 +11,7 @@ import path from 'path';
 import util from 'util';
 import minimist from 'minimist';
 import database from './lib/database.js';
+import url from 'url';
 
 const args = minimist(process.argv, {
     string: ['db', 'port'],
@@ -24,13 +25,15 @@ const router = new express.Router();
 
 app.disable('x-powered-by');
 
-app.use(express.static(new URL('./site/dist', import.meta.url).pathname));
+app.use(express.static(url.fileURLToPath(new URL('./site/dist', import.meta.url))));
 
 app.use(express.json());
 app.set('json replacer', standardReplacer);
 app.use('/api/', router);
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+const metaurl = import.meta.url;
+
+if (import.meta.url == url.pathToFileURL(process.argv[1]).toString()) {
     if (!args.db || args.help) {
         help();
     } else {
@@ -89,7 +92,9 @@ function main(db, cb) {
                 Missing_Features,
                 Lat as lat,
                 Lon as lon,
-                Elevation as elevation
+                Elevation as elevation,
+                Info as info,
+                Info_Is_Link as infoIsLink
             FROM
                 stations
             WHERE
@@ -130,6 +135,7 @@ function main(db, cb) {
     /**
      * Returns basic metadata about all stations
      * managed in the database as a GeoJSON FeatureCollection
+     * Not used - we just convert to features client side.
      */
     router.get('/stationFeatures', async (req, res) => {
         try {
@@ -155,6 +161,25 @@ function main(db, cb) {
             return Err.respond(err, res);
         }
     });
+
+    router.get('/mapGeometry', async (req, res) => {
+        try {
+            let query = "SELECT Geometry FROM Map_Geometry";
+            let params = {};
+            if (req.query["groupName"] != undefined) {
+                query += " WHERE Group_ID IS (SELECT ID FROM station_groups WHERE Name = $groupName)"
+                params = { $groupName: req.query["groupName"] }
+            }
+            const dbRet = await dbAll(query, params);
+            return res.json({
+                features: dbRet.map(a => JSON.parse(a["Geometry"])["features"]).flat(),
+                type: "FeatureCollection"
+            });
+        } catch (err) {
+            return Err.respond(err, res);
+        }
+    });
+
 
     router.get('/stations', async (req, res) => {
         try {
@@ -380,7 +405,7 @@ function main(db, cb) {
                     pwm
                     FROM (
                         SELECT
-                            timestamp,
+                            CEIL(Timestamp/CAST($sample AS REAL)) * $sample AS timestamp,
                             AVG(Windspeed) as windspeed,
                             MIN(Windspeed) as windspeed_sample_min,
                             MAX(${gustCol}) as windspeed_sample_max,
@@ -396,7 +421,7 @@ function main(db, cb) {
                             Station_ID = $id
                             AND timestamp > $start - $stat_len
                             AND timestamp < $end
-                        GROUP BY ROUND(Timestamp / $sample)
+                        GROUP BY CEIL(Timestamp/CAST($sample AS REAL))
                     )
                     WINDOW stat_wind AS (ORDER BY Timestamp ASC RANGE $stat_len PRECEDING)
                     ORDER BY Timestamp ASC
@@ -614,7 +639,8 @@ function main(db, cb) {
             });
 
             if (!!stationThere || req.params.group === 'all') {
-                const fn = new URL('./site/dist/index.html', import.meta.url).pathname;
+                const theUrl = new URL('./site/dist/index.html', import.meta.url);
+                const fn = url.fileURLToPath(theUrl);
                 return res.sendFile(fn);
             } else {
                 throw new Err(404, null, 'Group Not Found');

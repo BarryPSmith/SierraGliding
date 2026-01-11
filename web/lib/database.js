@@ -67,7 +67,9 @@ export default function database(dbpath, drop, cb) {
                 Status_Message          TEXT NULL, --If we want to temporarily display a status message when e.g. a station has a hardware fault
                 Battery_Range           TEXT NULL,
                 Group_ID                INTEGER NULL REFERENCES station_groups ON DELETE SET NULL ON UPDATE CASCADE,
-                Missing_Features        TEXT NULL --JSON list of features this station does not report (e.g. ["external_temp", "current"])
+                Missing_Features        TEXT NULL, --JSON list of features this station does not report (e.g. ["external_temp", "current"])
+                Info                    TEXT NULL,
+                Info_is_Link            BIT NULL
             );
         `);
 
@@ -165,6 +167,12 @@ export default function database(dbpath, drop, cb) {
             CREATE TABLE IF NOT EXISTS discarded_data
             AS SELECT * FROM station_data LIMIT 0;
         `);
+
+        db.run(`CREATE TABLE IF NOT EXISTS Map_Geometry (
+                ID INTEGER PRIMARY KEY,
+                Group_ID INTEGER NULL REFERENCES station_groups(ID),
+                Geometry TEXT NOT NULL
+            );`)
 
         db.get('SELECT sqlite_version() AS ver', (err, res) => {
             if (err) console.error(err);

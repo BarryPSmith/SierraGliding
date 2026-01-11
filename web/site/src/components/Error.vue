@@ -14,13 +14,13 @@
                         <div class='grid grid--gut12'>
                             <div class='col w-1/2'></div>
                             <div class='col w-1/2'>
-                                <button class='btn round w-full' @click="close">Ok</button>
+                                <button class='btn round w-full' @click="close">Close</button>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        <div>
+        </div>
     </div>
 </template>
 

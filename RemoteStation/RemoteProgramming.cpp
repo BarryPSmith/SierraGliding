@@ -56,7 +56,7 @@ namespace RemoteProgramming
     if (msg.readByte(type))
     {
       *ackRequired = false;
-      sendImagePacketFailure(uniqueID, 0x07)
+      sendImagePacketFailure(uniqueID, 0x07);
     }
     switch (type)
     {

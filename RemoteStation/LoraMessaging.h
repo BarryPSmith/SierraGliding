@@ -155,14 +155,18 @@ class LoraMessageDestination final : public MessageDestination
 #endif
     #endif //DEBUG
 
+
       TX_DEBUG(auto beforeTxMicros = micros());
       if (delayRequired)
       {
         unsigned short delay_ms = 10 * (stationID & 0b11);
         delay(delay_ms);
       }
+      // Problem May 2024: This line is causing a linking error "Undefined symbol 'silentSignal'"
+      // Only when building the modem...
       auto state = LORA_CHECK(csma.transmit(_outgoingBuffer, _currentLocation, preambleLength,
         delayRequired));
+
       TX_PRINTVAR(micros() - beforeTxMicros);
 
       if (state == ERR_NONE)

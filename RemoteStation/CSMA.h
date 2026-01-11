@@ -161,7 +161,7 @@ class CSMAWrapper
       _p = newValue;
     }
 
-    // Note that buffer is possibly invalidateded by transmit, 
+    // Note that buffer is possibly invalidated by transmit, 
     // readIfPossible, and subsequent calls to dequeMessage.
     int16_t dequeueMessage(uint8_t** buffer, uint8_t* length,
       uint16_t* timestamp

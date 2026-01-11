@@ -82,6 +82,7 @@ void TestBoard()
 unsigned long lastFailMillis = 0;
 BatteryMode batteryMode = BatteryMode::Normal;
 bool stasisRequested = false;
+bool silentSignal = true;
 
 int main()
 {
@@ -168,6 +169,7 @@ int main()
       stats.appendT(rssi);
       stats.appendT(snr);
       stats.finishAndSend();
+      loraSrc.doneWithMessage();
     }
     
     auto thisMillis = millis();

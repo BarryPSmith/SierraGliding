@@ -448,12 +448,21 @@ namespace Commands
     const uint8_t* p1 = &_end;
     *(unsigned short*)buffer = SP - (unsigned short)p1; //+2 = 24
     buffer += 2;
+#ifndef NO_STORAGE
     *(unsigned long*)buffer = Database::_curHeaderAddress; //+4 = 28
     buffer += 4;
     *(unsigned long*)buffer = Database::_curWriteAddress; //+4 = 32
     buffer += 4;
     *buffer = Database::_curCycle; //+1 = 33
     buffer += 1;
+#else
+    * (unsigned long*)buffer = 0; // Database::_curHeaderAddress; //+4 = 28
+    buffer += 4;
+    *(unsigned long*)buffer = 0; // Database::_curWriteAddress; //+4 = 32
+    buffer += 4;
+    *buffer = 0; // Database::_curCycle; //+1 = 33
+    buffer += 1;
+#endif
     *(unsigned short*)buffer = MessageHandling::_relayResendRate; //+2 = 35
     buffer += 2;
     return;

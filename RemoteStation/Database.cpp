@@ -5,6 +5,8 @@
 #include "MessageHandling.h"
 #include "ArduinoWeatherStation.h"
 
+#ifndef NO_STORAGE
+
 #ifdef DEBUG_DATABASE
 #define DATABASE_PRINTLN AWS_DEBUG_PRINTLN
 #define DATABASE_PRINTVAR PRINT_VARIABLE
@@ -500,3 +502,5 @@ namespace Database
     Flash::flash.sleep();
   }
 }
+
+#endif // NO_STORAGE

@@ -237,7 +237,9 @@ void setup() {
     BASE_PRINTLN(F("!! Remote programming failed to initialise !!"));
     SIGNALERROR(REMOTE_PROGRAM_INITALISATION_FAILURE);
   }
+#ifndef NO_STORAGE
   Database::initDatabase();
+#endif
 
   InitMessaging();
 
@@ -365,9 +367,6 @@ void loop() {
   }
   else
   {
-#if !defined(DEBUG_NO_WEATHER) || !defined(DEBUG)
-    WeatherProcessing::processWeather();
-#endif
     noInterrupts();
     bool localWeatherRequired = WeatherProcessing::weatherRequired;
     WeatherProcessing::weatherRequired = false;
@@ -385,6 +384,21 @@ void loop() {
 #ifdef SOLAR_PWM
     PwmSolar::doPwmLoop();
 #endif
+
+#if !defined(DEBUG_NO_WEATHER) || !defined(DEBUG)
+    WeatherProcessing::processWeather();
+    // WS80 will set this flag, and if so we need to restart the loop to ensure that 
+    // messaging is re-initialised before we handle weatherRequired
+    if (initMessagingRequired)
+    {
+      if (millis() - lastPingMillis < maxMillisBetweenPings)
+      {
+        noPingSent = false;
+        wdt_reset();
+      }
+      return;
+    }
+#endif
   }
   updateBatterySavings();
 
@@ -399,12 +413,7 @@ void loop() {
     noPingSent = true;
   }
   if (StackCount() == 0)
-    while(1);  
-  #if 0 //DEBUG
-  loopMicros = micros() - loopMicros;
-  if (loopMicros > 20000)
-    PRINT_VARIABLE(loopMicros);
-  #endif
+    while(1);
   sleep(ADC_OFF);
   if (stasisRequested)
     enterStasis();

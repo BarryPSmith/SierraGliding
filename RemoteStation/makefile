@@ -26,7 +26,9 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 12: Single board rev3
 # 13: Single board rev3 FCC Compliant @ 917MHz
 # 14: Dorji Modem @ 917MHz
-BOARD = 5
+# 15: Work in progress: External WS80 sensor, no DB storage.
+# 16: Work in progress: External WS80 sensor on Arduino
+BOARD = 16
 include Boards.makefile
 
 #Flags, etc.

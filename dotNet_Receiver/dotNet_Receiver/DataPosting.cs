@@ -111,6 +111,11 @@ namespace core_Receiver
                     wind_gust = subPacket.gust,
                     pwm = subPacket.pwmValue,
                     current = subPacket.current,
+                    subPacket.humidity,
+                    subPacket.light,
+                    uv_index = subPacket.uvIndex,
+                    external_batt = subPacket.externalBatt,
+                    subPacket.uniqueID
                 };
                 var json = JsonConvert.SerializeObject(toSerialize);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");

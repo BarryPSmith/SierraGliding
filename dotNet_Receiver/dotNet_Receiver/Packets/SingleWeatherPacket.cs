@@ -23,6 +23,10 @@ namespace core_Receiver.Packets
         public ushort? lastErrorTSShort;
         public DateTimeOffset? lastErrorTimestamp;
         public short? lastErrorCode;
+        public byte? humidity;
+        public double? light;
+        public double? uvIndex;
+        public double? externalBatt;
 
         public override string ToString()
         {
@@ -48,6 +52,14 @@ namespace core_Receiver.Packets
                 var spacing = (lastErrorTimestamp - timeStamp).Value.TotalSeconds;
                 ret += $" ({spacing}s)";
             }
+            if (humidity.HasValue)
+                ret += $" RH: {humidity}";
+            if (light.HasValue)
+                ret += $" Lx: {light:F2}";
+            if (uvIndex.HasValue)
+                ret += $" UV: {uvIndex:F1}";
+            if (externalBatt.HasValue)
+                ret += $" ExtB: {externalBatt:F2}";
             if (extras?.Length > 0)
                 ret += $" ({extras.ToCsv(b => b.ToString("X2"), " ")})";
             return ret;

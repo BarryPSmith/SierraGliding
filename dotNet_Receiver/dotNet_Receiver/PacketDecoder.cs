@@ -151,6 +151,7 @@ namespace core_Receiver
         }
 
         public static HashSet<int> NtsStations { get; set; }
+        public static HashSet<int> ErrorStations { get; set; } = new HashSet<int> { 67 };
         //static HashSet<int> timestampStations = new HashSet<int> { 49, 50, 51, 54, 68, 71 };
         private static SingleWeatherData DecodeWeatherPacket(
             Span<byte> data, out int packetLen, DateTimeOffset now)
@@ -189,34 +190,51 @@ namespace core_Receiver
 
             if (NtsStations == null || !NtsStations.Contains(ret.sendingStation))
             {
-                ret.timestampByte = data[cur++];
+                ret.timestampByte = data[cur++]; //6
                 ret.timeStamp = GetTimeStamp(ret.timestampByte.Value, now);
             }
 
             if (packetLen > cur)
-                ret.batteryLevelH = data[cur++] / 255.0 * 7.5; //5 (^6)
+                ret.batteryLevelH = data[cur++] / 255.0 * 7.5; //7 (^8)
             if (packetLen > cur)
-                ret.externalTemp = GetTemp(data[cur++]); //6 (^7)
+                ret.externalTemp = GetTemp(data[cur++]); //8 (^9)
             if (packetLen > cur)
-                ret.internalTemp = GetTemp(data[cur++]); //7 (^8)
+                ret.internalTemp = GetTemp(data[cur++]); //9 (^10)
             if (packetLen > cur)
                 ret.pwmValue = data[cur++];
             if (packetLen > cur)
                 ret.current = data[cur++];
             if (NtsStations == null || !NtsStations.Contains(ret.sendingStation))
             {
-                if (packetLen > cur + 1)
+                bool hasError = true;
+                if (packetLen > cur && ErrorStations.Contains(ret.sendingStation))
+                    hasError = data[cur++] != 0;
+                if (hasError)
                 {
-                    ret.lastErrorTSShort = BitConverter.ToUInt16(data.Slice(cur));
-                    ret.lastErrorTimestamp = GetTimeStamp(ret.lastErrorTSShort.Value, now);
-                    cur += sizeof(UInt16);
-                }
-                if (packetLen > cur + 1)
-                {
-                    ret.lastErrorCode = BitConverter.ToInt16(data.Slice(cur));
-                    cur += sizeof(UInt16);
+                    if (packetLen > cur + 1)
+                    {
+                        ret.lastErrorTSShort = BitConverter.ToUInt16(data.Slice(cur));
+                        ret.lastErrorTimestamp = GetTimeStamp(ret.lastErrorTSShort.Value, now);
+                        cur += sizeof(UInt16);
+                    }
+                    if (packetLen > cur + 1)
+                    {
+                        ret.lastErrorCode = BitConverter.ToInt16(data.Slice(cur));
+                        cur += sizeof(UInt16);
+                    }
                 }
             }
+            if (packetLen > cur)
+                ret.humidity = data[cur++];
+            if (packetLen > cur + 1)
+            {
+                ret.light = BitConverter.ToUInt16(data.Slice(cur)) * 0.078925;
+                cur += sizeof(UInt16);
+            }
+            if (packetLen > cur)
+                ret.uvIndex = data[cur++] * 0.1;
+            if (packetLen > cur)
+                ret.externalBatt = data[cur++] / 255.0 * 7.5;
             if (packetLen > cur)
                 ret.extras = data[cur..packetLen].ToArray(); //8 (^9)
             return ret;

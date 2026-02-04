@@ -402,7 +402,11 @@ function main(db, cb) {
                     internal_temp,
                     external_temp,
                     current,
-                    pwm
+                    pwm,
+                    humidity,
+                    light,
+                    uv,
+                    external_battery
                     FROM (
                         SELECT
                             CEIL(Timestamp/CAST($sample AS REAL)) * $sample AS timestamp,
@@ -414,7 +418,11 @@ function main(db, cb) {
                             AVG(Internal_Temp) as internal_temp,
                             AVG(External_Temp) as external_temp,
                             AVG(Current) as current,
-                            AVG(PWM) as pwm
+                            AVG(PWM) as pwm,
+                            AVG(Humidity) as humidity,
+                            AVG(Light) as light,
+                            AVG(UV) as uv,
+                            AVG(External_Battery) as external_battery
                         FROM
                             ${dataSource}
                         WHERE
@@ -599,7 +607,11 @@ function main(db, cb) {
                     internal_temp: req.body.internal_temp,
                     external_temp: req.body.external_temp,
                     current: req.body.current,
-                    pwm: req.body.pwm
+                    pwm: req.body.pwm,
+                    humidity: req.body.humidity,
+                    light: req.body.light,
+                    uv: req.body.uv_index,
+                    external_battery: req.body.external_batt
                 }, standardReplacer));
             });
         } catch (err) {

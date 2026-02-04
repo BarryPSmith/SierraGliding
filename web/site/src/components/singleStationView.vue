@@ -79,13 +79,7 @@
             class="cursor-pointer txt-xs">[[ Show Details ]]</p>
             <p v-if="detailed" v-on:click="detailed_click"
             class="cursor-pointer txt-xs">[[ Hide Details ]]</p>
-            <div v-if="detailed" :style="batteryMargin">
-                <chartBattery :dataManager="dataManager"
-                            :duration="duration"
-                            :chartEnd.sync="chartEnd"
-                            :range="station.Battery_Range" 
-                            :station="station"/>
-            </div>
+            <!--
             <div v-if="detailed && etAvailable" 
                     :style="tempStyle"
                 v-on:click="temp_click">
@@ -97,23 +91,67 @@
                             :label="'External Temperature'"
                             :station="station"/>
             </div>
-            <div v-if="detailed && itAvailable" :style="batteryMargin">
+            -->
+            <!-- Temperature -->
+            <div v-if="detailed && (itAvailable || etAvailable)" :style="batteryMargin">
                 <chartBattery :dataManager="dataManager"
                             :duration="duration"
                             :chartEnd.sync="chartEnd"
                             :range="{min:-15, max:45}"
-                            :dataSource="'internalTempData'"
-                            :label="'Case Temperature'"
+                            :dataSource="['internalTempData','externalTempData']"
+                            :label="'Temperature (°C)'"
                             :station="station"
                             />
             </div>
-            <div v-if="detailed && currentAvailable" :style="batteryMargin">
+            <!-- Humidity -->
+            <div v-if="detailed && humidityAvailable" :style="batteryMargin">
                 <chartBattery :dataManager="dataManager"
                             :duration="duration"
                             :chartEnd.sync="chartEnd"
                             :range="{min:0, max:100}"
+                            :dataSource="['humidityData']"
+                            :label="'Humidity (%)'"
+                            :station="station"
+                            />
+            </div>
+            <!-- Light -->
+            <div v-if="detailed && humidityAvailable" :style="batteryMargin">
+                <chartBattery :dataManager="dataManager"
+                            :duration="duration"
+                            :chartEnd.sync="chartEnd"
+                            :range="{min:0, max:1100}"
+                            :dataSource="['lightData']"
+                            :label="'Light (W/m²)'"
+                            :station="station"
+                            />
+            </div>
+            <!-- UV -->
+            <div v-if="detailed && humidityAvailable" :style="batteryMargin">
+                <chartBattery :dataManager="dataManager"
+                            :duration="duration"
+                            :chartEnd.sync="chartEnd"
+                            :range="{min:0, max:15}"
+                            :dataSource="['uvData']"
+                            :label="'UV Index'"
+                            :station="station"
+                            />
+            </div>
+            <!-- Battery -->
+            <div v-if="detailed" :style="batteryMargin">
+                <chartBattery :dataManager="dataManager"
+                            :duration="duration"
+                            :chartEnd.sync="chartEnd"
+                            :range="station.Battery_Range" 
+                            :station="station"/>
+            </div>
+            <!-- Charge -->
+            <div v-if="detailed && currentAvailable" :style="batteryMargin">
+                <chartBattery :dataManager="dataManager"
+                            :duration="duration"
+                            :chartEnd.sync="chartEnd"
+                            :range="[{min:0, max:100}, {min:0, max:256}]"
                             :dataSource="['currentData', 'pwmData']"
-                            :label="'Charge Current'"
+                            :label="'Charge Current (mA)'"
                             :station="station"/>
             </div>
         </div>
@@ -274,6 +312,15 @@ export default {
             return this.station &&
                    (!this.station.Missing_Features ||
                     !this.station.Missing_Features.includes('External_Temperature'));
+        },
+        humidityAvailable() {
+            return this.station.id == 67
+        },
+        lightAvailable() {
+            return this.station.id == 67
+        },
+        uvAvailable() {
+            return this.station.id == 67
         },
         stationInfo() {
             let info = this.station.info;

@@ -17,6 +17,10 @@ export default class DataManager {
         this.externalTempData = [];
         this.currentData = [];
         this.pwmData = [];
+        this.humidityData = [];
+        this.lightData = [];
+        this.uvData = [];
+        this.extBattData = [];
         
         // Resolution properties=
         this.desiredResolution= 2000;
@@ -202,6 +206,11 @@ export default class DataManager {
                 this.pwmData.splice(i, 0, ...this.get_pwm_entries(...newStationData));
                 this.internalTempData.splice(i, 0, ...this.get_internalTemp_entries(...newStationData));
                 this.externalTempData.splice(i, 0, ...this.get_externalTemp_entries(...newStationData));
+                this.extBattData.splice(i, 0, ...this.get_extBatt_entries(...newStationData));
+                this.humidityData.splice(i, 0, ...this.get_humidity_entries(...newStationData));
+                this.uvData.splice(i, 0, ...this.get_uv_entries(...newStationData));
+                this.lightData.splice(i, 0, ...this.get_light_entries(...newStationData));
+                this.extBattData.splice(i, 0, ...this.get_extBatt_entries(...newStationData));
 
                 this.data_updated();
 
@@ -245,10 +254,11 @@ export default class DataManager {
 
     allDatasets() {
         return [this.windDirectionData, this.windspeedData, 
-                            this.windspeedAvgData, this.windspeedMinData, this.windspeedMaxData,
-                            this.batteryData,
-                           this.internalTempData, this.externalTempData,
-                           this.currentData, this.pwmData];
+                this.windspeedAvgData, this.windspeedMinData, this.windspeedMaxData,
+                this.batteryData,
+                this.internalTempData, this.externalTempData,
+                this.currentData, this.pwmData,
+                this.humidityData, this.lightData, this.uvData, this.extBattData];
     }
 
     findPrevIdx(arr, comp)
@@ -289,6 +299,10 @@ export default class DataManager {
         this.spliceBefore(this.externalTempData, pt => pt.x > jsTimestamp, this.get_externalTemp_entries(newDataPoint));
         this.spliceBefore(this.currentData, pt => pt.x > jsTimestamp, this.get_current_entries(newDataPoint));
         this.spliceBefore(this.pwmData, pt => pt.x > jsTimestamp, this.get_pwm_entries(newDataPoint));
+        this.spliceBefore(this.humidityData, pt => pt.x > jsTimestamp, this.get_humidity_entries(newDataPoint));
+        this.spliceBefore(this.lightData, pt => pt.x > jsTimestamp, this.get_light_entries(newDataPoint));
+        this.spliceBefore(this.uvData, pt => pt.x > jsTimestamp, this.get_uv_entries(newDataPoint));
+        this.spliceBefore(this.extBattData, pt => pt.x > jsTimestamp, this.get_extBatt_entries(newDataPoint));
         
         const wsAvgEntry = this.get_entry(newDataPoint, 'windspeed_avg', this.wsFactor());
         if (this.windspeedAvgData.length >= 2 
@@ -430,11 +444,35 @@ export default class DataManager {
 
     get_pwm_entries() {
         return Array.from(arguments)
-            .filter(entry => typeof(entry.current) == 'number')
+            .filter(entry => typeof(entry.pwm) == 'number')
             .map(entry => { return {
                 x: new Date(entry.timestamp * 1000),
                 y: entry.pwm,
             }});
+    }
+
+    get_entries(arr, key) {
+        return arr.filter(entry => typeof(entry[key]) == 'number')
+            .map(entry => { return {
+                x: new Date(entry.timestamp * 1000),
+                y: entry[key]
+            }});
+    }
+
+    get_humidity_entries() {
+        return this.get_entries(Array.from(arguments), 'humidity');
+    }
+
+    get_light_entries() {
+        return this.get_entries(Array.from(arguments), 'light');
+    }
+
+    get_uv_entries() {
+        return this.get_entries(Array.from(arguments), 'uv');
+    }
+
+    get_extBatt_entries() {
+        return this.get_entries(Array.from(arguments), 'external_battery');
     }
     
     load_data(start, end, actualEnd) {
@@ -462,6 +500,10 @@ export default class DataManager {
                     this.externalTempData = this.get_externalTemp_entries(...newStationData);
                     this.currentData = this.get_current_entries(...newStationData);
                     this.pwmData = this.get_pwm_entries(...newStationData);
+                    this.humidityData = this.get_humidity_entries(...newStationData);
+                    this.lightData = this.get_light_entries(...newStationData);
+                    this.uvData = this.get_uv_entries(...newStationData);
+                    this.extBattData = this.get_extBatt_entries(...newStationData);
 
                     this.data_updated();
 

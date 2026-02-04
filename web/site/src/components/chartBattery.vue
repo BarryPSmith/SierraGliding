@@ -15,7 +15,7 @@ export default {
     props: {
         range : {},
         dataSource: {
-            default: 'batteryData'
+            default: function() { return  ['batteryData', 'extBattData']; }
         },
         label: { default: 'Battery Level' }
     },
@@ -23,8 +23,11 @@ export default {
     watch: {
         'range': function() {
             if (this.chart && this.range) {
-                this.chart.options.scales.yAxes[0].ticks.min = this.range.min;
-                this.chart.options.scales.yAxes[0].ticks.max = this.range.max;
+                for (let i = 0; i < this.dataSetCount; i++)
+                {
+                    this.chart.options.scales.yAxes[i].ticks.min = this.getRange(i).min;
+                    this.chart.options.scales.yAxes[i].ticks.max = this.getRange(i).max;
+                }
             }
         },
 
@@ -49,8 +52,8 @@ export default {
                 let battOpts = this.commonOptions;
                 battOpts.scales.yAxes[0].ticks.beginAtZero = false;
                 if (this.range) {
-                    battOpts.scales.yAxes[0].ticks.min = this.range.min;
-                    battOpts.scales.yAxes[0].ticks.max = this.range.max;
+                    battOpts.scales.yAxes[0].ticks.min = this.getRange(0).min;
+                    battOpts.scales.yAxes[0].ticks.max = this.getRange(0).max;
                 }
                 battOpts.plugins.zoom.pan.onPan = this.chart_panning;
                 battOpts.plugins.zoom.pan.onPanComplete = this.chart_panComplete;
@@ -63,7 +66,11 @@ export default {
                 battOpts.scales.yAxes[1].type = 'linear';
                 battOpts.scales.yAxes[1].id = 'secondaryY';
                 battOpts.scales.yAxes[1].ticks.display = false;
-                battOpts.scales.yAxes[1].ticks.max = 256;
+                if (this.range)
+                {
+                    battOpts.scales.yAxes[1].ticks.min = this.getRange(1).min;
+                    battOpts.scales.yAxes[1].ticks.max = this.getRange(1).max;
+                }
                 battOpts.scales.yAxes[1].gridLines = {
                     display: false,
                 };
@@ -102,6 +109,14 @@ export default {
                     plugins: [zoomPlugin, chartjsAnnotation, filterPlugin],
                 });
             }
+        },
+
+        getRange(idx)
+        {
+            if (!this.range || !this.range.length) {
+                return this.range;
+            }
+            return this.range[idx];
         }
     }
 }

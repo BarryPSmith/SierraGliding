@@ -103,7 +103,8 @@ export default function database(dbpath, drop, cb) {
                       INSERT OR REPLACE INTO Station_Data_${interval}
                         (Station_ID, Timestamp, Windspeed,
                         Wind_Direction, Battery_Level,
-                        Internal_Temp, External_Temp, Wind_Gust, Pwm, Current)
+                        Internal_Temp, External_Temp, Wind_Gust, Pwm, Current,
+                        Humidity, Light, UV, External_Battery)
                       SELECT
                         NEW.Station_ID,
                         CEIL(NEW.Timestamp/${interval}.0) * ${interval} AS Timestamp,
@@ -135,7 +136,8 @@ export default function database(dbpath, drop, cb) {
                         INSERT OR REPLACE INTO Station_Data_${interval}
                             (Station_ID, Timestamp, Windspeed,
                             Wind_Direction, Battery_Level,
-                            Internal_Temp, External_Temp, Wind_Gust, Pwm, Current)
+                            Internal_Temp, External_Temp, Wind_Gust, Pwm, Current,
+                            Humidity, Light, UV, External_Battery)
                         SELECT
                             OLD.Station_ID,
                             CEIL(OLD.Timestamp/${interval}.0) * ${interval} AS Timestamp,

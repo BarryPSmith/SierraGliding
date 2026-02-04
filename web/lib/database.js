@@ -86,6 +86,10 @@ export default function database(dbpath, drop, cb) {
                     Wind_Gust           FLOAT NULL,
                     Pwm                 INT NULL,
                     Current             INT NULL,
+                    Humidity            INT NULL,
+                    Light               FLOAT NULL,
+                    UV                  FLOAT NULL,
+                    External_Battery    FLOAT NULL,
                     PRIMARY KEY(Station_ID, Timestamp)
                 );
             `);
@@ -110,7 +114,11 @@ export default function database(dbpath, drop, cb) {
                         AVG(External_Temp) AS External_Temp,
                         MAX(Windspeed) AS Wind_Gust,
                         AVG(Pwm) AS Pwm,
-                        AVG(Current) AS Current
+                        AVG(Current) AS Current,
+                        AVG(Humidity) AS Humidity,
+                        AVG(Light) AS Light,
+                        AVG(UV) AS UV,
+                        AVG(External_Battery) AS External_Battery
                       FROM
                         Station_Data
                       WHERE
@@ -138,7 +146,11 @@ export default function database(dbpath, drop, cb) {
                             AVG(External_Temp) AS External_Temp,
                             MAX(Windspeed) AS Wind_Gust,
                             AVG(Pwm) AS Pwm,
-                            AVG(Current) AS Current
+                            AVG(Current) AS Current,
+                            AVG(Humidity) AS Humidity,
+                            AVG(Light) AS Light,
+                            AVG(UV) AS UV,
+                            AVG(External_Battery) AS External_Battery
                         FROM
                             Station_Data
                         WHERE

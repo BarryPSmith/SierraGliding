@@ -439,6 +439,8 @@ function main(db, cb) {
         }
     });
 
+    const packetTimes = new Map();
+    const minInterval =  60000; // 60 seconds
     /**
      * Save a new data point to a a given station
      */
@@ -457,14 +459,25 @@ function main(db, cb) {
                     error: `${key} key required`
                 });
             }
+        }
 
-            try {
-                moment.unix(req.body.timestamp);
-            } catch (err) {
-                return res.status(400).json({
-                    status: 400,
-                    error: 'timestamp must be an integer (unix) date'
-                });
+        try {
+            moment.unix(req.body.timestamp);
+        } catch (err) {
+            return res.status(400).json({
+                status: 400,
+                error: 'timestamp must be an integer (unix) date'
+            });
+        }
+
+        let uniqueKey = undefined;
+        const currentTimestamp = Date.now();
+        if (req.params.uniqueID !== undefined)
+        {
+            uniqueKey = (req.params.id << 8) + req.params.uniqueID;
+            if (currentTimestamp - map.get(uniqueKey) < minInterval)
+            {
+                return res.json('success - duplicate');
             }
         }
 
@@ -477,6 +490,7 @@ function main(db, cb) {
                     error:`Station ${req.params.id} not found.`
                 });
             }
+
 
             const invalidWindspeed = typeof(req.body.wind_gust) == 'number' && req.body.wind_speed > 2 * (req.body.wind_gust + 2);
             const dest = invalidWindspeed ? 'Discarded_Data' : 'Station_Data';
@@ -493,7 +507,11 @@ function main(db, cb) {
                     External_Temp,
                     Wind_Gust,
                     Pwm,
-                    Current
+                    Current,
+                    Humidity,
+                    Light,
+                    UV,
+                    External_Battery
                 ) VALUES (
                     $id,
                     $timestamp,
@@ -504,7 +522,11 @@ function main(db, cb) {
                     $external_temp,
                     $wind_gust,
                     $pwm,
-                    $current
+                    $current,
+                    $humidity,
+                    $light,
+                    $uv_index,
+                    $external_batt
                 )
             `, {
                 $id: req.params.id,
@@ -516,7 +538,11 @@ function main(db, cb) {
                 $external_temp: typeof(req.body.external_temp) == 'number' ? req.body.external_temp : null,
                 $wind_gust: typeof(req.body.wind_gust) == 'number' ? req.body.wind_gust : req.body.wind_speed,
                 $pwm: typeof(req.body.pwm) == 'number' ? req.body.pwm : null,
-                $current: typeof(req.body.current) == 'number' ? req.body.current : null
+                $current: typeof(req.body.current) == 'number' ? req.body.current : null,
+                $humidity: typeof(req.body.humidity) == 'number' ? req.body.humidity : null,
+                $light: typeof(req.body.light) == 'number' ? req.body.light : null,
+                $uv_index: typeof(req.body.uv_index) == 'number' ? req.body.uv_index : null,
+                $external_batt: typeof(req.body.external_batt) == 'number' ? req.body.external_batt : null
             });
 
             if (invalidWindspeed) {
@@ -525,6 +551,10 @@ function main(db, cb) {
                     error: 'Invalid windspeed stronger than gust'
                 });
             }
+
+            if (uniqueKey !== undefined)
+                packetTimes.set(key, currentTimestamp);
+
             res.json('success');
         } catch (err) {
             return Err.respond(err, res);

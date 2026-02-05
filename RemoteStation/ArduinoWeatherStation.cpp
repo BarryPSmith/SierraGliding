@@ -648,9 +648,9 @@ void signalError(uint16_t errorCode, const byte delay_ms)
   for (byte i = 0; i < 11; i++)
   {
     if (i & 1)
-      PORTD |= _BV(PD0);
+      PORTD |= _BV(PD0); //OFF for i = 1, 3, 5, 7, 9, 11
     else
-      PORTD &= ~_BV(PD0);
+      PORTD &= ~_BV(PD0); //ON for i = 0, 2, 4, 8, 10
     //digitalWrite(LED_PIN0, (i & 1) ? LED_OFF : LED_ON);
     if (errorCode & 1)
       PORTD &= ~_BV(PD1);

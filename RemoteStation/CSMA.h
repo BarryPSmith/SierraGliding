@@ -74,7 +74,7 @@ class CSMAWrapper
       silentSignal = false;
       TX_DEBUG(auto delayMicros = micros() - entryMicros);
       auto ret = transmit2(data, len, preambleLength);
-      enterIdleState();
+      LORA_CHECK(enterIdleState());
       return ret;
     }
 
@@ -166,7 +166,7 @@ class CSMAWrapper
     int16_t dequeueMessage(uint8_t** buffer, uint8_t* length,
       uint16_t* timestamp
 #ifdef GET_CRC_FAILURES
-      ,bool* crcMismatch
+      , bool* crcMismatch
 #endif
       ) {
       // handle any available packet from the modem if we have space:
@@ -185,6 +185,8 @@ class CSMAWrapper
         *length = 0;
         return REENTRY_NOT_SUPPORTED;
       }
+
+      AWS_DEBUG_PRINTLN(F("message available"));
 
       *buffer = _buffer + getStartOfBuffer();
       *length = _messageLengths[_readBufferLenIdx];
@@ -321,7 +323,8 @@ class CSMAWrapper
       switch (_idleState)
       {
       case IdleStates::IntermittentReceive:
-        return _base->startReceiveDutyCycleAuto();
+        return _base->startReceiveDutyCycleAuto(/*_base->_preambleLength, 64*/); 
+        // CHECK: Evaluate current draw vs receptivity for different values of MinSymbols
       case IdleStates::ContinuousReceive:
         return _base->startReceive();
       case IdleStates::Sleep:

@@ -20,6 +20,7 @@ void sleepRadio();
 extern SX1262 lora;
 extern CSMAWrapper<SX1262> csma;
 extern bool initMessagingRequired;
+extern bool noHardReset;
 
 #ifdef DEBUG
 void messageDebugAction();

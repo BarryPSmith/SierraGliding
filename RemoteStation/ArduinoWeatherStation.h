@@ -48,12 +48,12 @@
 //#define DEBUG_PROGRAMMING
 //#define DEBUG_IT
 //#define DEBUG_PWM
-//#define DEBUG_WEATHER
-//#define DETAILED_LORA_CHECK
+#define DEBUG_WEATHER
+#define DETAILED_LORA_CHECK
 //#define DEBUG_STACK
 //#define DEBUG_BASE
 //#define DEBUG_FLASH
-#define DEBUG_NO_WEATHER //This is us desperate to get program space.
+//#define DEBUG_NO_WEATHER //This is us desperate to get program space.
 //#define ALS_FIELD_STRENGTH
 #ifdef DEBUG
 #undef SOLAR_PWM

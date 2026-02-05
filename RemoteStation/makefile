@@ -1,5 +1,5 @@
 #COM port for upload
-PORT=COM3
+PORT=COM4
 # If we're using the ISP, it's handy to keep different COM ports. Also baud is not board dependent.
 PORT_ISP=COM5
 ISP_BAUD=115200
@@ -28,7 +28,7 @@ uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
 # 14: Dorji Modem @ 917MHz
 # 15: Work in progress: External WS80 sensor, no DB storage.
 # 16: Work in progress: External WS80 sensor on Arduino
-BOARD = 16
+BOARD = 15
 include Boards.makefile
 
 #Flags, etc.
@@ -41,7 +41,7 @@ ifeq ($(FCC_COMPLIANT), 1)
 DEFINES += -DMIN_FREQ=903000000 -DMAX_FREQ=927000000 -DFCC_COMPLIANT
 $(info FCC Complaint)
 else
-DEFINES += -DMIN_FREQ=420000000 -DMAX_FREQ=450000000
+DEFINES += -DMIN_FREQ=420000000 -DMAX_FREQ=450000000 
 $(info not FCC Complaint)
 endif
 #-DRADIOLIB_DEBUG  -DRADIOLIB_VERBOSE
@@ -100,7 +100,7 @@ else
 SRCS_C = ArduinoWeatherStation.cpp Commands.cpp MessageHandling.cpp \
 		 WeatherProcessing/WeatherProcessing.cpp WeatherProcessing/ADWind.cpp \
 		 WeatherProcessing/DavisWind.cpp WeatherProcessing/ALSWind.cpp \
-		 WeatherProcessing/TwoWire.cpp \
+		 WeatherProcessing/TwoWire.cpp WeatherProcessing/WS80Wind.cpp \
 		 LoraMessaging.cpp MessagingCommon.cpp \
 		 delay.c millis.cpp PermanentStorage.cpp StackCanary.cpp TimerTwo.cpp \
 		 RemoteProgramming.cpp PWMSolar.cpp \

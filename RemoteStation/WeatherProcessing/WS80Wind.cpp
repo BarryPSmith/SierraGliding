@@ -55,6 +55,7 @@ namespace WeatherProcessing
 
     byte data[32];
     LORA_CHECK(lora.readData(data, 32));
+    noHardReset = true;
     initMessagingRequired = true;
     if (Decode(data, &lastReading))
     {
@@ -188,12 +189,12 @@ namespace WeatherProcessing
     int temp_raw = ((b[7] & 0x03) << 8) | (b[8]);
     float temp = (temp_raw - 400) * 0.1f;
     int humidity = (b[9]);
-    uint16_t wind_avg_x10 = (((b[7] & 0x10) << 4) | (b[10]));
+    uint16_t wind_avg_mps_x10 = (((b[7] & 0x10) << 4) | (b[10]));
     short wind_dir = ((b[7] & 0x20) << 3) | (b[11]);
-    uint16_t wind_max_x10 = (((b[7] & 0x40) << 2) | (b[12]));
+    uint16_t wind_max_mps_x10 = (((b[7] & 0x40) << 2) | (b[12]));
     uint8_t uv_index_x10 = (b[13]);
 
-    if (wind_avg_x10 > (wind_max_x10 + 1))
+    if (wind_avg_mps_x10 > (wind_max_mps_x10 + 1))
     {
       return false;
     }
@@ -201,14 +202,14 @@ namespace WeatherProcessing
     reading->battery_mv = battery_mv;
     reading->temp = temp;
     reading->humidity = humidity;
-    reading->wind_avg_x10 = wind_avg_x10;
-    reading->wind_max_x10 = wind_max_x10;
+    reading->wind_avg_x50 = wind_avg_mps_x10 * 18; // (* 3.6) = (*18 / 5)
+    reading->wind_max_x50 = wind_max_mps_x10 * 18; // (* 3.6) = (*18 / 5)
     reading->uv_index_x10 = uv_index_x10;
     reading->light = light;
     reading->wind_dir = (wind_dir * 255UL) / 360;
 
     WX_PRINT("wind_avg_x10: ");
-    WX_PRINTLN(wind_avg_x10);
+    WX_PRINTLN(wind_avg_mps_x10);
 
     return true;
   }

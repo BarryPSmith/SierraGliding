@@ -1,2 +1,10 @@
 *.bak
 .vs
+dotNet_Receiver/dotNet_Receiver/data.sqlite
+data.sqlite
+hardware/Installed_Images/
+*.zip
+RemoteStation/sizes.txt
+*.S
+*.orig
+RemoteStation/saved

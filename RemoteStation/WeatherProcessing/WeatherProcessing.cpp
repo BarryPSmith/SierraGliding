@@ -106,7 +106,7 @@ namespace WeatherProcessing
   inline uint16_t getWindSpeed_x2()
   {
 #ifdef WS80_WIND
-    return lastReading.wind_avg_x10 / 5;
+    return lastReading.wind_avg_x50 / 25;
 #else
     noInterrupts();
     short localCounts = windCountStored;
@@ -126,7 +126,7 @@ namespace WeatherProcessing
   inline uint16_t getWindGust_x2()
   {
 #ifdef WS80_WIND
-    return lastReading.wind_max_x10 / 5;
+    return lastReading.wind_max_x50 / 25;
 #else
     noInterrupts();
     unsigned short localInterval_x4 = minInterval_x4;
@@ -157,6 +157,7 @@ namespace WeatherProcessing
 
   void createWeatherData(LoraMessageDestination& message)
   {
+    WX_PRINTLN(F("Enter createWeatherData"));
   #ifdef DEBUG
     unsigned long entryMicros = micros();
   #endif // DEBUG

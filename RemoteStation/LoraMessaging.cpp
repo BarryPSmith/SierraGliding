@@ -11,6 +11,7 @@ extern inline int16_t lora_check(const int16_t result, const __FlashStringHelper
 
 bool delayRequired = false;
 bool initMessagingRequired = false;
+bool noHardReset = false;
 
 //Hardware pins:
 Module mod(SX_SELECT, SX_DIO1, SX_BUSY);
@@ -106,22 +107,35 @@ void InitMessaging()
   while (state != ERR_NONE)
   {
 #if defined(SX_RESET)
-    digitalWrite(SX_SELECT, HIGH);
-    digitalWrite(SX_RESET, LOW);
-    delay(100);
-    digitalWrite(SX_RESET, HIGH);
-    delay(100);
-    while (state != ERR_NONE)
+    if (!noHardReset)
     {
-      uint8_t status;
-      lora.getStatus(&status);
 #ifdef DETAILED_LORA_CHECK
-      AWS_DEBUG_PRINT(F("Status: "));
-      AWS_DEBUG_PRINTLN(status);
+      AWS_DEBUG_PRINTLN(F("Hard Reset"));
 #endif
-      state = LORA_CHECK(lora.standby(SX126X_STANDBY_RC));
-      delay(1000);
+      digitalWrite(SX_SELECT, HIGH);
+      digitalWrite(SX_RESET, LOW);
+      delay(100);
+      digitalWrite(SX_RESET, HIGH);
+      delay(100);
+      while (state != ERR_NONE)
+      {
+        uint8_t status;
+        lora.getStatus(&status);
+  #ifdef DETAILED_LORA_CHECK
+        AWS_DEBUG_PRINT(F("Status: "));
+        AWS_DEBUG_PRINTLN(status);
+  #endif
+        state = LORA_CHECK(lora.standby(SX126X_STANDBY_RC));
+        delay(1000); 
+      }
     }
+    else
+    {
+#ifdef DETAILED_LORA_CHECK
+      AWS_DEBUG_PRINTLN(F("No Hard Reset"));
+#endif
+    }
+    noHardReset = false;
 #endif
     
 
@@ -175,6 +189,7 @@ void InitMessaging()
   bool boostedRx;
   GET_PERMANENT_S(boostedRx);
   LORA_CHECK(lora.setRxGain(boostedRx));
+  AWS_DEBUG_PRINTLN(F("Init complete"));
 }
 
 bool handleMessageCommand(MessageSource& src, byte* desc)

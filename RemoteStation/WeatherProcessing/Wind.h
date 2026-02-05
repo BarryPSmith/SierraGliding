@@ -26,8 +26,8 @@ namespace WeatherProcessing
     uint16_t battery_mv; // 2
     float temp; // 4
     uint8_t humidity; // 1
-    uint16_t wind_avg_x10; // 2
-    uint16_t wind_max_x10; // 2
+    uint16_t wind_avg_x50; // 2
+    uint16_t wind_max_x50; // 2
     uint8_t uv_index_x10; // 1
     uint8_t wind_dir; // 1
   };

@@ -372,7 +372,7 @@ MODEM=1
 FCC_COMPLIANT=1
 
 else ifeq ($(BOARD), 15)
-$(info Running Makefile for Single Board rev3 without DB, with WS80 (15))
+$(info Running Makefile for Single Board rev2 without DB, with WS80 (15))
 BOARD_DEFINES = \
     -DF_CPU=8000000L \
     -DSERIAL_BAUD=9600 \
@@ -395,8 +395,8 @@ BOARD_DEFINES = \
     -DCLOCK_DIVIDER=1 \
     -DCURRENT_SENSE=A1 \
     -DCURRENT_SENSE_PWR=7 \
-    -DCURRENT_SENSE_GAIN=25 \
-    -DSOLAR_INVERSE \
+    -DCURRENT_SENSE_GAIN=20 \
+    -DSOLAR_IMPEDANCE_SWITCHING \
     -DTEMP_PWR_PIN=6 \
     -DNO_STORAGE
     #-DATMEGA328PB \

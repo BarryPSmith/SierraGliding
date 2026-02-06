@@ -446,7 +446,7 @@ void yield()
 
 void sleep(adc_t adc_state)
 {
-  SleepModes sleepMode = min(solarSleepEnabled, dbSleepEnabled);
+  SleepModes sleepMode = min(min(solarSleepEnabled, dbSleepEnabled), weatherSleepEnabled);
   //If we've disabled sleep for some reason...
   if (sleepMode == SleepModes::disabled)
   {

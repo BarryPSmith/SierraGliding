@@ -63,7 +63,7 @@ void updateIdleState()
 
 void InitMessaging()
 {
-
+  AWS_DEBUG(uint16_t entryMillis = millis());
 #if defined(SX_RESET) && SX_RESET >= 0
   pinMode(SX_RESET, OUTPUT);
   pinMode(SX_SELECT, OUTPUT);
@@ -189,7 +189,8 @@ void InitMessaging()
   bool boostedRx;
   GET_PERMANENT_S(boostedRx);
   LORA_CHECK(lora.setRxGain(boostedRx));
-  AWS_DEBUG_PRINTLN(F("Init complete"));
+  AWS_DEBUG_PRINT(F("Init complete "));
+  AWS_DEBUG_PRINTLN(((uint16_t)millis()) - entryMillis);
 }
 
 bool handleMessageCommand(MessageSource& src, byte* desc)

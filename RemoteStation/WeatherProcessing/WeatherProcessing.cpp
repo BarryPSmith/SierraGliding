@@ -18,6 +18,8 @@
 #error No wind system defined
 #endif
 
+SleepModes weatherSleepEnabled = SleepModes::powerSave;
+
 
 namespace WeatherProcessing
 {
@@ -317,7 +319,9 @@ namespace WeatherProcessing
     windCounts = 0;
     tickCounts = 0;
     sei();
+#ifndef WS80_WIND // WS80 interval must be aligned to WS80 sensor output, not our timer interval.
     weatherInterval = requiredTicks * TimerTwo::MillisPerTick;
+#endif
     WX_PRINT(F("requiredTicks: "));
     WX_PRINTLN(requiredTicks);
   }

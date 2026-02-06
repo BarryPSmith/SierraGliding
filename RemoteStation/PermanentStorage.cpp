@@ -37,8 +37,18 @@ const PermanentVariables defaultVars PROGMEM =
 {
   .initialised = true,
   .stationID = defaultStationID,
-  .shortInterval = 4000,// - 90 * (stationID - '1');
-  .longInterval = 30000,// - 90 * (stationID - '1'); //longInterval == shortInterval because it turns out the transmit is negligble draw.
+  .shortInterval = 
+#ifdef WS80_WIND
+    4720, // Choose to align with WS 80 interval
+#else
+    4000,
+#endif
+  .longInterval = 
+#ifdef WS80_WIND
+    33000,
+#else
+    30000,
+#endif
   .batteryThreshold_mV = 3800,
   .batteryEmergencyThresh_mV = 3700,
   .demandRelay = false,

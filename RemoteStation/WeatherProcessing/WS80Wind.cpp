@@ -3,55 +3,59 @@
 #include "../lib/RadioLib/src/RadioLib.h"
 #include "../LoraMessaging.h"
 #include "Wind.h"
+#include "../TimerTwo.h"
 #include <avr/wdt.h>
 
 namespace WeatherProcessing
 {
+  //constexpr uint16_t WS80_interval = 4720;
+  constexpr uint16_t WS80_preSwitch = 70; // Minimum pre-switch is 30: 10ms for initialisation, 20ms for receive. We choose 70ms to give ourselves a larger buffer.
+
   extern volatile bool weatherRequired;
   bool Decode(unsigned char* b, WS80_Reading* reading);
   void InitialiseFSK();
-  void InitialiseFSK2();
+  void InitialiseFskDirect();
 
-  constexpr int WS80_interval = 4200; // Actually ~4600, but we put a bit of a buffer in because we will only enter this perhaps every 250ms.
-
-  unsigned int lastWS80_signal;
+  uint32_t lastWS80_signal;
   WS80_Reading lastReading;
 
   void processWeather()
   {
-    if (((unsigned int)millis()) - lastWS80_signal < WS80_interval)
+    uint32_t entryMillis = millis();
+    uint32_t millisSinceLastSignal = entryMillis - lastWS80_signal;
+    // If we need to switch to listening for the WS80 before the next timer cycle, ensure that we don't sleep the MCU.
+    if (millisSinceLastSignal > weatherInterval - WS80_preSwitch - TimerTwo::MillisPerTick)
+      weatherSleepEnabled = SleepModes::disabled;
+    else
+      weatherSleepEnabled = SleepModes::powerSave;
+    if (millisSinceLastSignal < weatherInterval - WS80_preSwitch)
       return;
 
-    WX_PRINTLN(F("processWeather - passed millis check"));
+    InitialiseFskDirect();
 
-    InitialiseFSK();
-
-    WX_PRINTLN(F("processWeather - FSK Initialised"));
+    WX_DEBUG(uint32_t intialiseMillis = millis() - entryMillis);
 
     LORA_CHECK(lora.startReceive(SX126X_RX_TIMEOUT_NONE));
 
-    WX_PRINTLN(F("processWeather - start Receive"));
+    WX_DEBUG(uint32_t startReceiveMillis = millis() - entryMillis);
 
-
-    /*LORA_CHECK(lora.setDioIrqParams(RADIOLIB_SX126X_IRQ_RX_DONE | RADIOLIB_SX126X_IRQ_TIMEOUT | RADIOLIB_SX126X_IRQ_CRC_ERR | RADIOLIB_SX126X_IRQ_HEADER_ERR, 
-      RADIOLIB_SX126X_IRQ_RX_DONE));*/
-
-#ifdef DEBUG_WEATHER
-    unsigned int entryMillis = millis();
+    WX_DEBUG(uint32_t beforeReadMillis = millis());
+    WX_DEBUG(uint32_t beforeReadDelay = beforeReadMillis - entryMillis);
+#ifndef DEBUG
+    digitalWrite(LED_PIN1, LED_ON);
 #endif
     // Check for our radio interrupt...
     while (!digitalRead(SX_DIO1)/*Check IRQ not signalled*/)
     {
       yield();
     }
-#ifdef DEBUG_WEATHER
-    unsigned int afterWaitMillis = millis();
-    WX_PRINT(F("Wait: "));
-    WX_PRINTLN(afterWaitMillis - entryMillis);
+#ifndef  DEBUG
+    digitalWrite(LED_PIN1, LED_OFF);
 #endif
 
+    WX_DEBUG(uint32_t afterWaitMillis = millis());
+    WX_DEBUG(uint32_t WS80_measuredInterval = afterWaitMillis - lastWS80_signal);
 
-    WX_PRINTLN(F("processWeather - Data read"));
 
     byte data[32];
     LORA_CHECK(lora.readData(data, 32));
@@ -59,47 +63,72 @@ namespace WeatherProcessing
     initMessagingRequired = true;
     if (Decode(data, &lastReading))
     {
-      WX_PRINTLN(F("Data Decoded"));
       lastWS80_signal = millis();
+      WX_PRINTLN(F("Data Decoded"));
       weatherRequired = true;
     }
     else
       WX_PRINTLN(F("Decode failed."));
+
+    WX_PRINT(F("processWeather - FSK Initialised "));
+    WX_PRINTLN(intialiseMillis);
+
+    WX_PRINT(F("processWeather - start Receive "));
+    WX_PRINTLN(startReceiveMillis);
+
+    WX_PRINT(F("Init time: "));
+    WX_PRINTLN(beforeReadDelay);
+
+    WX_PRINT(F("Measured WS 80 interval: "));
+    WX_PRINTLN(WS80_measuredInterval);
+    WX_PRINT(F("Wait: "));
+    WX_PRINTLN(afterWaitMillis - beforeReadMillis);
   }
 
-  void InitialiseFSK2()
+  void InitialiseFskDirect()
   {
-    int state = lora.beginFSK();
+    // Radiolib is excessively chatty, calling setPacketParams and other options over and over.
+    // Also, beginFSK_i calls a bunch of generic stuff that we don't need to do every time we change packet type.
+    // This methos takes 8ms; using the public Radiolib API takes 28ms.
+    // Speeding this method up => less likely to miss packets, lower power consumption.
+    // Also this uses less code space.
+    uint8_t modem = SX126X_PACKET_TYPE_GFSK;
+    LORA_CHECK(lora.standby(SX126X_STANDBY_RC));
+    LORA_CHECK(lora.SPIwriteCommand(SX126X_CMD_SET_PACKET_TYPE, &modem, 1));
 
-    // if needed, you can switch between LoRa and FSK modes
-    //
-    // radio.begin()       start LoRa mode (and disable FSK)
-    // radio.beginFSK()    start FSK mode (and disable LoRa)
+    // Calculate all the modulation params, then set them:
+    constexpr uint32_t br_bps = 17241;
+    uint32_t brRaw = (32 * SX126X_CRYSTAL_FREQ * SX126x::MHz) / br_bps;
+    lora._br = brRaw;
+    constexpr uint32_t freqDev_Hz = 47600;
+    uint32_t freqDevRaw = lora.getRfFreq(freqDev_Hz);
+    lora._freqDev = freqDevRaw;
+    lora._rxBwKhz_x10 = SX126X_GFSK_RX_BW_156_2;
+    lora._pulseShape = SX126X_GFSK_FILTER_GAUSS_0_5;
+    LORA_CHECK(lora.setModulationParamsFSK(lora._br, lora._rxBwKhz_x10, lora._pulseShape, lora._freqDev));
 
-    // the following settings can also
-    // be modified at run-time
-    // SX1262 already does FSK-2
-    state = lora.setFrequency(915); //Modified
-    state = lora.setFrequencyDeviation(47.6); //Modified
-    // setCCMode appears to be CC1101 specific
-    state = lora.setRxBandwidth(450.0); //Modified THIS FAILS
-
-    state = lora.setBitRate(17.241); //CC1101 SetDRate?
     uint8_t syncWord[] = { 0x2D, 0xD4 };
-    state = lora.setSyncWord(syncWord, 2); //Modified
-    //Skipping address, whitening, pktFmt, pre, pqt, appendstatus
-    state = lora.fixedPacketLengthMode(32); //Modified
-    //state = radio.setOutputPower(10.0);
-    state = lora.setCurrentLimit(100.0);
-    //state = radio.setDataShaping(RADIOLIB_SHAPING_1_0);
-    state = lora.setTCXO(1.8);
-    state = lora.setCRC(0); //TODO later: Fix this
-    lora.setWhitening(false);
+    LORA_CHECK(lora.writeRegister(SX126X_REG_SYNC_WORD_0, syncWord, 2));
+
+    // Set the packet params:
+    lora._preambleLengthFSK = 16;
+    lora._syncWordLength = 2 * 8;
+    lora._whitening = SX126X_GFSK_WHITENING_OFF;
+    lora._packetType = SX126X_GFSK_PACKET_FIXED;
+    lora._packetLen = 32;
+    lora._crcTypeFSK = SX126X_GFSK_CRC_OFF;
+    lora._addrComp = SX126X_GFSK_ADDRESS_FILT_OFF;
+    LORA_CHECK(lora.setPacketParamsFSK(
+      lora._preambleLengthFSK, lora._crcTypeFSK, lora._syncWordLength, lora._addrComp,
+      lora._whitening, lora._packetType, lora._packetLen, SX126X_GFSK_PREAMBLE_DETECT_16));
+
+    LORA_CHECK(lora.setFrequency_i(915000000));
   }
 
   void InitialiseFSK()
   {
-    LORA_CHECK(lora.standby(SX126X_STANDBY_RC));
+    // We don't need to call standby because beginFSK_i calls it.
+    // LORA_CHECK(lora.standby(SX126X_STANDBY_RC));
     LORA_CHECK(lora.beginFSK_i(
       915000000, //Frequency
       17241, //br_bpds

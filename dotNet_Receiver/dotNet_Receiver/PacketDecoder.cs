@@ -61,12 +61,12 @@ namespace core_Receiver
                 case PacketTypes.Overflow2:
                     (ret.packetData, ret.exception) = DecodeWeatherPackets(bytes.AsSpan(cur), receivedTime);
                     ret.GetDataString =
-                        data => (data as IList<SingleWeatherData>)?.ToCsv();
+                        data => (data as IList<SingleWeatherData>)?.ToCsv(a => $"{Environment.NewLine}  {a}");
                     break;
                 case PacketTypes.Overflow:
                     (ret.packetData, ret.exception) = DecodeWeatherPackets(bytes.AsSpan(dataStart), receivedTime);
                     ret.GetDataString =
-                        data => (data as IList<SingleWeatherData>)?.ToCsv();
+                        data => (data as IList<SingleWeatherData>)?.ToCsv(a => $"{Environment.NewLine}  {a}");
                     break;
                 case PacketTypes.Response:
                     var responseType = bytes[dataStart++];

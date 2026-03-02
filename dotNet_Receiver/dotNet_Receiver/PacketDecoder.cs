@@ -185,8 +185,8 @@ namespace core_Receiver
             };
 
             //Temporary fix for stations reporting very high gusts after a restart:
-            if (ret.gust > ret.windSpeed * 2.5 && ret.gust > 15)
-                ret.gust = null;
+            /*if (ret.gust > ret.windSpeed * 2.5 && ret.gust > 15)
+                ret.gust = null;*/
 
             if (NtsStations == null || !NtsStations.Contains(ret.sendingStation))
             {

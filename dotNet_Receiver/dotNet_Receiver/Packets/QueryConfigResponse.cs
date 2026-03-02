@@ -85,10 +85,13 @@ namespace core_Receiver.Packets
             }
             if (VersionNumber >= new Version(2, 6))
                 RelayRepeatInterval = br.ReadUInt16();
+            if (VersionNumber >= new Version(2, 7))
+                AlternateID = br.ReadChar();
         }
 
         public bool Initialised { get; set; }
         public char StationID { get; set; }
+        public char AlternateID { get; set; }
         public UInt32 ShortInterval { get; set; }
         public UInt32 LongInterval { get; set; }
         public UInt16 BatteryThreshold_mV { get; set; }
@@ -138,7 +141,7 @@ namespace core_Receiver.Packets
                 $" ChargeV: {ChargeVoltage_mV} mV, ChargeResponsitivity: {ChargeResponseRate}, FreezingChargeV: {SafeFreezingChargeLevel_mV} mV, FreezingPwm: {SafeFreezingPwm}" + Environment.NewLine +
                 $" Record Types: ({MessageRecordTypes.ToCsv()}) Non Relay Records: {NonRelayRecording}" + Environment.NewLine +
                 $" Outbound Preamble:{OutboundPreambleLength}, Inbound Preamble {InboundPreambleLength}" + Environment.NewLine +
-                $" Boosted RX: {BoostedRx}";
+                $" Boosted RX: {BoostedRx}, Alternate ID: {AlternateID}";
         }
     }
 }

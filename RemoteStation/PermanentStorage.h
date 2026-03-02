@@ -77,6 +77,7 @@ typedef struct PermanentVariables
   bool stasisRequested;
   byte codingRate;
   short relayListenPeriod;
+  byte alternateId;
   short crc;
 } PermanentVariables;
 

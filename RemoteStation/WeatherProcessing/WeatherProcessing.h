@@ -14,8 +14,12 @@
 #define WX_DEBUG(...) do { } while (0)
 #endif
 
+#define DUAL_WEATHER (defined(WIND_SPD_PIN) && defined(WS80_WIND))
+
 namespace WeatherProcessing
 {
+  enum class WeatherDataSource { WS80, Internal };
+
   extern volatile unsigned short windCounts;
 
   void setupWeatherProcessing();
@@ -45,4 +49,8 @@ namespace WeatherProcessing
 
   extern short internalTemperature_x2;
   extern float externalTemperature;
+
+#ifdef WS80_WIND
+  void processWeatherWS80();
+#endif
 }

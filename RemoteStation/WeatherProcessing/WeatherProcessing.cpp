@@ -6,6 +6,7 @@
 #include "Wind.h"
 #include <avr/boot.h>
 #include "../PWMSolar.h"
+#include "../MessageHandling.h"
 
 //#define DEBUG_IT
 
@@ -20,15 +21,23 @@
 
 SleepModes weatherSleepEnabled = SleepModes::powerSave;
 
+#if DUAL_WEATHER
+#pragma message("Dual weather systems active.")
+#endif
 
 namespace WeatherProcessing
 {
   volatile bool weatherRequired = true;
   unsigned volatile long tickCounts = 0;
   unsigned long requiredTicks = 0xFFFFFF;
+#ifdef WIND_SPD_PIN
+  uint32_t windCountPeriod = 2000;
+#endif // WIND_SPD_PIN
 
   short internalTemperature_x2;
   float externalTemperature;
+
+  WS80_Reading lastReading;
 
   #ifdef WIND_DIR_AVERAGING
   float curWindX = 0, curWindY = 0;
@@ -40,9 +49,10 @@ namespace WeatherProcessing
   void countWind();
   void timer2Tick();
   void setupWindCounter();
-  byte getExternalTemperature();
+  byte getExternalTemperature(WeatherDataSource source);
   byte getInternalTemperature(short& reading);
   byte getCurWindDirection();
+  void createWeatherDataInternal(LoraMessageDestination& message, WeatherDataSource source, bool isComplex);
 
   volatile unsigned short windCounts = 0;
   volatile unsigned short windCountStored = 0;
@@ -56,12 +66,12 @@ namespace WeatherProcessing
   constexpr unsigned long MaxBatt_mV = 7500;
   
   static byte simpleMessagesSent = 255;
-  constexpr byte complexMessageFrequency 
-  #if defined(DEBUG_PWM)
+  constexpr byte complexMessageFrequency
+#if defined(DEBUG_PWM)
     = 1;
-  #elif defined(DEBUG)
+#elif defined(DEBUG)
     = 3;
-  #else
+#else
     = 10;
   #endif
 
@@ -73,11 +83,11 @@ namespace WeatherProcessing
   constexpr byte windSampleLongTicks = 1000 / TimerTwo::MillisPerTick;
   volatile byte windSampleTicks = windSampleShortTicks;
 
-  byte getWindDirection()
+  byte getWindDirection(WeatherDataSource source)
   {
-#ifdef WS80_WIND
-    return lastReading.wind_dir;
-#endif
+    if (source == WeatherDataSource::WS80)
+      return lastReading.wind_dir;
+
 #if WIND_DIR_AVERAGING
     WX_PRINTVAR(curWindX);
     WX_PRINTVAR(curWindY);
@@ -105,31 +115,35 @@ namespace WeatherProcessing
     return ret;
   }
 
-  inline uint16_t getWindSpeed_x2()
+  inline uint16_t getWindSpeed_x2(WeatherDataSource source)
   {
-#ifdef WS80_WIND
-    return lastReading.wind_avg_x50 / 25;
-#else
+    if (source == WeatherDataSource::WS80)
+    {
+      WX_PRINT("WS80 Windspeed_x50 ");
+      WX_PRINTLN(lastReading.wind_avg_x50);
+      return lastReading.wind_avg_x50 / 25;
+    }
+
     noInterrupts();
     short localCounts = windCountStored;
     windCountStored = 0;
     interrupts();
   #if defined(ARGENTDATA_WIND) || defined(ALS_WIND)
-    return (2UL * 2400 * localCounts) / weatherInterval;
+    return (2UL * 2400 * localCounts) / windCountPeriod;
   #elif defined(DAVIS_WIND)
-    return (2UL * 3600 * localCounts) / weatherInterval;
+    return (2UL * 3600 * localCounts) / windCountPeriod;
+  #elif defined(WS80_WIND)
+    return 0;
   #else
     #error Cannot get Wind Speed
   #endif
-
-#endif // WS80_WIND
   }
 
-  inline uint16_t getWindGust_x2()
+  inline uint16_t getWindGust_x2(WeatherDataSource source)
   {
-#ifdef WS80_WIND
-    return lastReading.wind_max_x50 / 25;
-#else
+    if (source == WeatherDataSource::WS80)
+      return lastReading.wind_max_x50 / 25;
+
     noInterrupts();
     unsigned short localInterval_x4 = minInterval_x4;
     minInterval_x4 = 0xFFFF;
@@ -138,10 +152,11 @@ namespace WeatherProcessing
     return ((unsigned short)2 * 4 * 2400) / localInterval_x4;
   #elif defined (DAVIS_WIND)
     return ((unsigned short)2 * 4 * 3600) / localInterval_x4;
+  #elif defined(WS80_WIND)
+    return 0;
   #else
     #error Cannot get wind gust
   #endif
-#endif
   }
 
   uint8_t getWindSpeedByte(const uint16_t windSpeed_x2)
@@ -159,6 +174,30 @@ namespace WeatherProcessing
 
   void createWeatherData(LoraMessageDestination& message)
   {
+
+    bool isComplex = simpleMessagesSent >= complexMessageFrequency - 1 || batteryMode == BatteryMode::DeepSleep;
+#if DUAL_WEATHER
+    createWeatherDataInternal(message, WeatherDataSource::Internal, isComplex);
+    byte alternateId;
+    GET_PERMANENT_S(alternateId);
+    message.appendByte2(alternateId);
+    message.appendByte2(MessageHandling::getUniqueID());
+    createWeatherDataInternal(message, WeatherDataSource::WS80, isComplex);
+#else
+#ifdef WS80_WIND
+    createWeatherDataInternal(message, WeatherDataSource::WS80, isComplex);
+#else
+    createWeatherDataInternal(message, WeatherDataSource::Internal, isComplex);
+#endif
+#endif
+    if (isComplex)
+      simpleMessagesSent = 0;
+    else
+      simpleMessagesSent++;
+  }
+
+  void createWeatherDataInternal(LoraMessageDestination& message, WeatherDataSource source, bool isComplex)
+  {
     WX_PRINTLN(F("Enter createWeatherData"));
   #ifdef DEBUG
     unsigned long entryMicros = micros();
@@ -168,9 +207,6 @@ namespace WeatherProcessing
     digitalWrite(WIND_PWR_PIN, HIGH);
     delayMicroseconds(1000); //use delayuS instead of standard to avoid putting the device to sleep.
   #endif
-
-    bool isComplex = simpleMessagesSent >= complexMessageFrequency - 1 || batteryMode == BatteryMode::DeepSleep;
-
     byte length = isComplex ? 10 : 4;
 
     static short lastErrorSecondsSent = 0;
@@ -192,10 +228,9 @@ namespace WeatherProcessing
 #if defined(ALS_WIND) && defined(ALS_FIELD_STRENGTH)
       length += 4;
 #endif
-#ifdef WS80_WIND
-      // humidity, light (2), uv index, external battery
-      length += 5;
-#endif
+    if (source == WeatherDataSource::WS80)
+        // humidity, light (2), uv index, external battery
+        length += 5;
     }
     
     message.appendByte2(length);
@@ -203,16 +238,16 @@ namespace WeatherProcessing
     //Message format is W(StationID)(UniqueID)(DirHex)(Spd * 2)(Voltage)
   
     WX_DEBUG(auto localCounts = windCountStored);
-    uint16_t windSpeed_x2 = getWindSpeed_x2();
+    uint16_t windSpeed_x2 = getWindSpeed_x2(source);
     byte wsByte = getWindSpeedByte(windSpeed_x2);
 
-    uint16_t windGust_x2 = getWindGust_x2();
+    uint16_t windGust_x2 = getWindGust_x2(source);
     byte wgByte = getWindSpeedByte(windGust_x2);
 
     //Update the send interval only after we calculate windSpeed, because windSpeed is dependent on weatherInterval
     unsigned short batt_mV = readBattery();
     
-    byte windDirection = getWindDirection();
+    byte windDirection = getWindDirection(source);
     message.appendByte2(windDirection); //1
 
     message.appendByte2(wsByte); //2
@@ -229,7 +264,7 @@ namespace WeatherProcessing
       batteryByte = (byte)(255UL * batt_mV / MaxBatt_mV);
       message.appendByte2(batteryByte); //5
 
-      externalTempByte = getExternalTemperature();
+      externalTempByte = getExternalTemperature(source);
       message.appendByte2(externalTempByte); //6
 
       short iTReading;
@@ -245,12 +280,13 @@ namespace WeatherProcessing
         message.appendT(lastErrorSeconds); //11
         message.appendT(lastErrorCode); //13
       }
-#if defined (WS80_WIND)
-      message.appendByte2(lastReading.humidity); // 1
-      message.appendT(lastReading.light); // 2
-      message.appendByte2(lastReading.uv_index_x10); // 1
-      message.appendByte2((byte)(255UL * lastReading.battery_mv / MaxBatt_mV)); // 1
-#endif
+      if (source == WeatherDataSource::WS80)
+      {
+        message.appendByte2(lastReading.humidity); // 1
+        message.appendT(lastReading.light); // 2
+        message.appendByte2(lastReading.uv_index_x10); // 1
+        message.appendByte2((byte)(255UL * lastReading.battery_mv / MaxBatt_mV)); // 1
+      }
 #ifdef DEBUG_IT
       message.appendT(iTReading);
 #endif
@@ -266,10 +302,7 @@ namespace WeatherProcessing
       curFieldSquared = 0;
       curSampleCount = 0;
 #endif
-      simpleMessagesSent = 0;
     }
-    else
-      simpleMessagesSent++;
     #ifdef WIND_PWR_PIN
     digitalWrite(WIND_PWR_PIN, LOW);
     #endif
@@ -319,8 +352,8 @@ namespace WeatherProcessing
     windCounts = 0;
     tickCounts = 0;
     sei();
-#ifndef WS80_WIND // WS80 interval must be aligned to WS80 sensor output, not our timer interval.
-    weatherInterval = requiredTicks * TimerTwo::MillisPerTick;
+#ifdef WIND_SPD_PIN
+    windCountPeriod = requiredTicks * TimerTwo::MillisPerTick;
 #endif
     WX_PRINT(F("requiredTicks: "));
     WX_PRINTLN(requiredTicks);
@@ -331,7 +364,7 @@ namespace WeatherProcessing
   {
     unsigned short thisMillis = millis();
     unsigned short thisInterval = thisMillis - lastWindCountMillis;
-    // no counting in deep sleep / debounce the signal (don't debounce in deep sleep because the timer is slowed):
+    // no counting in deep sleep / debounce the signal (don't debounce in stasis because the timer is slowed):
     if ((batteryMode == BatteryMode::DeepSleep || thisInterval < minWindIntervalTest)
         && batteryMode != BatteryMode::Stasis)
       return;
@@ -348,9 +381,11 @@ namespace WeatherProcessing
   }
 #endif // WIND_SPD_PIN
 
-#ifndef WS80_WIND
   void processWeather()
   {
+#ifdef WS80_WIND
+    processWeatherWS80();
+#endif
     #ifdef WIND_DIR_AVERAGING
     cli();
     bool localSample = sampleWind;
@@ -362,9 +397,8 @@ namespace WeatherProcessing
     }
     #endif // WIND_DIR_AVERAGING
   }
-#endif // WS80_Wind
 
-#if !defined(ALS_WIND) && defined(WIND_DIR_AVERAGING) && !defined(WS80_WIND)
+#if !defined(ALS_WIND) && defined(WIND_DIR_AVERAGING)
   void doSampleWind()
   {
       #ifdef WIND_PWR_PIN
@@ -524,50 +558,60 @@ namespace WeatherProcessing
     // offset = (intersect - 100) / slope + 373
   }
 
-  byte getExternalTemperature()
+  byte getExternalTemperature(WeatherDataSource source)
   {
-#ifndef WS80_WIND
-#if defined(TEMP_SENSE)
-  #pragma message("Using NTC Thermistor")
-#ifdef TEMP_PWR_PIN
-    digitalWrite(TEMP_PWR_PIN, HIGH);
-    delay(3);
-#endif //TEMP_PWR_PIN
-    auto tempReading = analogRead(TEMP_SENSE);
-#ifdef TEMP_PWR_PIN
-    digitalWrite(TEMP_PWR_PIN, LOW);
-#endif //TEMP_PWR_PIN
-    // V = Vref * R1 / (R1 + R2)
-    // V / (Vref * R1) = 1 / (R1 + R2)
-    // R1 * Vref / V = R1 + R2
-    // 0 = (1 - Vref / V) R1 + R2
-    // R1 = R2 / (Vref / V - 1)
-    // R2 / R1 = Vref / V - 1
-    // Vref / V = 1023 / reading
-    float r2_r1 = 1023.0 / tempReading - 1;
-    constexpr float invB = 1/3892.0;
-    constexpr float T0 = 273.15 + 25;
-    float T = 1/(1/T0 - invB * log(r2_r1));
-
-    //If tempReading = 1000, r2_r1 is v. small
-    //then log(r2_r1) = large negative
-    //then T = 1/(C - large negative) = 1/(C + large positive) = small!
-    //So at low temperatures we want large reading. Thermistor between sense and GND.
-
-    T -= 273.15; 
-    
-    externalTemperature = T;
-
-    //WX_PRINTVAR(tempReading);
-#else // !TEMP_SENSE
-    #pragma message("No temperature")
-    return 0;
-#endif // TEMP_SENSE
-#else // WS80_WIND
-#pragma message("WS80 Temperature")
-    float T = lastReading.temp;
-    externalTemperature = T;
+#if !defined(TEMP_SENSE) && defined(WS80_WIND)
+    source = WeatherDataSource::WS80
 #endif
+    float T;
+    if (source != WeatherDataSource::WS80)
+    {
+#if defined(TEMP_SENSE)
+#pragma message("Using NTC Thermistor")
+#ifdef TEMP_PWR_PIN
+      digitalWrite(TEMP_PWR_PIN, HIGH);
+      delay(3);
+#endif //TEMP_PWR_PIN
+      auto tempReading = analogRead(TEMP_SENSE);
+#ifdef TEMP_PWR_PIN
+      digitalWrite(TEMP_PWR_PIN, LOW);
+#endif //TEMP_PWR_PIN
+      // V = Vref * R1 / (R1 + R2)
+      // V / (Vref * R1) = 1 / (R1 + R2)
+      // R1 * Vref / V = R1 + R2
+      // 0 = (1 - Vref / V) R1 + R2
+      // R1 = R2 / (Vref / V - 1)
+      // R2 / R1 = Vref / V - 1
+      // Vref / V = 1023 / reading
+      float r2_r1 = 1023.0 / tempReading - 1;
+      constexpr float invB = 1 / 3892.0;
+      constexpr float T0 = 273.15 + 25;
+      T = 1 / (1 / T0 - invB * log(r2_r1));
+
+      //If tempReading = 1000, r2_r1 is v. small
+      //then log(r2_r1) = large negative
+      //then T = 1/(C - large negative) = 1/(C + large positive) = small!
+      //So at low temperatures we want large reading. Thermistor between sense and GND.
+
+      T -= 273.15;
+
+      externalTemperature = T;
+
+      //WX_PRINTVAR(tempReading);
+#else // !TEMP_SENSE
+#pragma message("No temperature")
+      return 0;
+#endif // TEMP_SENSE
+    }
+    else
+    {
+#ifdef WS80_WIND
+#pragma message("WS80 Temperature")
+#endif
+      T = lastReading.temp;
+      externalTemperature = T;
+    }
+
 #if defined(TEMP_SENSE) || defined(WS80_WIND)
     //We send temperature as a byte, ranging from -32 to 95 C (1 LSB = half a degree)
     if (T < -32)
@@ -580,19 +624,21 @@ namespace WeatherProcessing
 
   void timer2Tick()
   {
-#ifndef WS80_WIND
+#ifdef WIND_SPD_PIN
     if (++tickCounts >= requiredTicks)
     {
       tickCounts = 0;
+#ifndef WS80_WIND
       weatherRequired = true;
+#endif
       windCountStored = windCounts;
       windCounts = 0;
     }
+#endif
 #ifdef WIND_DIR_AVERAGING
     if (windSampleTicks == 0 || tickCounts % windSampleTicks == 0)
       sampleWind = true;
 #endif // WIND_DIR_AVERAGING
-#endif // WS80_WIND
   }
 
   bool handleWeatherCommand(MessageSource& src)
@@ -601,8 +647,8 @@ namespace WeatherProcessing
     if (src.readByte(commandType))
       return false;
 
-    byte newValue, tsOffset, tsGain;
-    if ((commandType == 'O' || commandType == 'G') &&
+    byte newValue, tsOffset, tsGain, alternateId;
+    if ((commandType == 'O' || commandType == 'G' || commandType == 'A') &&
         src.readByte(newValue))
       return false;
 
@@ -619,6 +665,9 @@ namespace WeatherProcessing
       tsGain = newValue;
       SET_PERMANENT(tsGain);
       return true;
+    case 'A': // WA - set alternate ID
+      alternateId = newValue;
+      SET_PERMANENT(alternateId);
 #ifdef ALS_WIND
     case 'E':
       return writeAlsEeprom();

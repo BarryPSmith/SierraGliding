@@ -566,6 +566,8 @@ void enterNormalMode()
 
 void enterStasis()
 {
+  // If we don't have a wind speed pin, we can't enter stasis
+#ifdef WIND_SPD_PIN
   batteryMode = BatteryMode::Stasis;
   WeatherProcessing::enterDeepSleep();
   sleepRadio();
@@ -613,6 +615,7 @@ void enterStasis()
   TimerTwo::initialise();
   wdt_enable(WDTO_8S);
   enterNormalMode();
+#endif
 }
 
 void signalError(uint16_t errorCode, const byte delay_ms)

@@ -90,7 +90,8 @@ const PermanentVariables defaultVars PROGMEM =
   .codingRate = 5,
   // When transmitting programming packets, the next relay may take half a second to get their packet onto the air
   // So we wait for that long (+ a bit) before deciding to resend the packet
-  .relayListenPeriod = 600
+  .relayListenPeriod = 600,
+  .alternateId = 'Y'
 };
 
 void PermanentStorage::initialise()

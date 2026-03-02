@@ -10,6 +10,7 @@ namespace WeatherProcessing
 {
   //constexpr uint16_t WS80_interval = 4720;
   constexpr uint16_t WS80_preSwitch = 70; // Minimum pre-switch is 30: 10ms for initialisation, 20ms for receive. We choose 70ms to give ourselves a larger buffer.
+  constexpr uint16_t WS80_timeout = 2000;
 
   extern volatile bool weatherRequired;
   bool Decode(unsigned char* b, WS80_Reading* reading);
@@ -17,9 +18,8 @@ namespace WeatherProcessing
   void InitialiseFskDirect();
 
   uint32_t lastWS80_signal;
-  WS80_Reading lastReading;
 
-  void processWeather()
+  void processWeatherWS80()
   {
     uint32_t entryMillis = millis();
     uint32_t millisSinceLastSignal = entryMillis - lastWS80_signal;
@@ -45,9 +45,16 @@ namespace WeatherProcessing
     digitalWrite(LED_PIN1, LED_ON);
 #endif
     // Check for our radio interrupt...
+    bool timedOut = false;
     while (!digitalRead(SX_DIO1)/*Check IRQ not signalled*/)
     {
       yield();
+      uint32_t curMillis = millis();
+      if (curMillis - entryMillis > WS80_timeout)
+      {
+        timedOut = true;
+        break;
+      }
     }
 #ifndef  DEBUG
     digitalWrite(LED_PIN1, LED_OFF);
@@ -56,19 +63,35 @@ namespace WeatherProcessing
     WX_DEBUG(uint32_t afterWaitMillis = millis());
     WX_DEBUG(uint32_t WS80_measuredInterval = afterWaitMillis - lastWS80_signal);
 
-
-    byte data[32];
-    LORA_CHECK(lora.readData(data, 32));
+    // we update lastWS80_signal even if we didn't get a packet
+    // Otherwise, we would go straight back into FSK RSK.
+    // If the WS80 has failed, then we would never listen on LoRa.
+    // This way, we will listen on LoRa for a little while before switching back to FSK.
+    // (This would allow a command to be received, e.g. instructing us to stop the weather work).
+    // We *should* sync with the WS80 before too long.
+    lastWS80_signal = millis();
     noHardReset = true;
     initMessagingRequired = true;
-    if (Decode(data, &lastReading))
+
+#if DUAL_WEATHER
+    weatherRequired = true;
+#endif
+    if (!timedOut)
     {
-      lastWS80_signal = millis();
-      WX_PRINTLN(F("Data Decoded"));
-      weatherRequired = true;
+      byte data[32];
+      LORA_CHECK(lora.readData(data, 32));
+      if (Decode(data, &lastReading))
+      {
+        WX_PRINTLN(F("Data Decoded"));
+        weatherRequired = true;
+      }
+      else
+      {
+        WX_PRINTLN(F("Decode failed."));
+      }
     }
     else
-      WX_PRINTLN(F("Decode failed."));
+      WX_PRINTLN(F("WS80 Wait timed out!"));
 
     WX_PRINT(F("processWeather - FSK Initialised "));
     WX_PRINTLN(intialiseMillis);

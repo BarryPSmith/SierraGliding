@@ -194,6 +194,11 @@ int main()
           dst.abort();
         else
           dst.finishAndSend();
+        char checkBuffer[] = "Message Size: 000 \n";
+        checkBuffer[14] = '0' + dst.getCurrentLocation() / 100;
+        checkBuffer[15] = '0' + dst.getCurrentLocation() / 10 % 10;
+        checkBuffer[16] = '0' + dst.getCurrentLocation() % 10;
+        AWS_DEBUG_PRINTLN(checkBuffer);
       }
       else if (kissSrc.getMessageType() == 0x06)
       {

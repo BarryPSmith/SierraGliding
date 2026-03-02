@@ -49,7 +49,9 @@
 //#define DEBUG_IT
 //#define DEBUG_PWM
 #define DEBUG_WEATHER
+#ifndef DETAILED_LORA_CHECK
 #define DETAILED_LORA_CHECK
+#endif
 //#define DEBUG_STACK
 //#define DEBUG_BASE
 //#define DEBUG_FLASH

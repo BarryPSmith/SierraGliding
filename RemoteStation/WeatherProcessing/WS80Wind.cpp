@@ -123,10 +123,11 @@ namespace WeatherProcessing
     constexpr uint32_t br_bps = 17241;
     uint32_t brRaw = (32 * SX126X_CRYSTAL_FREQ * SX126x::MHz) / br_bps;
     lora._br = brRaw;
-    constexpr uint32_t freqDev_Hz = 47600;
+    // Reverse engineering WS80 parameters reveals that it uses 200kHz deviation.
+    constexpr uint32_t freqDev_Hz = 200000;
     uint32_t freqDevRaw = lora.getRfFreq(freqDev_Hz);
     lora._freqDev = freqDevRaw;
-    lora._rxBwKhz_x10 = SX126X_GFSK_RX_BW_156_2;
+    lora._rxBwKhz_x10 = SX126X_GFSK_RX_BW_467_0;
     lora._pulseShape = SX126X_GFSK_FILTER_GAUSS_0_5;
     LORA_CHECK(lora.setModulationParamsFSK(lora._br, lora._rxBwKhz_x10, lora._pulseShape, lora._freqDev));
 
@@ -155,7 +156,7 @@ namespace WeatherProcessing
     LORA_CHECK(lora.beginFSK_i(
       915000000, //Frequency
       17241, //br_bpds
-      47600, // freq dev_Hz
+      20000, // freq dev_Hz
       1562, // rxBw_kHz_x10
       22, // power
       40, // currentLimit_mA_div2_5

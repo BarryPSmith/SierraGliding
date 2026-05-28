@@ -11,3 +11,4 @@ RemoteStation/saved
 /web/sqlite3_ext
 /dotNet_Receiver/dotNet_Receiver/Token.txt
 /dotNet_Receiver/dotNet_Receiver/Token
+/.vscode/launch.json

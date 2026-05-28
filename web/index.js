@@ -14,7 +14,8 @@ import database from './lib/database.js';
 import url from 'url';
 import { setDbFunctions, postStationData } from './lib/data-reception.js';
 import auth from './lib/auth.js';
-import { setCmdDbFunctions, addCommand, getCommands, patchCommand, deleteCommand } from './lib/commands.js';
+import { setCmdDbFunctions, notifyCommand, getCommands, 
+    addCommand, attemptCommand, respondCommand, deleteCommand } from './lib/commands.js';
 
 const args = minimist(process.argv, {
     string: ['db', 'port'],
@@ -463,6 +464,7 @@ function main(db, cb) {
 
             wss.clients.forEach((client) => {
                 client.send(JSON.stringify({
+                    type: 'weather',
                     op: 'Add',
                     id: req.params.id,
                     timestamp: moment.unix(req.body.timestamp).unix(),
@@ -488,57 +490,44 @@ function main(db, cb) {
         }
     }); // declare post /station/:id/data
 
-    router.use('/station/:id/commands', (req, res, next) => auth(db, req, res, next));
-    router.post('/station/:id/commands', async (req, res) => {
+    router.use('/commands', (req, res, next) => auth(db, req, res, next));
+    
+    router.post('/commands', async (req, res) => {
         try {
-            const cmdId = await addCommand(req, res)
-            if (cmdId == null)
-                return;
-            wss.clients.forEach((client) => {
-                client.send(JSON.stringify({
-                    station_id: req.params.id,
-                    command_id: cmdId,
-                    op: 'add'
-                }));
-            });
+            const cmdDets = await addCommand(req, res)
+            notifyCommand(wss, cmdDets, 'add');
         } catch (err) {
             Err.respond(err, res);
         }
     });
-    router.get('/station/:id/commands', async (req, res) => {
+    router.get('/commands', async (req, res) => {
         try {
             await getCommands(req, res);
         } catch (err) {
             Err.respond(err, res);
         }
     });
-    router.patch('/station/:id/commands/:commandId', async (req, res) => {
+    router.post('/commands/:commandId/attempt', async (req, res) => {
         try {
-            if (!await patchCommand(req, res))
-                return;
-            wss.clients.forEach((client) => {
-                client.send(JSON.stringify({
-                    station_id: req.params.id,
-                    command_id: req.params.commandId,
-                    op: 'patch'
-                }));
-            });
+            const cmdDets = await  attemptCommand(req, res);
+            notifyCommand(wss, cmdDets, 'attempt');
         } catch (err) {
             Err.respond(err, res);
         }
     });
-    router.delete('/station/:id/commands/:commandId', async (req, res) => 
+    router.post('/commands/:commandId/response', async (req, res) => {
+        try {
+            const cmdDets = await respondCommand(req, res);
+            notifyCommand(wss, cmdDets, 'respond');
+        } catch (err) {
+            Err.respond(err, res);
+        }
+    });
+    router.delete('/commands/:commandId', async (req, res) => 
         {
             try {
-                if (!await deleteCommand(req, res))
-                    return;
-                wss.clients.forEach((client) => {
-                    client.send(JSON.stringify({
-                        station_id: req.params.id,
-                        command_id: req.params.commandId,
-                        op: 'delete'
-                    }));
-                }); 
+                const cmdDets = await deleteCommand(req, res);
+                notifyCommand(wss, cmdDets, 'delete'); 
             } catch (err) {
                 Err.respond(err, res);
             }
@@ -683,6 +672,7 @@ async function checkCullInvalidWindspeed(db, id, windspeed, timestamp, wss) {
 
     wss.clients.forEach((client) => {
         client.send(JSON.stringify({
+            type: 'weather',
             id,
             timestamp: tsToDelete,
             op: 'Remove'

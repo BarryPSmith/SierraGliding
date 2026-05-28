@@ -160,22 +160,28 @@ Command starting characters:
         {
             var reader = new SimpleLineReader(line.Substring(1));
             reader.Go();
-            HandleMessage(reader.Encoded, packetType);
+            HandleMessage(reader.Encoded, packetType, true);
         }
 
-        void HandleCommand(string line)
+        byte HandleCommand(string line)
         {
             var reader = new SimpleLineReader(line.Substring(1));
             reader.Go();
-            var data = reader.Encoded.ToList();
+            return HandleCommand(reader.Encoded.ToList(), true);
+        }
+
+        public byte HandleCommand(List<byte> data, bool interactive)
+        { 
             if (data.Count < 1)
                 throw new InvalidOperationException("Must specify destination station ID.");
             data.Insert(0, (byte)'C');
             //Byte 1 of the encoded data is the destination station ID.
-            data.Insert(2, (byte)_modem.GetNextUniqueID());
+            byte localId = (byte)_modem.GetNextUniqueID();
+            data.Insert(2, localId);
             AddCrc(data);
 
-            HandleMessage(data.ToArray(), 0);
+            HandleMessage(data.ToArray(), 0, interactive);
+            return localId;
         }
 
         public static void AddCrc(List<byte> data)
@@ -186,13 +192,17 @@ Command starting characters:
             data.AddRange(BitConverter.GetBytes(crc));
         }
 
-        void HandleMessage(byte[] data, byte packetType)
+        void HandleMessage(byte[] data, byte packetType, bool interactive)
         {
             Output.WriteLine("Command: ");
             for (int i = 0; i < data.Length; i++)
                 Output.Write($"{data[i].ToChar()} {data[i]:X2} ");
-            Output.Write("Continue? ");
-            var confirmation = Console.ReadLine();
+            string confirmation = null;
+            if (interactive)
+            {
+                Output.Write("Continue? ");
+                confirmation = Console.ReadLine();
+            }
             if (string.IsNullOrWhiteSpace(confirmation) ||
                 confirmation.StartsWith("Y", StringComparison.OrdinalIgnoreCase))
             {

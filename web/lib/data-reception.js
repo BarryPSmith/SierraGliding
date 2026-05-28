@@ -41,7 +41,7 @@ export async function postStationData(req, res)
     const currentTimestamp = Date.now();
     if (req.body.uniqueID !== undefined)
     {
-        uniqueKey = (req.params.id << 8) + req.params.uniqueID;
+        uniqueKey = (req.params.id << 8) + req.body.uniqueID;
         if (currentTimestamp - packetTimes.get(uniqueKey) < minInterval)
         {
             res.json('success - duplicate');

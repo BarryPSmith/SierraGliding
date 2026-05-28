@@ -169,7 +169,8 @@ export default {
             // It seems it's in a rush to catch up a bunch of old socket messages.
             // So..
             // Only accept things from the past 60 seconds:
-            if (msgData.timestamp > (+new Date() / 1000 - 60)) {
+            if (msg.type == 'weather' &&
+                msgData.timestamp > (+new Date() / 1000 - 60)) {
                 EventBus.$emit('socket-message', msgData);
                 const dataManager = this.stationDict &&
                     this.stationDict[msgData.id] &&

@@ -1,13 +1,26 @@
 ﻿using core_Receiver.Packets;
+using Nito.AsyncEx;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace core_Receiver
 {
     public static class Extensions
     {
+
+        public async static Task WaitAsync2(this AsyncAutoResetEvent ev, CancellationToken token)
+        {
+            try
+            {
+                await ev.WaitAsync(token);
+            }
+            catch (OperationCanceledException) { }
+        }
+
         public static bool IsHex(this char c)
         {
             return (c >= '0' && c <= '9') ||

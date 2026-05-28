@@ -12,7 +12,7 @@ namespace core_Receiver
 {
     class DataPosting : DataStorageBase
     {
-        private static readonly HttpClient _client = new HttpClient();
+        public static readonly HttpClient _client = new HttpClient();
 
         public event EventHandler<Exception> OnException;
 
@@ -22,8 +22,8 @@ namespace core_Receiver
 
         public int Offset { get; set; }
         public TextWriter OutputWriter => Program.OutputWriter;
-        string _token;
-        public string Token 
+        static string _token;
+        public static string Token 
         {
             get => _token;
             set

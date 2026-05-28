@@ -28,7 +28,7 @@ Arguments:
  --src <address:port>   Source address to use. Default localhost:8001
  --serial <serial port> Serial port to use.
  --db <DB.sqlite>       Database to store data locally. Doesn't work until I get the SQLite stuff sorted.
- --dest <address:port>  Destionation web server. Default http://localhost:4000. Can be specified multiple times to send data to multiple servers.
+ --dest <address:port>  Destination web server. Default http://localhost:4000. Can be specified multiple times to send data to multiple servers.
  --nonPacket <file>     Record the non-packet stream in a particular file. Set to 'DISCARD' to discard the non packet stream.
  --exposeUDP <incoming> <outgoing> Expose the serial and net streams to UDP on ports incoming and outgoing
  --connectUDP <outgoing> <incoming> Send and receive via UDP rather than serial or TCP socket
@@ -38,6 +38,9 @@ Arguments:
  --noping               Specify that the software should not send pings
  --logWeather           Specify that the local db will store weather packets
  --nts <list>           [Temporary] List of stations that do not send timestamped messages (pre-2.5)
+ --unsafeTokens         Allows sending of tokens over a HTTP (not HTTPS) connection for debugging only
+
+Authentication token can be supplied in a file called 'token'.
 "
 );
         }
@@ -48,6 +51,8 @@ Arguments:
         static public volatile TextWriter OutputWriter = Console.Out;
 
         static List<DataPosting> _serverPosters;
+        static List<CommandServer> _commandServers;
+        static CommandInterpreter _interpreter;
 
         static string _dbFn;
         readonly static List<string> _destUrls = new List<string>();
@@ -172,17 +177,6 @@ Arguments:
             if (File.Exists("token"))
                 token = File.ReadAllText("token");
 
-            _serverPosters = _destUrls.Select(url =>
-            {
-                var ret = new DataPosting(url);
-                ret.Token = token;
-                ret.UnsafeTokens = _unsafeTokens,
-                ret.Offset = _offset;
-                ret.OnException += (sender, ex) => 
-                    ErrorWriter.WriteLine($"Post error ({url}): {ex.GetType()}: {ex.Message}");
-                return ret;
-            }).ToList();
-
             if (_connectUDP)
             {
                 var udpListener = new SocketListener(_incomingPort.Value, _outgoingPort.Value, _outgoingPort.Value + 2, false);
@@ -220,6 +214,22 @@ Arguments:
                     udpListener.PacketReceived += (sender, e) => communicator.Write(e.data.ToArray());
                     udpListener.PacketReceived6 += (sender, e) => communicator.Write(e.ToArray(), 6);
                 }
+            }
+
+            DataPosting.Token = token;
+            _serverPosters = new List<DataPosting>();
+            _commandServers = new List<CommandServer>();
+            _interpreter = new CommandInterpreter(_dataReceiver);
+            foreach (var url in _destUrls)
+            {
+                var poster = new DataPosting(url);
+                poster.UnsafeTokens = _unsafeTokens;
+                poster.Offset = _offset;
+                poster.OnException += (sender, ex) =>
+                    ErrorWriter.WriteLine($"Post error ({url}): {ex.GetType()}: {ex.Message}");
+                _serverPosters.Add(poster);
+                var cmdServer = new CommandServer(url, _offset, _interpreter);
+                _commandServers.Add(cmdServer);
             }
 
             _dataReceiver.PacketReceived += OnPacketReceived;
@@ -372,6 +382,8 @@ Arguments:
                         if (packet.packetData.Equals(BasicResponse.Timeout)
                             && DateTimeOffset.Now - _lastPing > TimeSpan.FromSeconds(5))
                             _pingEvent.Set();
+                        foreach (var cmdServer in _commandServers)
+                            cmdServer.OnResponseReceivedAsync(packet);
                         break;
                     case PacketTypes.Command:
                     case PacketTypes.Ping:
@@ -481,7 +493,6 @@ Arguments:
         private static void RunInteractive(bool npsIsStandardOut)
         {
             OutputWriter.WriteLine("Reading data. Type '/' followed by a command to send. Press q key to exit.");
-            CommandInterpreter interpreter = new CommandInterpreter(_dataReceiver);
             while (true)
             {
                 bool exit = false;
@@ -501,10 +512,10 @@ Arguments:
                         oldNps = kisser.NonPacketStream;
                         kisser.NonPacketStream = safeStream;
                     }
-                    interpreter.ProgrammerOutput = sw;
+                    _interpreter.ProgrammerOutput = sw;
                     var line2 = Console.ReadLine();
                     var line = key.KeyChar + line2;
-                    if (!interpreter.HandleLine(line))
+                    if (!_interpreter.HandleLine(line))
                     {
                         exit = true;
                         Console.WriteLine("Shutting Down...");
@@ -526,7 +537,7 @@ Arguments:
                     ErrorWriter = Console.Error;
                     if (_dataReceiver is KissCommunication kisser)
                         kisser.NonPacketStream = oldNps;
-                    interpreter.ProgrammerOutput = Console.Out;
+                    _interpreter.ProgrammerOutput = Console.Out;
                     sw.Flush();
                     Console.Write(sw.Encoding.GetString(ms.ToArray()));
                     WriteColoured(Console.Out, "Output Resumed", ConsoleColor.Green);

@@ -201,18 +201,58 @@ namespace core_Receiver
             CleanupLocalIds();
         }
 
+        byte[] ObjectToBytes(object o)
+        {
+            return o switch
+            {
+                int i => BitConverter.GetBytes(i),
+                uint ui => BitConverter.GetBytes(ui),
+                double d => BitConverter.GetBytes(d),
+                long l => BitConverter.GetBytes(l),
+                ulong ul => BitConverter.GetBytes(ul),
+                float f => BitConverter.GetBytes(f),
+                short s => BitConverter.GetBytes(s),
+                ushort us => BitConverter.GetBytes(us),
+                _ => throw new Exception()
+            };
+        }
+
+        byte[] GetBytes(long val, Type t)
+        {
+            var typedValue = Convert.ChangeType(val, t);
+            return ObjectToBytes(typedValue);
+        }
+
         List<byte> EncodeCommand(SierraGlidingCommand command)
         {
-            List<byte> ret = new List<byte>();
-            ret.Add((byte)(command.station_id - Offset));
+            List<byte> ret = [(byte)(command.station_id - Offset)];
             switch (command.command_type)
             {
                 case CommandType.Radio:
-                    return null;
+                    var radioData = JsonConvert.DeserializeObject<GenericCommandOptions<RadioCommandTypes>>(command.command_data);
+                    var (radioCmdByte, radioDataType) = RadioCommandDict[radioData.Parameter];
+                    ret.Add((byte)'M');
+                    ret.Add((byte)radioCmdByte);
+                    ret.AddRange(GetBytes(radioData.value, radioDataType));
+                    break;
                 case CommandType.Relay:
-                    return null;
+                    var relayData = JsonConvert.DeserializeObject<List<RelaySpec>>(command.command_data);
+                    if (!relayData.Any())
+                        return null;
+                    ret.Add((byte)'R');
+                    foreach (var spec in relayData)
+                    {
+                        ret.Add((byte)(spec.Add ? '+' : '-'));
+                        ret.Add((byte)(spec.Command ? 'C' : 'W'));
+                        ret.Add(normaliseId(spec.Id));
+                    }
+                    break;
                 case CommandType.Battery:
-                    return null;
+                    var batteryData = JsonConvert.DeserializeObject<BatteryParameters>(command.command_data);
+                    ret.Add((byte)'B');
+                    ret.AddRange(BitConverter.GetBytes(batteryData.Threshold));
+                    ret.AddRange(BitConverter.GetBytes(batteryData.Emergency));
+                    break;
                 case CommandType.QueryStatus:
                     ret.AddRange(Encoding.UTF8.GetBytes("QV"));
                     break;
@@ -223,15 +263,86 @@ namespace core_Receiver
                     ret.AddRange(Encoding.UTF8.GetBytes("F"));
                     break;
                 case CommandType.Charging:
-                    return null;
+                    ret.Add((byte)'C');
+                    var chargingData = JsonConvert.DeserializeObject<ChargingParameters>(command.command_data);
+                    ret.AddRange(BitConverter.GetBytes(chargingData.DesiredVoltage));
+                    ret.AddRange(BitConverter.GetBytes(chargingData.ResponseRate));
+                    ret.AddRange(BitConverter.GetBytes(chargingData.FreezingVoltage));
+                    ret.Add(chargingData.FreezingPwm);
+                    break;
                 case CommandType.ID:
-                    return null;
+                    ret.Add((byte)'U');
+                    var newIdData = JsonConvert.DeserializeObject<GenericCommandOptions<object>>(command.command_data);
+                    if (newIdData.value == 0)
+                        ret.AddRange(Encoding.UTF8.GetBytes("UR"));
+                    else
+                    {
+                        ret.Add((byte)'S');
+                        ret.Add(normaliseId(newIdData.value));
+                    }
+                    break;
                 case CommandType.Weather:
-                    return null;
+                    return null; // Not really used.
                 default:
                     return null;
             }
             return ret;
+        }
+
+        byte normaliseId(long value)
+        {
+            if (value > 0xFF)
+                value -= Offset;
+            if (value < 0 || value > 0xFF)
+                throw new InvalidDataException("Id must be between 0 and 255.");
+            return (byte)value;
+        }
+
+        enum RadioCommandTypes
+        {
+            Power, CMSA_P, CSMA_T, Frequency, Bandwidth, SpreadingFactor, OutboundPreamble,
+            InboundPreamble, BoostedRx, CodingRate, RelayListenPeriod
+        }
+        Dictionary<RadioCommandTypes, (char cmd, Type dataType)> RadioCommandDict = new Dictionary<RadioCommandTypes, (char cmd, Type dataType)>
+        {
+            { RadioCommandTypes.Power, ('P', typeof(Int16) ) },
+            { RadioCommandTypes.CMSA_P, ('C', typeof(byte) ) },
+            { RadioCommandTypes.CSMA_T, ('T', typeof(UInt32) ) },
+            { RadioCommandTypes.Frequency, ('F', typeof(UInt32)) },
+            { RadioCommandTypes.Bandwidth, ('B', typeof(UInt16)) },
+            { RadioCommandTypes.SpreadingFactor, ('S', typeof(byte)) },
+            { RadioCommandTypes.OutboundPreamble, ('O', typeof(UInt16)) },
+            { RadioCommandTypes.InboundPreamble, ('I', typeof(UInt16)) },
+            { RadioCommandTypes.BoostedRx, ('R', typeof(bool)) },
+            { RadioCommandTypes.CodingRate, ('E', typeof(byte)) },
+            { RadioCommandTypes.RelayListenPeriod, ('A', typeof(UInt16)) }
+        };
+
+        class GenericCommandOptions<T>
+        {
+            public T Parameter { get; set; }
+            public long value { get; set; }
+        }
+
+        class BatteryParameters
+        {
+            public short Threshold { get; set; }
+            public short Emergency { get; set; }
+        }
+
+        class RelaySpec
+        {
+            public bool Add { get; set; }
+            public bool Command { get; set; }
+            public int Id { get; set; }
+        }
+
+        class ChargingParameters
+        {
+            public short DesiredVoltage { get; set; }
+            public short ResponseRate { get; set; }
+            public short FreezingVoltage { get; set; }
+            public byte FreezingPwm { get; set; }
         }
 
         void CleanupLocalIds()

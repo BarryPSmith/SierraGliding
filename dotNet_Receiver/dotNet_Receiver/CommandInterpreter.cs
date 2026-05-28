@@ -128,7 +128,6 @@ Command starting characters:
  I : Change reporting interval. : (shortInterval:4)(longInterval:4)
  B : Change battery thresholds. : (new threshold in mV:2)(new emergency threshold mV:2)
  Q : Query station.             : QV for volatile data. QC for config data.
- O : Set Override interval.     : (L|S)(4 byte new interval)(H|M)
  M : Change radio settings.     : Same as modem. H6 for more info. (P|C|T|F|B|S|O)
  W : Change weather settings    : (C|O|G)(newValue) C: calibrate wind O: set temp offset G: set temp gain
  P : Reprogram station          : (Use programmer interface instead. )

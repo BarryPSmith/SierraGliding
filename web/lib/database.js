@@ -195,7 +195,7 @@ export default function database(dbpath, drop, cb) {
             command_type TEXT NOT NULL,
             command_data TEXT NULL,
             request_time INTEGER NOT NULL,
-            attempts INTEGER NOT NULL,
+            attempts INTEGER NOT NULL DEFAULT 0,
             response_time INTEGER NULL,
             response TEXT NULL)`);
 

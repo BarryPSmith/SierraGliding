@@ -378,12 +378,15 @@ Authentication token can be supplied in a file called 'token'.
                                 serverPoster?.SendWeatherDataAsync(packet, receivedTime);
                         break;
                     case PacketTypes.Response:
-                        AcknowledgeResponse(packet.uniqueID, packet.sendingStation);
-                        if (packet.packetData.Equals(BasicResponse.Timeout)
-                            && DateTimeOffset.Now - _lastPing > TimeSpan.FromSeconds(5))
-                            _pingEvent.Set();
-                        foreach (var cmdServer in _commandServers)
-                            cmdServer.OnResponseReceivedAsync(packet);
+                        if (!corrupt)
+                        {
+                            AcknowledgeResponse(packet.uniqueID, packet.sendingStation);
+                            if (packet.packetData.Equals(BasicResponse.Timeout)
+                                && DateTimeOffset.Now - _lastPing > TimeSpan.FromSeconds(5))
+                                _pingEvent.Set();
+                            foreach (var cmdServer in _commandServers)
+                                cmdServer.OnResponseReceivedAsync(packet);
+                        }
                         break;
                     case PacketTypes.Command:
                     case PacketTypes.Ping:

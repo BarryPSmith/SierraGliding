@@ -120,8 +120,8 @@ namespace core_Receiver
         void ProcessMessage(MemoryStream ms)
         {
             StreamReader reader = new StreamReader(ms);
-
-            var packet = JsonConvert.DeserializeObject<SierraGlidingPacket>(reader.ReadToEnd());
+            var str = reader.ReadToEnd();
+            var packet = JsonConvert.DeserializeObject<SierraGlidingPacket>(str);
 
             if (packet == null)
                 return;
@@ -191,14 +191,14 @@ namespace core_Receiver
             Output.WriteLine($"Sending remote command {command.ID} ({command.command_type})");
             List<byte> data = EncodeCommand(command);
             byte messageId = _commandInterpreter.HandleCommand(data, false);
+            var stationId = (byte)(command.station_id - Offset);
+            _localIds[(stationId, messageId)] = (command.ID, DateTimeOffset.Now);
             _nextCommandTime = DateTimeOffset.Now + CommandInterval;
             var completeUrl = $"{_url}/api/commands/{command.ID}/attempt";
             var resp = await Client.PostAsync(completeUrl, null);
             if (!resp.IsSuccessStatusCode)
                 Output.WriteLine($"Unable to post attempt for {command.ID}: {resp.StatusCode}");
             CleanupLocalIds();
-            var stationId = (byte)(command.station_id - Offset);
-            _localIds[(stationId, messageId)] = (command.ID, DateTimeOffset.Now);
         }
 
         List<byte> EncodeCommand(SierraGlidingCommand command)
@@ -255,19 +255,26 @@ namespace core_Receiver
 
         public async void OnResponseReceivedAsync(Packet packet)
         {
-            if (!_localIds.TryRemove((packet.sendingStation, packet.uniqueID), out var source))
-                return;
-            Output.WriteLine($"Posting command response to {source.foreignId}");
-            var uri = $"{_url}/api/commands/{source.foreignId}/response";
-            var json = JsonConvert.SerializeObject(new { response = packet.SafeDataString });
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-            var resp = await Client.PostAsync(uri, content);
-            if (!resp.IsSuccessStatusCode)
-                Output.WriteLine($"Failed to post command response: {resp.StatusCode}");
+            try
+            {
+                if (!_localIds.TryRemove((packet.sendingStation, packet.uniqueID), out var source))
+                    return;
+                Output.WriteLine($"Posting command response to {source.foreignId}");
+                var uri = $"{_url}/api/commands/{source.foreignId}/response";
+                var json = JsonConvert.SerializeObject(new { response = packet.SafeDataString });
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var resp = await Client.PostAsync(uri, content);
+                if (!resp.IsSuccessStatusCode)
+                    Output.WriteLine($"Failed to post command response: {resp.StatusCode}");
+            }
+            catch (Exception ex)
+            {
+                Output.WriteLine($"Excception CommandServer.OnResponseReceived: {ex.Message}");
+            }
         }
     }
 
-    enum SGOps { Add, Remove }
+    enum SGOps { Add, Remove, Attempt, Respond }
     enum SGType { weather, command }
 
     enum CommandType

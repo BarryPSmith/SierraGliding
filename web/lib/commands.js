@@ -102,8 +102,10 @@ export async function attemptCommand(req, res)
     await dbRun(`UPDATE commands SET attempts = attempts + 1 
         WHERE id = $command_id`,
         { $command_id: req.params.commandId });
+    res.json('success');
+
     return {
-        stationId: stationId,
+        stationId: stationId.station_id,
         commandId: req.params.commandId
     };
 }
@@ -117,7 +119,7 @@ export async function respondCommand(req, res)
         });
         return null;
     } else {
-        req.params.commandId = parseInt(req.params[key]);
+        req.params.commandId = parseInt(req.params.commandId);
     }
     if (req.body.response === undefined) {
         res.status(400).json({
@@ -144,9 +146,11 @@ export async function respondCommand(req, res)
         {
             $response_time: responseTime,
             $response: req.body.response,
+            $command_id: req.params.commandId
         });
+    res.json('success');
     return {
-        stationId: stationId,
+        stationId: stationId.station_id,
         commandId: req.params.commandId
     };
 }
@@ -174,7 +178,7 @@ export async function deleteCommand(req, res)
     await dbRun('DELETE FROM commands WHERE id = $command_id',
         { $command_id: req.params.commandId });
     return {
-        stationId: stationId,
+        stationId: stationId.station_id,
         commandId: req.params.commandId
     };
 }

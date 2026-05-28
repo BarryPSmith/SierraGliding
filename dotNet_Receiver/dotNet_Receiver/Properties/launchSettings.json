@@ -2,7 +2,8 @@
   "profiles": {
     "core_Receiver": {
       "commandName": "Project",
-      "commandLineArgs": "--connectUDP 15244 15344 --db \"../../../data.sqlite\" --dest http://localhost:4000 --_serial COM3 --_noping --_dest https://sierragliding.us --logWeather --_offset 2000 --unsafeTokens"
+      "commandLineArgs": "--connectUDP 15244 15344 --db \"../../../data.sqlite\" --dest http://localhost:4000 --_serial COM3 --_noping --_dest https://sierragliding.us --logWeather --_offset 2000 --unsafeTokens",
+      "_commandLineArgs": "--exposeUDP 15244 15344 --db \"../../../data.sqlite\" --dest http://localhost:4000 --serial COM5 --_noping --_dest https://sierragliding.us --logWeather --_offset 2000 --unsafeTokens"
     }
   }
 }

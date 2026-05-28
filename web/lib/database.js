@@ -189,6 +189,16 @@ export default function database(dbpath, drop, cb) {
                 Geometry TEXT NOT NULL
             );`)
 
+        db.run(`CREATE TABLE IF NOT EXISTS commands (
+            ID INTEGER PRIMARY KEY,
+            station_id INTEGER NOT NULL,
+            command_type TEXT NOT NULL,
+            command_data TEXT NULL,
+            request_time INTEGER NOT NULL,
+            attempts INTEGER NOT NULL,
+            response_time INTEGER NULL,
+            response TEXT NULL)`);
+
         db.get('SELECT sqlite_version() AS ver', (err, res) => {
             if (err) console.error(err);
             else (console.error('Sqlite3 Version: ' + res.ver));

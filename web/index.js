@@ -14,6 +14,7 @@ import database from './lib/database.js';
 import url from 'url';
 import { setDbFunctions, postStationData } from './lib/data-reception.js';
 import auth from './lib/auth.js';
+import { setCmdDbFunctions, addCommand, getCommands, patchCommand, deleteCommand } from './lib/commands.js';
 
 const args = minimist(process.argv, {
     string: ['db', 'port'],
@@ -79,7 +80,7 @@ function main(db, cb) {
     const dbGet = util.promisify(sqlite3.Database.prototype.get).bind(db);
     const dbRun = util.promisify(sqlite3.Database.prototype.run).bind(db);
     setDbFunctions(db);
-
+    setCmdDbFunctions(db);
 
     // Logging Middleware
     router.use(morgan('combined'));
@@ -134,36 +135,6 @@ function main(db, cb) {
 
         return stations;
     };
-
-    /**
-     * Returns basic metadata about all stations
-     * managed in the database as a GeoJSON FeatureCollection
-     * Not used - we just convert to features client side.
-     */
-    router.get('/stationFeatures', async (req, res) => {
-        try {
-            const stations = await getAllStations(req);
-            const pts = stations.map((station) => [station.lon, station.lat]);
-
-            const stationFeatures = turf.featureCollection(stations.map((station) => {
-                return turf.point([station.lon, station.lat], {
-                    name: station.name,
-                    station: station
-                },{
-                    id: station.id,
-                    bbox: turf.bbox(turf.buffer(turf.point([station.lon, station.lat]), 0.5))
-                });
-            }));
-
-            if (pts.length) {
-                stationFeatures.bbox = turf.bbox(turf.buffer(turf.multiPoint(pts), 5));
-            }
-
-            res.json(stationFeatures);
-        } catch (err) {
-            return Err.respond(err, res);
-        }
-    });
 
     router.get('/mapGeometry', async (req, res) => {
         try {
@@ -451,8 +422,6 @@ function main(db, cb) {
         }
     });
 
-    const packetTimes = new Map();
-    const minInterval =  60000; // 60 seconds
     /**
      * Save a new data point to a a given station
      */
@@ -467,21 +436,6 @@ function main(db, cb) {
 
         if (!await postStationData(req, res))
             return;
-
-            if (invalidWindspeed) {
-                return res.status(422).json({
-                    status: 422,
-                    error: 'Invalid windspeed stronger than gust'
-                });
-            }
-
-            if (uniqueKey !== undefined)
-                packetTimes.set(key, currentTimestamp);
-
-            res.json('success');
-        } catch (err) {
-            return Err.respond(err, res);
-        }
 
         try {
             const avg_wd_String = extensionLoaded ?
@@ -534,35 +488,61 @@ function main(db, cb) {
         }
     }); // declare post /station/:id/data
 
-    /**
-     * Return the latest datapoint for a given station
-     */
-    router.get('/station/:id/data/latest', async (req, res) => {
+    router.use('/station/:id/commands', (req, res, next) => auth(db, req, res, next));
+    router.post('/station/:id/commands', async (req, res) => {
         try {
-            const data = await dbAll(`
-                SELECT
-                    Station_ID AS id,
-                    Timestamp AS timestamp,
-                    Windspeed AS windspeed,
-                    Wind_Direction AS wind_direction,
-                    Battery_Level AS battery_level
-                FROM
-                    station_data
-                WHERE
-                    ID = $id
-                ORDER BY
-                    timestamp DESC
-                LIMIT 1
-
-            `, {
-                $id: req.params.id
+            const cmdId = await addCommand(req, res)
+            if (cmdId == null)
+                return;
+            wss.clients.forEach((client) => {
+                client.send(JSON.stringify({
+                    station_id: req.params.id,
+                    command_id: cmdId,
+                    op: 'add'
+                }));
             });
-
-            res.json(data);
         } catch (err) {
-            return Err.respond(err, res);
+            Err.respond(err, res);
         }
     });
+    router.get('/station/:id/commands', async (req, res) => {
+        try {
+            await getCommands(req, res);
+        } catch (err) {
+            Err.respond(err, res);
+        }
+    });
+    router.patch('/station/:id/commands/:commandId', async (req, res) => {
+        try {
+            if (!await patchCommand(req, res))
+                return;
+            wss.clients.forEach((client) => {
+                client.send(JSON.stringify({
+                    station_id: req.params.id,
+                    command_id: req.params.commandId,
+                    op: 'patch'
+                }));
+            });
+        } catch (err) {
+            Err.respond(err, res);
+        }
+    });
+    router.delete('/station/:id/commands/:commandId', async (req, res) => 
+        {
+            try {
+                if (!await deleteCommand(req, res))
+                    return;
+                wss.clients.forEach((client) => {
+                    client.send(JSON.stringify({
+                        station_id: req.params.id,
+                        command_id: req.params.commandId,
+                        op: 'delete'
+                    }));
+                }); 
+            } catch (err) {
+                Err.respond(err, res);
+            }
+        });
 
     router.get('/groups', async (req, res) => {
         try {

@@ -22,6 +22,17 @@ namespace core_Receiver
 
         public int Offset { get; set; }
         public TextWriter OutputWriter => Program.OutputWriter;
+        string _token;
+        public string Token 
+        {
+            get => _token;
+            set
+            {
+                _token = value;
+                _client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", value);
+            }
+        }
+        public bool UnsafeTokens { get; set; } = false;
 
         public DataPosting(string url)
         {
@@ -115,7 +126,7 @@ namespace core_Receiver
                     subPacket.light,
                     uv_index = subPacket.uvIndex,
                     external_batt = subPacket.externalBatt,
-                    subPacket.uniqueID
+                    subPacket.uniqueID,
                 };
                 var json = JsonConvert.SerializeObject(toSerialize);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
@@ -124,6 +135,11 @@ namespace core_Receiver
 
                 try
                 {
+                    if (!string.IsNullOrEmpty(Token) 
+                        && uri.Scheme != Uri.UriSchemeHttps
+                        && !UnsafeTokens)
+                        throw new Exception("Unable to post with a token to a non-HTTPS URL.");
+
                     var response = await _client.PostAsync(uri, content);
                     if (response.IsSuccessStatusCode)
                     {
@@ -132,8 +148,15 @@ namespace core_Receiver
                     }
                     else
                     {
-                        var err = JsonConvert.DeserializeObject<ServerError>(await response.Content.ReadAsStringAsync());
-                        OutputWriter.WriteLine($"Post of {packet.sendingStation}/{packet.type.ToChar()}{packet.uniqueID:X2} to {url} failed ({response.StatusCode}): {err.Error}");
+                        try
+                        {
+                            var err = JsonConvert.DeserializeObject<ServerError>(await response.Content.ReadAsStringAsync());
+                            OutputWriter.WriteLine($"Post of {packet.sendingStation}/{packet.type.ToChar()}{packet.uniqueID:X2} to {url} failed ({response.StatusCode}): {err.Error}");
+                        }
+                        catch
+                        {
+                            OutputWriter.WriteLine($"Post of {packet.sendingStation}/{packet.type.ToChar()}{packet.uniqueID:X2} to {url} failed ({response.StatusCode})");
+                        }
                         /*OutputWriter.WriteLine($"Content: {response.Content.ReadAsStringAsync().Result}");
                         OutputWriter.WriteLine($"JSON: {json}");*/
                     }

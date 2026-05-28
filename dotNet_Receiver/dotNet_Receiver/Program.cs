@@ -58,6 +58,7 @@ Arguments:
         static string _npsFn = null;
         static int _offset = 0;
         static bool _logWeather = false;
+        static bool _unsafeTokens = false;
 
         static readonly CancellationTokenSource _exitingSource = new CancellationTokenSource();
 
@@ -129,6 +130,9 @@ Arguments:
 
             if (args.Contains("--noPing", StringComparer.OrdinalIgnoreCase))
                 _sendPing = false;
+
+            if (args.Contains("--unsafeTokens", StringComparer.OrdinalIgnoreCase))
+                _unsafeTokens = true;
         }
 
         static void Main(string[] args)
@@ -164,9 +168,15 @@ Arguments:
 
             List<Task> runTasks;
 
+            string token = null;
+            if (File.Exists("token"))
+                token = File.ReadAllText("token");
+
             _serverPosters = _destUrls.Select(url =>
             {
                 var ret = new DataPosting(url);
+                ret.Token = token;
+                ret.UnsafeTokens = _unsafeTokens,
                 ret.Offset = _offset;
                 ret.OnException += (sender, ex) => 
                     ErrorWriter.WriteLine($"Post error ({url}): {ex.GetType()}: {ex.Message}");

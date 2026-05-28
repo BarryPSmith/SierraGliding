@@ -15,7 +15,7 @@ export default function database(dbpath, drop, cb) {
         db.run('PRAGMA journal_mode = WAL');
         db.run('PRAGMA busy_timeout = 1000');
 
-        db.loadExtension('sqlite3_ext/extension-functions', (err) => {
+        db.loadExtension('./sqlite3_ext/extension-functions', (err) => {
             if (err) console.error(err);
         });
 
@@ -33,17 +33,18 @@ export default function database(dbpath, drop, cb) {
 
         db.run(`
             CREATE TABLE IF NOT EXISTS users (
-                id                  SERIAL,
-                username            TEXT PRIMARY KEY,
+                id                  INTEGER PRIMARY KEY,
+                username            TEXT UNIQUE,
                 password            TEXT NOT NULL
-            )
+            );
         `);
 
         db.run(`
             CREATE TABLE IF NOT EXISTS tokens (
+                id                  INTEGER PRIMARY KEY,
                 uid                 INT NOT NULL REFERENCES users(id),
-                token               TEXT PRIMARY KEY
-            )
+                token               TEXT NOT NULL
+            );
         `);
 
         db.run(`

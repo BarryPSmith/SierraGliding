@@ -197,7 +197,10 @@ export default {
                 feature.properties.avgColor = this.get_color(mostRecent.windspeed_avg, legend);
                 feature.properties.instColor = this.get_color(mostRecent.windspeed, legend);
                 feature.properties.windDirName = this.getName(mostRecent.wind_direction_avg);
-                feature.properties.windDirColor = this.get_direction_color(mostRecent.wind_direction_avg, station.Wind_Dir_Legend);
+                let legend = station.Wind_Dir_Legend;
+                if (legend && legend.legend)
+                    legend = legend.legend;
+                feature.properties.windDirColor = this.get_direction_color(mostRecent.wind_direction_avg, legend);
             }
         },
         getName(direction) {

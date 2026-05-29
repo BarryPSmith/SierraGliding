@@ -33,7 +33,7 @@ namespace core_Receiver
 
         static HttpClient Client => DataPosting._client;
         string _url;
-
+        byte? _lastMessageId;
 
         public int Offset { get; set; }
 
@@ -183,21 +183,59 @@ namespace core_Receiver
             var nextCommand = _commands.OrderBy(cmd => cmd.attempts)
                 .ThenBy(cmd => cmd.request_time)
                 .First();
-            await SendCommandAsync(nextCommand);
+            if (nextCommand.command_type == CommandType.QuerySignal)
+                await HandleQuerySignalAsync(nextCommand);
+            else
+                await SendCommandAsync(nextCommand);
+        }
+
+        async Task HandleQuerySignalAsync(SierraGlidingCommand command)
+        {
+            if (!Program._lastDirectPackets.TryGetValue(normaliseId(command.station_id), out var tpl))
+            {
+                await PostResponse(command.ID, "No direct packets received.");
+                return;
+            }
+            var age = tpl.received - DateTimeOffset.Now;
+            await PostResponse(command.ID,
+                $"Age: {age.TotalSeconds:F1} s ({tpl.received:yyyy-MM-dd HH:mm:ss})\n" +
+                $"RSSI: {tpl.rssi:F1} dBm\n" +
+                $"SNR: {tpl.snr} dB");
         }
 
         async Task SendCommandAsync(SierraGlidingCommand command)
         {
-            Output.WriteLine($"Sending remote command {command.ID} ({command.command_type})");
-            List<byte> data = EncodeCommand(command);
-            byte messageId = _commandInterpreter.HandleCommand(data, false);
-            var stationId = (byte)(command.station_id - Offset);
-            _localIds[(stationId, messageId)] = (command.ID, DateTimeOffset.Now);
-            _nextCommandTime = DateTimeOffset.Now + CommandInterval;
-            var completeUrl = $"{_url}/api/commands/{command.ID}/attempt";
-            var resp = await Client.PostAsync(completeUrl, null);
-            if (!resp.IsSuccessStatusCode)
-                Output.WriteLine($"Unable to post attempt for {command.ID}: {resp.StatusCode}");
+            try
+            {
+                Output.WriteLine($"Sending remote command {command.ID} ({command.command_type})");
+
+                byte messageId;
+                if (command.command_type == CommandType.Raw)
+                {
+                    messageId = _commandInterpreter.HandleCommand(command.command_data, false);
+                }
+                else
+                {
+                    List<byte> data = EncodeCommand(command);
+                    messageId = _commandInterpreter.HandleCommand(data, false);
+                }
+                _lastMessageId = messageId;
+                var stationId = (byte)(command.station_id - Offset);
+                _localIds[(stationId, messageId)] = (command.ID, DateTimeOffset.Now);
+                _nextCommandTime = DateTimeOffset.Now + CommandInterval;
+                var completeUrl = $"{_url}/api/commands/{command.ID}/attempt";
+                try
+                {
+                    var resp = await Client.PostAsync(completeUrl, null);
+                    if (!resp.IsSuccessStatusCode)
+                        Output.WriteLine($"Unable to post attempt for {command.ID}: {resp.StatusCode}");
+                }
+                catch { }
+            }
+            catch (Exception ex)
+            {
+                await PostResponse(command.ID, $"Unexpected Exception: {ex.Message}");
+            }
             CleanupLocalIds();
         }
 
@@ -283,6 +321,11 @@ namespace core_Receiver
                     break;
                 case CommandType.Weather:
                     return null; // Not really used.
+                case CommandType.ReportInterval:
+                    ret.Add((byte)'I');
+                    var newIntervalData = JsonConvert.DeserializeObject<GenericCommandOptions<object>>(command.command_data);
+                    ret.AddRange(BitConverter.GetBytes((uint)newIntervalData.value));
+                    break;
                 default:
                     return null;
             }
@@ -368,20 +411,29 @@ namespace core_Receiver
         {
             try
             {
+                if (packet.uniqueID == _lastMessageId)
+                    _commandEvent.Set();
                 if (!_localIds.TryRemove((packet.sendingStation, packet.uniqueID), out var source))
                     return;
                 Output.WriteLine($"Posting command response to {source.foreignId}");
-                var uri = $"{_url}/api/commands/{source.foreignId}/response";
-                var json = JsonConvert.SerializeObject(new { response = packet.SafeDataString });
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var resp = await Client.PostAsync(uri, content);
-                if (!resp.IsSuccessStatusCode)
-                    Output.WriteLine($"Failed to post command response: {resp.StatusCode}");
+                var foreignId = source.foreignId;
+                var response = packet.SafeDataString;
+                await PostResponse(foreignId, response);
             }
             catch (Exception ex)
             {
                 Output.WriteLine($"Excception CommandServer.OnResponseReceived: {ex.Message}");
             }
+        }
+
+        private async Task PostResponse(int foreignId, string response)
+        {
+            var uri = $"{_url}/api/commands/{foreignId}/response";
+            var json = JsonConvert.SerializeObject(new { response });
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var resp = await Client.PostAsync(uri, content);
+            if (!resp.IsSuccessStatusCode)
+                Output.WriteLine($"Failed to post command response: {resp.StatusCode}");
         }
     }
 
@@ -392,7 +444,8 @@ namespace core_Receiver
     {
         Unknown, QueryConfig, QueryStatus, QuerySignal,
         Battery, Radio, Relay, ReportInterval,
-        Charging, Weather, ID, Restart
+        Charging, Weather, ID, Restart,
+        Raw
     }
     class SierraGlidingCommand
     {

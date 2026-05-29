@@ -35,7 +35,8 @@ export default function database(dbpath, drop, cb) {
             CREATE TABLE IF NOT EXISTS users (
                 id                  INTEGER PRIMARY KEY,
                 username            TEXT UNIQUE,
-                password            TEXT NOT NULL
+                password            TEXT NOT NULL,
+                salt                TEXT NOT NULL
             );
         `);
 
@@ -198,6 +199,13 @@ export default function database(dbpath, drop, cb) {
             attempts INTEGER NOT NULL DEFAULT 0,
             response_time INTEGER NULL,
             response TEXT NULL)`);
+
+        db.run(`CREATE TABLE IF NOT EXISTS user_permissions (
+            ID INTEGER PRIMARY KEY,
+            user_id INTEGER NOT NULL REFERENCES users(id),
+            group_id INTEGER REFERENCES station_groups(id),
+            permissions TEXT);
+            `);
 
         db.get('SELECT sqlite_version() AS ver', (err, res) => {
             if (err) console.error(err);

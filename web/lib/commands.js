@@ -1,7 +1,7 @@
 import util from 'util';
 import sqlite3 from 'sqlite3';
 
-let dbAll, dbGet, dbRun;
+let _db, dbAll, dbGet, dbRun;
 
 export function notifyCommand(wss, cmdDets, op)
 {
@@ -17,8 +17,9 @@ export function notifyCommand(wss, cmdDets, op)
     });
 }
 
-export function setCmdDbFunctions(db)
+export function setCmdDatabase(db)
 {
+    _db = db;
     dbAll = util.promisify(sqlite3.Database.prototype.all).bind(db);
     dbGet = util.promisify(sqlite3.Database.prototype.get).bind(db);
     dbRun = util.promisify(sqlite3.Database.prototype.run).bind(db);
@@ -29,10 +30,11 @@ export async function addCommand(req, res)
     if (req.body.commandType === undefined) {
         res.status(400).json({
             status: 400,
-            error: `$commandType key required`
+            error: `commandType key required`
         });
         return null;
     }
+
 
     const requestTime = Math.floor(Date.now() / 1000);
 
@@ -42,7 +44,7 @@ export async function addCommand(req, res)
         
         SELECT last_insert_rowid()`,
         {
-            $id: req.params.id,
+            $id: req.body.stationId,
             $command_type: req.body.commandType,
             $command_data: req.body.commandData,
             $request_time: requestTime
@@ -60,7 +62,7 @@ export async function getCommands(req, res)
     let params = {};
     if (req.query.stationId !== undefined) {
         query += ' AND station_id = $station_id';
-        params['$station_id'] = req.query.id;
+        params['$station_id'] = req.query.stationId;
     }
     if (req.query.start !== undefined) {
         query += ' AND request_time >= $request_time';

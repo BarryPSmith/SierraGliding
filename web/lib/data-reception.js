@@ -8,7 +8,7 @@ const minInterval =  60000; // 60 seconds
 
 let dbAll, dbGet, dbRun;
 
-export function setDbFunctions(db)
+export function setRecepDatabase(db)
 {
     dbAll = util.promisify(sqlite3.Database.prototype.all).bind(db);
     dbGet = util.promisify(sqlite3.Database.prototype.get).bind(db);
@@ -52,9 +52,9 @@ export async function postStationData(req, res)
     
 
     try {
-        const wsOffset = await (dbGet('SELECT Wind_Direction_Offset FROM stations WHERE id = $id'
-            , { $id: req.params.id }));
-        if (!wsOffset) {
+        const dbStation = await dbGet('SELECT Wind_Direction_Offset, Group_ID FROM stations WHERE id = $id'
+            , { $id: req.params.id });
+        if (!dbStation) {
             res.status(404).json({
                 status:404,
                 error:`Station ${req.params.id} not found.`
@@ -65,7 +65,7 @@ export async function postStationData(req, res)
         const invalidWindspeed = typeof(req.body.wind_gust) == 'number' && req.body.wind_speed > 2 * (req.body.wind_gust + 2);
         const dest = invalidWindspeed ? 'Discarded_Data' : 'Station_Data';
 
-        req.body.wind_direction = ((req.body.wind_direction + wsOffset.Wind_Direction_Offset) % 360 + 360) % 360;
+        req.body.wind_direction = ((req.body.wind_direction + dbStation.Wind_Direction_Offset) % 360 + 360) % 360;
         await dbRun(`
             INSERT INTO ${dest} (
                 Station_ID,

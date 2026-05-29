@@ -4,11 +4,14 @@ const path = require('path');
 const webPack = require('webpack');
 
 var config = {
-  entry: './src/main.js',
-  output: {
+  entry: {
+	main: './src/main.js',
+	management: './src/management.js'
+  },
+  /*output: {
     path: path.resolve(__dirname, 'dist'),
 	filename: 'main.js'
-  },
+  },*/
   module: {
     rules: [
 	  {
@@ -37,8 +40,18 @@ var config = {
 	new HTMLWebpackPlugin({
 	  showErrors: true,
 	  cache: true,
+	  filename: './index.html',
 	  template: './index.html',
-	  publicPath: '/'
+	  publicPath: '/',
+	  chunks: ['main']
+	}),
+	new HTMLWebpackPlugin({
+		showErrors: true,
+		cache: true,
+		filename: 'management/index.html',
+		template: './index.html',
+		publicPath: '/',
+		chunks: ['management']
 	})
   ]
 };

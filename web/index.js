@@ -12,9 +12,9 @@ import util from 'util';
 import minimist from 'minimist';
 import database from './lib/database.js';
 import url from 'url';
-import { setDbFunctions, postStationData } from './lib/data-reception.js';
-import auth from './lib/auth.js';
-import { setCmdDbFunctions, notifyCommand, getCommands, 
+import { setRecepDatabase, postStationData } from './lib/data-reception.js';
+import { setAuthDatabase, auth, authPostCommand, authPostData } from './lib/auth.js';
+import { setCmdDatabase, notifyCommand, getCommands, 
     addCommand, attemptCommand, respondCommand, deleteCommand } from './lib/commands.js';
 
 const args = minimist(process.argv, {
@@ -80,13 +80,29 @@ function main(db, cb) {
     const dbAll = util.promisify(sqlite3.Database.prototype.all).bind(db);
     const dbGet = util.promisify(sqlite3.Database.prototype.get).bind(db);
     const dbRun = util.promisify(sqlite3.Database.prototype.run).bind(db);
-    setDbFunctions(db);
-    setCmdDbFunctions(db);
+    setRecepDatabase(db);
+    setCmdDatabase(db);
+    setAuthDatabase(db);
 
     // Logging Middleware
     router.use(morgan('combined'));
 
     const getAllStations = async (req) => {
+        
+        let groupWhere = `(Group_ID IS (SELECT ID FROM station_groups WHERE Name = $groupName)
+                        AND
+                        Display_Level <= 1)`;
+        if (req.query.groupId !== undefined) {
+            if (req.query.groupId == 'null')
+                req.query.groupId = null;
+            groupWhere = `(Group_ID IS $groupId)`;
+        }
+        let userWhere = '';
+        if (req.query.userId !== null) {
+            userWhere = 
+            `OR Group_ID IN (SELECT group_id FROM user_permissions WHERE user_id = $userId) 
+            OR (Group_ID IS NULL AND EXISTS (SELECT 1 FROM user_permissions WHERE user_id = $userID AND group_id IS NULL))`
+        }
         const stations = await dbAll(`
             SELECT
                 ID AS id,
@@ -99,21 +115,22 @@ function main(db, cb) {
                 Lon as lon,
                 Elevation as elevation,
                 Info as info,
-                Info_Is_Link as infoIsLink
+                Info_Is_Link as infoIsLink,
+                Group_ID as groupId
             FROM
                 stations
             WHERE
                 id >= 0
                 AND (
-                        (Group_ID IS (SELECT ID FROM station_groups WHERE Name = $groupName)
-                        AND
-                        Display_Level <= 1)
-                    OR
+                        ${groupWhere}
+                        ${userWhere}
+                        OR 
                     1 = $showAll)
         `, {
-            $specificId: req.query.stationID,
             $showAll: req.query.all === 'true' ? 1 : 0,
-            $groupName: req.query.groupName
+            $groupName: req.query.groupName,
+            $groupId: req.query.groupId,
+            $userId: req.query.userId
         });
 
         for (const idx in stations) {
@@ -168,7 +185,7 @@ function main(db, cb) {
     /**
      * Create a new station
      */
-    router.post('/station', (req, res, next) => auth(db, req, res, next));
+    router.post('/station', auth);
     router.post('/station', async (req, res) => {
         try {
             if (!req.body) throw new Err(400, null, 'request body required');
@@ -426,7 +443,8 @@ function main(db, cb) {
     /**
      * Save a new data point to a a given station
      */
-    router.post('/station/:id/data', (req, res, next) => auth(db, req, res, next));
+    router.post('/station/:id/data', auth);
+    router.post('/station/:id/data', authPostData);
     router.post('/station/:id/data', async (req, res) => {
         if (!req.body) {
             return res.status(400).json({
@@ -490,8 +508,9 @@ function main(db, cb) {
         }
     }); // declare post /station/:id/data
 
-    router.use('/commands', (req, res, next) => auth(db, req, res, next));
+    router.use('/commands', auth);
     
+    router.post('/commands', authPostCommand);
     router.post('/commands', async (req, res) => {
         try {
             const cmdDets = await addCommand(req, res)
@@ -575,6 +594,11 @@ function main(db, cb) {
             return Err.respond(err, res);
         }
     });
+
+    router.use('/auth', auth);
+    router.get('/auth', (req, res) => res.json({
+        userId: req.userId
+    }));
 
     if (!args.port) args.port = 4000;
 

@@ -58,7 +58,7 @@ namespace core_Receiver
                     PrintHelp(line);
                     break;
                 case ':': //Commands
-                    HandleCommand(line);
+                    HandleCommand(line, true);
                     break;
                 case '/': //Simple
                     HandleSimpleLine(line, 0x00);
@@ -162,11 +162,11 @@ Command starting characters:
             HandleMessage(reader.Encoded, packetType, true);
         }
 
-        byte HandleCommand(string line)
+        public byte HandleCommand(string line, bool interactive)
         {
             var reader = new SimpleLineReader(line.Substring(1));
             reader.Go();
-            return HandleCommand(reader.Encoded.ToList(), true);
+            return HandleCommand(reader.Encoded.ToList(), interactive);
         }
 
         public byte HandleCommand(List<byte> data, bool interactive)

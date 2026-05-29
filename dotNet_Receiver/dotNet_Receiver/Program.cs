@@ -310,8 +310,11 @@ Authentication token can be supplied in a file called 'token'.
             { PacketTypes.Command, ConsoleColor.Blue }
         };
 
+        public static Dictionary<byte, (DateTimeOffset received, double rssi, double snr)> _lastDirectPackets = new Dictionary<byte, (DateTimeOffset received, double rssi, double snr)>();
+
         static void WritePacket(DateTime receivedTime, Packet packet, bool corrupt)
         {
+            _lastDirectPackets[packet.sendingStation] = (receivedTime, packet.RSSI, packet.SNR);
             var errorRegex = new Regex(@"ERR:-?\d+ \(-?\d+s\)");
             lock (_consoleLock)
             {

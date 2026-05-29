@@ -52,6 +52,7 @@
 <script>
 import singleStationView from './singleStationView.vue';
 import Vue from 'vue';
+import mapboxKey from './mapboxKey.js';
 
 const directionNames = {
     0: 'N',
@@ -82,7 +83,7 @@ export default {
     data() {
         return {
             credentials: {
-                map: 'pk.eyJ1IjoiaW5nYWxscyIsImEiOiJjbG12OWE1eTIwZmoxMm1wZWdnNnJiNXYxIn0.VnEsi3jdemHZbOcQQAL1hQ',
+                map: mapboxKey,
             },
             mapLoaded: false,
             title: 'Sierra Gliding',

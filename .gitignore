@@ -12,3 +12,4 @@ RemoteStation/saved
 /dotNet_Receiver/dotNet_Receiver/Token.txt
 /dotNet_Receiver/dotNet_Receiver/Token
 /.vscode/launch.json
+web/site/src/components/mapboxKey.js

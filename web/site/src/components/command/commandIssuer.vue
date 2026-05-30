@@ -38,7 +38,7 @@
             <option>CodingRate</option>
             <option>RelayListenPeriod</option>
         </select>
-        <input v-model="RadioParameter" type="number"/>
+        <input v-model="radioParameter" type="number"/>
     </div>
     <div v-if="selectedCommand=='Relay'">
         <select v-model="relayAdd">
@@ -81,7 +81,10 @@
             <input v-model="chargeFreezingCurrent" type="number"/>
         </div>
     </div>
-    <button class="btn" @click="go">Go!</button>
+    <form v-on:submit.prevent="go">
+        <input v-if="selectedCommand=='Raw'" v-model="rawCommand"/>
+        <button class="btn" type="submit">Go!</button>
+    </form>
 </div>
 </template>
 <script>
@@ -109,10 +112,11 @@ export default {
         chargeVoltage: 4150,
         chargeFreezingVoltage: 4000,
         chargeResponsitivity: 40,
-        chargeFreezingCurrent: 6
+        chargeFreezingCurrent: 6,
+        rawCommand: null
     }},
     watch: {
-        'station': updateRelayStations
+        'station': function() { this.updateRelayStations(); }
     },
     computed: {
         
@@ -128,7 +132,10 @@ export default {
             }
             try
             {
-                const cmd = { commandType: this.selectedCommand }
+                const cmd = { 
+                    stationId: this.stationId,
+                    commandType: this.selectedCommand 
+                }
                 switch (this.selectedCommand)
                 {
                     case 'QueryConfig':
@@ -138,52 +145,61 @@ export default {
                         // Simple, no command data included
                         break;
                     case 'Battery':
-                        cmd.commandData = {
+                        cmd.commandData = JSON.stringify({
                             Threshold: this.batteryThreshold,
                             Emergency: this.batteryEmergency
-                        };
+                        });
                         break;
                     case 'Radio':
-                        cmd.commandData = {
+                        cmd.commandData = JSON.stringify({
                             Parameter: this.radioSubSelect,
                             Value: this.radioParameter
-                        }
+                        });
                         break;
                     case 'Relay':
-                        cmd.commandData = [{
+                        cmd.commandData = JSON.stringify([{
                             Add: this.relayAdd == "Add",
                             Command: this.relayCommand == "Command",
                             Id: this.relayStationId
-                        }];
+                        }]);
                         break;
                     case 'ReportInterval':
-                        cmd.commandData = {
+                        cmd.commandData = JSON.stringify({
                             Value: this.newInterval
-                        };
+                        });
                         break;
                     case 'Charging':
-                        cmd.commandData = {
+                        cmd.commandData = JSON.stringify({
                             DesiredVoltage: this.chargeVoltage,
                             ResponseRate: this.chargeResponsitivity,
                             FreezingVoltage: this.chargeFreezingVoltage,
                             FreezingPwm: this.chargeFreezingCurrent
-                        }
+                        });
                         break;
                     case 'ID':
-                        cmd.commandData = {
+                        cmd.commandData = JSON.stringify({
                             Value: this.newId
-                        };
+                        });
                         break;
+                    case "Raw":
+                        cmd.commandData = this.rawCommand;
                 }
-                const resp = await authFetch('/api/commands', {
-                    body: cmd,
+                const resp = await this.authFetch('/api/commands', {
+                    body: JSON.stringify(cmd),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     method: 'POST',
                 });
                 if (!resp.ok) {
                     throw resp.statusText
                 }
-                alert('Command posted!');
-                selectedCommand = null;
+                if (this.selectedCommand != 'Raw') {
+                    alert('Command posted!');
+                    this.selectedCommand = null;
+                }
+                else
+                    this.rawCommand = null;
             } catch (err) {
                 alert(`unable to post command: ${err}`);
             }

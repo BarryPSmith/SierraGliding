@@ -514,7 +514,7 @@ function main(db, cb) {
     router.post('/commands', async (req, res) => {
         try {
             const cmdDets = await addCommand(req, res)
-            notifyCommand(wss, cmdDets, 'add');
+            notifyCommand(wss, cmdDets, 'Add');
         } catch (err) {
             Err.respond(err, res);
         }
@@ -529,7 +529,7 @@ function main(db, cb) {
     router.post('/commands/:commandId/attempt', async (req, res) => {
         try {
             const cmdDets = await  attemptCommand(req, res);
-            notifyCommand(wss, cmdDets, 'attempt');
+            notifyCommand(wss, cmdDets, 'Attempt');
         } catch (err) {
             Err.respond(err, res);
         }
@@ -537,7 +537,7 @@ function main(db, cb) {
     router.post('/commands/:commandId/response', async (req, res) => {
         try {
             const cmdDets = await respondCommand(req, res);
-            notifyCommand(wss, cmdDets, 'respond');
+            notifyCommand(wss, cmdDets, 'Respond');
         } catch (err) {
             Err.respond(err, res);
         }
@@ -546,7 +546,7 @@ function main(db, cb) {
         {
             try {
                 const cmdDets = await deleteCommand(req, res);
-                notifyCommand(wss, cmdDets, 'delete'); 
+                notifyCommand(wss, cmdDets, 'Remove'); 
             } catch (err) {
                 Err.respond(err, res);
             }

@@ -18,7 +18,7 @@ namespace core_Receiver
     internal class CommandServer
     {
         AsyncAutoResetEvent _pollEvent = new AsyncAutoResetEvent(true);
-        AsyncAutoResetEvent _commandEvent = new AsyncAutoResetEvent(true);
+        AsyncAutoResetEvent _commandEvent = new AsyncAutoResetEvent(false);
         ConcurrentDictionary<(byte stationId, byte messageId), (int foreignId, DateTimeOffset cmdTime)> _localIds = new ConcurrentDictionary<(byte stationId, byte messageId), (int foreignId, DateTimeOffset cmdTime)>();
 
         CommandInterpreter _commandInterpreter;
@@ -27,9 +27,9 @@ namespace core_Receiver
 
         DateTimeOffset? _nextCommandTime = null;
 
-        TimeSpan CommandInterval = TimeSpan.FromSeconds(10);
+        TimeSpan CommandInterval = TimeSpan.FromSeconds(5);
         TimeSpan CommandDuration = TimeSpan.FromMinutes(2);
-        TimeSpan PollInterval = TimeSpan.FromSeconds(10);
+        TimeSpan PollInterval = TimeSpan.FromSeconds(60);
 
         static HttpClient Client => DataPosting._client;
         string _url;
@@ -212,7 +212,7 @@ namespace core_Receiver
                 byte messageId;
                 if (command.command_type == CommandType.Raw)
                 {
-                    messageId = _commandInterpreter.HandleCommand(command.command_data, false);
+                    messageId = _commandInterpreter.HandleCommand($"\\b{command.station_id}${command.command_data}", false);
                 }
                 else
                 {
@@ -243,6 +243,7 @@ namespace core_Receiver
         {
             return o switch
             {
+                byte b => [b],
                 int i => BitConverter.GetBytes(i),
                 uint ui => BitConverter.GetBytes(ui),
                 double d => BitConverter.GetBytes(d),
@@ -411,14 +412,14 @@ namespace core_Receiver
         {
             try
             {
-                if (packet.uniqueID == _lastMessageId)
-                    _commandEvent.Set();
                 if (!_localIds.TryRemove((packet.sendingStation, packet.uniqueID), out var source))
                     return;
                 Output.WriteLine($"Posting command response to {source.foreignId}");
                 var foreignId = source.foreignId;
                 var response = packet.SafeDataString;
                 await PostResponse(foreignId, response);
+                if (packet.uniqueID == _lastMessageId)
+                    _commandEvent.Set();
             }
             catch (Exception ex)
             {

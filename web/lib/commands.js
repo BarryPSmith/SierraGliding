@@ -11,7 +11,7 @@ export function notifyCommand(wss, cmdDets, op)
         client.send(JSON.stringify({
             type: 'command',
             id: cmdDets.stationId,
-            command_id: cmdDets.commandId,
+            commandId: cmdDets.commandId,
             op: op
         }));
     });
@@ -40,9 +40,8 @@ export async function addCommand(req, res)
 
     const rowId = await dbGet(`INSERT INTO commands (station_id, command_type, command_data, request_time, attempts)
         VALUES
-        ($id, $command_type, $command_data, $request_time);
-        
-        SELECT last_insert_rowid()`,
+        ($id, $command_type, $command_data, $request_time, 0) 
+        RETURNING ID;`,
         {
             $id: req.body.stationId,
             $command_type: req.body.commandType,
@@ -51,9 +50,12 @@ export async function addCommand(req, res)
         });
     res.json({
         result: 'success',
-        commandId: rowId
+        commandId: rowId.ID
     });
-    return rowId;
+    return {
+        stationId: req.body.stationId,
+        commandId: rowId.ID
+    }
 }
 
 export async function getCommands(req, res)

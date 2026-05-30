@@ -35,8 +35,8 @@ export default function database(dbpath, drop, cb) {
             CREATE TABLE IF NOT EXISTS users (
                 id                  INTEGER PRIMARY KEY,
                 username            TEXT UNIQUE,
-                password            TEXT NOT NULL,
-                salt                TEXT NOT NULL
+                password            TEXT,
+                salt                TEXT
             );
         `);
 

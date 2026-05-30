@@ -24,15 +24,14 @@
             <h2>Command History</h2>
             <commandHistory :authFetch="authFetch" :stationId="selectedStationId"/>
             <h2>New Command</h2>
-            <CommandIssuer :authFetch="authFetch" :stationId="selectedStationId"
+            <commandIssuer :authFetch="authFetch" :stationId="selectedStationId"
                 :station="selectedStation"/>
         </div>
     </div>
 </template>
 <script>
 import commandHistory from './components/command/commandHistory.vue'
-import CommandIssuer from './components/command/commandIssuer.vue';
-import commandIssuer from './components/command/commandIssuer.vue'
+import commandIssuer from './components/command/commandIssuer.vue';
 
 export default {
     name: 'management',
@@ -54,10 +53,10 @@ export default {
         };
     },
     watch: {
-        'selectedStation': function() {
-            if (this.selectedStation != null) {
+        'selectedStationName': function() {
+            if (this.selectedStationName != null) {
                 const station = this.stations.find(s =>
-                    `${s.id} ${s.name}` == this.selectedStation);
+                    `${s.id} ${s.name}` == this.selectedStationName);
                 this.selectedStation = station;
                 if (station != null) {
                     this.selectedStationId = station.id;

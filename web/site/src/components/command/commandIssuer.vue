@@ -147,26 +147,26 @@ export default {
                     case 'Battery':
                         cmd.commandData = JSON.stringify({
                             Threshold: this.batteryThreshold,
-                            Emergency: this.batteryEmergency
-                        });
+                            Emergency: this.batteryEmergency,
+                        }, null, 1);
                         break;
                     case 'Radio':
                         cmd.commandData = JSON.stringify({
                             Parameter: this.radioSubSelect,
                             Value: this.radioParameter
-                        });
+                        }, null, 1);
                         break;
                     case 'Relay':
                         cmd.commandData = JSON.stringify([{
                             Add: this.relayAdd == "Add",
                             Command: this.relayCommand == "Command",
                             Id: this.relayStationId
-                        }]);
+                        }], null, 1);
                         break;
                     case 'ReportInterval':
                         cmd.commandData = JSON.stringify({
                             Value: this.newInterval
-                        });
+                        }, null, 1);
                         break;
                     case 'Charging':
                         cmd.commandData = JSON.stringify({
@@ -174,12 +174,12 @@ export default {
                             ResponseRate: this.chargeResponsitivity,
                             FreezingVoltage: this.chargeFreezingVoltage,
                             FreezingPwm: this.chargeFreezingCurrent
-                        });
+                        }, null, 1);
                         break;
                     case 'ID':
                         cmd.commandData = JSON.stringify({
                             Value: this.newId
-                        });
+                        }, null, 1);
                         break;
                     case "Raw":
                         cmd.commandData = this.rawCommand;
@@ -195,7 +195,6 @@ export default {
                     throw resp.statusText
                 }
                 if (this.selectedCommand != 'Raw') {
-                    alert('Command posted!');
                     this.selectedCommand = null;
                 }
                 else

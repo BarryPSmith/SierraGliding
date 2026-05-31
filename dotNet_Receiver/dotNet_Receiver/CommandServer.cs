@@ -196,7 +196,7 @@ namespace core_Receiver
                 await PostResponse(command.ID, "No direct packets received.");
                 return;
             }
-            var age = tpl.received - DateTimeOffset.Now;
+            var age = DateTimeOffset.Now - tpl.received;
             await PostResponse(command.ID,
                 $"Age: {age.TotalSeconds:F1} s ({tpl.received:yyyy-MM-dd HH:mm:ss})\n" +
                 $"RSSI: {tpl.rssi:F1} dBm\n" +

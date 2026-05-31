@@ -12,7 +12,7 @@
             <tr v-for="command in commands">
                 <td>{{command.ID}}</td>
                 <td>{{new Date(command.request_time * 1000).toDatetimeLocal2()}}</td>
-                <td>{{command.command_type}}</td>
+                <td style="max-width: 150px; text-wrap-mode: wrap;">{{command.command_type}}<br>{{command.command_data}}</td>
                 <td>{{command.attempts}}</td>
                 <td class="pre">{{command.response}}</td>
                 <td>{{command.response_time ? new Date(command.response_time * 1000).toDatetimeLocal2() : ''}}</td>
